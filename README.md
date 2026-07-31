@@ -78,7 +78,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md), [SECURITY.md](SECURITY.md), [DEPLOYMENT.
 Remote MCP is fail-closed unless both `QUEUEPROOF_MCP_TOKEN` and `QUEUEPROOF_MCP_WORKSPACE_ID` are configured. Use a secret environment variable in clients; never embed the token in checked-in JSON.
 
 ```bash
-codex mcp add queueproof --url https://your-deployment.example/mcp \
+codex mcp add queueproof --url https://your-deployment.example/api/mcp \
   --bearer-token-env-var QUEUEPROOF_MCP_TOKEN
 ```
 

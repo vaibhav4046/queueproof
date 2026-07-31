@@ -18,7 +18,7 @@ Both `QUEUEPROOF_MCP_TOKEN` and `QUEUEPROOF_MCP_WORKSPACE_ID` must be configured
 
 ## MCP returns 401
 
-Set the client’s bearer-token environment variable. Do not paste a token into checked-in configuration. Confirm the client points to `/mcp`.
+Set the client’s bearer-token environment variable. Do not paste a token into checked-in configuration. Confirm the client points to `/api/mcp`.
 
 ## D1 binding missing
 

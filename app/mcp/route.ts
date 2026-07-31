@@ -49,7 +49,7 @@ async function serve(request: Request) {
       token: "[validated]",
       clientId: "queueproof-bearer-client",
       scopes: ["queueproof:read", "queueproof:propose", "queueproof:sync"],
-      resource: new URL(`${requestUrl.origin}/mcp`),
+      resource: new URL(`${requestUrl.origin}${requestUrl.pathname}`),
     },
   });
 }
@@ -57,4 +57,3 @@ async function serve(request: Request) {
 export const GET = serve;
 export const POST = serve;
 export const DELETE = serve;
-

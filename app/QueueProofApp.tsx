@@ -1172,7 +1172,7 @@ function ControlPlaneView({
         <section className="agent-layout">
           <div className="panel agent-endpoint">
             <span className="eyebrow">STREAMABLE HTTP</span>
-            <h3>/mcp</h3>
+            <h3>/api/mcp</h3>
             <p>Authentication is fail-closed. The bearer token stays in <code>QUEUEPROOF_MCP_TOKEN</code>; it is never written into client configuration.</p>
             <div className="proof-facts">
               <div><span>Workspace proof</span><strong>{connectors.length ? `${connectors.length} verified source${connectors.length === 1 ? "" : "s"}` : "No verified sources"}</strong></div>

@@ -46,19 +46,19 @@ skills.command("list").action(() => console.log("Portable skills are under ./ski
 skills.command("install").argument("<path>").action((path) => console.log(`Review and install ${path} in the QueueProof Skill Registry.`));
 
 const mcp = program.command("mcp");
-mcp.command("serve").action(() => console.log("Run `pnpm dev`; the authenticated endpoint is /mcp."));
+mcp.command("serve").action(() => console.log("Run `pnpm dev`; the authenticated endpoint is /api/mcp."));
 mcp.command("install").argument("<client>").action(async (client) => {
   const file = projectConfigPath[client];
   if (!file) throw new Error("Client must be codex, claude, kimi, or kilo.");
-  console.log(await installClientConfig({ client, file, endpoint: `${base()}/mcp` }));
+  console.log(await installClientConfig({ client, file, endpoint: `${base()}/api/mcp` }));
 });
-mcp.command("verify").action(() => console.log(`Test ${base()}/mcp with an MCP client and QUEUEPROOF_MCP_TOKEN.`));
+mcp.command("verify").action(() => console.log(`Test ${base()}/api/mcp with an MCP client and QUEUEPROOF_MCP_TOKEN.`));
 
 const client = program.command("client");
 client.command("install").argument("<client>").option("--endpoint <url>").action(async (name, options) => {
   const file = projectConfigPath[name];
   if (!file) throw new Error("Client must be codex, claude, kimi, or kilo.");
-  console.log(await installClientConfig({ client: name, file, endpoint: options.endpoint || `${base()}/mcp` }));
+  console.log(await installClientConfig({ client: name, file, endpoint: options.endpoint || `${base()}/api/mcp` }));
 });
 client.command("uninstall").argument("<client>").action(async (name) => {
   const file = projectConfigPath[name];

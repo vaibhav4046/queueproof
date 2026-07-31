@@ -22,7 +22,7 @@ pnpm build
 pnpm deploy:check
 ```
 
-Apply `drizzle/0000_bent_living_mummy.sql` to the production D1 database. Then verify `/api/health/live`, `/api/health/ready`, `/api/health/dependencies`, desktop/mobile layouts, reduced motion, and MCP’s unauthenticated 401/disabled 503 behavior.
+Apply `drizzle/0000_bent_living_mummy.sql` to the production D1 database. Then verify `/api/health/live`, `/api/health/ready`, `/api/health/dependencies`, desktop/mobile layouts, reduced motion, and `/api/mcp` unauthenticated 401/disabled 503 behavior.
 
 Deployment is not connector verification. After deployment, a user must authorise HydraDB and provider accounts, select resources, request sync, and run canary verification. Record the resulting connector receipt without copying private source data into public artifacts.
 
