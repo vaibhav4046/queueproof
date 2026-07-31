@@ -5,12 +5,11 @@ import { QueueProofApp } from "./QueueProofApp";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Command",
+  title: "Command — Know What Moves Next",
   description:
-    "A defensible next action, ranked deterministically and backed by source-level evidence.",
+    "Turn explicit commitments into one defensible next action, ranked by visible policy and backed by source-level evidence.",
 };
 
 export default function Home() {
   return <QueueProofApp testMode={testModeEnabled()} />;
 }
-

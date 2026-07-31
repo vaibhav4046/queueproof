@@ -20,10 +20,10 @@ export async function generateMetadata(): Promise<Metadata> {
     requestHeaders.get("x-forwarded-proto") ??
     (host?.startsWith("localhost") || host?.startsWith("127.0.0.1") ? "http" : "https");
   const metadataBase = new URL(host ? `${protocol}://${host}` : "https://queueproof.openai.site");
-  const title = "QueueProof — Agent Priority and Execution Control Plane";
+  const title = "QueueProof — Know What Moves Next";
   const description =
     "QueueProof reconstructs commitments and dependencies across workplace systems and produces defensible next actions with source-level evidence.";
-  const image = new URL("/og.png", metadataBase).toString();
+  const image = new URL("/queueproof-sentinel.png", metadataBase).toString();
   return {
     metadataBase,
     title: { default: title, template: "%s · QueueProof" },
@@ -33,7 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
       type: "website",
       title,
       description,
-      images: [{ url: image, width: 1536, height: 1024, alt: "QueueProof evidence graph converging on one next action" }],
+      images: [{ url: image, width: 1536, height: 1024, alt: "QueueProof evidence sentinel holding message, graph, and proof artifacts" }],
     },
     twitter: {
       card: "summary_large_image",

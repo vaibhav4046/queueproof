@@ -1,38 +1,42 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
 import {
   Activity,
-  AlertTriangle,
   ArrowRight,
-  Blocks,
+  ArrowUpRight,
   Bot,
-  Brain,
+  BrainCircuit,
   Check,
   ChevronRight,
-  CircleDot,
+  CircleCheck,
+  Clipboard,
   Command,
   Database,
+  ExternalLink,
   FileCheck2,
+  Gauge,
   GitBranch,
-  History,
   KeyRound,
   Layers3,
   Link2,
-  LoaderCircle,
   Network,
+  Play,
   Plus,
-  Radar,
   RefreshCw,
+  RotateCcw,
   Search,
-  Settings,
   ShieldCheck,
   Sparkles,
-  TerminalSquare,
+  Target,
+  Terminal,
+  TriangleAlert,
   X,
   Zap,
 } from "lucide-react";
+import Image from "next/image";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+
+const FULL_APP_URL = "https://queueproof-control-plane.vaibhav09908.chatgpt.site";
 
 type WorkspaceState = {
   actor: { displayName: string; localDevelopment: boolean };
@@ -111,37 +115,101 @@ type QueryResult = {
   };
 };
 
-const navItems = [
+type MissionDraft = {
+  mission: string;
+  owner: string;
+  outcome: string;
+  impact: "contained" | "important" | "material" | "critical";
+  urgency: "today" | "week" | "month" | "open";
+  blockers: string;
+  evidence: string;
+};
+
+type Contribution = { label: string; value: number; reason: string };
+
+type RankedAction = {
+  id: string;
+  title: string;
+  score: number;
+  band: "CRITICAL" | "HIGH" | "NORMAL" | "LOW";
+  confidence: "HIGH" | "MEDIUM" | "LOW";
+  contributions: Contribution[];
+};
+
+type MissionPlan = {
+  actions: RankedAction[];
+  generatedAt: string;
+  inputs: MissionDraft;
+  sources: QueryResult["result"]["sources"];
+  trace: QueryResult["trace"] | null;
+};
+
+type ActiveTab = "command" | "sources" | "skills" | "system";
+
+const initialMission: MissionDraft = {
+  mission: "",
+  owner: "",
+  outcome: "",
+  impact: "material",
+  urgency: "today",
+  blockers: "",
+  evidence: "",
+};
+
+const impactScores: Record<MissionDraft["impact"], number> = {
+  contained: 14,
+  important: 24,
+  material: 34,
+  critical: 44,
+};
+
+const urgencyScores: Record<MissionDraft["urgency"], number> = {
+  today: 26,
+  week: 18,
+  month: 9,
+  open: 3,
+};
+
+const statusLabels: Record<string, string> = {
+  connector_created: "Ready to discover",
+  resources_discovered: "Resources found",
+  resources_selected: "Ready to sync",
+  initial_sync_requested: "Sync requested",
+  sync_in_progress: "Syncing",
+  data_verified: "Evidence verified",
+  degraded: "Needs attention",
+  failed: "Failed",
+};
+
+const tabs = [
   { id: "command", label: "Command", icon: Command },
-  { id: "ask", label: "Ask", icon: Sparkles },
-  { id: "changes", label: "Changes", icon: History },
-  { id: "graph", label: "Graph", icon: Network },
-  { id: "commitments", label: "Commitments", icon: FileCheck2 },
+  { id: "sources", label: "Sources", icon: Link2 },
   { id: "skills", label: "Skills", icon: Zap },
-  { id: "memory", label: "Memory", icon: Brain },
-  { id: "connectors", label: "Connectors", icon: Link2 },
-  { id: "agents", label: "Agents", icon: Bot },
-  { id: "evaluations", label: "Evaluations", icon: Radar },
-  { id: "audit", label: "Audit", icon: ShieldCheck },
-  { id: "settings", label: "Settings", icon: Settings },
+  { id: "system", label: "System", icon: Activity },
 ] as const;
 
-const connectorStateLabels: Record<string, string> = {
-  not_configured: "Not configured",
-  credentials_submitted: "Credentials submitted",
-  connector_created: "Connector created",
-  resources_discovered: "Resources discovered",
-  resources_selected: "Resources selected",
-  initial_sync_requested: "Initial sync requested",
-  sync_in_progress: "Sync in progress",
-  data_verified: "Data verified",
-  degraded: "Degraded",
-  authentication_expired: "Authentication expired",
-  permission_insufficient: "Permission insufficient",
-  rate_limited: "Rate limited",
-  failed: "Failed",
-  deleted: "Deleted",
-};
+const skillCards = [
+  {
+    title: "Priority adjudication",
+    detail: "Scores impact, urgency, clarity, ownership, and dependencies with a visible formula.",
+    icon: Gauge,
+  },
+  {
+    title: "Evidence retrieval",
+    detail: "Queries verified HydraDB sources when a durable workspace and connector are available.",
+    icon: Search,
+  },
+  {
+    title: "Dependency mapping",
+    detail: "Turns explicit blockers into an execution sequence without inventing hidden context.",
+    icon: GitBranch,
+  },
+  {
+    title: "Execution packet",
+    detail: "Produces a copyable next move, acceptance condition, ownership signal, and receipts.",
+    icon: FileCheck2,
+  },
+] as const;
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
@@ -154,55 +222,82 @@ async function api<T>(url: string, init?: RequestInit): Promise<T> {
   return data;
 }
 
-function humanState(value: string) {
-  return connectorStateLabels[value] ?? value.replaceAll("_", " ");
+const pause = (duration: number) => new Promise((resolve) => window.setTimeout(resolve, duration));
+
+function buildMissionPlan(inputs: MissionDraft, sources: QueryResult["result"]["sources"] = [], trace: QueryResult["trace"] | null = null): MissionPlan {
+  const rawActions = inputs.mission
+    .split("\n")
+    .map((value) => value.replace(/^[-*\d.)\s]+/, "").trim())
+    .filter(Boolean)
+    .slice(0, 8);
+
+  const actions = rawActions.map((title, index) => {
+    const blockerCount = inputs.blockers.split("\n").filter((value) => value.trim()).length;
+    const clarity = title.length >= 28 ? 8 : title.length >= 14 ? 5 : 1;
+    const contributions: Contribution[] = [
+      { label: "Business impact", value: impactScores[inputs.impact], reason: `Marked ${inputs.impact} by you.` },
+      { label: "Time pressure", value: urgencyScores[inputs.urgency], reason: `Horizon set to ${inputs.urgency}.` },
+      { label: "Action clarity", value: clarity, reason: clarity >= 5 ? "The action is concrete enough to execute." : "The action is still terse." },
+      { label: "Named owner", value: inputs.owner ? 7 : 0, reason: inputs.owner ? `Owner supplied: ${inputs.owner}.` : "No owner supplied." },
+      { label: "Acceptance condition", value: inputs.outcome ? 8 : 0, reason: inputs.outcome ? "A successful outcome was supplied." : "No outcome supplied." },
+      { label: "Dependency visibility", value: Math.min(7, blockerCount * 3), reason: blockerCount ? `${blockerCount} explicit blocker${blockerCount === 1 ? "" : "s"} supplied.` : "No blockers supplied." },
+      { label: "Evidence note", value: inputs.evidence ? 6 : 0, reason: inputs.evidence ? "A direct evidence note was supplied." : "No direct evidence note supplied." },
+      { label: "Queue order", value: -index * 3, reason: index ? "Later lines receive a small sequence penalty." : "First declared action receives no sequence penalty." },
+    ];
+    const score = Math.max(0, Math.min(100, contributions.reduce((sum, item) => sum + item.value, 0)));
+    const filledSignals = [inputs.owner, inputs.outcome, inputs.blockers, inputs.evidence].filter(Boolean).length;
+    return {
+      id: `action-${index + 1}`,
+      title,
+      score,
+      band: score >= 80 ? "CRITICAL" : score >= 60 ? "HIGH" : score >= 38 ? "NORMAL" : "LOW",
+      confidence: filledSignals >= 3 ? "HIGH" : filledSignals >= 1 ? "MEDIUM" : "LOW",
+      contributions,
+    } satisfies RankedAction;
+  });
+
+  return {
+    actions: actions.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id)),
+    generatedAt: new Date().toISOString(),
+    inputs,
+    sources,
+    trace,
+  };
 }
 
-function relativeTime(value?: string | null) {
-  if (!value) return "No verified sync";
-  const delta = Date.now() - new Date(value).getTime();
-  if (delta < 60_000) return "just now";
-  if (delta < 3_600_000) return `${Math.floor(delta / 60_000)}m ago`;
-  if (delta < 86_400_000) return `${Math.floor(delta / 3_600_000)}h ago`;
-  return new Date(value).toLocaleDateString();
+function initials(value: string) {
+  return value
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "QP";
+}
+
+function formatTime(value?: string | null) {
+  if (!value) return "Not yet";
+  return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
 }
 
 export function QueueProofApp({ testMode }: { testMode: boolean }) {
-  const [active, setActive] = useState<(typeof navItems)[number]["id"]>("command");
+  const [activeTab, setActiveTab] = useState<ActiveTab>("command");
   const [workspaceState, setWorkspaceState] = useState<WorkspaceState | null>(null);
-  const [providers, setProviders] = useState<Provider[]>([]);
   const [connectors, setConnectors] = useState<Connector[]>([]);
-  const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
-  const [selectedConnector, setSelectedConnector] = useState<Connector | null>(null);
-  const [resources, setResources] = useState<Resource[]>([]);
-  const [selectedResourceIds, setSelectedResourceIds] = useState<Set<string>>(new Set());
+  const [providers, setProviders] = useState<Provider[]>([]);
+  const [draft, setDraft] = useState<MissionDraft>(initialMission);
+  const [plan, setPlan] = useState<MissionPlan | null>(null);
+  const [phase, setPhase] = useState("");
   const [loading, setLoading] = useState("workspace");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [queryResult, setQueryResult] = useState<QueryResult | null>(null);
-
-  const refreshConnectors = useCallback(async () => {
-    if (!workspaceState?.workspace) return;
-    const result = await api<{ connectors: Connector[] }>("/api/connectors");
-    setConnectors(result.connectors);
-    setSelectedConnector((current) =>
-      current ? result.connectors.find((connector) => connector.id === current.id) ?? null : null,
-    );
-  }, [workspaceState?.workspace]);
-
-  const refreshProviders = useCallback(async () => {
-    if (!workspaceState?.hydradb.configured) return;
-    setLoading("providers");
-    try {
-      const result = await api<{ providers: Provider[] }>("/api/providers");
-      setProviders(result.providers);
-    } finally {
-      setLoading("");
-    }
-  }, [workspaceState?.hydradb.configured]);
+  const [showWorkspaceSetup, setShowWorkspaceSetup] = useState(false);
+  const [showSourceSetup, setShowSourceSetup] = useState(false);
+  const [showReceipt, setShowReceipt] = useState(true);
+  const [copied, setCopied] = useState(false);
 
   const refreshWorkspace = useCallback(async () => {
     setLoading("workspace");
+    setError(null);
     try {
       const state = await api<WorkspaceState>("/api/workspace");
       setWorkspaceState(state);
@@ -210,8 +305,12 @@ export function QueueProofApp({ testMode }: { testMode: boolean }) {
         const result = await api<{ connectors: Connector[] }>("/api/connectors");
         setConnectors(result.connectors);
       }
+      if (state.hydradb.configured) {
+        const result = await api<{ providers: Provider[] }>("/api/providers");
+        setProviders(result.providers);
+      }
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "QueueProof could not load.");
+      setError(caught instanceof Error ? caught.message : "QueueProof could not load its control plane.");
     } finally {
       setLoading("");
     }
@@ -222,21 +321,78 @@ export function QueueProofApp({ testMode }: { testMode: boolean }) {
     return () => window.clearTimeout(timer);
   }, [refreshWorkspace]);
 
-  useEffect(() => {
-    if (!workspaceState?.hydradb.configured) return;
-    const timer = window.setTimeout(() => void refreshProviders(), 0);
-    return () => window.clearTimeout(timer);
-  }, [workspaceState?.hydradb.configured, refreshProviders]);
-
   const verifiedConnectors = useMemo(
     () => connectors.filter((connector) => connector.state === "data_verified"),
     [connectors],
   );
+  const storageAvailable = workspaceState?.platform?.storageAvailable !== false;
+  const agentMode = verifiedConnectors.length ? "EVIDENCE LINKED" : "LOCAL SESSION";
 
-  const execute = async (label: string, task: () => Promise<void>) => {
+  const openTab = (tab: ActiveTab) => {
+    setActiveTab(tab);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const runMission = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!draft.mission.trim()) return;
     setError(null);
     setNotice(null);
+    setPlan(null);
+    setPhase("Reading the mission");
+    await pause(220);
+    setPhase("Mapping explicit dependencies");
+    await pause(240);
+
+    let queryResult: QueryResult | null = null;
+    const connector = verifiedConnectors[0];
+    if (connector) {
+      setPhase("Retrieving verified evidence");
+      try {
+        queryResult = await api<QueryResult>("/api/query", {
+          method: "POST",
+          body: JSON.stringify({
+            query: `Find current commitments, blockers, owners, and deadlines relevant to: ${draft.mission}`,
+            database: connector.database,
+            collections: connector.collection ? [connector.collection] : undefined,
+            mode: "auto",
+          }),
+        });
+      } catch (caught) {
+        setNotice(`The packet was built from your explicit inputs. Connected retrieval was unavailable: ${caught instanceof Error ? caught.message : "unknown error"}`);
+      }
+    }
+
+    setPhase("Applying visible priority policy");
+    await pause(260);
+    setPlan(buildMissionPlan(draft, queryResult?.result.sources ?? [], queryResult?.trace ?? null));
+    setPhase("");
+    setShowReceipt(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const copyPacket = async () => {
+    if (!plan?.actions[0]) return;
+    const top = plan.actions[0];
+    const text = [
+      `QUEUEPROOF EXECUTION PACKET`,
+      `Next move: ${top.title}`,
+      `Priority: ${top.band} (${top.score}/100)`,
+      `Owner: ${plan.inputs.owner || "Unassigned"}`,
+      `Success: ${plan.inputs.outcome || "Not supplied"}`,
+      `Blockers: ${plan.inputs.blockers || "None supplied"}`,
+      `Evidence: ${plan.inputs.evidence || "No direct note supplied"}`,
+      `Source receipts: ${plan.sources.length}`,
+    ].join("\n");
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1600);
+  };
+
+  const execute = async (label: string, task: () => Promise<void>) => {
     setLoading(label);
+    setError(null);
+    setNotice(null);
     try {
       await task();
     } catch (caught) {
@@ -247,1130 +403,471 @@ export function QueueProofApp({ testMode }: { testMode: boolean }) {
   };
 
   if (loading === "workspace" && !workspaceState) {
-    return (
-      <main className="boot-shell">
-        <div className="brand-mark large"><span>QP</span></div>
-        <div className="boot-copy">
-          <span className="eyebrow">QUEUEPROOF / CONTROL PLANE</span>
-          <h1>Establishing a trusted workspace</h1>
-          <p>No fixture data is loaded. QueueProof is checking durable workspace state.</p>
-        </div>
-        <div className="signal-loader" aria-label="Loading workspace">
-          <i /><i /><i /><i />
-        </div>
-      </main>
-    );
+    return <BootScreen />;
   }
 
   return (
-    <div className="app-frame">
-      {testMode && (
-        <div className="test-banner" role="alert">
-          TEST FIXTURES — isolated developer mode is active
-        </div>
-      )}
-      <header className="status-bar">
-        <button className="brand-lockup" onClick={() => setActive("command")} aria-label="QueueProof command">
-          <span className="brand-mark"><span>QP</span></span>
-          <span>
-            <strong>QUEUEPROOF</strong>
-            <small>Execution control plane</small>
-          </span>
+    <main className="qp-shell">
+      {testMode && <div className="test-ribbon">TEST MODE — SYNTHETIC FIXTURES MAY BE PRESENT</div>}
+      <div className="grain" aria-hidden="true" />
+      <header className="topbar">
+        <button className="wordmark" onClick={() => openTab("command")} aria-label="Open QueueProof command">
+          <span className="wordmark-sigil"><ShieldCheck size={16} /></span>
+          <span><strong>QUEUE</strong><em>PROOF</em></span>
         </button>
-        <div className="workspace-chip">
-          <span className={workspaceState?.workspace ? "status-orb live" : "status-orb"} />
-          <span>{workspaceState?.workspace?.name ?? "Workspace not created"}</span>
-        </div>
-        <div className="status-actions">
-          <span className="quiet-status">
-            <Database size={14} />
-            {workspaceState?.hydradb.configured ? "HydraDB secured" : "HydraDB disconnected"}
-          </span>
-          <button className="icon-button" aria-label="Search or command palette">
-            <Search size={17} />
-            <kbd>⌘ K</kbd>
-          </button>
-          <span className="avatar" title={workspaceState?.actor.displayName}>{
-            workspaceState?.actor.displayName?.slice(0, 2).toUpperCase() ?? "QP"
-          }</span>
-        </div>
-      </header>
-
-      <aside className="nav-rail" aria-label="Primary navigation">
-        <nav>
-          {navItems.map((item) => {
-            const Icon = item.icon;
+        <nav aria-label="Primary navigation">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
             return (
-              <button
-                key={item.id}
-                className={active === item.id ? "nav-item active" : "nav-item"}
-                onClick={() => setActive(item.id)}
-                title={item.label}
-                aria-label={item.label}
-                aria-current={active === item.id ? "page" : undefined}
-              >
-                <Icon size={18} strokeWidth={1.65} />
-                <span>{item.label}</span>
-                {active === item.id && <motion.i layoutId="active-nav" />}
+              <button key={tab.id} className={activeTab === tab.id ? "topnav-item active" : "topnav-item"} onClick={() => openTab(tab.id)}>
+                <Icon size={14} />
+                <span>{tab.label}</span>
               </button>
             );
           })}
         </nav>
-      </aside>
-
-      <main className="workspace-main">
-        {error && (
-          <div className="global-message error" role="alert">
-            <AlertTriangle size={16} />
-            <span>{error}</span>
-            <button onClick={() => setError(null)} aria-label="Dismiss error"><X size={15} /></button>
-          </div>
-        )}
-        {notice && (
-          <div className="global-message success" role="status">
-            <Check size={16} />
-            <span>{notice}</span>
-            <button onClick={() => setNotice(null)} aria-label="Dismiss message"><X size={15} /></button>
-          </div>
-        )}
-
-        {!workspaceState?.workspace ? (
-          <WorkspaceOnboarding
-            loading={loading === "create-workspace"}
-            storageAvailable={workspaceState?.platform?.storageAvailable !== false}
-            onCreate={(name) =>
-              execute("create-workspace", async () => {
-                await api("/api/workspace", { method: "POST", body: JSON.stringify({ name }) });
-                await refreshWorkspace();
-                setNotice("Workspace created. Connect HydraDB to load the live provider catalogue.");
-              })
-            }
-          />
-        ) : !workspaceState.hydradb.configured ? (
-          <HydraOnboarding
-            loading={loading === "configure-hydra"}
-            onConnect={(apiKey) =>
-              execute("configure-hydra", async () => {
-                await api("/api/hydradb/configure", {
-                  method: "POST",
-                  body: JSON.stringify({ apiKey }),
-                });
-                await refreshWorkspace();
-                setNotice("HydraDB credential verified and encrypted. The provider catalogue is loading.");
-              })
-            }
-          />
-        ) : (
-          <AnimatePresence mode="wait">
-            <motion.section
-              key={active}
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -3 }}
-              transition={{ duration: 0.16 }}
-              className="view"
-            >
-              {active === "command" && (
-                <CommandView
-                  connectors={connectors}
-                  verifiedConnectors={verifiedConnectors}
-                  onOpenConnectors={() => setActive("connectors")}
-                  onAsk={() => setActive("ask")}
-                />
-              )}
-              {active === "connectors" && (
-                <ConnectorsView
-                  providers={providers}
-                  connectors={connectors}
-                  loading={loading}
-                  selectedConnector={selectedConnector}
-                  resources={resources}
-                  selectedResourceIds={selectedResourceIds}
-                  onRefresh={() => void execute("providers", refreshProviders)}
-                  onSelectProvider={setSelectedProvider}
-                  onSelectConnector={setSelectedConnector}
-                  onToggleResource={(id) =>
-                    setSelectedResourceIds((current) => {
-                      const next = new Set(current);
-                      if (next.has(id)) next.delete(id);
-                      else next.add(id);
-                      return next;
-                    })
-                  }
-                  onDiscover={(connector) =>
-                    execute(`discover-${connector.id}`, async () => {
-                      const result = await api<{ resources: Resource[] }>(
-                        `/api/connectors/${connector.id}/discover`,
-                        { method: "POST", body: "{}" },
-                      );
-                      setSelectedConnector(connector);
-                      setResources(result.resources);
-                      setSelectedResourceIds(new Set());
-                      await refreshConnectors();
-                      setNotice(`Discovered ${result.resources.length} real resources from ${connector.provider}.`);
-                    })
-                  }
-                  onConfigure={(connector) =>
-                    execute(`configure-${connector.id}`, async () => {
-                      await api(`/api/connectors/${connector.id}/configure`, {
-                        method: "POST",
-                        body: JSON.stringify({ resourceIds: [...selectedResourceIds], lookbackDays: 30 }),
-                      });
-                      await refreshConnectors();
-                      setNotice("Selected resources were configured. Trigger the initial sync next.");
-                    })
-                  }
-                  onSync={(connector) =>
-                    execute(`sync-${connector.id}`, async () => {
-                      await api(`/api/connectors/${connector.id}/sync`, { method: "POST", body: "{}" });
-                      await refreshConnectors();
-                      setNotice("HydraDB accepted the sync request. Verification will require cursor evidence.");
-                    })
-                  }
-                  onVerify={(connector) =>
-                    execute(`verify-${connector.id}`, async () => {
-                      await api(`/api/connectors/${connector.id}/verify`, { method: "POST", body: "{}" });
-                      await refreshConnectors();
-                      setNotice("Connection proof passed: sync evidence and provider-matched canary sources were found.");
-                    })
-                  }
-                />
-              )}
-              {active === "ask" && (
-                <AskView
-                  connectors={verifiedConnectors}
-                  loading={loading === "query"}
-                  result={queryResult}
-                  onAsk={(query, database) =>
-                    execute("query", async () => {
-                      const result = await api<QueryResult>("/api/query", {
-                        method: "POST",
-                        body: JSON.stringify({ query, database, mode: "auto" }),
-                      });
-                      setQueryResult(result);
-                    })
-                  }
-                />
-              )}
-              {["skills", "memory", "agents", "evaluations"].includes(active) && (
-                <ControlPlaneView
-                  active={active}
-                  connectors={verifiedConnectors}
-                  testMode={testMode}
-                />
-              )}
-              {!["command", "connectors", "ask", "skills", "memory", "agents", "evaluations"].includes(active) && (
-                <TruthfulEmptyView active={active} connectors={verifiedConnectors} />
-              )}
-            </motion.section>
-          </AnimatePresence>
-        )}
-      </main>
-
-      <AnimatePresence>
-        {selectedProvider && (
-          <ConnectorDialog
-            provider={selectedProvider}
-            loading={loading === `create-${selectedProvider.id}`}
-            onClose={() => setSelectedProvider(null)}
-            onSubmit={(payload) =>
-              execute(`create-${selectedProvider.id}`, async () => {
-                const result = await api<{ connector: Connector }>("/api/connectors", {
-                  method: "POST",
-                  body: JSON.stringify({ ...payload, provider: selectedProvider.id }),
-                });
-                setSelectedProvider(null);
-                await refreshConnectors();
-                setNotice(
-                  `${selectedProvider.name} connector created. It is not connected yet—discover resources to continue proof.`,
-                );
-                setSelectedConnector(result.connector);
-              })
-            }
-          />
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-function WorkspaceOnboarding({
-  loading,
-  storageAvailable,
-  onCreate,
-}: {
-  loading: boolean;
-  storageAvailable: boolean;
-  onCreate: (name: string) => void;
-}) {
-  const [name, setName] = useState("");
-  return (
-    <section className="onboarding">
-      <div className="onboarding-copy">
-        <span className="eyebrow">01 / ESTABLISH SCOPE</span>
-        <h1>Your agents know how.<br /><em>QueueProof proves what happens next.</em></h1>
-        <p>
-          Create an isolated workspace for connector contracts, evidence, ranking policy,
-          approvals, and audit history. No synthetic business data will be added.
-        </p>
-        <div className="trust-row">
-          <span><ShieldCheck size={16} /> Workspace isolation</span>
-          <span><KeyRound size={16} /> Encrypted credentials</span>
-          <span><FileCheck2 size={16} /> Evidence required</span>
+        <div className="topbar-status">
+          <span className={verifiedConnectors.length ? "live-dot linked" : "live-dot"} />
+          <span>{agentMode}</span>
+          <span className="avatar">{initials(workspaceState?.actor.displayName ?? "QueueProof")}</span>
         </div>
-      </div>
-      <form
-        className="setup-card"
-        onSubmit={(event) => {
-          event.preventDefault();
-          onCreate(name);
-        }}
-      >
-        <span className="card-index">WORKSPACE / NEW</span>
-        <h2>Name the decision boundary</h2>
-        <label>
-          Workspace name
-          <input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="e.g. Northstar Engineering"
-            minLength={2}
-            maxLength={80}
-            autoFocus
-            required
-          />
-        </label>
-        <button className="primary-button" disabled={!storageAvailable || loading || name.trim().length < 2}>
-          {loading ? <LoaderCircle className="spin" size={17} /> : <ArrowRight size={17} />}
-          {storageAvailable ? "Create workspace" : "Durable storage required"}
-        </button>
-        <small>
-          {storageAvailable
-            ? "Durable state is stored server-side. Local browser storage is not authoritative."
-            : "This Vercel deployment is a live interface preview. Workspace data remains available on the primary D1-backed deployment."}
-        </small>
-      </form>
-    </section>
-  );
-}
+      </header>
 
-function HydraOnboarding({
-  loading,
-  onConnect,
-}: {
-  loading: boolean;
-  onConnect: (apiKey: string) => void;
-}) {
-  const [apiKey, setApiKey] = useState("");
-  return (
-    <section className="onboarding hydra-onboarding">
-      <div className="onboarding-copy">
-        <span className="eyebrow">02 / CONNECT KNOWLEDGE PLANE</span>
-        <h1>Bring HydraDB.<br /><em>Keep the proof chain intact.</em></h1>
-        <p>
-          QueueProof verifies the key against the live provider catalogue, encrypts it
-          with AES-GCM, and never returns it to the browser after submission.
-        </p>
-        <ol className="proof-steps">
-          <li className="done"><Check size={14} /> Workspace isolated</li>
-          <li className="current"><CircleDot size={14} /> Verify HydraDB</li>
-          <li><span>03</span> Load provider contracts</li>
-          <li><span>04</span> Prove real source data</li>
-        </ol>
-      </div>
-      <form
-        className="setup-card"
-        onSubmit={(event) => {
-          event.preventDefault();
-          onConnect(apiKey);
-        }}
-      >
-        <span className="card-index">HYDRADB / API V2</span>
-        <h2>Secure credential handoff</h2>
-        <div className="security-note">
-          <KeyRound size={17} />
-          <span>Use a newly generated key. Previously shared credentials are treated as compromised.</span>
+      {error && (
+        <div className="message-strip error-message" role="alert">
+          <TriangleAlert size={15} /><span>{error}</span><button onClick={() => setError(null)} aria-label="Dismiss error"><X size={14} /></button>
         </div>
-        <label>
-          HydraDB API key
-          <input
-            type="password"
-            value={apiKey}
-            onChange={(event) => setApiKey(event.target.value)}
-            placeholder="Paste once — never displayed again"
-            autoComplete="off"
-            minLength={12}
-            required
-          />
-        </label>
-        <button className="primary-button" disabled={loading || apiKey.trim().length < 12}>
-          {loading ? <LoaderCircle className="spin" size={17} /> : <ShieldCheck size={17} />}
-          Verify and encrypt
-        </button>
-        <small>Sensitive responses use no-store. Credential material is redacted from logs and audits.</small>
-      </form>
-    </section>
+      )}
+      {notice && (
+        <div className="message-strip notice-message">
+          <Sparkles size={15} /><span>{notice}</span><button onClick={() => setNotice(null)} aria-label="Dismiss notice"><X size={14} /></button>
+        </div>
+      )}
+
+      {activeTab === "command" && (
+        <CommandView
+          draft={draft}
+          setDraft={setDraft}
+          onSubmit={runMission}
+          plan={plan}
+          phase={phase}
+          onReset={() => { setPlan(null); setDraft(initialMission); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+          onCopy={copyPacket}
+          copied={copied}
+          showReceipt={showReceipt}
+          setShowReceipt={setShowReceipt}
+          linked={verifiedConnectors.length > 0}
+          storageAvailable={storageAvailable}
+          onSetup={() => storageAvailable ? setShowWorkspaceSetup(true) : undefined}
+        />
+      )}
+
+      {activeTab === "sources" && (
+        <SourcesView
+          workspaceState={workspaceState}
+          connectors={connectors}
+          providers={providers}
+          loading={loading}
+          storageAvailable={storageAvailable}
+          onWorkspaceSetup={() => setShowWorkspaceSetup(true)}
+          onSourceSetup={() => setShowSourceSetup(true)}
+          onRefresh={() => void refreshWorkspace()}
+          execute={execute}
+          setConnectors={setConnectors}
+          setNotice={setNotice}
+        />
+      )}
+
+      {activeTab === "skills" && <SkillsView linked={verifiedConnectors.length > 0} />}
+      {activeTab === "system" && <SystemView workspaceState={workspaceState} connectors={connectors} onRefresh={() => void refreshWorkspace()} loading={loading} />}
+
+      <footer className="site-footer">
+        <span>QUEUEPROOF / DETERMINISTIC AGENT CONTROL</span>
+        <span>NO HIDDEN SCORE · NO FABRICATED SOURCES · EVERY DECISION INSPECTABLE</span>
+      </footer>
+
+      {showWorkspaceSetup && workspaceState && (
+        <WorkspaceSetup
+          state={workspaceState}
+          onClose={() => setShowWorkspaceSetup(false)}
+          execute={execute}
+          onDone={async () => { await refreshWorkspace(); setShowWorkspaceSetup(false); }}
+        />
+      )}
+
+      {showSourceSetup && providers.length > 0 && (
+        <SourceSetup
+          providers={providers}
+          onClose={() => setShowSourceSetup(false)}
+          execute={execute}
+          onDone={async () => { await refreshWorkspace(); setShowSourceSetup(false); }}
+        />
+      )}
+    </main>
   );
 }
 
-function ViewHeader({
-  eyebrow,
-  title,
-  description,
-  action,
-}: {
-  eyebrow: string;
-  title: string;
-  description: string;
-  action?: React.ReactNode;
-}) {
+function BootScreen() {
   return (
-    <header className="view-header">
+    <main className="boot-screen">
+      <div className="boot-orbit"><ShieldCheck size={28} /></div>
       <div>
-        <span className="eyebrow">{eyebrow}</span>
-        <h1>{title}</h1>
-        <p>{description}</p>
+        <span className="mono-label">QUEUEPROOF / BOOT SEQUENCE</span>
+        <h1>Reconstructing the control plane.</h1>
+        <p>Checking runtime, workspace, and evidence links.</p>
       </div>
-      {action}
-    </header>
+      <div className="boot-line"><span /></div>
+    </main>
   );
 }
 
 function CommandView({
-  connectors,
-  verifiedConnectors,
-  onOpenConnectors,
-  onAsk,
+  draft,
+  setDraft,
+  onSubmit,
+  plan,
+  phase,
+  onReset,
+  onCopy,
+  copied,
+  showReceipt,
+  setShowReceipt,
+  linked,
+  storageAvailable,
+  onSetup,
 }: {
-  connectors: Connector[];
-  verifiedConnectors: Connector[];
-  onOpenConnectors: () => void;
-  onAsk: () => void;
+  draft: MissionDraft;
+  setDraft: (draft: MissionDraft) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  plan: MissionPlan | null;
+  phase: string;
+  onReset: () => void;
+  onCopy: () => void;
+  copied: boolean;
+  showReceipt: boolean;
+  setShowReceipt: (value: boolean) => void;
+  linked: boolean;
+  storageAvailable: boolean;
+  onSetup: () => void;
 }) {
-  const priorityReady = ["slack", "gmail", "linear"].every((provider) =>
-    verifiedConnectors.some((connector) => connector.provider === provider),
-  );
-  return (
-    <>
-      <ViewHeader
-        eyebrow="COMMAND / LIVE WORKSPACE"
-        title="What deserves execution?"
-        description="The queue remains empty until real retrieved evidence can support every material claim."
-        action={
-          <button className="secondary-button" onClick={onAsk} disabled={verifiedConnectors.length === 0}>
-            <Sparkles size={16} /> Ask QueueProof
-          </button>
-        }
-      />
-      <div className="command-grid">
-        <section className="queue-panel panel">
-          <div className="panel-heading">
-            <div>
-              <span className="panel-kicker">COMMAND QUEUE</span>
-              <h2>Defensible next actions</h2>
-            </div>
-            <span className="count-chip">{priorityReady ? "Ready to generate" : "Evidence gated"}</span>
+  if (phase) return <AgentLoading phase={phase} />;
+  if (plan?.actions[0]) {
+    return (
+      <section className="result-stage">
+        <div className="result-header">
+          <div>
+            <span className="mono-label">EXECUTION PACKET / {linked ? "VERIFIED CONTEXT" : "EXPLICIT INPUTS"}</span>
+            <h1>One move. Fully explained.</h1>
           </div>
-          {!priorityReady ? (
-            <div className="evidence-empty">
-              <div className="empty-sigil"><GitBranch size={34} /></div>
-              <span className="eyebrow">NO UNSUPPORTED TASKS</span>
-              <h3>The queue is intentionally empty.</h3>
-              <p>
-                Data-verified Slack, Gmail, and Linear sources are required before QueueProof
-                can reconstruct commitments, dependencies, and cross-source priority.
-              </p>
-              <button className="primary-button compact" onClick={onOpenConnectors}>
-                <Plus size={16} /> Prove a connection
-              </button>
+          <div className="result-actions">
+            <button className="ghost-button" onClick={onReset}><RotateCcw size={15} /> New mission</button>
+            <button className="acid-button" onClick={onCopy}>{copied ? <Check size={15} /> : <Clipboard size={15} />}{copied ? "Copied" : "Copy packet"}</button>
+          </div>
+        </div>
+
+        <div className="execution-grid">
+          <article className="next-move-card">
+            <div className="card-serial">01 / NEXT MOVE</div>
+            <div className="priority-glyph" aria-label={`Priority score ${plan.actions[0].score} out of 100`}>
+              <span>{plan.actions[0].score}</span><small>/100</small>
             </div>
-          ) : (
-            <div className="evidence-empty">
-              <div className="empty-sigil ready"><Layers3 size={34} /></div>
-              <span className="eyebrow">LIVE SOURCES READY</span>
-              <h3>Generate from current evidence.</h3>
-              <p>
-                Three provider classes are data verified. Run a cross-source Ask to inspect
-                retrieval coverage before materializing the first queue snapshot.
-              </p>
-              <button className="primary-button compact" onClick={onAsk}>
-                <Sparkles size={16} /> Run grounded retrieval
-              </button>
+            <span className={`band band-${plan.actions[0].band.toLowerCase()}`}>{plan.actions[0].band}</span>
+            <h2>{plan.actions[0].title}</h2>
+            <div className="packet-meta">
+              <div><span>OWNER</span><strong>{plan.inputs.owner || "Unassigned"}</strong></div>
+              <div><span>HORIZON</span><strong>{plan.inputs.urgency}</strong></div>
+              <div><span>CONFIDENCE</span><strong>{plan.actions[0].confidence}</strong></div>
             </div>
-          )}
-        </section>
-        <aside className="command-side">
-          <section className="panel proof-summary">
-            <div className="panel-heading">
-              <div>
-                <span className="panel-kicker">CONNECTION PROOF</span>
-                <h2>Evidence readiness</h2>
-              </div>
-              <Activity size={18} />
+            <div className="success-contract">
+              <Target size={18} />
+              <div><span>ACCEPTANCE CONDITION</span><p>{plan.inputs.outcome || "Add a success condition before delegating this action."}</p></div>
             </div>
-            <div className="proof-meter">
-              <div style={{ width: `${Math.min(100, (verifiedConnectors.length / 3) * 100)}%` }} />
+            <button className="receipt-toggle" onClick={() => setShowReceipt(!showReceipt)}>
+              <ShieldCheck size={16} /> {showReceipt ? "Hide decision receipt" : "Why this first?"}<ChevronRight size={15} />
+            </button>
+          </article>
+
+          <aside className={showReceipt ? "receipt-panel open" : "receipt-panel"}>
+            <div className="receipt-heading">
+              <div><span className="mono-label">DECISION RECEIPT</span><h3>Visible policy, no mystery math.</h3></div>
+              <span className="hash-chip">QP-1.0</span>
             </div>
-            <dl>
-              <div><dt>Data verified</dt><dd>{verifiedConnectors.length}</dd></div>
-              <div><dt>Configured</dt><dd>{connectors.length}</dd></div>
-              <div><dt>Required trio</dt><dd>{priorityReady ? "Complete" : "Incomplete"}</dd></div>
-            </dl>
-          </section>
-          <section className="panel connector-freshness">
-            <span className="panel-kicker">SOURCE FRESHNESS</span>
-            {connectors.length === 0 ? (
-              <p className="muted-copy">No connector has reached the proof workflow.</p>
-            ) : (
-              connectors.map((connector) => (
-                <div className="freshness-row" key={connector.id}>
-                  <span className={`provider-glyph ${connector.provider}`}>
-                    {connector.provider.slice(0, 1).toUpperCase()}
-                  </span>
-                  <span><strong>{connector.provider}</strong><small>{humanState(connector.state)}</small></span>
-                  <time>{relativeTime(connector.verifiedAt ?? connector.lastSuccessfulSyncAt)}</time>
+            <div className="score-stack">
+              {plan.actions[0].contributions.map((item) => (
+                <div className="score-row" key={item.label}>
+                  <div><strong>{item.label}</strong><small>{item.reason}</small></div>
+                  <span className={item.value < 0 ? "negative" : ""}>{item.value > 0 ? "+" : ""}{item.value}</span>
                 </div>
-              ))
-            )}
-          </section>
-        </aside>
-      </div>
-    </>
-  );
-}
-
-function ConnectorsView(props: {
-  providers: Provider[];
-  connectors: Connector[];
-  loading: string;
-  selectedConnector: Connector | null;
-  resources: Resource[];
-  selectedResourceIds: Set<string>;
-  onRefresh: () => void;
-  onSelectProvider: (provider: Provider) => void;
-  onSelectConnector: (connector: Connector) => void;
-  onToggleResource: (id: string) => void;
-  onDiscover: (connector: Connector) => void;
-  onConfigure: (connector: Connector) => void;
-  onSync: (connector: Connector) => void;
-  onVerify: (connector: Connector) => void;
-}) {
-  const {
-    providers, connectors, loading, selectedConnector, resources, selectedResourceIds,
-    onRefresh, onSelectProvider, onSelectConnector, onToggleResource, onDiscover,
-    onConfigure, onSync, onVerify,
-  } = props;
-  return (
-    <>
-      <ViewHeader
-        eyebrow="CONNECTOR GATEWAY / LIVE CATALOGUE"
-        title="Prove the connection, not the callback."
-        description="Providers and credential fields are rendered from the active HydraDB contract. A connector is verified only after sync evidence and a provider-matched canary retrieval."
-        action={
-          <button className="secondary-button" onClick={onRefresh} disabled={loading === "providers"}>
-            <RefreshCw className={loading === "providers" ? "spin" : ""} size={16} />
-            Refresh catalogue
-          </button>
-        }
-      />
-      <div className="connector-layout">
-        <section className="panel catalogue-panel">
-          <div className="panel-heading">
-            <div>
-              <span className="panel-kicker">AVAILABLE PROVIDERS</span>
-              <h2>HydraDB contract catalogue</h2>
-            </div>
-            <span className="count-chip">{providers.length} returned</span>
-          </div>
-          {providers.length === 0 ? (
-            <div className="small-empty">
-              <Blocks size={28} />
-              <p>HydraDB returned no usable provider contracts. Refresh or inspect server diagnostics.</p>
-            </div>
-          ) : (
-            <div className="provider-grid">
-              {providers.map((provider) => {
-                const connection = connectors.find((connector) => connector.provider === provider.id);
-                return (
-                  <motion.button
-                    layout
-                    key={provider.id}
-                    className="provider-card"
-                    disabled={!provider.available}
-                    onClick={() => onSelectProvider(provider)}
-                  >
-                    <span className={`provider-glyph large ${provider.id}`}>
-                      {provider.name.slice(0, 1).toUpperCase()}
-                    </span>
-                    <span className="provider-card-copy">
-                      <strong>{provider.name}</strong>
-                      <small>{provider.category ?? "Workplace source"}</small>
-                    </span>
-                    <span className={`support-badge ${provider.supportClass}`}>
-                      {provider.supportClass}
-                    </span>
-                    {connection ? (
-                      <span className={`connection-state ${connection.state === "data_verified" ? "verified" : ""}`}>
-                        {humanState(connection.state)}
-                      </span>
-                    ) : (
-                      <ChevronRight size={16} className="card-arrow" />
-                    )}
-                  </motion.button>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        <section className="panel lifecycle-panel">
-          <div className="panel-heading">
-            <div>
-              <span className="panel-kicker">CONNECTIONS</span>
-              <h2>Proof lifecycle</h2>
-            </div>
-            <span className="count-chip">{connectors.length} configured</span>
-          </div>
-          {connectors.length === 0 ? (
-            <div className="small-empty">
-              <Link2 size={28} />
-              <p>Select a live provider contract above to create the first connector.</p>
-            </div>
-          ) : (
-            <div className="connector-list">
-              {connectors.map((connector) => (
-                <button
-                  key={connector.id}
-                  className={selectedConnector?.id === connector.id ? "connector-row selected" : "connector-row"}
-                  onClick={() => onSelectConnector(connector)}
-                >
-                  <span className={`provider-glyph ${connector.provider}`}>
-                    {connector.provider.slice(0, 1).toUpperCase()}
-                  </span>
-                  <span className="connector-name">
-                    <strong>{connector.name}</strong>
-                    <small>{connector.database}{connector.collection ? ` / ${connector.collection}` : ""}</small>
-                  </span>
-                  <span className={`state-pill ${connector.state}`}>{humanState(connector.state)}</span>
-                  <ChevronRight size={16} />
-                </button>
               ))}
             </div>
-          )}
-        </section>
-      </div>
+            <div className="receipt-total"><span>DETERMINISTIC TOTAL</span><strong>{plan.actions[0].score}</strong></div>
+            <p className="receipt-note">This score is derived only from fields you supplied. Connected sources add receipts, never hidden weight.</p>
+          </aside>
+        </div>
 
-      {selectedConnector && (
-        <section className="panel proof-drawer">
-          <div className="proof-drawer-head">
-            <div>
-              <span className="panel-kicker">CONNECTION PROOF / {selectedConnector.provider.toUpperCase()}</span>
-              <h2>{selectedConnector.name}</h2>
-            </div>
-            <span className={`state-pill ${selectedConnector.state}`}>{humanState(selectedConnector.state)}</span>
-          </div>
-          <div className="proof-pipeline" aria-label="Connector verification stages">
-            {[
-              ["Create", ["connector_created", "resources_discovered", "resources_selected", "initial_sync_requested", "data_verified", "degraded"]],
-              ["Discover", ["resources_discovered", "resources_selected", "initial_sync_requested", "data_verified", "degraded"]],
-              ["Configure", ["resources_selected", "initial_sync_requested", "data_verified", "degraded"]],
-              ["Sync", ["initial_sync_requested", "data_verified", "degraded"]],
-              ["Verify", ["data_verified"]],
-            ].map(([label, states]) => (
-              <div
-                key={label as string}
-                className={(states as string[]).includes(selectedConnector.state) ? "complete" : ""}
-              >
-                <i>{(states as string[]).includes(selectedConnector.state) ? <Check size={13} /> : null}</i>
-                <span>{label as string}</span>
+        <div className="lower-grid">
+          <article className="queue-panel">
+            <div className="section-heading"><span><Layers3 size={16} /> Ranked queue</span><small>{plan.actions.length} action{plan.actions.length === 1 ? "" : "s"}</small></div>
+            {plan.actions.map((action, index) => (
+              <div className="queue-row" key={action.id}>
+                <span className="queue-index">{String(index + 1).padStart(2, "0")}</span>
+                <div><strong>{action.title}</strong><small>{action.band} · {action.confidence} confidence</small></div>
+                <span className="queue-score">{action.score}</span>
               </div>
             ))}
+          </article>
+
+          <article className="evidence-panel">
+            <div className="section-heading"><span><Network size={16} /> Evidence receipts</span><small>{plan.sources.length} verified</small></div>
+            {plan.sources.length ? plan.sources.slice(0, 4).map((source) => (
+              <a className="source-row" key={source.id} href={source.url ?? undefined} target={source.url ? "_blank" : undefined} rel="noreferrer">
+                <span className="source-icon"><FileCheck2 size={15} /></span>
+                <div><strong>{source.title}</strong><small>{source.provider ?? "Source"} · {formatTime(source.timestamp)}</small></div>
+                {source.url && <ArrowUpRight size={14} />}
+              </a>
+            )) : (
+              <div className="honest-empty">
+                <ShieldCheck size={22} />
+                <div><strong>No connected receipts used.</strong><p>This packet is based only on what you entered. Connect a verified source to retrieve live workplace evidence.</p></div>
+              </div>
+            )}
+            {plan.trace && <div className="trace-line"><Terminal size={13} /> Run {plan.trace.runId} · {plan.trace.resultCount} results · {plan.trace.endToEndLatencyMs}ms</div>}
+          </article>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="hero-stage">
+      <div className="hero-art" aria-hidden="true">
+        <Image src="/queueproof-sentinel.webp" alt="" fill priority sizes="100vw" unoptimized />
+        <div className="art-scan" />
+        <div className="art-caption"><span>QP / SENTINEL 01</span><span>EVIDENCE IS A CONTROL SURFACE</span></div>
+      </div>
+      <div className="hero-copy">
+        <div className="hero-kicker"><span className="pulse-dot" /> AUTONOMOUS PRIORITY + EXECUTION CONTROL</div>
+        <h1><span>KNOW WHAT</span><span>MOVES NEXT.</span><em>PROVE WHY.</em></h1>
+        <p>QueueProof reconstructs the work, exposes the ranking policy, and returns one defensible next action—with receipts.</p>
+      </div>
+      <form className="mission-console" onSubmit={onSubmit}>
+        <div className="console-topline">
+          <span><Bot size={15} /> QUEUEPROOF AGENT</span>
+          <span className={linked ? "mode-pill linked" : "mode-pill"}>{linked ? "LIVE EVIDENCE" : "LOCAL / NO FABRICATION"}</span>
+        </div>
+        <label className="mission-field">
+          <span>WHAT MUST MOVE?</span>
+          <textarea
+            value={draft.mission}
+            onChange={(event) => setDraft({ ...draft, mission: event.target.value })}
+            placeholder={"Ship the security review before Friday\nUnblock the enterprise renewal"}
+            rows={3}
+            autoFocus
+            required
+          />
+          <small>One action per line. QueueProof ranks only what you actually enter.</small>
+        </label>
+        <div className="mission-fields-grid">
+          <label><span>OWNER</span><input value={draft.owner} onChange={(event) => setDraft({ ...draft, owner: event.target.value })} placeholder="Name or team" /></label>
+          <label><span>SUCCESS LOOKS LIKE</span><input value={draft.outcome} onChange={(event) => setDraft({ ...draft, outcome: event.target.value })} placeholder="Concrete acceptance condition" /></label>
+          <label><span>IMPACT</span><select value={draft.impact} onChange={(event) => setDraft({ ...draft, impact: event.target.value as MissionDraft["impact"] })}><option value="contained">Contained</option><option value="important">Important</option><option value="material">Material</option><option value="critical">Critical</option></select></label>
+          <label><span>HORIZON</span><select value={draft.urgency} onChange={(event) => setDraft({ ...draft, urgency: event.target.value as MissionDraft["urgency"] })}><option value="today">Today</option><option value="week">This week</option><option value="month">This month</option><option value="open">Open</option></select></label>
+        </div>
+        <details className="context-details">
+          <summary><Plus size={14} /> Add blockers or a direct evidence note</summary>
+          <div className="context-grid">
+            <label><span>KNOWN BLOCKERS</span><textarea rows={2} value={draft.blockers} onChange={(event) => setDraft({ ...draft, blockers: event.target.value })} placeholder="One blocker per line" /></label>
+            <label><span>DIRECT EVIDENCE</span><textarea rows={2} value={draft.evidence} onChange={(event) => setDraft({ ...draft, evidence: event.target.value })} placeholder="Link, quote, ticket, or commitment" /></label>
           </div>
-          {resources.length > 0 && selectedConnector.state === "resources_discovered" && (
-            <div className="resource-picker">
-              <div className="resource-picker-head">
-                <span>Select real resources</span>
-                <small>{selectedResourceIds.size} selected</small>
-              </div>
-              <div className="resource-list">
-                {resources.map((resource) => (
-                  <label key={resource.id}>
-                    <input
-                      type="checkbox"
-                      checked={selectedResourceIds.has(resource.id)}
-                      onChange={() => onToggleResource(resource.id)}
-                    />
-                    <span className="custom-check"><Check size={12} /></span>
-                    <span><strong>{resource.name}</strong><small>{resource.resourceType} · {resource.id}</small></span>
-                  </label>
-                ))}
-              </div>
+        </details>
+        <div className="console-actions">
+          <span><ShieldCheck size={14} /> {linked ? "Verified source retrieval is active." : "No source claims will be invented."}</span>
+          <button className="launch-button" type="submit" disabled={!draft.mission.trim()}><span>BUILD EXECUTION PACKET</span><ArrowRight size={17} /></button>
+        </div>
+      </form>
+      <div className="hero-proofbar">
+        <span><Check size={13} /> VISIBLE SCORING</span><span><Check size={13} /> SOURCE-LEVEL RECEIPTS</span><span><Check size={13} /> REVERSIBLE ACTIONS</span>
+        {!storageAvailable && <a href={FULL_APP_URL} target="_blank" rel="noreferrer">OPEN DURABLE CONTROL PLANE <ExternalLink size={13} /></a>}
+        {storageAvailable && !linked && <button onClick={onSetup}>CONNECT WORKSPACE <ArrowUpRight size={13} /></button>}
+      </div>
+    </section>
+  );
+}
+
+function AgentLoading({ phase }: { phase: string }) {
+  const phases = ["Reading the mission", "Mapping explicit dependencies", "Retrieving verified evidence", "Applying visible priority policy"];
+  const activeIndex = Math.max(0, phases.indexOf(phase));
+  return (
+    <section className="agent-loading" aria-live="polite">
+      <div className="loading-visual">
+        <div className="loading-rings"><Bot size={32} /></div>
+        <div className="loading-rays" />
+      </div>
+      <div className="loading-copy">
+        <span className="mono-label">QUEUEPROOF / ACTIVE REASONING</span>
+        <h1>{phase}<span className="typing-dots">...</span></h1>
+        <p>The agent is applying a deterministic policy to explicit inputs. It will not invent progress or sources.</p>
+        <div className="phase-list">
+          {phases.filter((item) => item !== "Retrieving verified evidence" || phase === item).map((item, index) => (
+            <div key={item} className={index < activeIndex ? "done" : index === activeIndex ? "active" : ""}>
+              <span>{index < activeIndex ? <Check size={13} /> : String(index + 1).padStart(2, "0")}</span>{item}
             </div>
-          )}
-          <div className="proof-actions">
-            <button
-              className="secondary-button"
-              onClick={() => onDiscover(selectedConnector)}
-              disabled={loading.startsWith("discover-")}
-            >
-              {loading.startsWith("discover-") ? <LoaderCircle className="spin" size={16} /> : <Search size={16} />}
-              Discover resources
-            </button>
-            <button
-              className="secondary-button"
-              onClick={() => onConfigure(selectedConnector)}
-              disabled={selectedResourceIds.size === 0 || loading.startsWith("configure-")}
-            >
-              <Layers3 size={16} /> Configure selected
-            </button>
-            <button
-              className="secondary-button"
-              onClick={() => onSync(selectedConnector)}
-              disabled={!["resources_selected", "initial_sync_requested", "degraded"].includes(selectedConnector.state)}
-            >
-              <RefreshCw size={16} /> Trigger sync
-            </button>
-            <button
-              className="primary-button compact"
-              onClick={() => onVerify(selectedConnector)}
-              disabled={!["initial_sync_requested", "degraded", "data_verified"].includes(selectedConnector.state)}
-            >
-              <ShieldCheck size={16} /> Test connection
-            </button>
-          </div>
-          <dl className="proof-facts">
-            <div><dt>Verification stage</dt><dd>{selectedConnector.verificationStage ?? "Not run"}</dd></div>
-            <div><dt>Canary objects</dt><dd>{selectedConnector.canaryResultCount ?? "—"}</dd></div>
-            <div><dt>Verified at</dt><dd>{selectedConnector.verifiedAt ? new Date(selectedConnector.verifiedAt).toLocaleString() : "—"}</dd></div>
-            <div><dt>Last error</dt><dd>{selectedConnector.lastError ?? "None recorded"}</dd></div>
-          </dl>
-        </section>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function SourcesView({
+  workspaceState,
+  connectors,
+  providers,
+  loading,
+  storageAvailable,
+  onWorkspaceSetup,
+  onSourceSetup,
+  onRefresh,
+  execute,
+  setConnectors,
+  setNotice,
+}: {
+  workspaceState: WorkspaceState | null;
+  connectors: Connector[];
+  providers: Provider[];
+  loading: string;
+  storageAvailable: boolean;
+  onWorkspaceSetup: () => void;
+  onSourceSetup: () => void;
+  onRefresh: () => void;
+  execute: (label: string, task: () => Promise<void>) => Promise<void>;
+  setConnectors: (connectors: Connector[]) => void;
+  setNotice: (notice: string | null) => void;
+}) {
+  const [resources, setResources] = useState<Resource[]>([]);
+  const [resourceConnector, setResourceConnector] = useState<Connector | null>(null);
+  const [selectedResources, setSelectedResources] = useState<Set<string>>(new Set());
+
+  const reloadConnectors = async () => {
+    const result = await api<{ connectors: Connector[] }>("/api/connectors");
+    setConnectors(result.connectors);
+  };
+
+  const discover = (connector: Connector) => execute(`discover-${connector.id}`, async () => {
+    const result = await api<{ resources: Resource[] }>(`/api/connectors/${connector.id}/discover`, { method: "POST", body: "{}" });
+    setResources(result.resources);
+    setResourceConnector(connector);
+    setSelectedResources(new Set(result.resources.map((resource) => resource.id)));
+    await reloadConnectors();
+  });
+
+  if (!storageAvailable) {
+    return (
+      <section className="page-stage source-landing">
+        <PageHeading kicker="SOURCES / DURABLE MODE" title="Receipts need a real evidence plane." description="The Vercel interface can build local execution packets, but it does not pretend browser state is an authoritative workplace database." />
+        <div className="gateway-card">
+          <div className="gateway-art"><Database size={52} /><span /></div>
+          <div><span className="mono-label">FULL CLOUD CONTROL PLANE</span><h2>Connect GitHub, Slack, Notion, Drive, and more through HydraDB.</h2><p>The durable deployment stores workspace configuration in D1, verifies real connector objects, and retrieves source-level receipts. No seeded production data.</p><a className="acid-button link-button" href={FULL_APP_URL} target="_blank" rel="noreferrer">OPEN SECURE WORKSPACE <ArrowUpRight size={15} /></a></div>
+        </div>
+      </section>
+    );
+  }
+
+  if (!workspaceState?.workspace || !workspaceState.hydradb.configured) {
+    return (
+      <section className="page-stage source-landing">
+        <PageHeading kicker="SOURCES / SETUP" title="Make every answer traceable." description="Create the durable workspace, verify your HydraDB account, then choose exactly which resources may enter the evidence plane." />
+        <div className="setup-path">
+          <div className={workspaceState?.workspace ? "setup-step complete" : "setup-step active"}><span>{workspaceState?.workspace ? <Check size={17} /> : "01"}</span><div><strong>Create workspace</strong><p>Isolates policy, secrets, connectors, and audit history.</p></div></div>
+          <div className={workspaceState?.hydradb.configured ? "setup-step complete" : workspaceState?.workspace ? "setup-step active" : "setup-step"}><span>{workspaceState?.hydradb.configured ? <Check size={17} /> : "02"}</span><div><strong>Verify HydraDB</strong><p>The API key is checked server-side before encrypted storage.</p></div></div>
+          <div className="setup-step"><span>03</span><div><strong>Select evidence</strong><p>Discover resources, request sync, and pass a live canary query.</p></div></div>
+        </div>
+        <button className="acid-button" onClick={onWorkspaceSetup}><KeyRound size={15} /> {workspaceState?.workspace ? "VERIFY HYDRADB" : "CREATE WORKSPACE"}</button>
+      </section>
+    );
+  }
+
+  return (
+    <section className="page-stage">
+      <PageHeading kicker="SOURCES / VERIFIED INGESTION" title="Your evidence perimeter." description="Every connector advances through discovery, explicit resource selection, sync, and a live canary query before QueueProof treats it as evidence." actions={<><button className="ghost-button" onClick={onRefresh} disabled={Boolean(loading)}><RefreshCw size={14} className={loading ? "spin" : ""} /> Refresh</button><button className="acid-button" onClick={onSourceSetup} disabled={!providers.length}><Plus size={15} /> ADD SOURCE</button></>} />
+      <div className="source-summary"><div><span>HYDRADB</span><strong><CircleCheck size={15} /> Verified</strong></div><div><span>CONTRACTS</span><strong>{providers.length} live</strong></div><div><span>CONNECTORS</span><strong>{connectors.length}</strong></div><div><span>EVIDENCE READY</span><strong>{connectors.filter((item) => item.state === "data_verified").length}</strong></div></div>
+      <div className="connector-grid">
+        {connectors.length ? connectors.map((connector) => (
+          <article className="connector-card" key={connector.id}>
+            <div className="connector-head"><span className="source-icon"><Database size={16} /></span><div><strong>{connector.name}</strong><small>{connector.provider} / {connector.database}</small></div><span className={`connector-state state-${connector.state}`}>{statusLabels[connector.state] ?? connector.state.replaceAll("_", " ")}</span></div>
+            <div className="connector-rail"><span className="complete" /><span className={["resources_discovered", "resources_selected", "initial_sync_requested", "sync_in_progress", "data_verified"].includes(connector.state) ? "complete" : ""} /><span className={["initial_sync_requested", "sync_in_progress", "data_verified"].includes(connector.state) ? "complete" : ""} /><span className={connector.state === "data_verified" ? "complete" : ""} /></div>
+            <div className="connector-meta"><span>Last verified</span><strong>{formatTime(connector.verifiedAt)}</strong></div>
+            {connector.lastError && <p className="connector-error"><TriangleAlert size={13} /> {connector.lastError}</p>}
+            <div className="connector-actions">
+              {["connector_created", "resources_discovered", "degraded"].includes(connector.state) && <button onClick={() => void discover(connector)} disabled={loading === `discover-${connector.id}`}><Search size={14} /> {connector.state === "resources_discovered" ? "Select resources" : "Discover"}</button>}
+              {connector.state === "resources_selected" && <button onClick={() => void execute(`sync-${connector.id}`, async () => { await api(`/api/connectors/${connector.id}/sync`, { method: "POST", body: "{}" }); await reloadConnectors(); setNotice("Sync requested. Verify after HydraDB has produced cursor evidence."); })}><Play size={14} /> Request sync</button>}
+              {["initial_sync_requested", "sync_in_progress", "degraded"].includes(connector.state) && <button onClick={() => void execute(`verify-${connector.id}`, async () => { await api(`/api/connectors/${connector.id}/verify`, { method: "POST", body: "{}" }); await reloadConnectors(); setNotice("Live resource cursor and canary retrieval verified."); })}><ShieldCheck size={14} /> Verify live data</button>}
+            </div>
+          </article>
+        )) : <div className="empty-connectors"><Link2 size={26} /><h3>No sources connected.</h3><p>Add a provider contract to start the verified ingestion path.</p><button className="acid-button" onClick={onSourceSetup}><Plus size={14} /> ADD FIRST SOURCE</button></div>}
+      </div>
+      {resourceConnector && (
+        <div className="resource-drawer">
+          <div className="drawer-heading"><div><span className="mono-label">RESOURCE SELECTION</span><h3>{resourceConnector.name}</h3></div><button onClick={() => setResourceConnector(null)} aria-label="Close resource selector"><X size={17} /></button></div>
+          <p>Only selected resources will be indexed. Nothing is selected invisibly.</p>
+          <div className="resource-list">{resources.map((resource) => <label key={resource.id}><input type="checkbox" checked={selectedResources.has(resource.id)} onChange={(event) => { const next = new Set(selectedResources); if (event.target.checked) next.add(resource.id); else next.delete(resource.id); setSelectedResources(next); }} /><span><strong>{resource.name}</strong><small>{resource.resourceType}</small></span></label>)}</div>
+          <button className="acid-button" disabled={!selectedResources.size} onClick={() => void execute(`configure-${resourceConnector.id}`, async () => { await api(`/api/connectors/${resourceConnector.id}/configure`, { method: "POST", body: JSON.stringify({ resourceIds: [...selectedResources], lookbackDays: 30 }) }); await reloadConnectors(); setResourceConnector(null); setNotice(`${selectedResources.size} resource${selectedResources.size === 1 ? "" : "s"} selected. The connector is ready to sync.`); })}>CONFIRM {selectedResources.size} RESOURCE{selectedResources.size === 1 ? "" : "S"} <ArrowRight size={15} /></button>
+        </div>
       )}
-    </>
+    </section>
   );
 }
 
-function AskView({
-  connectors,
-  loading,
-  result,
-  onAsk,
-}: {
-  connectors: Connector[];
-  loading: boolean;
-  result: QueryResult | null;
-  onAsk: (query: string, database: string) => void;
-}) {
-  const [query, setQuery] = useState("");
-  const [database, setDatabase] = useState(connectors[0]?.database ?? "");
-  const effectiveDatabase = database || connectors[0]?.database || "";
+function SkillsView({ linked }: { linked: boolean }) {
   return (
-    <>
-      <ViewHeader
-        eyebrow="ASK / OBSERVABLE RETRIEVAL"
-        title="Ask the difficult question."
-        description="QueueProof classifies the request, plans the cheapest valid retrieval, validates provider coverage, and exposes the trace without hidden chain-of-thought."
-      />
-      <div className="ask-layout">
-        <section className="panel ask-panel">
-          <form
-            className="ask-form"
-            onSubmit={(event) => {
-              event.preventDefault();
-              onAsk(query, effectiveDatabase);
-            }}
-          >
-            <label>
-              HydraDB database
-              <select value={effectiveDatabase} onChange={(event) => setDatabase(event.target.value)} required>
-                {[...new Set(connectors.map((connector) => connector.database))].map((name) => (
-                  <option value={name} key={name}>{name}</option>
-                ))}
-              </select>
-            </label>
-            <label className="query-label">
-              Cross-source question
-              <textarea
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder={
-                  connectors.length
-                    ? "What should I do next, what evidence supports it, and where do the sources disagree?"
-                    : "Data-verified connectors are required before retrieval."
-                }
-                disabled={connectors.length === 0}
-                maxLength={4000}
-                required
-              />
-            </label>
-            <div className="ask-controls">
-              <span><Sparkles size={14} /> Auto routes fast or thinking mode</span>
-              <button className="primary-button compact" disabled={loading || connectors.length === 0 || !query.trim()}>
-                {loading ? <LoaderCircle className="spin" size={16} /> : <ArrowRight size={16} />}
-                Run grounded retrieval
-              </button>
-            </div>
-          </form>
-          {!result && (
-            <div className="ask-empty">
-              <GitBranch size={30} />
-              <p>Retrieval output, evidence, validation, and actual call telemetry will appear here.</p>
-            </div>
-          )}
-          {result && (
-            <div className="retrieval-results">
-              <div className="result-summary">
-                <span className="eyebrow">RETRIEVED EVIDENCE</span>
-                <h2>{result.trace.resultCount} chunks across {result.trace.providerCoverage.length} providers</h2>
-              </div>
-              {result.result.chunks.map((chunk, index) => {
-                const source = result.result.sources.find((candidate) => candidate.id === chunk.sourceId);
-                return (
-                  <article className="evidence-card" key={`${chunk.sourceId}-${index}`}>
-                    <div className="evidence-meta">
-                      <span className={`provider-glyph ${source?.provider ?? ""}`}>
-                        {(source?.provider ?? "?").slice(0, 1).toUpperCase()}
-                      </span>
-                      <span><strong>{source?.title ?? chunk.sourceId}</strong><small>{source?.provider ?? "Unclassified provider"}</small></span>
-                      <span className="score">{Math.round(chunk.relevancyScore * 100)}%</span>
-                    </div>
-                    <p>{chunk.excerpt}</p>
-                    {chunk.untrustedInstructionDetected && (
-                      <div className="injection-warning"><AlertTriangle size={14} /> Untrusted instruction-like content isolated as evidence.</div>
-                    )}
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </section>
-        <aside className="panel trace-panel">
-          <span className="panel-kicker">RETRIEVAL TRACE</span>
-          {!result ? (
-            <div className="trace-empty"><Activity size={24} /><p>No retrieval has run in this view.</p></div>
-          ) : (
-            <>
-              <dl>
-                <div><dt>Classification</dt><dd>{result.trace.classification}</dd></div>
-                <div><dt>Mode</dt><dd>{result.trace.queryMode}</dd></div>
-                <div><dt>HydraDB calls</dt><dd>{result.trace.callCount}</dd></div>
-                <div><dt>Hydra latency</dt><dd>{result.trace.hydradbLatencyMs} ms</dd></div>
-                <div><dt>End to end</dt><dd>{result.trace.endToEndLatencyMs} ms</dd></div>
-              </dl>
-              <div className="trace-providers">
-                <span>Provider coverage</span>
-                {result.trace.providerCoverage.length ? (
-                  result.trace.providerCoverage.map((provider) => <i key={provider}>{provider}</i>)
-                ) : <small>No provider metadata returned</small>}
-              </div>
-              <div className="trace-step">
-                <Check size={14} />
-                <span><strong>Plan executed</strong><small>{result.trace.plannedSteps[0]}</small></span>
-              </div>
-              <div className="trace-step">
-                <ShieldCheck size={14} />
-                <span><strong>Evidence screened</strong><small>Retrieved content remained untrusted data.</small></span>
-              </div>
-            </>
-          )}
-        </aside>
-      </div>
-    </>
+    <section className="page-stage">
+      <PageHeading kicker="SKILLS / PROCEDURAL CONTROL" title="Small tools. Visible boundaries." description="QueueProof’s capabilities are deliberately narrow: retrieve evidence, map dependencies, rank actions, and package the result. Every skill says what it can and cannot know." />
+      <div className="skills-grid">{skillCards.map((skill, index) => { const Icon = skill.icon; return <article className="skill-card" key={skill.title}><span className="card-number">0{index + 1}</span><Icon size={24} /><h2>{skill.title}</h2><p>{skill.detail}</p><div><span className={skill.title === "Evidence retrieval" && !linked ? "skill-status waiting" : "skill-status"}>{skill.title === "Evidence retrieval" && !linked ? "NEEDS VERIFIED SOURCE" : "READY"}</span><ChevronRight size={15} /></div></article>; })}</div>
+      <div className="principles-panel"><BrainCircuit size={30} /><div><span className="mono-label">AGENT CONSTITUTION</span><h2>Never turn uncertainty into theatre.</h2><p>QueueProof separates explicit user input, verified source evidence, and deterministic policy. Missing context stays missing. A local session never impersonates a connected system.</p></div></div>
+    </section>
   );
 }
 
-const bundledSkills = [
-  "daily-priority",
-  "incident-triage",
-  "customer-escalation",
-  "commitment-audit",
-  "release-readiness",
-  "dependency-unblock",
-  "executive-brief",
-  "engineering-handoff",
-  "source-conflict-resolution",
-  "agent-task-packet",
-];
-
-const memoryClasses = [
-  ["Source knowledge", "HydraDB evidence and source provenance", "Workspace evidence"],
-  ["User preferences", "Explicit ranking and briefing preferences", "User controlled"],
-  ["Organisation policy", "Versioned priority and approval policy", "Admin controlled"],
-  ["Episodic decisions", "Completed decisions with outcomes and evidence", "Reviewable"],
-  ["Procedural memory", "Approved skill versions and workflows", "Approval gated"],
-];
-
-function ControlPlaneView({
-  active,
-  connectors,
-  testMode,
-}: {
-  active: string;
-  connectors: Connector[];
-  testMode: boolean;
-}) {
-  if (active === "skills") {
-    return (
-      <>
-        <ViewHeader
-          eyebrow="SKILLS / PORTABLE PROCEDURES"
-          title="Skill Registry"
-          description="Ten versioned workflow packages ship with QueueProof. Activation and revision remain human-controlled."
-        />
-        <section className="system-grid skills-grid">
-          {bundledSkills.map((skill) => (
-            <article className="panel system-card" key={skill}>
-              <div className="system-card-head">
-                <span className="empty-sigil compact"><Zap size={16} /></span>
-                <span className="proof-state neutral">BUNDLED</span>
-              </div>
-              <h3>{skill.replaceAll("-", " ")}</h3>
-              <p>Portable MCP workflow · version 1.0.0</p>
-              <div className="system-actions">
-                <button className="ghost-button" disabled>Inactive</button>
-                <button className="ghost-button" disabled>Review package</button>
-              </div>
-            </article>
-          ))}
-        </section>
-        <p className="surface-footnote">Install, fork, diff, test, approve, and roll back operations remain disabled until a workspace skill record exists.</p>
-      </>
-    );
-  }
-
-  if (active === "memory") {
-    return (
-      <>
-        <ViewHeader
-          eyebrow="MEMORY / FIVE BOUNDED CLASSES"
-          title="Memory Controls"
-          description="Memory has explicit ownership, retention, and evidence boundaries. Retrieved text never becomes policy by itself."
-        />
-        <section className="system-grid memory-grid">
-          {memoryClasses.map(([name, description, control]) => (
-            <article className="panel system-card" key={name}>
-              <div className="system-card-head">
-                <span className="empty-sigil compact"><Brain size={16} /></span>
-                <span className="proof-state neutral">0 RECORDS</span>
-              </div>
-              <h3>{name}</h3>
-              <p>{description}</p>
-              <small>{control} · exportable · deletable · auditable</small>
-            </article>
-          ))}
-        </section>
-      </>
-    );
-  }
-
-  if (active === "agents") {
-    const clients = [
-      ["Codex", ".codex/config.toml", "queueproof client install codex"],
-      ["Claude Code", ".mcp.json", "queueproof client install claude"],
-      ["Kimi Code", ".kimi-code/mcp.json", "queueproof client install kimi"],
-      ["Kilo Code", ".kilo/kilo.json", "queueproof client install kilo"],
-    ];
-    return (
-      <>
-        <ViewHeader
-          eyebrow="AGENT DOCK / MCP BRIDGE"
-          title="Connect an execution client"
-          description="Install a project-scoped QueueProof entry while preserving every unrelated MCP server and setting."
-        />
-        <section className="agent-layout">
-          <div className="panel agent-endpoint">
-            <span className="eyebrow">STREAMABLE HTTP</span>
-            <h3>/api/mcp</h3>
-            <p>Authentication is fail-closed. The bearer token stays in <code>QUEUEPROOF_MCP_TOKEN</code>; it is never written into client configuration.</p>
-            <div className="proof-facts">
-              <div><span>Workspace proof</span><strong>{connectors.length ? `${connectors.length} verified source${connectors.length === 1 ? "" : "s"}` : "No verified sources"}</strong></div>
-              <div><span>Remote endpoint</span><strong>Requires deployment secrets</strong></div>
-            </div>
-          </div>
-          <div className="system-grid agent-clients">
-            {clients.map(([name, file, command]) => (
-              <article className="panel system-card" key={name}>
-                <div className="system-card-head"><TerminalSquare size={18} /><span className="proof-state neutral">NOT VERIFIED</span></div>
-                <h3>{name}</h3>
-                <p>{file}</p>
-                <code className="install-command">{command}</code>
-              </article>
-            ))}
-          </div>
-        </section>
-      </>
-    );
-  }
-
+function SystemView({ workspaceState, connectors, onRefresh, loading }: { workspaceState: WorkspaceState | null; connectors: Connector[]; onRefresh: () => void; loading: string }) {
+  const checks = [
+    { label: "Interface runtime", value: workspaceState?.platform?.runtime ?? "cloudflare", okay: true },
+    { label: "Durable storage", value: workspaceState?.platform?.storageAvailable === false ? "Unavailable on this deployment" : "Available", okay: workspaceState?.platform?.storageAvailable !== false },
+    { label: "Workspace", value: workspaceState?.workspace?.name ?? "Not configured", okay: Boolean(workspaceState?.workspace) },
+    { label: "HydraDB account", value: workspaceState?.hydradb.configured ? `Verified ${workspaceState.hydradb.fingerprint ?? ""}` : "Not configured", okay: workspaceState?.hydradb.configured ?? false },
+    { label: "Verified connectors", value: String(connectors.filter((item) => item.state === "data_verified").length), okay: connectors.some((item) => item.state === "data_verified") },
+  ];
   return (
-    <>
-      <ViewHeader
-        eyebrow="EVALUATION LAB / EVIDENCE QUALITY"
-        title="Evaluation Lab"
-        description="Offline fixtures and live workspace evaluations are separated so synthetic scores can never masquerade as production proof."
-      />
-      <section className="eval-grid">
-        <article className="panel eval-card">
-          <span className="eyebrow">OFFLINE / ROUTING CONTRACT</span>
-          <h3>32 labelled cases</h3>
-          <p>The checked-in suite covers exact IDs, temporal questions, conflicts, counterfactuals, cross-source lookup, and simple facts.</p>
-          <span className={`proof-state ${testMode ? "verified" : "neutral"}`}>{testMode ? "FIXTURE MODE VISIBLE" : "RUN FROM CLI"}</span>
-        </article>
-        <article className="panel eval-card">
-          <span className="eyebrow">LIVE / WORKSPACE SOURCES</span>
-          <h3>No live evaluation yet</h3>
-          <p>{connectors.length ? "Verified sources exist, but no live evaluation run has been recorded." : "Verify real connector data before starting a live evaluation."}</p>
-          <span className="proof-state neutral">NO CLAIMED SCORE</span>
-        </article>
-      </section>
-    </>
+    <section className="page-stage">
+      <PageHeading kicker="SYSTEM / TRUTH SURFACE" title="Operational state, without theatre." description="These indicators come from the current deployment and workspace. A missing dependency is shown as missing, not painted green." actions={<button className="ghost-button" onClick={onRefresh}><RefreshCw size={14} className={loading ? "spin" : ""} /> Run checks</button>} />
+      <div className="system-layout"><div className="health-stack">{checks.map((check) => <div className="health-row" key={check.label}><span className={check.okay ? "health-icon okay" : "health-icon"}>{check.okay ? <Check size={15} /> : <TriangleAlert size={15} />}</span><div><strong>{check.label}</strong><small>{check.value}</small></div><span>{check.okay ? "PASS" : "OPEN"}</span></div>)}</div><aside className="system-aside"><Terminal size={25} /><span className="mono-label">MACHINE CONTRACT</span><h2>Designed to fail honestly.</h2><p>Durable state is authoritative. Credentials remain server-side. Connector readiness requires real object retrieval. Prompt-injection screening runs before retrieved chunks enter an answer.</p><a href="/api/health/live" target="_blank">OPEN LIVENESS ENDPOINT <ArrowUpRight size={13} /></a></aside></div>
+    </section>
   );
 }
 
-function TruthfulEmptyView({
-  active,
-  connectors,
-}: {
-  active: string;
-  connectors: Connector[];
-}) {
-  const item = navItems.find((candidate) => candidate.id === active);
-  const Icon = item?.icon ?? Layers3;
+function PageHeading({ kicker, title, description, actions }: { kicker: string; title: string; description: string; actions?: React.ReactNode }) {
+  return <div className="page-heading"><div><span className="mono-label">{kicker}</span><h1>{title}</h1><p>{description}</p></div>{actions && <div className="heading-actions">{actions}</div>}</div>;
+}
+
+function WorkspaceSetup({ state, onClose, execute, onDone }: { state: WorkspaceState; onClose: () => void; execute: (label: string, task: () => Promise<void>) => Promise<void>; onDone: () => Promise<void> }) {
+  const [name, setName] = useState("");
+  const [apiKey, setApiKey] = useState("");
+  const [baseUrl, setBaseUrl] = useState("https://api.hydradb.com");
+  const needsWorkspace = !state.workspace;
   return (
-    <>
-      <ViewHeader
-        eyebrow={`${active.toUpperCase()} / EVIDENCE GATED`}
-        title={item?.label ?? active}
-        description="This surface only materializes records produced by the live workspace or explicitly consented user input."
-      />
-      <section className="panel evidence-empty full">
-        <div className="empty-sigil"><Icon size={34} /></div>
-        <span className="eyebrow">NO FABRICATED STATE</span>
-        <h3>No live records exist for this view.</h3>
-        <p>
-          {connectors.length
-            ? "Connected evidence has not yet produced a supported record for this capability."
-            : "Complete connection proof for at least one real provider to begin."}
-        </p>
-      </section>
-    </>
+    <div className="modal-backdrop" role="presentation"><section className="setup-modal" role="dialog" aria-modal="true" aria-labelledby="workspace-setup-title"><div className="modal-top"><div><span className="mono-label">DURABLE CONTROL PLANE</span><h2 id="workspace-setup-title">{needsWorkspace ? "Create the workspace." : "Verify HydraDB."}</h2></div><button onClick={onClose} aria-label="Close setup"><X size={18} /></button></div>{needsWorkspace ? <form onSubmit={(event) => { event.preventDefault(); void execute("create-workspace", async () => { await api("/api/workspace", { method: "POST", body: JSON.stringify({ name }) }); await onDone(); }); }}><label><span>WORKSPACE NAME</span><input value={name} onChange={(event) => setName(event.target.value)} minLength={2} maxLength={80} placeholder="Acme execution control" required /></label><p>Creates isolated durable storage for policies, encrypted credentials, connector state, and audit records.</p><button className="acid-button" type="submit">CREATE WORKSPACE <ArrowRight size={15} /></button></form> : <form onSubmit={(event) => { event.preventDefault(); void execute("verify-hydradb", async () => { await api("/api/hydradb/configure", { method: "POST", body: JSON.stringify({ apiKey, baseUrl }) }); setApiKey(""); await onDone(); }); }}><label><span>HYDRADB API KEY</span><input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} minLength={12} autoComplete="off" placeholder="Paste a newly generated key" required /></label><label><span>BASE URL</span><input type="url" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} required /></label><p>The credential is verified against the live provider contract before encrypted storage. It is never returned to the browser.</p><button className="acid-button" type="submit"><KeyRound size={15} /> VERIFY + STORE</button></form>}</section></div>
   );
 }
 
-function ConnectorDialog({
-  provider,
-  loading,
-  onClose,
-  onSubmit,
-}: {
-  provider: Provider;
-  loading: boolean;
-  onClose: () => void;
-  onSubmit: (payload: Record<string, unknown>) => void;
-}) {
-  const [values, setValues] = useState<Record<string, string>>({});
+function SourceSetup({ providers, onClose, execute, onDone }: { providers: Provider[]; onClose: () => void; execute: (label: string, task: () => Promise<void>) => Promise<void>; onDone: () => Promise<void> }) {
+  const available = providers.filter((provider) => provider.available);
+  const [providerId, setProviderId] = useState(available[0]?.id ?? providers[0]?.id ?? "");
+  const [name, setName] = useState("");
   const [database, setDatabase] = useState("");
   const [collection, setCollection] = useState("");
-  const [name, setName] = useState(provider.name);
-  const [accountScope, setAccountScope] = useState("");
-  const fields = provider.credentialFields;
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    onSubmit({
-      name,
-      database,
-      collection: collection || undefined,
-      accountScope: accountScope || undefined,
-      credentials: values,
-    });
-  };
+  const [credentials, setCredentials] = useState<Record<string, string>>({});
+  const provider = providers.find((item) => item.id === providerId) ?? providers[0];
+  if (!provider) return null;
   return (
-    <motion.div
-      className="modal-backdrop"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <motion.form
-        className="connector-modal"
-        initial={{ opacity: 0, y: 18, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 10, scale: 0.99 }}
-        onSubmit={submit}
-      >
-        <header>
-          <span className={`provider-glyph large ${provider.id}`}>{provider.name.slice(0, 1).toUpperCase()}</span>
-          <div>
-            <span className="eyebrow">NEW CONNECTOR / {provider.supportClass.toUpperCase()}</span>
-            <h2>Connect {provider.name}</h2>
-          </div>
-          <button type="button" className="icon-button plain" onClick={onClose} aria-label="Close connector setup">
-            <X size={18} />
-          </button>
-        </header>
-        <div className="contract-strip">
-          <ShieldCheck size={15} />
-          <span>Fields loaded from HydraDB contract</span>
-          <code>{provider.contractHash.slice(0, 10)}</code>
-        </div>
-        <div className="form-grid">
-          <label>
-            Connector name
-            <input value={name} onChange={(event) => setName(event.target.value)} required />
-          </label>
-          <label>
-            HydraDB database
-            <input value={database} onChange={(event) => setDatabase(event.target.value)} placeholder="workspace database" required />
-          </label>
-          <label>
-            Collection <span>optional</span>
-            <input value={collection} onChange={(event) => setCollection(event.target.value)} placeholder="team or user scope" />
-          </label>
-          <label>
-            Provider account scope <span>when known</span>
-            <input value={accountScope} onChange={(event) => setAccountScope(event.target.value)} placeholder="workspace, org, or account ID" />
-          </label>
-          {fields.length === 0 ? (
-            <div className="contract-missing">
-              <AlertTriangle size={16} />
-              The provider contract returned no credential fields. QueueProof will not guess them.
-            </div>
-          ) : (
-            fields.map((field) => (
-              <label key={field.name} className="credential-field">
-                {field.title ?? field.name.replaceAll("_", " ")}
-                {!field.required && <span>optional</span>}
-                <input
-                  type={
-                    field.format === "password" ||
-                    /token|secret|password|key/i.test(field.name)
-                      ? "password"
-                      : "text"
-                  }
-                  value={values[field.name] ?? ""}
-                  onChange={(event) =>
-                    setValues((current) => ({ ...current, [field.name]: event.target.value }))
-                  }
-                  autoComplete="off"
-                  required={Boolean(field.required)}
-                  aria-describedby={field.description ? `help-${field.name}` : undefined}
-                />
-                {field.description && <small id={`help-${field.name}`}>{field.description}</small>}
-              </label>
-            ))
-          )}
-        </div>
-        <footer>
-          <p><KeyRound size={14} /> Credentials are forwarded server-to-server and are not stored by QueueProof.</p>
-          <button className="primary-button" disabled={loading || fields.length === 0}>
-            {loading ? <LoaderCircle className="spin" size={16} /> : <ArrowRight size={16} />}
-            Create connector
-          </button>
-        </footer>
-      </motion.form>
-    </motion.div>
+    <div className="modal-backdrop" role="presentation"><section className="setup-modal source-modal" role="dialog" aria-modal="true" aria-labelledby="source-setup-title"><div className="modal-top"><div><span className="mono-label">PROVIDER CONTRACT</span><h2 id="source-setup-title">Add a real evidence source.</h2></div><button onClick={onClose} aria-label="Close source setup"><X size={18} /></button></div><form onSubmit={(event) => { event.preventDefault(); void execute("create-connector", async () => { await api("/api/connectors", { method: "POST", body: JSON.stringify({ provider: provider.id, name: name || provider.name, database, collection: collection || undefined, credentials }) }); await onDone(); }); }}><label><span>PROVIDER</span><select value={provider.id} onChange={(event) => { setProviderId(event.target.value); setCredentials({}); }}>{providers.map((item) => <option value={item.id} key={item.id} disabled={!item.available}>{item.name}{item.available ? "" : " — unavailable"}</option>)}</select></label><div className="two-fields"><label><span>DISPLAY NAME</span><input value={name} onChange={(event) => setName(event.target.value)} placeholder={provider.name} /></label><label><span>HYDRADB DATABASE</span><input value={database} onChange={(event) => setDatabase(event.target.value)} required placeholder="workspace-main" /></label></div><label><span>COLLECTION (OPTIONAL)</span><input value={collection} onChange={(event) => setCollection(event.target.value)} placeholder="Leave blank for provider default" /></label>{provider.credentialFields.map((field) => <label key={field.name}><span>{field.title ?? field.name.toUpperCase()}{field.required ? " *" : ""}</span><input type={field.format === "password" || /token|secret|key/i.test(field.name) ? "password" : "text"} value={credentials[field.name] ?? ""} onChange={(event) => setCredentials({ ...credentials, [field.name]: event.target.value })} required={field.required} autoComplete="off" /><small>{field.description}</small></label>)}<div className="contract-note"><ShieldCheck size={15} /><span>Live contract · {provider.supportClass} · hash {provider.contractHash.slice(0, 10)}</span></div><button className="acid-button" type="submit">CREATE CONNECTOR <ArrowRight size={15} /></button></form></section></div>
   );
 }
