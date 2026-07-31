@@ -38,6 +38,7 @@ type WorkspaceState = {
   actor: { displayName: string; localDevelopment: boolean };
   workspace: null | { id: string; name: string; slug: string; mode: string };
   hydradb: { configured: boolean; verifiedAt?: string | null; fingerprint?: string | null };
+  platform?: { runtime: string; storageAvailable: boolean };
 };
 
 type CredentialField = {
@@ -336,6 +337,7 @@ export function QueueProofApp({ testMode }: { testMode: boolean }) {
         {!workspaceState?.workspace ? (
           <WorkspaceOnboarding
             loading={loading === "create-workspace"}
+            storageAvailable={workspaceState?.platform?.storageAvailable !== false}
             onCreate={(name) =>
               execute("create-workspace", async () => {
                 await api("/api/workspace", { method: "POST", body: JSON.stringify({ name }) });
@@ -494,9 +496,11 @@ export function QueueProofApp({ testMode }: { testMode: boolean }) {
 
 function WorkspaceOnboarding({
   loading,
+  storageAvailable,
   onCreate,
 }: {
   loading: boolean;
+  storageAvailable: boolean;
   onCreate: (name: string) => void;
 }) {
   const [name, setName] = useState("");
@@ -536,11 +540,15 @@ function WorkspaceOnboarding({
             required
           />
         </label>
-        <button className="primary-button" disabled={loading || name.trim().length < 2}>
+        <button className="primary-button" disabled={!storageAvailable || loading || name.trim().length < 2}>
           {loading ? <LoaderCircle className="spin" size={17} /> : <ArrowRight size={17} />}
-          Create workspace
+          {storageAvailable ? "Create workspace" : "Durable storage required"}
         </button>
-        <small>Durable state is stored server-side. Local browser storage is not authoritative.</small>
+        <small>
+          {storageAvailable
+            ? "Durable state is stored server-side. Local browser storage is not authoritative."
+            : "This Vercel deployment is a live interface preview. Workspace data remains available on the primary D1-backed deployment."}
+        </small>
       </form>
     </section>
   );

@@ -20,6 +20,7 @@
 - Ten portable skill packages with references, examples, tests, and permission declarations.
 - Submission matrix, demo script, shot list, judge one-pager, social copy, and technical deep dive.
 - Private Sites deployment with successful live/readiness smoke tests.
+- Public Vercel interface preview deployed with a verified native Next.js build and explicit unavailable-storage state.
 
 ## External blockers
 

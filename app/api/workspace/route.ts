@@ -1,6 +1,6 @@
 import { apiError, noStoreJson, readJson } from "../../../lib/server/api";
 import { requireRequestActor } from "../../../lib/server/identity";
-import { requireDb } from "../../../lib/server/runtime";
+import { requireDb, runtimeEnv } from "../../../lib/server/runtime";
 import {
   audit,
   createId,
@@ -11,6 +11,15 @@ import { hydraAccountForWorkspace } from "../../../lib/server/hydradb-account";
 
 export async function GET() {
   try {
+    if (!runtimeEnv().DB) {
+      return noStoreJson({
+        ok: true,
+        actor: { displayName: "Deployment preview", localDevelopment: false },
+        workspace: null,
+        hydradb: { configured: false },
+        platform: { runtime: "vercel", storageAvailable: false },
+      });
+    }
     const actor = await requireRequestActor();
     const workspace = await workspaceForUser(actor.id);
     if (!workspace) {
@@ -44,6 +53,12 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    if (!runtimeEnv().DB) {
+      return noStoreJson(
+        { ok: false, error: "Durable workspace storage is not configured on this deployment." },
+        { status: 503 },
+      );
+    }
     const actor = await requireRequestActor();
     const payload = await readJson<{ name?: string }>(request);
     const name = payload.name?.trim() ?? "";
@@ -83,4 +98,3 @@ export async function POST(request: Request) {
     return apiError(error);
   }
 }
-

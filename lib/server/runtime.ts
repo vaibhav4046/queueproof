@@ -1,4 +1,4 @@
-import { env } from "cloudflare:workers";
+import { runtimeBindings } from "./runtime-provider";
 
 export type RuntimeEnv = {
   DB?: D1Database;
@@ -14,7 +14,7 @@ export type RuntimeEnv = {
 };
 
 export function runtimeEnv(): RuntimeEnv {
-  return env as unknown as RuntimeEnv;
+  return runtimeBindings as RuntimeEnv;
 }
 
 export function requireDb(): D1Database {

@@ -17,3 +17,12 @@ Populate only after the production URL responds:
 - Cold start: health returned within the 30-second smoke-test budget; no benchmark series recorded.
 - Live connector verification: not run; HydraDB/provider credentials absent.
 - Recorded at: 2026-07-31T09:42Z.
+
+## Vercel
+
+- Production alias: `https://queueproof.vercel.app`.
+- Root page: HTTP 200.
+- `/api/health/live`: HTTP 200.
+- `/api/workspace`: HTTP 200 with `runtime=vercel` and `storageAvailable=false`.
+- `/api/health/ready`: HTTP 503, intentionally, because D1/R2 are not Vercel services.
+- Native Next.js webpack build, TypeScript, lint, and 67 tests completed successfully before deployment.

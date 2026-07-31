@@ -26,7 +26,12 @@ Not yet live-verified in this repository:
 - A remote MCP client handshake.
 - Approval-gated provider write execution.
 
-Private deployment: `https://queueproof-control-plane.vaibhav09908.chatgpt.site`. Owner sign-in is required.
+Deployments:
+
+- Primary, D1/R2-backed private deployment: `https://queueproof-control-plane.vaibhav09908.chatgpt.site`.
+- Public Vercel interface preview: `https://queueproof.vercel.app`.
+
+The Vercel deployment deliberately disables workspace creation because no durable Vercel database is attached. It does not silently fall back to browser storage or fixture records.
 
 Those items require external credentials. They are not replaced with fixture data.
 

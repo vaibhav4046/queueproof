@@ -27,3 +27,9 @@ Apply `drizzle/0000_bent_living_mummy.sql` to the production D1 database. Then v
 Deployment is not connector verification. After deployment, a user must authorise HydraDB and provider accounts, select resources, request sync, and run canary verification. Record the resulting connector receipt without copying private source data into public artifacts.
 
 Rollback by redeploying the last saved Sites version. Database migrations are forward-only; back up D1 before destructive schema work.
+
+## Vercel interface deployment
+
+`vercel.json` selects a native Next.js webpack build while `next.config.ts` replaces the Cloudflare runtime binding provider with environment variables. This preserves the original vinext/Cloudflare build.
+
+Without an attached Vercel database, QueueProof serves a truthful public interface preview: `/api/health/live` is available, `/api/workspace` declares `storageAvailable=false`, and `/api/health/ready` remains 503. Do not describe this preview as a data-connected QueueProof control plane.
