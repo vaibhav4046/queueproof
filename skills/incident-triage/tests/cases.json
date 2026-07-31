@@ -1,0 +1,1 @@
+[{"name":"conflicting severity","assertions":["shows both sources","does not silently choose one","requests approval before action"]}]

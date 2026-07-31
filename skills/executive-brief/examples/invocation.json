@@ -1,0 +1,1 @@
+{"request":"Give me the morning executive brief","expected_tools":["queueproof_get_next_actions","queueproof_what_changed"]}

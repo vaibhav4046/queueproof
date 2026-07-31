@@ -1,0 +1,1 @@
+{"request":"Prepare the Acme escalation","expected_tools":["queueproof_search","queueproof_get_entity","queueproof_get_commitments"]}

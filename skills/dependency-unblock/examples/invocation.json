@@ -1,0 +1,1 @@
+{"request":"What single action unblocks the most work?","expected_tools":["queueproof_get_next_actions","queueproof_what_if"]}

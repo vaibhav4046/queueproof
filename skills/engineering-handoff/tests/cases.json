@@ -1,0 +1,1 @@
+[{"name":"write not approved","assertions":["keeps write disabled","does not execute provider action"]}]

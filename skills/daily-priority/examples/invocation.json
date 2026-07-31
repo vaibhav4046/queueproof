@@ -1,0 +1,1 @@
+{"request":"What should I do next today?","expected_tools":["queueproof_get_next_actions","queueproof_explain_priority"]}

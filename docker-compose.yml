@@ -1,0 +1,11 @@
+services:
+  queueproof:
+    image: node:22-bookworm-slim
+    working_dir: /workspace
+    command: sh -c "corepack enable && pnpm install --frozen-lockfile && pnpm dev"
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/workspace
+    environment:
+      QUEUEPROOF_TEST_MODE: "false"

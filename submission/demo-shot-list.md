@@ -1,0 +1,12 @@
+# Demo shot list
+
+1. Desktop Command, verified connector rail, no personal message excerpts.
+2. Ask query and live execution trace.
+3. Ranked queue and Proof Packet.
+4. Comparison/counterfactual panel.
+5. Commitment and approval-gated proposal.
+6. Agent Dock plus external client tool result.
+7. Evaluation strip.
+8. Mobile Command and Connectors states.
+
+Capture a clean test workspace, blur account identifiers, and retain the private verification receipts outside the public video.
