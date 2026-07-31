@@ -58,7 +58,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         )
         .bind(id, ...resourceIds),
       db
-        .prepare(`UPDATE connectors SET state = 'resources_selected', updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
+        .prepare(`UPDATE connectors SET state = 'initial_sync_requested', last_error = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
         .bind(id),
     ]);
     await audit({
@@ -71,7 +71,12 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       riskClass: "write",
       metadata: { resourceCount: resourceIds.length, requestId: response.requestId },
     });
-    return noStoreJson({ ok: true, state: "resources_selected", configured: resourceIds.length });
+    return noStoreJson({
+      ok: true,
+      state: "initial_sync_requested",
+      configured: resourceIds.length,
+      message: "Resources saved. HydraDB started the initial sync/backfill.",
+    });
   } catch (error) {
     return apiError(error);
   }

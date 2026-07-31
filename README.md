@@ -2,106 +2,93 @@
 
 **A defensible next action—with receipts.**
 
-QueueProof is an agent priority and execution control plane. It retrieves live work evidence through HydraDB, ranks work with a deterministic policy, exposes the result to people and MCP clients, and keeps all write actions proposal-only until a human approves them.
+QueueProof is an evidence-ranked execution control plane. It connects workplace systems through HydraDB, retrieves unresolved work, applies a deterministic priority policy, persists cited Execution Packets, and exposes the same packets to people and MCP agents.
 
-## Current truth
+## The product
 
-The application starts in a legitimate empty state. No sample connectors, queue items, metrics, sync times, or “successful” calls appear in production. The provider catalogue is loaded from HydraDB only after a user submits a newly generated HydraDB API key through the encrypted onboarding form.
+The principal workflow is deliberately small:
 
-Implemented and locally verified:
+1. Create a workspace and attach a newly generated HydraDB API key.
+2. Choose a database and a provider from the live HydraDB catalogue.
+3. Supply the provider contract’s credentials and select the exact resource scope.
+4. Wait for initial backfill; QueueProof admits the source only after cursor and canary-retrieval proof.
+5. Build a cross-source Command queue or ask an evidence question.
+6. Open a cited Execution Packet in the browser or retrieve that exact packet ID through MCP.
 
-- Dynamic HydraDB v2 provider catalogue, discovery, connector creation, resource configuration, sync request, canary query, and proof-state persistence.
-- AES-GCM credential envelopes; credentials never return to the browser after submission.
-- D1 schema with 44 workspace-owned tables and generated migration.
-- Grounded query planning with source extraction and prompt-injection flags.
-- Deterministic 100-point ranking, comparison, and counterfactual functions.
-- Authenticated Streamable HTTP MCP endpoint with read/propose boundaries.
-- Responsive “Circuit Shrine” product shell and truthful connector/Ask zero states.
-- Vitest contract, ranking, retrieval, security, fixture, and MCP tests.
+No sample connectors, queue items, metrics, sync times, or successful calls are inserted in production. If evidence is absent, QueueProof returns an honest empty state.
 
-Not yet live-verified in this repository:
+## Implemented and verified locally
 
-- Slack, Gmail, and Linear credentials/resources/syncs.
-- Cross-source queue generation from a real workspace.
-- A remote MCP client handshake.
-- Approval-gated provider write execution.
+- Dynamic HydraDB v2 catalogue plus per-provider contract hydration.
+- Authenticated database list/create flow.
+- Connector create, discover, scoped configure, initial backfill, sync, and connection proof.
+- Connector-specific cursor hashes, sync reconciliation, and provider-matched canary retrieval.
+- AES-GCM credential encryption; submitted secrets never return to the browser.
+- Cross-connector Ask retrieval with citations and a per-call trace.
+- Cross-connector queue generation using the shared deterministic ranking package.
+- Schema-validated, D1-backed Execution Packets shared by web, API, and MCP.
+- Expiring, revocable, hash-only workspace MCP tokens with read or proposal/sync scopes.
+- Agent completion-result callback that records an event without executing provider writes.
+- Prompt-injection screening, secret redaction, audit events, and fail-closed source eligibility.
+- Typecheck, lint, production build, browser smoke test, and 67 automated tests.
 
-Deployments:
+## External acceptance gate
 
-- Primary, D1/R2-backed private deployment: `https://queueproof-control-plane.vaibhav09908.chatgpt.site`.
-- Public Vercel interface preview: `https://queueproof.vercel.app`.
+Live Slack, Gmail, Linear, cross-source quality, and hosted MCP parity require a HydraDB API key and provider authorisation. No such credentials are stored in the repository or substituted with fixtures. See [BUILD_STATUS.md](BUILD_STATUS.md) for the exact current boundary.
 
-The Vercel deployment deliberately disables workspace creation because no durable Vercel database is attached. It does not silently fall back to browser storage or fixture records.
+## Deployments
 
-Those items require external credentials. They are not replaced with fixture data.
+- Durable authenticated app: [queueproof-control-plane.vaibhav09908.chatgpt.site](https://queueproof-control-plane.vaibhav09908.chatgpt.site)
+- Public launch surface: [queueproof.vercel.app](https://queueproof.vercel.app)
 
-## Start
+The public Vercel surface sends users to the durable control plane because no Vercel database is attached. Credentials and evidence are never downgraded to browser storage.
 
-Prerequisites: Node.js 22.13+ and pnpm.
+## Start and verify
 
-```bash
-pnpm install
-Copy-Item .env.example .env.local
-pnpm dev
-```
-
-Open `http://localhost:3000`. External credentials are optional at startup. To connect real data, create a fresh HydraDB key and paste it into the web onboarding form—never into chat, source control, or a CLI argument.
-
-## Verification
+Prerequisites: Node.js 22.13+.
 
 ```bash
-pnpm typecheck
-pnpm lint
-pnpm test
-pnpm build
-pnpm doctor
-pnpm deploy:check
+npm install
+npm run dev
 ```
-
-Fixture evaluation is explicitly gated:
 
 ```bash
-$env:QUEUEPROOF_TEST_MODE="true"
-pnpm eval
+npm run typecheck
+npm run lint
+npm test
+npm run build
+npm run test:e2e
+npm run deploy:check
 ```
-
-Live acceptance refuses to run without the live flag, URL, and HydraDB key:
-
-```bash
-$env:QUEUEPROOF_LIVE_TEST="true"
-$env:QUEUEPROOF_URL="https://your-deployment.example"
-$env:HYDRADB_API_KEY="..."
-pnpm test:live
-```
-
-## Architecture
-
-The vinext application targets Cloudflare Sites/Workers with D1 and R2 bindings. HydraDB remains the retrieval and connector plane. The UI, API routes, MCP gateway, contracts, ranking, retrieval, connector adapter, and security functions share one TypeScript workspace.
-
-See [ARCHITECTURE.md](ARCHITECTURE.md), [SECURITY.md](SECURITY.md), [DEPLOYMENT.md](DEPLOYMENT.md), and [BUILD_STATUS.md](BUILD_STATUS.md).
 
 ## MCP
 
-Remote MCP is fail-closed unless both `QUEUEPROOF_MCP_TOKEN` and `QUEUEPROOF_MCP_WORKSPACE_ID` are configured. Use a secret environment variable in clients; never embed the token in checked-in JSON.
+Create a scoped credential in Agent Dock and keep it in a client-side environment variable:
 
-```bash
-codex mcp add queueproof --url https://your-deployment.example/api/mcp \
-  --bearer-token-env-var QUEUEPROOF_MCP_TOKEN
+```json
+{
+  "mcpServers": {
+    "queueproof": {
+      "url": "https://your-deployment.example/mcp",
+      "headers": {
+        "Authorization": "Bearer ${QUEUEPROOF_MCP_TOKEN}"
+      }
+    }
+  }
+}
 ```
 
-The server publishes workspace-scoped queue, change, connector, skill, memory, evaluation, and action-proposal tools. Proposing an action is not executing it.
+Read-only tokens expose health, connector proof, retrieval, queue, priority, and Execution Packet tools. Optional proposal/sync scopes add connector sync, action proposal, and execution-result reporting. Proposing or reporting is not a provider write.
 
 ## Repository map
 
-- `app/` — web UI, authenticated APIs, MCP route.
-- `packages/` — contracts, HydraDB, connector, retrieval, ranking, security, MCP.
-- `db/` and `drizzle/` — schema and migration.
-- `skills/` — portable QueueProof skill packages.
-- `cli/` — project-scoped client installers and operator commands.
-- `evals/` — test-only labelled fixtures.
-- `submission/` — evidence matrix and demo copy.
-- `docs/research/` — dated contract research with official sources.
+- `app/` — focused web interface and authenticated APIs.
+- `lib/server/` — durable orchestration and queue generation.
+- `packages/` — contracts, HydraDB, connectors, retrieval, ranking, security, and MCP.
+- `db/` and `drizzle/` — D1 schema and migration.
+- `tests/` — deterministic contract and security tests.
+- `submission/` — hackathon evidence and demo material.
 
-## Responsible disclosure
+## Security
 
-Do not open a public issue for a vulnerability. Follow [SECURITY.md](SECURITY.md). Never include real customer source content in screenshots, test fixtures, or submission assets.
+Never paste production credentials into chat, source control, screenshots, or CLI arguments. Use the encrypted browser onboarding and report vulnerabilities through [SECURITY.md](SECURITY.md).

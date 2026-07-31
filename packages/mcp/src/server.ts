@@ -44,7 +44,10 @@ async function selectRows(
   return result.results;
 }
 
-export function buildQueueProofServer(workspaceId: string) {
+export function buildQueueProofServer(
+  workspaceId: string,
+  scopes: string[] = ["queueproof:read", "queueproof:propose", "queueproof:sync"],
+) {
   const server = new McpServer(
     {
       name: "queueproof",
@@ -115,7 +118,7 @@ export function buildQueueProofServer(workspaceId: string) {
     },
   );
 
-  server.registerTool(
+  if (scopes.includes("queueproof:sync")) server.registerTool(
     "queueproof_sync_connector",
     {
       title: "Request connector sync",
@@ -254,6 +257,39 @@ export function buildQueueProofServer(workspaceId: string) {
         .bind(workspaceId, packetId)
         .first<{ packet_json: string }>();
       return text({ packet: row ? JSON.parse(row.packet_json) : null });
+    },
+  );
+
+  if (scopes.includes("queueproof:propose")) server.registerTool(
+    "queueproof_report_execution_result",
+    {
+      title: "Report execution result",
+      description: "Append an agent-reported result to a packet. This records evidence but never performs a provider action.",
+      inputSchema: z.object({
+        packetId: z.string(),
+        status: z.enum(["completed", "failed", "blocked"]),
+        summary: z.string().min(1).max(4000),
+        evidence: z.array(z.record(z.string(), z.unknown())).max(20).default([]),
+      }),
+      outputSchema: z.object({ recorded: z.boolean(), packetId: z.string(), status: z.string() }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    },
+    async ({ packetId, status, summary, evidence }) => {
+      const packet = await requireDb().prepare(
+        `SELECT id FROM execution_packets WHERE workspace_id = ? AND id = ? LIMIT 1`,
+      ).bind(workspaceId, packetId).first<{ id: string }>();
+      if (!packet) throw new Error("Execution packet not found in the authenticated workspace.");
+      const db = requireDb();
+      await db.batch([
+        db.prepare(
+          `INSERT INTO execution_events (id, workspace_id, packet_id, event_type, payload_json, actor_id)
+           VALUES (?, ?, ?, 'agent_result', ?, 'mcp-agent')`,
+        ).bind(createId("event"), workspaceId, packetId, JSON.stringify({ status, summary, evidence })),
+        db.prepare(
+          `UPDATE execution_packets SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND workspace_id = ?`,
+        ).bind(status, packetId, workspaceId),
+      ]);
+      return text({ recorded: true, packetId, status });
     },
   );
 
@@ -419,7 +455,7 @@ export function buildQueueProofServer(workspaceId: string) {
     },
   );
 
-  server.registerTool(
+  if (scopes.includes("queueproof:propose")) server.registerTool(
     "queueproof_propose_action",
     {
       title: "Propose approval-gated action",
@@ -535,10 +571,9 @@ export const queueProofMcpHandler = createMcpHandler(
   { legacy: "stateless", responseMode: "auto" },
 );
 
-export function createWorkspaceMcpHandler(workspaceId: string) {
-  return createMcpHandler(() => buildQueueProofServer(workspaceId), {
+export function createWorkspaceMcpHandler(workspaceId: string, scopes?: string[]) {
+  return createMcpHandler(() => buildQueueProofServer(workspaceId, scopes), {
     legacy: "stateless",
     responseMode: "auto",
   });
 }
-

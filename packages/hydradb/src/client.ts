@@ -87,13 +87,36 @@ export class HydraDbClient {
   }
 
   listProviders(providerId?: string) {
-    const suffix = providerId ? `?id=${encodeURIComponent(providerId)}` : "";
-    return this.request<Record<string, unknown>>(`/connectors/providers${suffix}`);
+    if (!providerId) return this.request<Record<string, unknown>>("/connector-catalog");
+    return this.request<Record<string, unknown>>(
+      `/connectors/providers?id=${encodeURIComponent(providerId)}`,
+    );
   }
 
   listConnectors(provider?: string) {
     const suffix = provider ? `?provider=${encodeURIComponent(provider)}` : "";
     return this.request<Record<string, unknown>>(`/connectors${suffix}`);
+  }
+
+  getConnector(connectorId: string) {
+    return this.request<Record<string, unknown>>(`/connectors/${encodeURIComponent(connectorId)}`);
+  }
+
+  listDatabases() {
+    return this.request<Record<string, unknown>>("/databases");
+  }
+
+  createDatabase(database: string) {
+    return this.request<Record<string, unknown>>("/databases", {
+      method: "POST",
+      body: JSON.stringify({ database }),
+    });
+  }
+
+  databaseStatus(database: string) {
+    return this.request<Record<string, unknown>>(
+      `/databases/status?database=${encodeURIComponent(database)}`,
+    );
   }
 
   previewResources(provider: string, credentials: Record<string, unknown>, authType?: string) {
@@ -139,4 +162,3 @@ export class HydraDbClient {
     });
   }
 }
-

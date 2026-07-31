@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     }
     const baseUrl = payload.baseUrl?.trim() || "https://api.hydradb.com";
     const client = new HydraDbClient({ apiKey, baseUrl });
-    const verification = await client.listProviders();
+    const verification = await client.listDatabases();
     if (!verification.ok) {
       await audit({
         workspaceId: String(workspace.id),
@@ -67,10 +67,10 @@ export async function POST(request: Request) {
       ok: true,
       fingerprint,
       providerContractLoaded: true,
+      authenticatedCapability: "databases.list",
       verifiedAt: new Date().toISOString(),
     });
   } catch (error) {
     return apiError(error);
   }
 }
-

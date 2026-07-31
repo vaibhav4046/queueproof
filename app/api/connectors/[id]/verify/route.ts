@@ -4,6 +4,7 @@ import {
   extractQuerySources,
   extractResources,
   providerFromSource,
+  unwrapHydra,
 } from "../../../../../lib/server/hydradb-shapes";
 import { requireRequestActor } from "../../../../../lib/server/identity";
 import { requireDb } from "../../../../../lib/server/runtime";
@@ -23,13 +24,30 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       .first<Record<string, string>>();
     if (!connector) return noStoreJson({ ok: false, error: "Connector not found." }, { status: 404 });
     const client = await hydraClientForWorkspace(workspaceId);
-    const resourceResponse = await client.connectorResources(connector.hydradb_connector_id);
+    const selectedRows = await db.prepare(
+      `SELECT external_resource_id FROM connector_resources
+       WHERE workspace_id = ? AND connector_id = ? AND selected = 1`,
+    ).bind(workspaceId, id).all<{ external_resource_id: string }>();
+    const selectedSet = new Set(selectedRows.results.map((row) => row.external_resource_id));
+    const [resourceResponse, connectorResponse] = await Promise.all([
+      client.connectorResources(connector.hydradb_connector_id),
+      client.getConnector(connector.hydradb_connector_id),
+    ]);
     const resources = resourceResponse.ok ? extractResources(resourceResponse.data) : [];
-    const selectedIds = resources
-      .filter((resource) => resource.provider_cursor)
-      .map((resource) => String(resource.resource_id ?? resource.id ?? ""))
-      .filter(Boolean);
-    const hasCursor = selectedIds.length > 0;
+    const selectedResources = resources.filter((resource) =>
+      selectedSet.has(String(resource.resource_id ?? resource.resourceId ?? resource.id ?? "")),
+    );
+    const cursorEntries = selectedResources.map((resource) => ({
+      id: String(resource.resource_id ?? resource.resourceId ?? resource.id ?? ""),
+      cursor: String(resource.provider_cursor ?? resource.providerCursor ?? ""),
+      lastSyncedAt: resource.last_synced_at ?? resource.lastSyncedAt ?? null,
+    })).filter((entry) => entry.id && entry.cursor);
+    const selectedIds = cursorEntries.map((entry) => entry.id);
+    const hasCursor = selectedSet.size > 0 && cursorEntries.length === selectedSet.size;
+    const connectorDetail = connectorResponse.ok ? unwrapHydra(connectorResponse.data) : {};
+    const syncStatus = String(connectorDetail.sync_status ?? connectorDetail.syncStatus ?? connectorDetail.status ?? "unknown");
+    const lastSuccessfulSync = connectorDetail.last_successful_sync_at ?? connectorDetail.lastSuccessfulSyncAt ?? null;
+    const upstreamError = connectorDetail.last_error ?? connectorDetail.lastError ?? null;
     const canaryQuery = `Return one recent source from ${connector.provider} for connection verification.`;
     let canaryCount = 0;
     let sourceIds: string[] = [];
@@ -38,7 +56,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     if (hasCursor) {
       const query = await client.query({
         database: connector.database,
-        ...(connector.collection ? { collection: connector.collection } : {}),
+        ...(connector.collection ? { collections: [connector.collection] } : {}),
         query: canaryQuery,
         type: "knowledge",
         query_by: "hybrid",
@@ -50,18 +68,22 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       queryRequestId = query.requestId;
       if (query.ok) {
         const extracted = extractQuerySources(query.data);
-        const matching = extracted.sources.filter(
-          (source) => providerFromSource(source) === connector.provider.toLowerCase(),
-        );
+        const matching = extracted.sources.filter((source) => {
+          if (providerFromSource(source) !== connector.provider.toLowerCase()) return false;
+          const metadata = typeof source.additional_metadata === "object" && source.additional_metadata
+            ? source.additional_metadata as Record<string, unknown> : {};
+          const sourceConnector = source.connector_id ?? metadata.connector_id;
+          return !sourceConnector || String(sourceConnector) === connector.hydradb_connector_id;
+        });
         canaryCount = matching.length;
         sourceIds = matching.map((source) => String(source.id ?? "")).filter(Boolean);
         providerCoverage = [...new Set(extracted.sources.map(providerFromSource).filter(Boolean))] as string[];
       }
     }
-    const verified = resourceResponse.ok && hasCursor && canaryCount > 0;
+    const verified = resourceResponse.ok && connectorResponse.ok && hasCursor && canaryCount > 0 && !upstreamError;
     const stage = verified
       ? "data_verified"
-      : !resourceResponse.ok
+      : !resourceResponse.ok || !connectorResponse.ok
         ? "resource_status_failed"
         : !hasCursor
           ? "sync_evidence_missing"
@@ -84,8 +106,8 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
         connector.account_scope ?? null,
         JSON.stringify(selectedIds),
         stage,
-        connector.last_successful_sync_at ?? null,
-        hasCursor ? await sha256(selectedIds.join("|")) : null,
+        lastSuccessfulSync ? String(lastSuccessfulSync) : null,
+        hasCursor ? await sha256(JSON.stringify(cursorEntries)) : null,
         await sha256(canaryQuery),
         canaryCount,
         JSON.stringify(sourceIds),
@@ -94,12 +116,24 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
         verified ? null : stage,
       )
       .run();
-    await db
-      .prepare(
-        `UPDATE connectors SET state = ?, last_error = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-      )
-      .bind(verified ? "data_verified" : "degraded", verified ? null : stage, id)
-      .run();
+    const updates = [
+      db.prepare(
+        `UPDATE connectors SET state = ?, last_successful_sync_at = ?, last_error = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      ).bind(verified ? "data_verified" : "degraded", lastSuccessfulSync ? String(lastSuccessfulSync) : null,
+        verified ? null : String(upstreamError ?? stage), id),
+    ];
+    for (const entry of cursorEntries) {
+      updates.push(db.prepare(
+        `UPDATE connector_resources SET provider_cursor_hash = ?, last_synced_at = ?, status = 'verified',
+         updated_at = CURRENT_TIMESTAMP WHERE connector_id = ? AND external_resource_id = ?`,
+      ).bind(await sha256(entry.cursor), entry.lastSyncedAt ? String(entry.lastSyncedAt) : null, id, entry.id));
+    }
+    const nextState = verified ? "data_verified" : !hasCursor && resourceResponse.ok && connectorResponse.ok ? "sync_in_progress" : "degraded";
+    updates[0] = db.prepare(
+      `UPDATE connectors SET state = ?, last_successful_sync_at = ?, last_error = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+    ).bind(nextState, lastSuccessfulSync ? String(lastSuccessfulSync) : null,
+      verified || nextState === "sync_in_progress" ? null : String(upstreamError ?? stage), id);
+    await db.batch(updates);
     await audit({
       workspaceId,
       actorId: actor.id,
@@ -112,13 +146,18 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
         stage,
         resourceRequestId: resourceResponse.requestId,
         queryRequestId,
+        connectorRequestId: connectorResponse.requestId,
         canaryCount,
         providerCoverage,
+        syncStatus,
       },
     });
     return noStoreJson(
       {
         ok: verified,
+        error: verified ? undefined : stage === "sync_evidence_missing"
+          ? "Initial indexing is still in progress. No cursor proof is available yet."
+          : "Connection proof has not passed yet. Inspect the verification details and retry.",
         verification: {
           id: verificationId,
           stage,
@@ -129,6 +168,8 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
           providerCoverage,
           verifiedAt: verified ? new Date().toISOString() : null,
           syncCondition: hasCursor ? "cursor_present" : "cursor_missing",
+          syncStatus,
+          lastSuccessfulSync: lastSuccessfulSync ? String(lastSuccessfulSync) : null,
           failureReason: verified ? null : stage,
           contractVersion: "2",
         },
@@ -139,4 +180,3 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     return apiError(error);
   }
 }
-

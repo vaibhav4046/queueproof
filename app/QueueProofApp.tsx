@@ -1,37 +1,10 @@
 "use client";
 
 import {
-  Activity,
-  ArrowRight,
-  ArrowUpRight,
-  Bot,
-  BrainCircuit,
-  Check,
-  ChevronRight,
-  CircleCheck,
-  Clipboard,
-  Command,
-  Database,
-  ExternalLink,
-  FileCheck2,
-  Gauge,
-  GitBranch,
-  KeyRound,
-  Layers3,
-  Link2,
-  Network,
-  Play,
-  Plus,
-  RefreshCw,
-  RotateCcw,
-  Search,
-  ShieldCheck,
-  Sparkles,
-  Target,
-  Terminal,
-  TriangleAlert,
-  X,
-  Zap,
+  ArrowRight, Bot, Braces, Check, ChevronRight, CircleAlert, CircleCheck,
+  Clipboard, Command, Database, ExternalLink, Eye, FileCheck2, KeyRound,
+  Link2, LoaderCircle, LockKeyhole, MessageSquareText, Plus, RefreshCw,
+  Search, ShieldCheck, Sparkles, Terminal, Unplug, X, Zap,
 } from "lucide-react";
 import Image from "next/image";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
@@ -46,828 +19,471 @@ type WorkspaceState = {
 };
 
 type CredentialField = {
-  name: string;
-  required?: boolean;
-  title?: string;
-  description?: string;
-  type?: string;
-  format?: string;
+  name: string; required?: boolean; title?: string; description?: string;
+  type?: string; format?: string; enum?: string[];
 };
 
 type Provider = {
-  id: string;
-  name: string;
-  available: boolean;
-  maturity: string | null;
-  category: string | null;
-  supportClass: string;
-  credentialFields: CredentialField[];
-  indexedObjectTypes: unknown[];
-  contractHash: string;
+  id: string; name: string; available: boolean; maturity: string | null;
+  category: string | null; supportClass: string; credentialFields: CredentialField[];
+  indexedObjectTypes: unknown[]; setupGuide?: unknown; authTypes?: unknown[];
 };
 
 type Connector = {
-  id: string;
-  hydradbConnectorId: string;
-  provider: string;
-  name: string;
-  state: string;
-  database: string;
-  collection: string | null;
-  verificationStage?: string | null;
-  canaryResultCount?: number | null;
-  verifiedAt?: string | null;
-  lastSuccessfulSyncAt?: string | null;
-  lastError?: string | null;
+  id: string; hydradbConnectorId: string; provider: string; name: string;
+  state: string; database: string; collection: string | null;
+  verificationStage?: string | null; canaryResultCount?: number | null;
+  verifiedAt?: string | null; lastSuccessfulSyncAt?: string | null; lastError?: string | null;
 };
 
-type Resource = { id: string; name: string; resourceType: string };
-
-type QueryResult = {
-  result: {
-    sources: Array<{
-      id: string;
-      provider: string | null;
-      title: string;
-      timestamp: string | null;
-      url: string | null;
-    }>;
-    chunks: Array<{
-      sourceId: string;
-      excerpt: string;
-      relevancyScore: number;
-      untrustedInstructionDetected: boolean;
-      sourceTimestamp: string | null;
-    }>;
-  };
-  trace: {
-    runId: string;
-    classification: string;
-    plannedSteps: string[];
-    actualSteps: string[];
-    queryMode: string;
-    resultCount: number;
-    providerCoverage: string[];
-    callCount: number;
-    hydradbLatencyMs: number;
-    endToEndLatencyMs: number;
-    requestId: string | null;
-  };
+type Resource = { id: string; name: string; resourceType: string; selected?: number; status?: string };
+type Evidence = {
+  sourceId?: string; id?: string; provider: string; externalId?: string | null;
+  title: string; excerpt: string; timestamp?: string | null;
+  ingestionTimestamp?: string | null; url?: string | null; authority?: string;
 };
-
-type MissionDraft = {
-  mission: string;
-  owner: string;
-  outcome: string;
-  impact: "contained" | "important" | "material" | "critical";
-  urgency: "today" | "week" | "month" | "open";
-  blockers: string;
-  evidence: string;
+type Packet = {
+  packet_id: string; created_at: string; policy_version: string;
+  task: { title: string; objective: string; owner: string | null; project: string | null;
+    deadline: string | null; priority_score: number; confidence: number };
+  why_now: string[]; constraints: string[]; dependencies: string[];
+  acceptance_criteria: string[]; evidence: Evidence[]; contradictions: unknown[];
+  missing_information: string[]; recommended_agent: string;
+  permissions: { read: string[]; write: string[]; approval_required: boolean };
 };
-
-type Contribution = { label: string; value: number; reason: string };
-
-type RankedAction = {
-  id: string;
-  title: string;
-  score: number;
-  band: "CRITICAL" | "HIGH" | "NORMAL" | "LOW";
-  confidence: "HIGH" | "MEDIUM" | "LOW";
-  contributions: Contribution[];
+type QueueItem = {
+  rank: number; finalScore: number; confidence: number; componentScores: Record<string, number>;
+  penalties: Record<string, number>; taskId: string; title: string; recommendedAction: string;
+  owner: string | null; project: string | null; customer: string | null; deadline: string | null;
+  status: string; packetId: string; packet: Packet;
 };
-
-type MissionPlan = {
-  actions: RankedAction[];
-  generatedAt: string;
-  inputs: MissionDraft;
-  sources: QueryResult["result"]["sources"];
-  trace: QueryResult["trace"] | null;
+type QueueData = { generatedAt: string | null; items: QueueItem[] };
+type AskData = {
+  answer: string; evidence: Array<Evidence & { connectorId: string }>;
+  trace: { runId: string; category: string; mode: string; latencyMs: number; calls: Array<Record<string, unknown>> };
 };
-
-type ActiveTab = "command" | "sources" | "skills" | "system";
-
-const initialMission: MissionDraft = {
-  mission: "",
-  owner: "",
-  outcome: "",
-  impact: "material",
-  urgency: "today",
-  blockers: "",
-  evidence: "",
+type McpToken = {
+  id: string; clientId: string; clientType: string; scopes: string[]; expiresAt: string;
+  revokedAt: string | null; createdAt: string; lastHandshakeAt: string | null; lastToolCallAt: string | null;
 };
+type ActiveTab = "command" | "ask" | "sources" | "agent";
 
-const impactScores: Record<MissionDraft["impact"], number> = {
-  contained: 14,
-  important: 24,
-  material: 34,
-  critical: 44,
-};
-
-const urgencyScores: Record<MissionDraft["urgency"], number> = {
-  today: 26,
-  week: 18,
-  month: 9,
-  open: 3,
-};
-
-const statusLabels: Record<string, string> = {
-  connector_created: "Ready to discover",
-  resources_discovered: "Resources found",
-  resources_selected: "Ready to sync",
-  initial_sync_requested: "Sync requested",
-  sync_in_progress: "Syncing",
-  data_verified: "Evidence verified",
-  degraded: "Needs attention",
-  failed: "Failed",
-};
-
-const tabs = [
+const nav = [
   { id: "command", label: "Command", icon: Command },
+  { id: "ask", label: "Ask", icon: MessageSquareText },
   { id: "sources", label: "Sources", icon: Link2 },
-  { id: "skills", label: "Skills", icon: Zap },
-  { id: "system", label: "System", icon: Activity },
+  { id: "agent", label: "Agent", icon: Bot },
 ] as const;
 
-const skillCards = [
-  {
-    title: "Priority adjudication",
-    detail: "Scores impact, urgency, clarity, ownership, and dependencies with a visible formula.",
-    icon: Gauge,
-  },
-  {
-    title: "Evidence retrieval",
-    detail: "Queries verified HydraDB sources when a durable workspace and connector are available.",
-    icon: Search,
-  },
-  {
-    title: "Dependency mapping",
-    detail: "Turns explicit blockers into an execution sequence without inventing hidden context.",
-    icon: GitBranch,
-  },
-  {
-    title: "Execution packet",
-    detail: "Produces a copyable next move, acceptance condition, ownership signal, and receipts.",
-    icon: FileCheck2,
-  },
-] as const;
+const stateCopy: Record<string, string> = {
+  connector_created: "Choose scope", resources_discovered: "Choose scope",
+  resources_selected: "Ready to sync", initial_sync_requested: "Indexing",
+  sync_in_progress: "Indexing", data_verified: "Verified", degraded: "Needs proof",
+  authentication_expired: "Auth expired", permission_insufficient: "Permission issue",
+  rate_limited: "Rate limited", failed: "Failed",
+};
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+    headers: { ...(init?.body ? { "Content-Type": "application/json" } : {}), ...(init?.headers ?? {}) },
     cache: "no-store",
   });
-  const data = (await response.json()) as T & { error?: string };
-  if (!response.ok) throw new Error(data.error ?? `Request failed with status ${response.status}.`);
+  const text = await response.text();
+  let data: (T & { error?: string }) | null = null;
+  try { data = text ? JSON.parse(text) as T & { error?: string } : null; } catch { /* handled below */ }
+  if (!response.ok) throw new Error(data?.error ?? text ?? `Request failed (${response.status}).`);
+  if (!data) throw new Error("QueueProof returned an empty response.");
   return data;
 }
 
-const pause = (duration: number) => new Promise((resolve) => window.setTimeout(resolve, duration));
-
-function buildMissionPlan(inputs: MissionDraft, sources: QueryResult["result"]["sources"] = [], trace: QueryResult["trace"] | null = null): MissionPlan {
-  const rawActions = inputs.mission
-    .split("\n")
-    .map((value) => value.replace(/^[-*\d.)\s]+/, "").trim())
-    .filter(Boolean)
-    .slice(0, 8);
-
-  const actions = rawActions.map((title, index) => {
-    const blockerCount = inputs.blockers.split("\n").filter((value) => value.trim()).length;
-    const clarity = title.length >= 28 ? 8 : title.length >= 14 ? 5 : 1;
-    const contributions: Contribution[] = [
-      { label: "Business impact", value: impactScores[inputs.impact], reason: `Marked ${inputs.impact} by you.` },
-      { label: "Time pressure", value: urgencyScores[inputs.urgency], reason: `Horizon set to ${inputs.urgency}.` },
-      { label: "Action clarity", value: clarity, reason: clarity >= 5 ? "The action is concrete enough to execute." : "The action is still terse." },
-      { label: "Named owner", value: inputs.owner ? 7 : 0, reason: inputs.owner ? `Owner supplied: ${inputs.owner}.` : "No owner supplied." },
-      { label: "Acceptance condition", value: inputs.outcome ? 8 : 0, reason: inputs.outcome ? "A successful outcome was supplied." : "No outcome supplied." },
-      { label: "Dependency visibility", value: Math.min(7, blockerCount * 3), reason: blockerCount ? `${blockerCount} explicit blocker${blockerCount === 1 ? "" : "s"} supplied.` : "No blockers supplied." },
-      { label: "Evidence note", value: inputs.evidence ? 6 : 0, reason: inputs.evidence ? "A direct evidence note was supplied." : "No direct evidence note supplied." },
-      { label: "Queue order", value: -index * 3, reason: index ? "Later lines receive a small sequence penalty." : "First declared action receives no sequence penalty." },
-    ];
-    const score = Math.max(0, Math.min(100, contributions.reduce((sum, item) => sum + item.value, 0)));
-    const filledSignals = [inputs.owner, inputs.outcome, inputs.blockers, inputs.evidence].filter(Boolean).length;
-    return {
-      id: `action-${index + 1}`,
-      title,
-      score,
-      band: score >= 80 ? "CRITICAL" : score >= 60 ? "HIGH" : score >= 38 ? "NORMAL" : "LOW",
-      confidence: filledSignals >= 3 ? "HIGH" : filledSignals >= 1 ? "MEDIUM" : "LOW",
-      contributions,
-    } satisfies RankedAction;
-  });
-
-  return {
-    actions: actions.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id)),
-    generatedAt: new Date().toISOString(),
-    inputs,
-    sources,
-    trace,
-  };
+function dateLabel(value?: string | null) {
+  if (!value) return "Not available";
+  const parsed = new Date(value);
+  return Number.isFinite(parsed.getTime()) ? parsed.toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : value;
 }
 
-function initials(value: string) {
-  return value
-    .split(/\s+/)
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase() || "QP";
+function providerGlyph(provider: string) {
+  return provider.slice(0, 2).toUpperCase();
 }
 
-function formatTime(value?: string | null) {
-  if (!value) return "Not yet";
-  return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
+function band(score: number) {
+  return score >= 80 ? "Critical" : score >= 60 ? "High" : score >= 35 ? "Normal" : "Low";
 }
 
-export function QueueProofApp({ testMode }: { testMode: boolean }) {
-  const [activeTab, setActiveTab] = useState<ActiveTab>("command");
-  const [workspaceState, setWorkspaceState] = useState<WorkspaceState | null>(null);
+export default function QueueProofApp() {
+  const [tab, setTab] = useState<ActiveTab>("command");
+  const [workspace, setWorkspace] = useState<WorkspaceState | null>(null);
   const [connectors, setConnectors] = useState<Connector[]>([]);
-  const [providers, setProviders] = useState<Provider[]>([]);
-  const [draft, setDraft] = useState<MissionDraft>(initialMission);
-  const [plan, setPlan] = useState<MissionPlan | null>(null);
-  const [phase, setPhase] = useState("");
-  const [loading, setLoading] = useState("workspace");
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [showWorkspaceSetup, setShowWorkspaceSetup] = useState(false);
-  const [showSourceSetup, setShowSourceSetup] = useState(false);
-  const [showReceipt, setShowReceipt] = useState(true);
-  const [copied, setCopied] = useState(false);
+  const [queue, setQueue] = useState<QueueData>({ generatedAt: null, items: [] });
+  const [selectedPacket, setSelectedPacket] = useState<Packet | null>(null);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [busy, setBusy] = useState("");
+  const [booting, setBooting] = useState(true);
 
-  const refreshWorkspace = useCallback(async () => {
-    setLoading("workspace");
-    setError(null);
-    try {
-      const state = await api<WorkspaceState>("/api/workspace");
-      setWorkspaceState(state);
-      if (state.workspace) {
-        const result = await api<{ connectors: Connector[] }>("/api/connectors");
-        setConnectors(result.connectors);
-      }
-      if (state.hydradb.configured) {
-        const result = await api<{ providers: Provider[] }>("/api/providers");
-        setProviders(result.providers);
-      }
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "QueueProof could not load its control plane.");
-    } finally {
-      setLoading("");
-    }
+  const loadConnectors = useCallback(async () => {
+    if (!workspace?.workspace) return;
+    const data = await api<{ connectors: Connector[] }>("/api/connectors");
+    setConnectors(data.connectors);
+  }, [workspace?.workspace]);
+
+  const reloadWorkspace = useCallback(async () => {
+    const state = await api<WorkspaceState>("/api/workspace");
+    setWorkspace(state);
+    return state;
   }, []);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => void refreshWorkspace(), 0);
-    return () => window.clearTimeout(timer);
-  }, [refreshWorkspace]);
+    let active = true;
+    void api<WorkspaceState>("/api/workspace").then((state) => {
+      if (active) setWorkspace(state);
+    }).catch((reason: Error) => {
+      if (active) setError(reason.message);
+    }).finally(() => {
+      if (active) setBooting(false);
+    });
+    return () => { active = false; };
+  }, []);
 
-  const verifiedConnectors = useMemo(
-    () => connectors.filter((connector) => connector.state === "data_verified"),
-    [connectors],
-  );
-  const storageAvailable = workspaceState?.platform?.storageAvailable !== false;
-  const agentMode = verifiedConnectors.length ? "EVIDENCE LINKED" : "LOCAL SESSION";
+  useEffect(() => {
+    if (!workspace?.workspace) return;
+    let active = true;
+    void Promise.all([
+      api<{ connectors: Connector[] }>("/api/connectors"),
+      api<QueueData>("/api/queue"),
+    ]).then(([connectorData, queueData]) => {
+      if (!active) return;
+      setConnectors(connectorData.connectors);
+      setQueue(queueData);
+    }).catch((reason: Error) => {
+      if (active) setError(reason.message);
+    });
+    return () => { active = false; };
+  }, [workspace?.workspace]);
 
-  const openTab = (tab: ActiveTab) => {
-    setActiveTab(tab);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  const verified = connectors.filter((connector) => connector.state === "data_verified");
 
-  const runMission = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!draft.mission.trim()) return;
-    setError(null);
-    setNotice(null);
-    setPlan(null);
-    setPhase("Reading the mission");
-    await pause(220);
-    setPhase("Mapping explicit dependencies");
-    await pause(240);
-
-    let queryResult: QueryResult | null = null;
-    const connector = verifiedConnectors[0];
-    if (connector) {
-      setPhase("Retrieving verified evidence");
-      try {
-        queryResult = await api<QueryResult>("/api/query", {
-          method: "POST",
-          body: JSON.stringify({
-            query: `Find current commitments, blockers, owners, and deadlines relevant to: ${draft.mission}`,
-            database: connector.database,
-            collections: connector.collection ? [connector.collection] : undefined,
-            mode: "auto",
-          }),
-        });
-      } catch (caught) {
-        setNotice(`The packet was built from your explicit inputs. Connected retrieval was unavailable: ${caught instanceof Error ? caught.message : "unknown error"}`);
-      }
-    }
-
-    setPhase("Applying visible priority policy");
-    await pause(260);
-    setPlan(buildMissionPlan(draft, queryResult?.result.sources ?? [], queryResult?.trace ?? null));
-    setPhase("");
-    setShowReceipt(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const copyPacket = async () => {
-    if (!plan?.actions[0]) return;
-    const top = plan.actions[0];
-    const text = [
-      `QUEUEPROOF EXECUTION PACKET`,
-      `Next move: ${top.title}`,
-      `Priority: ${top.band} (${top.score}/100)`,
-      `Owner: ${plan.inputs.owner || "Unassigned"}`,
-      `Success: ${plan.inputs.outcome || "Not supplied"}`,
-      `Blockers: ${plan.inputs.blockers || "None supplied"}`,
-      `Evidence: ${plan.inputs.evidence || "No direct note supplied"}`,
-      `Source receipts: ${plan.sources.length}`,
-    ].join("\n");
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
-  };
-
-  const execute = async (label: string, task: () => Promise<void>) => {
-    setLoading(label);
-    setError(null);
-    setNotice(null);
+  async function generateQueue() {
+    setBusy("queue"); setError(""); setNotice("");
     try {
-      await task();
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "The operation failed.");
-    } finally {
-      setLoading("");
-    }
-  };
-
-  if (loading === "workspace" && !workspaceState) {
-    return <BootScreen />;
+      const data = await api<QueueData>("/api/queue", { method: "POST" });
+      setQueue(data);
+      setSelectedPacket(data.items[0]?.packet ?? null);
+      setNotice(`Built ${data.items.length} cited execution packet${data.items.length === 1 ? "" : "s"} from live evidence.`);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Queue generation failed."); }
+    finally { setBusy(""); }
   }
 
+  if (booting) return <BootScreen />;
+  if (workspace?.platform?.storageAvailable === false) return <SecureGateway />;
+  if (!workspace?.workspace) return <WorkspaceSetup onDone={reloadWorkspace} />;
+
   return (
-    <main className="qp-shell">
-      {testMode && <div className="test-ribbon">TEST MODE — SYNTHETIC FIXTURES MAY BE PRESENT</div>}
-      <div className="grain" aria-hidden="true" />
-      <header className="topbar">
-        <button className="wordmark" onClick={() => openTab("command")} aria-label="Open QueueProof command">
-          <span className="wordmark-sigil"><ShieldCheck size={16} /></span>
+    <div className="qp-app">
+      <div className="grain" />
+      <header className="app-header">
+        <button className="brand" onClick={() => setTab("command")} aria-label="QueueProof home">
+          <span className="brand-mark"><ShieldCheck size={17} /></span>
           <span><strong>QUEUE</strong><em>PROOF</em></span>
         </button>
         <nav aria-label="Primary navigation">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button key={tab.id} className={activeTab === tab.id ? "topnav-item active" : "topnav-item"} onClick={() => openTab(tab.id)}>
-                <Icon size={14} />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+          {nav.map(({ id, label, icon: Icon }) => (
+            <button key={id} className={tab === id ? "active" : ""} onClick={() => setTab(id)}>
+              <Icon size={14} />{label}
+            </button>
+          ))}
         </nav>
-        <div className="topbar-status">
-          <span className={verifiedConnectors.length ? "live-dot linked" : "live-dot"} />
-          <span>{agentMode}</span>
-          <span className="avatar">{initials(workspaceState?.actor.displayName ?? "QueueProof")}</span>
+        <div className="header-status">
+          <span className={verified.length ? "status-orb live" : "status-orb"} />
+          <span>{verified.length ? `${verified.length} source${verified.length === 1 ? "" : "s"} live` : "Setup required"}</span>
+          <span className="avatar">{workspace.actor.displayName.slice(0, 2).toUpperCase()}</span>
         </div>
       </header>
 
-      {error && (
-        <div className="message-strip error-message" role="alert">
-          <TriangleAlert size={15} /><span>{error}</span><button onClick={() => setError(null)} aria-label="Dismiss error"><X size={14} /></button>
-        </div>
-      )}
-      {notice && (
-        <div className="message-strip notice-message">
-          <Sparkles size={15} /><span>{notice}</span><button onClick={() => setNotice(null)} aria-label="Dismiss notice"><X size={14} /></button>
+      {(error || notice) && (
+        <div className={`toast ${error ? "error" : "success"}`} role="status">
+          {error ? <CircleAlert size={16} /> : <CircleCheck size={16} />}
+          <span>{error || notice}</span>
+          <button onClick={() => { setError(""); setNotice(""); }} aria-label="Dismiss"><X size={14} /></button>
         </div>
       )}
 
-      {activeTab === "command" && (
-        <CommandView
-          draft={draft}
-          setDraft={setDraft}
-          onSubmit={runMission}
-          plan={plan}
-          phase={phase}
-          onReset={() => { setPlan(null); setDraft(initialMission); window.scrollTo({ top: 0, behavior: "smooth" }); }}
-          onCopy={copyPacket}
-          copied={copied}
-          showReceipt={showReceipt}
-          setShowReceipt={setShowReceipt}
-          linked={verifiedConnectors.length > 0}
-          storageAvailable={storageAvailable}
-          onSetup={() => storageAvailable ? setShowWorkspaceSetup(true) : undefined}
-        />
-      )}
-
-      {activeTab === "sources" && (
-        <SourcesView
-          workspaceState={workspaceState}
-          connectors={connectors}
-          providers={providers}
-          loading={loading}
-          storageAvailable={storageAvailable}
-          onWorkspaceSetup={() => setShowWorkspaceSetup(true)}
-          onSourceSetup={() => setShowSourceSetup(true)}
-          onRefresh={() => void refreshWorkspace()}
-          execute={execute}
-          setConnectors={setConnectors}
-          setNotice={setNotice}
-        />
-      )}
-
-      {activeTab === "skills" && <SkillsView linked={verifiedConnectors.length > 0} />}
-      {activeTab === "system" && <SystemView workspaceState={workspaceState} connectors={connectors} onRefresh={() => void refreshWorkspace()} loading={loading} />}
-
-      <footer className="site-footer">
-        <span>QUEUEPROOF / DETERMINISTIC AGENT CONTROL</span>
-        <span>NO HIDDEN SCORE · NO FABRICATED SOURCES · EVERY DECISION INSPECTABLE</span>
-      </footer>
-
-      {showWorkspaceSetup && workspaceState && (
-        <WorkspaceSetup
-          state={workspaceState}
-          onClose={() => setShowWorkspaceSetup(false)}
-          execute={execute}
-          onDone={async () => { await refreshWorkspace(); setShowWorkspaceSetup(false); }}
-        />
-      )}
-
-      {showSourceSetup && providers.length > 0 && (
-        <SourceSetup
-          providers={providers}
-          onClose={() => setShowSourceSetup(false)}
-          execute={execute}
-          onDone={async () => { await refreshWorkspace(); setShowSourceSetup(false); }}
-        />
-      )}
-    </main>
+      <main>
+        {tab === "command" && (
+          <CommandScreen queue={queue} verified={verified} busy={busy === "queue"}
+            onGenerate={generateQueue} onOpenSources={() => setTab("sources")}
+            onSelectPacket={setSelectedPacket} />
+        )}
+        {tab === "ask" && <AskScreen verifiedCount={verified.length} onOpenSources={() => setTab("sources")} setError={setError} />}
+        {tab === "sources" && <SourcesScreen workspace={workspace} connectors={connectors}
+          reloadWorkspace={reloadWorkspace} reloadConnectors={loadConnectors}
+          setError={setError} setNotice={setNotice} />}
+        {tab === "agent" && <AgentScreen workspace={workspace} setError={setError} setNotice={setNotice} />}
+      </main>
+      {selectedPacket && <PacketDrawer packet={selectedPacket} onClose={() => setSelectedPacket(null)} />}
+    </div>
   );
 }
 
 function BootScreen() {
+  return <div className="boot-screen"><div className="boot-core"><ShieldCheck size={34} /></div><p>Establishing workspace trust boundary…</p></div>;
+}
+
+function SecureGateway() {
   return (
-    <main className="boot-screen">
-      <div className="boot-orbit"><ShieldCheck size={28} /></div>
-      <div>
-        <span className="mono-label">QUEUEPROOF / BOOT SEQUENCE</span>
-        <h1>Reconstructing the control plane.</h1>
-        <p>Checking runtime, workspace, and evidence links.</p>
+    <div className="gateway-screen">
+      <div className="grain" />
+      <Image src="/queueproof-sentinel.webp" alt="QueueProof sentinel" fill priority className="gateway-image" />
+      <div className="gateway-shade" />
+      <div className="gateway-copy">
+        <span className="eyebrow"><LockKeyhole size={13} /> Secure control plane</span>
+        <h1>Decisions require<br /><em>durable proof.</em></h1>
+        <p>This public edge is the launch surface. Credentials, source records, audit history, and execution packets live only in the authenticated QueueProof workspace.</p>
+        <a className="primary-button" href={FULL_APP_URL}>Open QueueProof <ArrowRight size={15} /></a>
+        <div className="trust-row"><span><ShieldCheck size={13} /> Encrypted credentials</span><span><Database size={13} /> Durable D1</span><span><FileCheck2 size={13} /> Cited packets</span></div>
       </div>
-      <div className="boot-line"><span /></div>
-    </main>
+    </div>
   );
 }
 
-function CommandView({
-  draft,
-  setDraft,
-  onSubmit,
-  plan,
-  phase,
-  onReset,
-  onCopy,
-  copied,
-  showReceipt,
-  setShowReceipt,
-  linked,
-  storageAvailable,
-  onSetup,
-}: {
-  draft: MissionDraft;
-  setDraft: (draft: MissionDraft) => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  plan: MissionPlan | null;
-  phase: string;
-  onReset: () => void;
-  onCopy: () => void;
-  copied: boolean;
-  showReceipt: boolean;
-  setShowReceipt: (value: boolean) => void;
-  linked: boolean;
-  storageAvailable: boolean;
-  onSetup: () => void;
-}) {
-  if (phase) return <AgentLoading phase={phase} />;
-  if (plan?.actions[0]) {
-    return (
-      <section className="result-stage">
-        <div className="result-header">
-          <div>
-            <span className="mono-label">EXECUTION PACKET / {linked ? "VERIFIED CONTEXT" : "EXPLICIT INPUTS"}</span>
-            <h1>One move. Fully explained.</h1>
-          </div>
-          <div className="result-actions">
-            <button className="ghost-button" onClick={onReset}><RotateCcw size={15} /> New mission</button>
-            <button className="acid-button" onClick={onCopy}>{copied ? <Check size={15} /> : <Clipboard size={15} />}{copied ? "Copied" : "Copy packet"}</button>
-          </div>
-        </div>
-
-        <div className="execution-grid">
-          <article className="next-move-card">
-            <div className="card-serial">01 / NEXT MOVE</div>
-            <div className="priority-glyph" aria-label={`Priority score ${plan.actions[0].score} out of 100`}>
-              <span>{plan.actions[0].score}</span><small>/100</small>
-            </div>
-            <span className={`band band-${plan.actions[0].band.toLowerCase()}`}>{plan.actions[0].band}</span>
-            <h2>{plan.actions[0].title}</h2>
-            <div className="packet-meta">
-              <div><span>OWNER</span><strong>{plan.inputs.owner || "Unassigned"}</strong></div>
-              <div><span>HORIZON</span><strong>{plan.inputs.urgency}</strong></div>
-              <div><span>CONFIDENCE</span><strong>{plan.actions[0].confidence}</strong></div>
-            </div>
-            <div className="success-contract">
-              <Target size={18} />
-              <div><span>ACCEPTANCE CONDITION</span><p>{plan.inputs.outcome || "Add a success condition before delegating this action."}</p></div>
-            </div>
-            <button className="receipt-toggle" onClick={() => setShowReceipt(!showReceipt)}>
-              <ShieldCheck size={16} /> {showReceipt ? "Hide decision receipt" : "Why this first?"}<ChevronRight size={15} />
-            </button>
-          </article>
-
-          <aside className={showReceipt ? "receipt-panel open" : "receipt-panel"}>
-            <div className="receipt-heading">
-              <div><span className="mono-label">DECISION RECEIPT</span><h3>Visible policy, no mystery math.</h3></div>
-              <span className="hash-chip">QP-1.0</span>
-            </div>
-            <div className="score-stack">
-              {plan.actions[0].contributions.map((item) => (
-                <div className="score-row" key={item.label}>
-                  <div><strong>{item.label}</strong><small>{item.reason}</small></div>
-                  <span className={item.value < 0 ? "negative" : ""}>{item.value > 0 ? "+" : ""}{item.value}</span>
-                </div>
-              ))}
-            </div>
-            <div className="receipt-total"><span>DETERMINISTIC TOTAL</span><strong>{plan.actions[0].score}</strong></div>
-            <p className="receipt-note">This score is derived only from fields you supplied. Connected sources add receipts, never hidden weight.</p>
-          </aside>
-        </div>
-
-        <div className="lower-grid">
-          <article className="queue-panel">
-            <div className="section-heading"><span><Layers3 size={16} /> Ranked queue</span><small>{plan.actions.length} action{plan.actions.length === 1 ? "" : "s"}</small></div>
-            {plan.actions.map((action, index) => (
-              <div className="queue-row" key={action.id}>
-                <span className="queue-index">{String(index + 1).padStart(2, "0")}</span>
-                <div><strong>{action.title}</strong><small>{action.band} · {action.confidence} confidence</small></div>
-                <span className="queue-score">{action.score}</span>
-              </div>
-            ))}
-          </article>
-
-          <article className="evidence-panel">
-            <div className="section-heading"><span><Network size={16} /> Evidence receipts</span><small>{plan.sources.length} verified</small></div>
-            {plan.sources.length ? plan.sources.slice(0, 4).map((source) => (
-              <a className="source-row" key={source.id} href={source.url ?? undefined} target={source.url ? "_blank" : undefined} rel="noreferrer">
-                <span className="source-icon"><FileCheck2 size={15} /></span>
-                <div><strong>{source.title}</strong><small>{source.provider ?? "Source"} · {formatTime(source.timestamp)}</small></div>
-                {source.url && <ArrowUpRight size={14} />}
-              </a>
-            )) : (
-              <div className="honest-empty">
-                <ShieldCheck size={22} />
-                <div><strong>No connected receipts used.</strong><p>This packet is based only on what you entered. Connect a verified source to retrieve live workplace evidence.</p></div>
-              </div>
-            )}
-            {plan.trace && <div className="trace-line"><Terminal size={13} /> Run {plan.trace.runId} · {plan.trace.resultCount} results · {plan.trace.endToEndLatencyMs}ms</div>}
-          </article>
-        </div>
-      </section>
-    );
+function WorkspaceSetup({ onDone }: { onDone: () => Promise<WorkspaceState> }) {
+  const [name, setName] = useState("My QueueProof");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  async function submit(event: FormEvent) {
+    event.preventDefault(); setBusy(true); setError("");
+    try { await api("/api/workspace", { method: "POST", body: JSON.stringify({ name }) }); await onDone(); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "Could not create workspace."); }
+    finally { setBusy(false); }
   }
-
   return (
-    <section className="hero-stage">
-      <div className="hero-art" aria-hidden="true">
-        <Image src="/queueproof-sentinel.webp" alt="" fill priority sizes="100vw" unoptimized />
-        <div className="art-scan" />
-        <div className="art-caption"><span>QP / SENTINEL 01</span><span>EVIDENCE IS A CONTROL SURFACE</span></div>
-      </div>
-      <div className="hero-copy">
-        <div className="hero-kicker"><span className="pulse-dot" /> AUTONOMOUS PRIORITY + EXECUTION CONTROL</div>
-        <h1><span>KNOW WHAT</span><span>MOVES NEXT.</span><em>PROVE WHY.</em></h1>
-        <p>QueueProof reconstructs the work, exposes the ranking policy, and returns one defensible next action—with receipts.</p>
-      </div>
-      <form className="mission-console" onSubmit={onSubmit}>
-        <div className="console-topline">
-          <span><Bot size={15} /> QUEUEPROOF AGENT</span>
-          <span className={linked ? "mode-pill linked" : "mode-pill"}>{linked ? "LIVE EVIDENCE" : "LOCAL / NO FABRICATION"}</span>
-        </div>
-        <label className="mission-field">
-          <span>WHAT MUST MOVE?</span>
-          <textarea
-            value={draft.mission}
-            onChange={(event) => setDraft({ ...draft, mission: event.target.value })}
-            placeholder={"Ship the security review before Friday\nUnblock the enterprise renewal"}
-            rows={3}
-            autoFocus
-            required
-          />
-          <small>One action per line. QueueProof ranks only what you actually enter.</small>
-        </label>
-        <div className="mission-fields-grid">
-          <label><span>OWNER</span><input value={draft.owner} onChange={(event) => setDraft({ ...draft, owner: event.target.value })} placeholder="Name or team" /></label>
-          <label><span>SUCCESS LOOKS LIKE</span><input value={draft.outcome} onChange={(event) => setDraft({ ...draft, outcome: event.target.value })} placeholder="Concrete acceptance condition" /></label>
-          <label><span>IMPACT</span><select value={draft.impact} onChange={(event) => setDraft({ ...draft, impact: event.target.value as MissionDraft["impact"] })}><option value="contained">Contained</option><option value="important">Important</option><option value="material">Material</option><option value="critical">Critical</option></select></label>
-          <label><span>HORIZON</span><select value={draft.urgency} onChange={(event) => setDraft({ ...draft, urgency: event.target.value as MissionDraft["urgency"] })}><option value="today">Today</option><option value="week">This week</option><option value="month">This month</option><option value="open">Open</option></select></label>
-        </div>
-        <details className="context-details">
-          <summary><Plus size={14} /> Add blockers or a direct evidence note</summary>
-          <div className="context-grid">
-            <label><span>KNOWN BLOCKERS</span><textarea rows={2} value={draft.blockers} onChange={(event) => setDraft({ ...draft, blockers: event.target.value })} placeholder="One blocker per line" /></label>
-            <label><span>DIRECT EVIDENCE</span><textarea rows={2} value={draft.evidence} onChange={(event) => setDraft({ ...draft, evidence: event.target.value })} placeholder="Link, quote, ticket, or commitment" /></label>
-          </div>
-        </details>
-        <div className="console-actions">
-          <span><ShieldCheck size={14} /> {linked ? "Verified source retrieval is active." : "No source claims will be invented."}</span>
-          <button className="launch-button" type="submit" disabled={!draft.mission.trim()}><span>BUILD EXECUTION PACKET</span><ArrowRight size={17} /></button>
-        </div>
+    <div className="onboarding-screen">
+      <div className="onboarding-art"><Image src="/queueproof-sentinel.webp" alt="QueueProof sentinel" fill priority /></div>
+      <form className="onboarding-card" onSubmit={submit}>
+        <span className="step-code">INITIALIZE / 01</span><ShieldCheck size={30} />
+        <h1>Create your control plane.</h1>
+        <p>One workspace holds your encrypted source connections, deterministic queue, audit history, and agent access.</p>
+        <label>Workspace name<input value={name} onChange={(event) => setName(event.target.value)} minLength={2} maxLength={80} autoFocus /></label>
+        {error && <div className="inline-error"><CircleAlert size={14} />{error}</div>}
+        <button className="primary-button" disabled={busy}>{busy ? <LoaderCircle className="spin" size={15} /> : <ArrowRight size={15} />} Create workspace</button>
       </form>
-      <div className="hero-proofbar">
-        <span><Check size={13} /> VISIBLE SCORING</span><span><Check size={13} /> SOURCE-LEVEL RECEIPTS</span><span><Check size={13} /> REVERSIBLE ACTIONS</span>
-        {!storageAvailable && <a href={FULL_APP_URL} target="_blank" rel="noreferrer">OPEN DURABLE CONTROL PLANE <ExternalLink size={13} /></a>}
-        {storageAvailable && !linked && <button onClick={onSetup}>CONNECT WORKSPACE <ArrowUpRight size={13} /></button>}
-      </div>
-    </section>
+    </div>
   );
 }
 
-function AgentLoading({ phase }: { phase: string }) {
-  const phases = ["Reading the mission", "Mapping explicit dependencies", "Retrieving verified evidence", "Applying visible priority policy"];
-  const activeIndex = Math.max(0, phases.indexOf(phase));
-  return (
-    <section className="agent-loading" aria-live="polite">
-      <div className="loading-visual">
-        <div className="loading-rings"><Bot size={32} /></div>
-        <div className="loading-rays" />
-      </div>
-      <div className="loading-copy">
-        <span className="mono-label">QUEUEPROOF / ACTIVE REASONING</span>
-        <h1>{phase}<span className="typing-dots">...</span></h1>
-        <p>The agent is applying a deterministic policy to explicit inputs. It will not invent progress or sources.</p>
-        <div className="phase-list">
-          {phases.filter((item) => item !== "Retrieving verified evidence" || phase === item).map((item, index) => (
-            <div key={item} className={index < activeIndex ? "done" : index === activeIndex ? "active" : ""}>
-              <span>{index < activeIndex ? <Check size={13} /> : String(index + 1).padStart(2, "0")}</span>{item}
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function SourcesView({
-  workspaceState,
-  connectors,
-  providers,
-  loading,
-  storageAvailable,
-  onWorkspaceSetup,
-  onSourceSetup,
-  onRefresh,
-  execute,
-  setConnectors,
-  setNotice,
-}: {
-  workspaceState: WorkspaceState | null;
-  connectors: Connector[];
-  providers: Provider[];
-  loading: string;
-  storageAvailable: boolean;
-  onWorkspaceSetup: () => void;
-  onSourceSetup: () => void;
-  onRefresh: () => void;
-  execute: (label: string, task: () => Promise<void>) => Promise<void>;
-  setConnectors: (connectors: Connector[]) => void;
-  setNotice: (notice: string | null) => void;
+function CommandScreen({ queue, verified, busy, onGenerate, onOpenSources, onSelectPacket }: {
+  queue: QueueData; verified: Connector[]; busy: boolean; onGenerate: () => void;
+  onOpenSources: () => void; onSelectPacket: (packet: Packet) => void;
 }) {
-  const [resources, setResources] = useState<Resource[]>([]);
-  const [resourceConnector, setResourceConnector] = useState<Connector | null>(null);
-  const [selectedResources, setSelectedResources] = useState<Set<string>>(new Set());
-
-  const reloadConnectors = async () => {
-    const result = await api<{ connectors: Connector[] }>("/api/connectors");
-    setConnectors(result.connectors);
-  };
-
-  const discover = (connector: Connector) => execute(`discover-${connector.id}`, async () => {
-    const result = await api<{ resources: Resource[] }>(`/api/connectors/${connector.id}/discover`, { method: "POST", body: "{}" });
-    setResources(result.resources);
-    setResourceConnector(connector);
-    setSelectedResources(new Set(result.resources.map((resource) => resource.id)));
-    await reloadConnectors();
-  });
-
-  if (!storageAvailable) {
-    return (
-      <section className="page-stage source-landing">
-        <PageHeading kicker="SOURCES / DURABLE MODE" title="Receipts need a real evidence plane." description="The Vercel interface can build local execution packets, but it does not pretend browser state is an authoritative workplace database." />
-        <div className="gateway-card">
-          <div className="gateway-art"><Database size={52} /><span /></div>
-          <div><span className="mono-label">FULL CLOUD CONTROL PLANE</span><h2>Connect GitHub, Slack, Notion, Drive, and more through HydraDB.</h2><p>The durable deployment stores workspace configuration in D1, verifies real connector objects, and retrieves source-level receipts. No seeded production data.</p><a className="acid-button link-button" href={FULL_APP_URL} target="_blank" rel="noreferrer">OPEN SECURE WORKSPACE <ArrowUpRight size={15} /></a></div>
-        </div>
-      </section>
-    );
-  }
-
-  if (!workspaceState?.workspace || !workspaceState.hydradb.configured) {
-    return (
-      <section className="page-stage source-landing">
-        <PageHeading kicker="SOURCES / SETUP" title="Make every answer traceable." description="Create the durable workspace, verify your HydraDB account, then choose exactly which resources may enter the evidence plane." />
-        <div className="setup-path">
-          <div className={workspaceState?.workspace ? "setup-step complete" : "setup-step active"}><span>{workspaceState?.workspace ? <Check size={17} /> : "01"}</span><div><strong>Create workspace</strong><p>Isolates policy, secrets, connectors, and audit history.</p></div></div>
-          <div className={workspaceState?.hydradb.configured ? "setup-step complete" : workspaceState?.workspace ? "setup-step active" : "setup-step"}><span>{workspaceState?.hydradb.configured ? <Check size={17} /> : "02"}</span><div><strong>Verify HydraDB</strong><p>The API key is checked server-side before encrypted storage.</p></div></div>
-          <div className="setup-step"><span>03</span><div><strong>Select evidence</strong><p>Discover resources, request sync, and pass a live canary query.</p></div></div>
-        </div>
-        <button className="acid-button" onClick={onWorkspaceSetup}><KeyRound size={15} /> {workspaceState?.workspace ? "VERIFY HYDRADB" : "CREATE WORKSPACE"}</button>
-      </section>
-    );
-  }
-
+  const first = queue.items[0];
   return (
-    <section className="page-stage">
-      <PageHeading kicker="SOURCES / VERIFIED INGESTION" title="Your evidence perimeter." description="Every connector advances through discovery, explicit resource selection, sync, and a live canary query before QueueProof treats it as evidence." actions={<><button className="ghost-button" onClick={onRefresh} disabled={Boolean(loading)}><RefreshCw size={14} className={loading ? "spin" : ""} /> Refresh</button><button className="acid-button" onClick={onSourceSetup} disabled={!providers.length}><Plus size={15} /> ADD SOURCE</button></>} />
-      <div className="source-summary"><div><span>HYDRADB</span><strong><CircleCheck size={15} /> Verified</strong></div><div><span>CONTRACTS</span><strong>{providers.length} live</strong></div><div><span>CONNECTORS</span><strong>{connectors.length}</strong></div><div><span>EVIDENCE READY</span><strong>{connectors.filter((item) => item.state === "data_verified").length}</strong></div></div>
-      <div className="connector-grid">
-        {connectors.length ? connectors.map((connector) => (
-          <article className="connector-card" key={connector.id}>
-            <div className="connector-head"><span className="source-icon"><Database size={16} /></span><div><strong>{connector.name}</strong><small>{connector.provider} / {connector.database}</small></div><span className={`connector-state state-${connector.state}`}>{statusLabels[connector.state] ?? connector.state.replaceAll("_", " ")}</span></div>
-            <div className="connector-rail"><span className="complete" /><span className={["resources_discovered", "resources_selected", "initial_sync_requested", "sync_in_progress", "data_verified"].includes(connector.state) ? "complete" : ""} /><span className={["initial_sync_requested", "sync_in_progress", "data_verified"].includes(connector.state) ? "complete" : ""} /><span className={connector.state === "data_verified" ? "complete" : ""} /></div>
-            <div className="connector-meta"><span>Last verified</span><strong>{formatTime(connector.verifiedAt)}</strong></div>
-            {connector.lastError && <p className="connector-error"><TriangleAlert size={13} /> {connector.lastError}</p>}
-            <div className="connector-actions">
-              {["connector_created", "resources_discovered", "degraded"].includes(connector.state) && <button onClick={() => void discover(connector)} disabled={loading === `discover-${connector.id}`}><Search size={14} /> {connector.state === "resources_discovered" ? "Select resources" : "Discover"}</button>}
-              {connector.state === "resources_selected" && <button onClick={() => void execute(`sync-${connector.id}`, async () => { await api(`/api/connectors/${connector.id}/sync`, { method: "POST", body: "{}" }); await reloadConnectors(); setNotice("Sync requested. Verify after HydraDB has produced cursor evidence."); })}><Play size={14} /> Request sync</button>}
-              {["initial_sync_requested", "sync_in_progress", "degraded"].includes(connector.state) && <button onClick={() => void execute(`verify-${connector.id}`, async () => { await api(`/api/connectors/${connector.id}/verify`, { method: "POST", body: "{}" }); await reloadConnectors(); setNotice("Live resource cursor and canary retrieval verified."); })}><ShieldCheck size={14} /> Verify live data</button>}
-            </div>
-          </article>
-        )) : <div className="empty-connectors"><Link2 size={26} /><h3>No sources connected.</h3><p>Add a provider contract to start the verified ingestion path.</p><button className="acid-button" onClick={onSourceSetup}><Plus size={14} /> ADD FIRST SOURCE</button></div>}
+    <section className="screen command-screen">
+      <div className="screen-heading command-heading">
+        <div><span className="eyebrow"><Sparkles size={13} /> Evidence-ranked command queue</span>
+          <h1>What deserves<br /><em>attention now.</em></h1>
+          <p>QueueProof retrieves only verified workplace evidence, screens unsafe instructions, applies a deterministic policy, and emits one cited packet per action.</p>
+        </div>
+        <div className="heading-actions">
+          <span className="source-proof"><span className={verified.length ? "status-orb live" : "status-orb"} />{verified.length} verified</span>
+          <button className="primary-button" onClick={verified.length ? onGenerate : onOpenSources} disabled={busy}>
+            {busy ? <LoaderCircle className="spin" size={15} /> : verified.length ? <RefreshCw size={15} /> : <Plus size={15} />}
+            {verified.length ? (queue.items.length ? "Refresh from evidence" : "Build live queue") : "Connect a source"}
+          </button>
+        </div>
       </div>
-      {resourceConnector && (
-        <div className="resource-drawer">
-          <div className="drawer-heading"><div><span className="mono-label">RESOURCE SELECTION</span><h3>{resourceConnector.name}</h3></div><button onClick={() => setResourceConnector(null)} aria-label="Close resource selector"><X size={17} /></button></div>
-          <p>Only selected resources will be indexed. Nothing is selected invisibly.</p>
-          <div className="resource-list">{resources.map((resource) => <label key={resource.id}><input type="checkbox" checked={selectedResources.has(resource.id)} onChange={(event) => { const next = new Set(selectedResources); if (event.target.checked) next.add(resource.id); else next.delete(resource.id); setSelectedResources(next); }} /><span><strong>{resource.name}</strong><small>{resource.resourceType}</small></span></label>)}</div>
-          <button className="acid-button" disabled={!selectedResources.size} onClick={() => void execute(`configure-${resourceConnector.id}`, async () => { await api(`/api/connectors/${resourceConnector.id}/configure`, { method: "POST", body: JSON.stringify({ resourceIds: [...selectedResources], lookbackDays: 30 }) }); await reloadConnectors(); setResourceConnector(null); setNotice(`${selectedResources.size} resource${selectedResources.size === 1 ? "" : "s"} selected. The connector is ready to sync.`); })}>CONFIRM {selectedResources.size} RESOURCE{selectedResources.size === 1 ? "" : "S"} <ArrowRight size={15} /></button>
+
+      {!queue.items.length ? (
+        <div className="empty-command">
+          <div className="radar"><Search size={28} /><i /><i /><i /></div>
+          <div><span className="eyebrow">No fabricated priorities</span>
+            <h2>{verified.length ? "Your sources are ready to reason over." : "Connect evidence before asking what matters."}</h2>
+            <p>{verified.length ? "Build the first queue from commitments, blockers, deadlines, incidents, and customer risk found in verified source records." : "QueueProof refuses to invent a task list. Connect Slack, Gmail, Linear, or another HydraDB provider first."}</p>
+          </div>
+        </div>
+      ) : (
+        <div className="command-grid">
+          <button className="hero-packet" onClick={() => onSelectPacket(first.packet)}>
+            <span className="packet-serial">NEXT / {first.packetId.slice(-8).toUpperCase()}</span>
+            <span className={`priority-band band-${band(first.finalScore).toLowerCase()}`}>{band(first.finalScore)}</span>
+            <strong className="hero-score">{first.finalScore}<small>/100</small></strong>
+            <h2>{first.title}</h2>
+            <p>{first.packet.task.objective}</p>
+            <div className="packet-facts"><span><small>OWNER</small>{first.owner || "Needs assignment"}</span><span><small>DEADLINE</small>{dateLabel(first.deadline)}</span><span><small>CONFIDENCE</small>{Math.round(first.packet.task.confidence * 100)}%</span></div>
+            <span className="open-proof">Open complete proof packet <ArrowRight size={14} /></span>
+          </button>
+          <div className="queue-list">
+            <div className="list-title"><span><Command size={14} /> Ranked actions</span><small>{dateLabel(queue.generatedAt)}</small></div>
+            {queue.items.map((item) => (
+              <button key={item.packetId} className={item.packetId === first.packetId ? "queue-item active" : "queue-item"} onClick={() => onSelectPacket(item.packet)}>
+                <span className="rank-number">{String(item.rank).padStart(2, "0")}</span>
+                <span className="queue-copy"><strong>{item.title}</strong><small>{item.packet.evidence[0]?.provider ?? "source"} · {item.owner || "owner missing"}</small></span>
+                <span className="queue-value">{item.finalScore}</span><ChevronRight size={14} />
+              </button>
+            ))}
+          </div>
         </div>
       )}
+      <div className="method-strip"><span><ShieldCheck size={14} /> Verified sources only</span><span><Braces size={14} /> Deterministic policy {first?.packet.policy_version ?? "1.0"}</span><span><FileCheck2 size={14} /> Web/API/MCP packet parity</span></div>
     </section>
   );
 }
 
-function SkillsView({ linked }: { linked: boolean }) {
+function AskScreen({ verifiedCount, onOpenSources, setError }: { verifiedCount: number; onOpenSources: () => void; setError: (value: string) => void }) {
+  const [question, setQuestion] = useState("");
+  const [mode, setMode] = useState<"fast" | "thinking">("thinking");
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<AskData | null>(null);
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!verifiedCount) { onOpenSources(); return; }
+    setBusy(true); setError("");
+    try { setResult(await api<AskData>("/api/ask", { method: "POST", body: JSON.stringify({ question, mode }) })); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "Evidence retrieval failed."); }
+    finally { setBusy(false); }
+  }
   return (
-    <section className="page-stage">
-      <PageHeading kicker="SKILLS / PROCEDURAL CONTROL" title="Small tools. Visible boundaries." description="QueueProof’s capabilities are deliberately narrow: retrieve evidence, map dependencies, rank actions, and package the result. Every skill says what it can and cannot know." />
-      <div className="skills-grid">{skillCards.map((skill, index) => { const Icon = skill.icon; return <article className="skill-card" key={skill.title}><span className="card-number">0{index + 1}</span><Icon size={24} /><h2>{skill.title}</h2><p>{skill.detail}</p><div><span className={skill.title === "Evidence retrieval" && !linked ? "skill-status waiting" : "skill-status"}>{skill.title === "Evidence retrieval" && !linked ? "NEEDS VERIFIED SOURCE" : "READY"}</span><ChevronRight size={15} /></div></article>; })}</div>
-      <div className="principles-panel"><BrainCircuit size={30} /><div><span className="mono-label">AGENT CONSTITUTION</span><h2>Never turn uncertainty into theatre.</h2><p>QueueProof separates explicit user input, verified source evidence, and deterministic policy. Missing context stays missing. A local session never impersonates a connected system.</p></div></div>
+    <section className="screen ask-screen">
+      <div className="screen-heading"><div><span className="eyebrow"><Search size={13} /> Cross-source evidence retrieval</span><h1>Ask the work,<br /><em>not another chatbot.</em></h1><p>QueueProof fans one question across every verified source boundary and returns excerpts, links, timestamps, and the full retrieval trace. No supporting record means no invented answer.</p></div></div>
+      <form className="ask-console" onSubmit={submit}>
+        <div className="console-line"><span><span className={verifiedCount ? "status-orb live" : "status-orb"} />{verifiedCount} verified source{verifiedCount === 1 ? "" : "s"}</span><div><button type="button" className={mode === "fast" ? "mode active" : "mode"} onClick={() => setMode("fast")}>Fast</button><button type="button" className={mode === "thinking" ? "mode active" : "mode"} onClick={() => setMode("thinking")}>Thinking</button></div></div>
+        <textarea value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="What commitments are blocked, who owns them, and what evidence supports that?" required maxLength={4000} />
+        <button className="primary-button" disabled={busy || !question.trim()}>{busy ? <LoaderCircle className="spin" size={15} /> : <Search size={15} />}{busy ? "Searching verified evidence" : "Retrieve evidence"}</button>
+      </form>
+      {result && <div className="ask-results">
+        <div className="answer-banner"><ShieldCheck size={18} /><div><span className="eyebrow">Grounding contract</span><p>{result.answer}</p></div></div>
+        <div className="evidence-grid">{result.evidence.map((item, index) => <EvidenceCard key={`${item.provider}-${item.id ?? index}`} evidence={item} index={index} />)}</div>
+        <details className="trace-drawer"><summary><Terminal size={14} /> Retrieval trace <span>{result.trace.runId}</span></summary><pre>{JSON.stringify(result.trace, null, 2)}</pre></details>
+      </div>}
     </section>
   );
 }
 
-function SystemView({ workspaceState, connectors, onRefresh, loading }: { workspaceState: WorkspaceState | null; connectors: Connector[]; onRefresh: () => void; loading: string }) {
-  const checks = [
-    { label: "Interface runtime", value: workspaceState?.platform?.runtime ?? "cloudflare", okay: true },
-    { label: "Durable storage", value: workspaceState?.platform?.storageAvailable === false ? "Unavailable on this deployment" : "Available", okay: workspaceState?.platform?.storageAvailable !== false },
-    { label: "Workspace", value: workspaceState?.workspace?.name ?? "Not configured", okay: Boolean(workspaceState?.workspace) },
-    { label: "HydraDB account", value: workspaceState?.hydradb.configured ? `Verified ${workspaceState.hydradb.fingerprint ?? ""}` : "Not configured", okay: workspaceState?.hydradb.configured ?? false },
-    { label: "Verified connectors", value: String(connectors.filter((item) => item.state === "data_verified").length), okay: connectors.some((item) => item.state === "data_verified") },
-  ];
-  return (
-    <section className="page-stage">
-      <PageHeading kicker="SYSTEM / TRUTH SURFACE" title="Operational state, without theatre." description="These indicators come from the current deployment and workspace. A missing dependency is shown as missing, not painted green." actions={<button className="ghost-button" onClick={onRefresh}><RefreshCw size={14} className={loading ? "spin" : ""} /> Run checks</button>} />
-      <div className="system-layout"><div className="health-stack">{checks.map((check) => <div className="health-row" key={check.label}><span className={check.okay ? "health-icon okay" : "health-icon"}>{check.okay ? <Check size={15} /> : <TriangleAlert size={15} />}</span><div><strong>{check.label}</strong><small>{check.value}</small></div><span>{check.okay ? "PASS" : "OPEN"}</span></div>)}</div><aside className="system-aside"><Terminal size={25} /><span className="mono-label">MACHINE CONTRACT</span><h2>Designed to fail honestly.</h2><p>Durable state is authoritative. Credentials remain server-side. Connector readiness requires real object retrieval. Prompt-injection screening runs before retrieved chunks enter an answer.</p><a href="/api/health/live" target="_blank">OPEN LIVENESS ENDPOINT <ArrowUpRight size={13} /></a></aside></div>
-    </section>
-  );
+function EvidenceCard({ evidence, index }: { evidence: Evidence; index: number }) {
+  return <article className="evidence-card"><div className="evidence-top"><span className="provider-glyph">{providerGlyph(evidence.provider)}</span><span>{evidence.provider}</span><small>#{String(index + 1).padStart(2, "0")}</small></div><h3>{evidence.title}</h3><blockquote>{evidence.excerpt}</blockquote><div className="evidence-footer"><span>{dateLabel(evidence.timestamp)}</span>{evidence.url && <a href={evidence.url} target="_blank" rel="noreferrer">Open source <ExternalLink size={12} /></a>}</div></article>;
 }
 
-function PageHeading({ kicker, title, description, actions }: { kicker: string; title: string; description: string; actions?: React.ReactNode }) {
-  return <div className="page-heading"><div><span className="mono-label">{kicker}</span><h1>{title}</h1><p>{description}</p></div>{actions && <div className="heading-actions">{actions}</div>}</div>;
-}
-
-function WorkspaceSetup({ state, onClose, execute, onDone }: { state: WorkspaceState; onClose: () => void; execute: (label: string, task: () => Promise<void>) => Promise<void>; onDone: () => Promise<void> }) {
-  const [name, setName] = useState("");
+function SourcesScreen({ workspace, connectors, reloadWorkspace, reloadConnectors, setError, setNotice }: {
+  workspace: WorkspaceState; connectors: Connector[]; reloadWorkspace: () => Promise<WorkspaceState>;
+  reloadConnectors: () => Promise<void>; setError: (value: string) => void; setNotice: (value: string) => void;
+}) {
   const [apiKey, setApiKey] = useState("");
-  const [baseUrl, setBaseUrl] = useState("https://api.hydradb.com");
-  const needsWorkspace = !state.workspace;
-  return (
-    <div className="modal-backdrop" role="presentation"><section className="setup-modal" role="dialog" aria-modal="true" aria-labelledby="workspace-setup-title"><div className="modal-top"><div><span className="mono-label">DURABLE CONTROL PLANE</span><h2 id="workspace-setup-title">{needsWorkspace ? "Create the workspace." : "Verify HydraDB."}</h2></div><button onClick={onClose} aria-label="Close setup"><X size={18} /></button></div>{needsWorkspace ? <form onSubmit={(event) => { event.preventDefault(); void execute("create-workspace", async () => { await api("/api/workspace", { method: "POST", body: JSON.stringify({ name }) }); await onDone(); }); }}><label><span>WORKSPACE NAME</span><input value={name} onChange={(event) => setName(event.target.value)} minLength={2} maxLength={80} placeholder="Acme execution control" required /></label><p>Creates isolated durable storage for policies, encrypted credentials, connector state, and audit records.</p><button className="acid-button" type="submit">CREATE WORKSPACE <ArrowRight size={15} /></button></form> : <form onSubmit={(event) => { event.preventDefault(); void execute("verify-hydradb", async () => { await api("/api/hydradb/configure", { method: "POST", body: JSON.stringify({ apiKey, baseUrl }) }); setApiKey(""); await onDone(); }); }}><label><span>HYDRADB API KEY</span><input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} minLength={12} autoComplete="off" placeholder="Paste a newly generated key" required /></label><label><span>BASE URL</span><input type="url" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} required /></label><p>The credential is verified against the live provider contract before encrypted storage. It is never returned to the browser.</p><button className="acid-button" type="submit"><KeyRound size={15} /> VERIFY + STORE</button></form>}</section></div>
-  );
+  const [busy, setBusy] = useState("");
+  const [setupOpen, setSetupOpen] = useState(false);
+  const [proof, setProof] = useState<Record<string, unknown> | null>(null);
+
+  async function connectHydra(event: FormEvent) {
+    event.preventDefault(); setBusy("hydra"); setError("");
+    try { await api("/api/hydradb/configure", { method: "POST", body: JSON.stringify({ apiKey }) }); setApiKey(""); await reloadWorkspace(); setNotice("HydraDB authenticated. Provider and database discovery are now live."); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "HydraDB setup failed."); }
+    finally { setBusy(""); }
+  }
+
+  async function connectorAction(connector: Connector) {
+    setBusy(connector.id); setError(""); setProof(null);
+    try {
+      if (connector.state === "connector_created" || connector.state === "resources_discovered") {
+        const data = await api<{ resources: Resource[] }>(`/api/connectors/${connector.id}/discover`, { method: "POST" });
+        setProof({ connector, resources: data.resources });
+      } else if (connector.state === "resources_selected") {
+        await api(`/api/connectors/${connector.id}/sync`, { method: "POST" });
+        setNotice("Sync requested. Check proof after HydraDB has indexed the selected resources.");
+      } else if (connector.state === "data_verified") {
+        setProof(await api<Record<string, unknown>>(`/api/connectors/${connector.id}/proof`));
+      } else {
+        const data = await api<{ verification: Record<string, unknown> }>(`/api/connectors/${connector.id}/verify`, { method: "POST" });
+        setProof({ connector, verification: data.verification });
+        setNotice("Connection proof passed: cursor evidence and real provider records were retrieved.");
+      }
+      await reloadConnectors();
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Connector operation failed."); await reloadConnectors(); }
+    finally { setBusy(""); }
+  }
+
+  return <section className="screen sources-screen">
+    <div className="screen-heading"><div><span className="eyebrow"><Database size={13} /> Live evidence boundary</span><h1>Connect once.<br /><em>Prove every read.</em></h1><p>Credentials are encrypted server-side. A source becomes usable only after QueueProof sees cursor evidence and retrieves real provider records.</p></div>{workspace.hydradb.configured && <button className="primary-button" onClick={() => setSetupOpen(true)}><Plus size={15} /> Add source</button>}</div>
+    {!workspace.hydradb.configured ? <form className="hydra-setup" onSubmit={connectHydra}><div className="hydra-symbol"><Database size={29} /></div><div><span className="eyebrow">Step 1 · Evidence engine</span><h2>Attach your HydraDB account.</h2><p>Use a newly generated API key. QueueProof verifies it against the authenticated database endpoint, encrypts it with AES-GCM, and never returns it.</p><label>HydraDB API key<input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder="Paste new key" autoComplete="off" required minLength={12} /></label><button className="primary-button" disabled={busy === "hydra"}>{busy === "hydra" ? <LoaderCircle className="spin" size={15} /> : <KeyRound size={15} />} Verify and encrypt</button></div></form> : <>
+      <div className="source-stats"><div><small>HYDRADB</small><strong><CircleCheck size={14} /> Authenticated</strong><span>{workspace.hydradb.fingerprint ?? "Encrypted"}</span></div><div><small>CONNECTED</small><strong>{connectors.length}</strong><span>workplace sources</span></div><div><small>VERIFIED</small><strong>{connectors.filter((item) => item.state === "data_verified").length}</strong><span>eligible for retrieval</span></div><div><small>POLICY</small><strong>Fail closed</strong><span>no proof · no ranking</span></div></div>
+      {connectors.length ? <div className="connector-list">{connectors.map((connector) => <article className="connector-row" key={connector.id}><span className="provider-glyph large">{providerGlyph(connector.provider)}</span><div className="connector-identity"><strong>{connector.name}</strong><span>{connector.provider} · {connector.database}{connector.collection ? ` / ${connector.collection}` : ""}</span></div><div className="connector-state"><span className={connector.state === "data_verified" ? "status-orb live" : connector.state.includes("sync") ? "status-orb indexing" : "status-orb"} /><strong>{stateCopy[connector.state] ?? connector.state}</strong><small>{connector.state === "data_verified" ? `${connector.canaryResultCount ?? 0} live records proven` : connector.lastError || "Awaiting next lifecycle step"}</small></div><button className="secondary-button" onClick={() => void connectorAction(connector)} disabled={busy === connector.id}>{busy === connector.id ? <LoaderCircle className="spin" size={14} /> : connector.state === "data_verified" ? <Eye size={14} /> : connector.state === "connector_created" || connector.state === "resources_discovered" ? <Search size={14} /> : <RefreshCw size={14} />}{connector.state === "data_verified" ? "View proof" : connector.state === "connector_created" || connector.state === "resources_discovered" ? "Choose scope" : connector.state === "resources_selected" ? "Start sync" : "Check proof"}</button></article>)}</div> : <div className="empty-source"><Unplug size={28} /><div><h2>No workplace source yet.</h2><p>Add Slack, Gmail, Linear, or any provider exposed by your live HydraDB catalogue.</p></div><button className="primary-button" onClick={() => setSetupOpen(true)}><Plus size={15} /> Add first source</button></div>}
+    </>}
+    {setupOpen && <SourceSetup onClose={() => setSetupOpen(false)} onDone={async () => { setSetupOpen(false); await reloadConnectors(); setNotice("Connector created. Choose the exact resources QueueProof may index."); }} setError={setError} />}
+    {proof && <ProofModal data={proof} onClose={() => setProof(null)} onConfigured={async () => { setProof(null); await reloadConnectors(); setNotice("Scope saved and initial backfill started. Check proof when indexing completes."); }} setError={setError} />}
+  </section>;
 }
 
-function SourceSetup({ providers, onClose, execute, onDone }: { providers: Provider[]; onClose: () => void; execute: (label: string, task: () => Promise<void>) => Promise<void>; onDone: () => Promise<void> }) {
-  const available = providers.filter((provider) => provider.available);
-  const [providerId, setProviderId] = useState(available[0]?.id ?? providers[0]?.id ?? "");
-  const [name, setName] = useState("");
+function SourceSetup({ onClose, onDone, setError }: { onClose: () => void; onDone: () => Promise<void>; setError: (value: string) => void }) {
+  const [providers, setProviders] = useState<Provider[]>([]);
+  const [databases, setDatabases] = useState<string[]>([]);
+  const [providerId, setProviderId] = useState("");
   const [database, setDatabase] = useState("");
   const [collection, setCollection] = useState("");
+  const [accountScope, setAccountScope] = useState("");
   const [credentials, setCredentials] = useState<Record<string, string>>({});
-  const provider = providers.find((item) => item.id === providerId) ?? providers[0];
-  if (!provider) return null;
-  return (
-    <div className="modal-backdrop" role="presentation"><section className="setup-modal source-modal" role="dialog" aria-modal="true" aria-labelledby="source-setup-title"><div className="modal-top"><div><span className="mono-label">PROVIDER CONTRACT</span><h2 id="source-setup-title">Add a real evidence source.</h2></div><button onClick={onClose} aria-label="Close source setup"><X size={18} /></button></div><form onSubmit={(event) => { event.preventDefault(); void execute("create-connector", async () => { await api("/api/connectors", { method: "POST", body: JSON.stringify({ provider: provider.id, name: name || provider.name, database, collection: collection || undefined, credentials }) }); await onDone(); }); }}><label><span>PROVIDER</span><select value={provider.id} onChange={(event) => { setProviderId(event.target.value); setCredentials({}); }}>{providers.map((item) => <option value={item.id} key={item.id} disabled={!item.available}>{item.name}{item.available ? "" : " — unavailable"}</option>)}</select></label><div className="two-fields"><label><span>DISPLAY NAME</span><input value={name} onChange={(event) => setName(event.target.value)} placeholder={provider.name} /></label><label><span>HYDRADB DATABASE</span><input value={database} onChange={(event) => setDatabase(event.target.value)} required placeholder="workspace-main" /></label></div><label><span>COLLECTION (OPTIONAL)</span><input value={collection} onChange={(event) => setCollection(event.target.value)} placeholder="Leave blank for provider default" /></label>{provider.credentialFields.map((field) => <label key={field.name}><span>{field.title ?? field.name.toUpperCase()}{field.required ? " *" : ""}</span><input type={field.format === "password" || /token|secret|key/i.test(field.name) ? "password" : "text"} value={credentials[field.name] ?? ""} onChange={(event) => setCredentials({ ...credentials, [field.name]: event.target.value })} required={field.required} autoComplete="off" /><small>{field.description}</small></label>)}<div className="contract-note"><ShieldCheck size={15} /><span>Live contract · {provider.supportClass} · hash {provider.contractHash.slice(0, 10)}</span></div><button className="acid-button" type="submit">CREATE CONNECTOR <ArrowRight size={15} /></button></form></section></div>
-  );
+  const [newDatabase, setNewDatabase] = useState("");
+  const [busy, setBusy] = useState(true);
+  const selected = providers.find((item) => item.id === providerId);
+  useEffect(() => {
+    void Promise.all([api<{ providers: Provider[] }>("/api/providers"), api<{ databases: string[] }>("/api/databases")])
+      .then(([providerData, databaseData]) => { setProviders(providerData.providers); setDatabases(databaseData.databases); setProviderId(providerData.providers[0]?.id ?? ""); setDatabase(databaseData.databases[0] ?? ""); })
+      .catch((reason: Error) => setError(reason.message)).finally(() => setBusy(false));
+  }, [setError]);
+  async function createDatabase() {
+    if (!newDatabase.trim()) return; setBusy(true);
+    try { const data = await api<{ database: string }>("/api/databases", { method: "POST", body: JSON.stringify({ database: newDatabase }) }); setDatabases((current) => [...new Set([...current, data.database])]); setDatabase(data.database); setNewDatabase(""); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "Database creation failed."); }
+    finally { setBusy(false); }
+  }
+  async function submit(event: FormEvent) {
+    event.preventDefault(); if (!selected) return; setBusy(true); setError("");
+    try { await api("/api/connectors", { method: "POST", body: JSON.stringify({ provider: selected.id, name: selected.name, database, collection: collection || undefined, accountScope: accountScope || undefined, credentials }) }); await onDone(); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "Connector creation failed."); }
+    finally { setBusy(false); }
+  }
+  return <div className="modal-layer"><form className="modal-card source-modal" onSubmit={submit}><button type="button" className="modal-close" onClick={onClose}><X size={16} /></button><span className="eyebrow"><Plus size={13} /> New evidence source</span><h2>Connect from the live catalogue.</h2><p>QueueProof renders this form from HydraDB’s current provider contract. It never guesses provider credentials.</p>{busy && !providers.length ? <div className="modal-loading"><LoaderCircle className="spin" /> Hydrating provider contracts…</div> : <div className="setup-form"><label>Provider<select value={providerId} onChange={(event) => { setProviderId(event.target.value); setCredentials({}); }} required>{providers.filter((item) => item.available).map((item) => <option key={item.id} value={item.id}>{item.name} · {item.supportClass}</option>)}</select></label><div className="two-cols"><label>HydraDB database<select value={database} onChange={(event) => setDatabase(event.target.value)} required><option value="" disabled>Select database</option>{databases.map((item) => <option key={item} value={item}>{item}</option>)}</select></label><label>Collection <small>optional isolation</small><input value={collection} onChange={(event) => setCollection(event.target.value)} placeholder="team-work" /></label></div>{!databases.length && <div className="database-create"><input value={newDatabase} onChange={(event) => setNewDatabase(event.target.value)} placeholder="Create database name" /><button type="button" className="secondary-button" onClick={() => void createDatabase()}>Create</button></div>}<label>Provider account scope <small>recommended for multi-account safety</small><input value={accountScope} onChange={(event) => setAccountScope(event.target.value)} placeholder="workspace / org / account identifier" /></label><div className="credential-grid">{selected?.credentialFields.map((field) => <label key={field.name}>{field.title || field.name}{field.required && <b> required</b>}{field.enum?.length ? <select value={credentials[field.name] ?? ""} onChange={(event) => setCredentials((current) => ({ ...current, [field.name]: event.target.value }))} required={field.required}><option value="">Select</option>{field.enum.map((value) => <option key={value} value={value}>{value}</option>)}</select> : <input type={field.format === "password" || /token|secret|password|key/i.test(field.name) ? "password" : "text"} value={credentials[field.name] ?? ""} onChange={(event) => setCredentials((current) => ({ ...current, [field.name]: event.target.value }))} required={field.required} autoComplete="off" />}{field.description && <small>{field.description}</small>}</label>)}</div>{selected && !selected.credentialFields.length && <div className="inline-warning"><CircleAlert size={14} />This provider contract exposes no credential fields. QueueProof will submit no credentials only if HydraDB marks that valid.</div>}<button className="primary-button" disabled={busy || !database || !selected}>{busy ? <LoaderCircle className="spin" size={15} /> : <ArrowRight size={15} />} Create connector</button></div>}</form></div>;
+}
+
+function ProofModal({ data, onClose, onConfigured, setError }: { data: Record<string, unknown>; onClose: () => void; onConfigured: () => Promise<void>; setError: (value: string) => void }) {
+  const connector = data.connector as Connector | undefined;
+  const resources = (data.resources ?? []) as Resource[];
+  const verification = data.verification as Record<string, unknown> | undefined;
+  const [selected, setSelected] = useState<string[]>(resources.filter((item) => item.selected).map((item) => item.id));
+  const [busy, setBusy] = useState(false);
+  async function configure() {
+    if (!connector || !selected.length) return; setBusy(true);
+    try { await api(`/api/connectors/${connector.id}/configure`, { method: "POST", body: JSON.stringify({ resourceIds: selected, lookbackDays: 30 }) }); await onConfigured(); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "Scope configuration failed."); }
+    finally { setBusy(false); }
+  }
+  return <div className="modal-layer"><div className="modal-card proof-modal"><button className="modal-close" onClick={onClose}><X size={16} /></button><span className="eyebrow"><ShieldCheck size={13} /> Connection proof</span><h2>{connector?.name ?? "Verified source"}</h2>{verification ? <><div className="proof-seal"><CircleCheck size={28} /><div><strong>{String(verification.stage ?? "Proof available")}</strong><span>{String(verification.canaryResultCount ?? 0)} real provider records · {dateLabel(String(verification.verifiedAt ?? ""))}</span></div></div><div className="proof-grid"><div><small>CURSOR EVIDENCE</small><code>{String(verification.cursorEvidenceHash ?? "Not available").slice(0, 24)}</code></div><div><small>PROVIDER COVERAGE</small><strong>{Array.isArray(verification.providerCoverage) ? verification.providerCoverage.join(", ") : "Not available"}</strong></div><div><small>LAST SYNC</small><strong>{dateLabel(String(verification.lastSuccessfulSync ?? ""))}</strong></div><div><small>FAILURE</small><strong>{String(verification.failureReason ?? "None")}</strong></div></div><details className="trace-drawer"><summary><Terminal size={14} /> Raw proof record</summary><pre>{JSON.stringify(verification, null, 2)}</pre></details></> : <><p>Select the smallest resource scope QueueProof may index. Configure starts HydraDB’s initial backfill automatically.</p><div className="resource-picker">{resources.map((resource) => <label key={resource.id}><input type="checkbox" checked={selected.includes(resource.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, resource.id] : current.filter((id) => id !== resource.id))} /><span><strong>{resource.name}</strong><small>{resource.resourceType} · {resource.id}</small></span><Check size={14} /></label>)}</div><button className="primary-button" disabled={!selected.length || busy} onClick={() => void configure()}>{busy ? <LoaderCircle className="spin" size={15} /> : <Zap size={15} />} Save scope and start sync</button></>}</div></div>;
+}
+
+function AgentScreen({ workspace, setError, setNotice }: { workspace: WorkspaceState; setError: (value: string) => void; setNotice: (value: string) => void }) {
+  const [tokens, setTokens] = useState<McpToken[]>([]);
+  const [clientType, setClientType] = useState("codex");
+  const [writeScopes, setWriteScopes] = useState(false);
+  const [freshToken, setFreshToken] = useState("");
+  const [busy, setBusy] = useState(false);
+  const endpoint = typeof window === "undefined" ? "/mcp" : `${window.location.origin}/mcp`;
+  const load = useCallback(() => api<{ tokens: McpToken[] }>("/api/mcp-tokens").then((data) => setTokens(data.tokens)), []);
+  useEffect(() => { void load().catch((reason: Error) => setError(reason.message)); }, [load, setError]);
+  async function createToken() {
+    setBusy(true); setFreshToken("");
+    try { const data = await api<{ token: string }>("/api/mcp-tokens", { method: "POST", body: JSON.stringify({ clientType, scopes: writeScopes ? ["queueproof:read", "queueproof:propose", "queueproof:sync"] : ["queueproof:read"], expiresInDays: 30 }) }); setFreshToken(data.token); await load(); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "Token creation failed."); }
+    finally { setBusy(false); }
+  }
+  async function revoke(tokenId: string) {
+    try { await api("/api/mcp-tokens", { method: "DELETE", body: JSON.stringify({ tokenId }) }); await load(); setNotice("Agent token revoked immediately."); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "Token revocation failed."); }
+  }
+  const config = useMemo(() => ({ mcpServers: { queueproof: { url: endpoint, headers: { Authorization: "Bearer ${QUEUEPROOF_MCP_TOKEN}" } } } }), [endpoint]);
+  return <section className="screen agent-screen"><div className="screen-heading"><div><span className="eyebrow"><Bot size={13} /> Agent dock · MCP</span><h1>Give agents the plan.<br /><em>Keep humans in control.</em></h1><p>Generate a scoped token, connect any modern MCP client, and retrieve the exact execution packet shown in Command. Provider writes remain proposals unless a human approves them.</p></div></div><div className="agent-grid"><div className="token-console"><div className="console-line"><span><Terminal size={14} /> New agent connection</span><span className="secure-chip"><LockKeyhole size={12} /> hashed at rest</span></div><label>Client<select value={clientType} onChange={(event) => setClientType(event.target.value)}><option value="codex">Codex</option><option value="claude">Claude Code</option><option value="kimi">Kimi Code</option><option value="kilo">Kilo Code</option><option value="generic">Generic MCP client</option></select></label><label className="scope-choice"><input type="checkbox" checked={writeScopes} onChange={(event) => setWriteScopes(event.target.checked)} /><span><strong>Allow proposal + sync tools</strong><small>Still cannot execute a provider write without QueueProof approval.</small></span></label><button className="primary-button" onClick={() => void createToken()} disabled={busy}>{busy ? <LoaderCircle className="spin" size={15} /> : <KeyRound size={15} />} Generate 30-day token</button>{freshToken && <div className="token-reveal"><span><CircleAlert size={13} /> Copy once — it cannot be shown again</span><code>{freshToken}</code><button onClick={() => void navigator.clipboard.writeText(freshToken)}><Clipboard size={13} /> Copy token</button></div>}</div><div className="config-card"><div className="list-title"><span><Braces size={14} /> Project configuration</span><button onClick={() => void navigator.clipboard.writeText(JSON.stringify(config, null, 2))}><Clipboard size={13} /> Copy</button></div><pre>{JSON.stringify(config, null, 2)}</pre><div className="endpoint-row"><small>REMOTE MCP ENDPOINT</small><code>{endpoint}</code></div></div></div><div className="token-list"><div className="list-title"><span><ShieldCheck size={14} /> Issued credentials</span><small>{workspace.workspace?.name}</small></div>{tokens.length ? tokens.map((token) => <div className="token-row" key={token.id}><span className={token.revokedAt ? "status-orb" : token.lastHandshakeAt ? "status-orb live" : "status-orb indexing"} /><div><strong>{token.clientType}</strong><small>{token.scopes.join(" · ")} · expires {dateLabel(token.expiresAt)}</small></div><span>{token.revokedAt ? "Revoked" : token.lastHandshakeAt ? `Connected ${dateLabel(token.lastHandshakeAt)}` : "Awaiting handshake"}</span>{!token.revokedAt && <button onClick={() => void revoke(token.id)}>Revoke</button>}</div>) : <div className="honest-empty"><Bot size={24} /><div><strong>No agent credential exists.</strong><p>Create one only when you are ready to connect a client.</p></div></div>}</div></section>;
+}
+
+function PacketDrawer({ packet, onClose }: { packet: Packet; onClose: () => void }) {
+  return <div className="drawer-layer" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><aside className="packet-drawer"><button className="modal-close" onClick={onClose}><X size={16} /></button><div className="drawer-head"><span className="eyebrow"><FileCheck2 size={13} /> Execution packet</span><code>{packet.packet_id}</code><h2>{packet.task.title}</h2><p>{packet.task.objective}</p></div><div className="drawer-score"><strong>{packet.task.priority_score}</strong><span>{band(packet.task.priority_score)} priority<br />{Math.round(packet.task.confidence * 100)}% confidence</span></div><PacketSection title="Why now" items={packet.why_now} /><div className="packet-columns"><PacketSection title="Constraints" items={packet.constraints} empty="None evidenced" /><PacketSection title="Dependencies" items={packet.dependencies} empty="None evidenced" /></div><PacketSection title="Acceptance criteria" items={packet.acceptance_criteria} /><div className="packet-section"><h3>Evidence receipts <span>{packet.evidence.length}</span></h3>{packet.evidence.map((item, index) => <EvidenceCard key={item.sourceId ?? index} evidence={item} index={index} />)}</div><PacketSection title="Missing information" items={packet.missing_information} empty="No missing fields" /><div className="permission-block"><LockKeyhole size={16} /><div><strong>Agent permissions</strong><span>Read: {packet.permissions.read.join(", ") || "none"} · Write: {packet.permissions.write.join(", ") || "none"} · Approval {packet.permissions.approval_required ? "required" : "not required"}</span></div></div><button className="secondary-button full" onClick={() => void navigator.clipboard.writeText(JSON.stringify(packet, null, 2))}><Clipboard size={14} /> Copy canonical JSON</button></aside></div>;
+}
+
+function PacketSection({ title, items, empty = "None" }: { title: string; items: string[]; empty?: string }) {
+  return <div className="packet-section"><h3>{title}<span>{items.length}</span></h3>{items.length ? <ul>{items.map((item, index) => <li key={`${title}-${index}`}>{item}</li>)}</ul> : <p>{empty}</p>}</div>;
 }

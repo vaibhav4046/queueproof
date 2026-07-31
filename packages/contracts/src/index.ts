@@ -81,7 +81,7 @@ export const executionPacketSchema = z.object({
   constraints: z.array(z.string()),
   dependencies: z.array(z.string()),
   acceptance_criteria: z.array(z.string()),
-  evidence: z.array(sourceReferenceSchema),
+  evidence: z.array(sourceReferenceSchema).min(1),
   contradictions: z.array(z.unknown()),
   missing_information: z.array(z.string()),
   recommended_agent: z.enum(["human", "codex", "claude", "kimi", "kilo", "generic"]),
@@ -117,4 +117,3 @@ export const actionProposalSchema = z.object({
   riskClass: z.enum(["low", "medium", "high", "critical"]),
   idempotencyKey: z.string().min(16),
 });
-

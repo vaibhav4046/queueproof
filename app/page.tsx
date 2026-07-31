@@ -1,15 +1,13 @@
 import type { Metadata } from "next";
-import { testModeEnabled } from "../lib/server/runtime";
-import { QueueProofApp } from "./QueueProofApp";
+import QueueProofApp from "./QueueProofApp";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Command — Know What Moves Next",
-  description:
-    "Turn explicit commitments into one defensible next action, ranked by visible policy and backed by source-level evidence.",
+  title: "QueueProof — Evidence-Ranked Execution",
+  description: "Connect workplace evidence, rank the real work, and hand agents cited execution packets.",
 };
 
 export default function Home() {
-  return <QueueProofApp testMode={testModeEnabled()} />;
+  return <QueueProofApp />;
 }

@@ -24,7 +24,23 @@ export async function GET() {
         { status: response.status >= 400 ? response.status : 502 },
       );
     }
-    const contracts = extractProviderContracts(response.data);
+    const catalogue = extractProviderContracts(response.data);
+    const contracts = (await Promise.all(catalogue.map(async (summary) => {
+      const providerId = String(summary.id ?? summary.provider ?? summary.slug ?? "");
+      if (!providerId) return null;
+      const detailResponse = await client.listProviders(providerId);
+      const detailRoot = detailResponse.ok && detailResponse.data
+        ? detailResponse.data
+        : {};
+      const detailCandidates = extractProviderContracts(detailRoot);
+      const direct = detailRoot && typeof detailRoot === "object" &&
+        ("id" in detailRoot || "provider" in detailRoot || "credential_schema" in detailRoot)
+        ? detailRoot
+        : detailCandidates.find((candidate) =>
+            String(candidate.id ?? candidate.provider ?? candidate.slug ?? "").toLowerCase() === providerId.toLowerCase(),
+          ) ?? {};
+      return { ...summary, ...direct, id: providerId };
+    }))).filter((contract): contract is Record<string, unknown> & { id: string } => Boolean(contract));
     const db = requireDb();
     const verified = await db
       .prepare(
@@ -80,6 +96,10 @@ export async function GET() {
           credentialFields: genericProviderAdapter.credentialFields(descriptor),
           indexedObjectTypes: descriptor.indexedObjectTypes,
           filterableFields: descriptor.filterableFields,
+          searchableFields: descriptor.searchableFields,
+          syncEngine: descriptor.syncEngine,
+          setupGuide: descriptor.raw.setup_guide ?? null,
+          authTypes: descriptor.raw.auth_types ?? descriptor.raw.supported_auth_types ?? [],
           contractHash,
         });
       } catch {

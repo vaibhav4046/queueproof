@@ -75,6 +75,76 @@ const schemaStatements = [
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
+  `CREATE TABLE IF NOT EXISTS source_references (
+    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, provider TEXT NOT NULL,
+    connector_id TEXT, external_id TEXT, title TEXT NOT NULL, excerpt TEXT NOT NULL,
+    source_url TEXT, source_timestamp TEXT, ingestion_timestamp TEXT,
+    authority TEXT NOT NULL DEFAULT 'secondary', content_hash TEXT NOT NULL,
+    metadata_json TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE TABLE IF NOT EXISTS task_candidates (
+    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, title TEXT NOT NULL,
+    recommended_action TEXT NOT NULL, owner TEXT, project TEXT, customer TEXT,
+    deadline TEXT, status TEXT NOT NULL DEFAULT 'open', attributes_json TEXT NOT NULL,
+    confidence INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE TABLE IF NOT EXISTS task_evidence (
+    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, task_id TEXT NOT NULL,
+    source_id TEXT NOT NULL, relation TEXT NOT NULL DEFAULT 'supports', claim TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE TABLE IF NOT EXISTS ranking_runs (
+    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, policy_version TEXT NOT NULL,
+    input_hash TEXT NOT NULL, started_at TEXT NOT NULL, completed_at TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE TABLE IF NOT EXISTS ranking_items (
+    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, ranking_run_id TEXT NOT NULL,
+    task_id TEXT NOT NULL, rank INTEGER NOT NULL, component_scores_json TEXT NOT NULL,
+    penalties_json TEXT NOT NULL, final_score INTEGER NOT NULL, confidence INTEGER NOT NULL,
+    explanation_json TEXT NOT NULL, sensitivity_json TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE TABLE IF NOT EXISTS queue_snapshots (
+    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, ranking_run_id TEXT NOT NULL,
+    item_ids_json TEXT NOT NULL, reason TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE TABLE IF NOT EXISTS execution_packets (
+    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, task_id TEXT NOT NULL,
+    policy_version TEXT NOT NULL, packet_json TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'available',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE TABLE IF NOT EXISTS execution_events (
+    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, packet_id TEXT NOT NULL,
+    event_type TEXT NOT NULL, payload_json TEXT NOT NULL, actor_id TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE TABLE IF NOT EXISTS mcp_tokens (
+    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, client_id TEXT NOT NULL,
+    token_hash TEXT NOT NULL, audience TEXT NOT NULL, scopes_json TEXT NOT NULL,
+    expires_at TEXT NOT NULL, revoked_at TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE TABLE IF NOT EXISTS mcp_clients (
+    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, client_type TEXT NOT NULL,
+    client_version TEXT, scopes_json TEXT NOT NULL, last_handshake_at TEXT,
+    last_tool_call_at TEXT, status TEXT NOT NULL DEFAULT 'configured',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
   `CREATE TABLE IF NOT EXISTS audit_events (
     id TEXT PRIMARY KEY, workspace_id TEXT, actor_id TEXT NOT NULL,
     operation TEXT NOT NULL, operation_id TEXT NOT NULL, target_type TEXT,
@@ -145,4 +215,3 @@ export async function requireWorkspaceForUser(userId: string) {
   if (!workspace) throw new Response("Create a QueueProof workspace first.", { status: 409 });
   return workspace;
 }
-
