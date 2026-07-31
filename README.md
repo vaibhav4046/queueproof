@@ -26,6 +26,8 @@ Not yet live-verified in this repository:
 - A remote MCP client handshake.
 - Approval-gated provider write execution.
 
+Private deployment: `https://queueproof-control-plane.vaibhav09908.chatgpt.site`. Owner sign-in is required.
+
 Those items require external credentials. They are not replaced with fixture data.
 
 ## Start

@@ -14,16 +14,17 @@
 - 67 automated tests, lint, typecheck, and production build passing.
 - Production dependency audit reports no known vulnerabilities.
 
-## In progress
+## Completed delivery artifacts
 
-- Portable CLI client installers.
-- Skill package registry artifacts.
-- Submission/evaluation documentation.
-- Hosted Sites source push, saved version, and production deployment.
+- Portable CLI client installers for Codex, Claude Code, Kimi Code, and Kilo Code.
+- Ten portable skill packages with references, examples, tests, and permission declarations.
+- Submission matrix, demo script, shot list, judge one-pager, social copy, and technical deep dive.
+- Private Sites deployment with successful live/readiness smoke tests.
 
 ## External blockers
 
 - No HydraDB or provider credentials were supplied. Therefore zero connectors, resources, syncs, source records, and provider actions are live-verified.
 - No MCP workspace/token has yet been created for a hosted endpoint.
+- GitHub CLI is installed but its saved token is invalid, so a GitHub repository/PR could not be published.
 
 These are preserved as honest disconnected states; no fake records are substituted.
