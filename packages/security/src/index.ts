@@ -26,16 +26,34 @@ export function isPotentialPromptInjection(text: string): boolean {
 export function assertSafeExternalUrl(raw: string): URL {
   const url = new URL(raw);
   if (url.protocol !== "https:") throw new Error("Only HTTPS destinations are allowed.");
-  const hostname = url.hostname.toLowerCase();
-  if (
+
+  // IPv6 literals arrive bracketed from the URL parser; normalise before matching.
+  const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+
+  const isBlocked =
     hostname === "localhost" ||
-    hostname === "127.0.0.1" ||
     hostname === "::1" ||
+    hostname === "::" ||
+    hostname === "0.0.0.0" ||
     hostname.endsWith(".local") ||
+    hostname.endsWith(".internal") ||
+    // RFC1918 and loopback
     /^(10|127)\./.test(hostname) ||
     /^192\.168\./.test(hostname) ||
-    /^172\.(1[6-9]|2\d|3[01])\./.test(hostname)
-  ) {
+    /^172\.(1[6-9]|2\d|3[01])\./.test(hostname) ||
+    // Link-local, which covers the cloud instance metadata endpoint 169.254.169.254.
+    // Omitting this was the highest-impact gap: it is the standard SSRF target for
+    // stealing cloud credentials.
+    /^169\.254\./.test(hostname) ||
+    // Carrier-grade NAT (RFC6598), also routable to internal infrastructure.
+    /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(hostname) ||
+    // IPv6 unique-local (fc00::/7) and link-local (fe80::/10).
+    /^f[cd][0-9a-f]{2}:/.test(hostname) ||
+    /^fe[89ab][0-9a-f]:/.test(hostname) ||
+    // IPv4-mapped IPv6 forms such as ::ffff:169.254.169.254.
+    /^::ffff:/.test(hostname);
+
+  if (isBlocked) {
     throw new Error("Private-network destinations are not allowed.");
   }
   return url;
