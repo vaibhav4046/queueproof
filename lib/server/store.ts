@@ -201,10 +201,36 @@ const schemaStatements = [
   )`,
 ];
 
+/**
+ * Additive column migrations.
+ *
+ * CREATE TABLE IF NOT EXISTS is a no-op once a table exists, so adding a column to
+ * `schemaStatements` silently does nothing on any database that was created earlier —
+ * and the first write referencing that column fails at runtime. Each statement here is
+ * run independently and a "duplicate column" error is expected and ignored, which makes
+ * the whole set safe to re-run on every boot.
+ */
+const columnMigrations = [
+  `ALTER TABLE documents ADD COLUMN hydradb_database TEXT`,
+];
+
 export async function ensureCoreSchema(): Promise<void> {
   if (initialised) return;
   const db = requireDb();
   await db.batch(schemaStatements.map((statement) => db.prepare(statement)));
+
+  for (const statement of columnMigrations) {
+    try {
+      await db.prepare(statement).run();
+    } catch (error) {
+      const message = error instanceof Error ? error.message.toLowerCase() : "";
+      // Anything other than "the column is already there" is a real failure.
+      if (!message.includes("duplicate column") && !message.includes("already exists")) {
+        throw error;
+      }
+    }
+  }
+
   initialised = true;
 }
 
