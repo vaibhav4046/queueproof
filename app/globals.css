@@ -163,3 +163,50 @@ input, select { width: 100%; min-height: 42px; border: 1px solid var(--line); pa
 }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+
+/* Storage-not-configured setup state. Solid, readable surfaces per the design system:
+   this screen exists to be acted on, not admired. */
+.setup-list {
+  list-style: none;
+  margin: 0.25rem 0 0.5rem;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.setup-list li {
+  position: relative;
+  padding: 0.6rem 0.75rem 0.6rem 1.6rem;
+  border: 1px solid var(--border, rgba(183, 255, 60, 0.14));
+  border-radius: 0.5rem;
+  background: var(--surface-raised, #121713);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.setup-list li::before {
+  content: "";
+  position: absolute;
+  left: 0.7rem;
+  top: 1.05rem;
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 50%;
+  background: var(--signal, #b7ff3c);
+}
+
+.setup-list code,
+.onboarding-card p code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85em;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.25rem;
+  background: rgba(183, 255, 60, 0.1);
+  color: var(--signal, #b7ff3c);
+  word-break: break-word;
+}
+
+.onboarding-card p.muted {
+  color: var(--text-muted, #9ba59c);
+  font-size: 0.85rem;
+}

@@ -9,8 +9,6 @@ import {
 import Image from "next/image";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
-const FULL_APP_URL = "https://queueproof-control-plane.vaibhav09908.chatgpt.site";
-
 type WorkspaceState = {
   actor: { displayName: string; localDevelopment: boolean };
   workspace: null | { id: string; name: string; slug: string; mode: string };
@@ -176,7 +174,7 @@ export default function QueueProofApp() {
   }
 
   if (booting) return <BootScreen />;
-  if (workspace?.platform?.storageAvailable === false) return <SecureGateway />;
+  if (workspace?.platform?.storageAvailable === false) return <StorageNotConfigured />;
   if (!workspace?.workspace) return <WorkspaceSetup onDone={reloadWorkspace} />;
 
   return (
@@ -230,18 +228,42 @@ function BootScreen() {
   return <div className="boot-screen"><div className="boot-core"><ShieldCheck size={34} /></div><p>Establishing workspace trust boundary…</p></div>;
 }
 
-function SecureGateway() {
+/**
+ * Shown when the deployment has no durable storage bound.
+ *
+ * This previously rendered marketing copy ("This public edge is the launch surface")
+ * whose only action linked to a separate host that returns 401 — so the public URL
+ * looked like a finished product but was a dead end. It now states the actual
+ * configuration gap and the exact variables that close it.
+ */
+function StorageNotConfigured() {
   return (
-    <div className="gateway-screen">
-      <div className="grain" />
-      <Image src="/queueproof-sentinel.webp" alt="QueueProof sentinel" fill priority className="gateway-image" />
-      <div className="gateway-shade" />
-      <div className="gateway-copy">
-        <span className="eyebrow"><LockKeyhole size={13} /> Secure control plane</span>
-        <h1>Decisions require<br /><em>durable proof.</em></h1>
-        <p>This public edge is the launch surface. Credentials, source records, audit history, and execution packets live only in the authenticated QueueProof workspace.</p>
-        <a className="primary-button" href={FULL_APP_URL}>Open QueueProof <ArrowRight size={15} /></a>
-        <div className="trust-row"><span><ShieldCheck size={13} /> Encrypted credentials</span><span><Database size={13} /> Durable D1</span><span><FileCheck2 size={13} /> Cited packets</span></div>
+    <div className="onboarding-screen">
+      <div className="onboarding-art">
+        <Image src="/queueproof-sentinel.webp" alt="QueueProof sentinel" fill priority />
+      </div>
+      <div className="onboarding-card">
+        <span className="step-code">SETUP / 00</span>
+        <Database size={30} />
+        <h1>Durable storage is not configured.</h1>
+        <p>
+          QueueProof stores workspaces, encrypted source credentials, ranked queues, decision
+          receipts, and the audit trail in a database. This deployment does not have one bound
+          yet, so no workspace can be created and nothing is being faked in the meantime.
+        </p>
+        <p>Set these on the deployment, then redeploy:</p>
+        <ul className="setup-list">
+          <li><code>TURSO_DATABASE_URL</code> and <code>TURSO_AUTH_TOKEN</code> — hosted libSQL</li>
+          <li><code>QUEUEPROOF_ENCRYPTION_KEY</code> — 32 random bytes, base64</li>
+          <li><code>QUEUEPROOF_ACCESS_TOKEN</code> — 16+ characters, used to sign in</li>
+        </ul>
+        <p className="muted">
+          Running locally instead? Set <code>QUEUEPROOF_SQLITE_PATH</code> and the full stack
+          works with no accounts.
+        </p>
+        <a className="primary-button" href="/api/health/dependencies">
+          View storage diagnostics <ArrowRight size={15} />
+        </a>
       </div>
     </div>
   );
