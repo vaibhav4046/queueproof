@@ -311,3 +311,30 @@ input, select { width: 100%; min-height: 42px; border: 1px solid var(--line); pa
   font-size: 0.82rem;
   color: var(--text-muted, #9ba59c);
 }
+
+/* Ephemeral-storage warning. Amber, not red: the product works, the persistence
+   guarantee is simply weaker than it looks. */
+.storage-banner {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  margin: 0 auto 1rem;
+  max-width: 68rem;
+  padding: 0.7rem 1rem;
+  border: 1px solid rgba(255, 191, 94, 0.35);
+  border-radius: 0.55rem;
+  background: rgba(255, 191, 94, 0.08);
+  color: var(--warning, #ffbf5e);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.storage-banner strong { color: var(--text, #f1f0e8); }
+
+.storage-banner code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.82em;
+  padding: 0.05rem 0.3rem;
+  border-radius: 0.2rem;
+  background: rgba(255, 191, 94, 0.14);
+}

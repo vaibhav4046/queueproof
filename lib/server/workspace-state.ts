@@ -20,7 +20,14 @@ export type WorkspaceView =
   | { kind: "storage_unconfigured"; detail: string }
   | { kind: "sign_in_required"; signInConfigured: boolean }
   | { kind: "no_workspace"; actor: ActorView }
-  | { kind: "ready"; actor: ActorView; workspace: WorkspaceSummary; hydradb: HydraSummary };
+  | {
+      kind: "ready";
+      actor: ActorView;
+      workspace: WorkspaceSummary;
+      hydradb: HydraSummary;
+      /** Surfaced so an ephemeral deployment can never be mistaken for a durable one. */
+      storageBackend: string;
+    };
 
 export type ActorView = { displayName: string; localDevelopment: boolean };
 
@@ -67,6 +74,10 @@ export async function loadWorkspaceView(): Promise<WorkspaceView> {
   const account = await hydraAccountForWorkspace(String(workspace.id));
   return {
     kind: "ready",
+    storageBackend:
+      typeof runtime.QUEUEPROOF_STORAGE_BACKEND === "string"
+        ? runtime.QUEUEPROOF_STORAGE_BACKEND
+        : "unknown",
     actor: actorView,
     workspace: {
       id: String(workspace.id),

@@ -36,6 +36,37 @@ describe("resolveStorage", () => {
     expect(resolved.backend).toBe("libsql");
   });
 
+  it("only uses ephemeral storage when explicitly opted in", () => {
+    // Never automatic: silently degrading persistence is worse than refusing to start.
+    expect(resolveStorage({}).backend).toBe("none");
+    resetStorageCache();
+    expect(resolveStorage({ QUEUEPROOF_ALLOW_EPHEMERAL_STORAGE: "false" }).backend).toBe("none");
+  });
+
+  it("labels opted-in instance storage as ephemeral and says so in the detail", () => {
+    const resolved = resolveStorage({ QUEUEPROOF_ALLOW_EPHEMERAL_STORAGE: "true" });
+    expect(resolved.backend).toBe("ephemeral");
+    expect(resolved.database).not.toBeNull();
+    expect(resolved.detail).toMatch(/lost on cold start/i);
+  });
+
+  it("prefers an explicit sqlite path over the ephemeral fallback", () => {
+    const resolved = resolveStorage({
+      QUEUEPROOF_SQLITE_PATH: ":memory:",
+      QUEUEPROOF_ALLOW_EPHEMERAL_STORAGE: "true",
+    });
+    expect(resolved.backend).toBe("sqlite");
+  });
+
+  it("prefers hosted libSQL over the ephemeral fallback", () => {
+    const resolved = resolveStorage({
+      TURSO_DATABASE_URL: "libsql://example.turso.io",
+      TURSO_AUTH_TOKEN: "token-value",
+      QUEUEPROOF_ALLOW_EPHEMERAL_STORAGE: "true",
+    });
+    expect(resolved.backend).toBe("libsql");
+  });
+
   it("reports no storage, with remediation, when nothing is configured", () => {
     const resolved = resolveStorage({});
     expect(resolved.backend).toBe("none");

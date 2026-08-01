@@ -337,7 +337,7 @@ class SqliteExecutor implements Executor {
  * Factory
  * ------------------------------------------------------------------ */
 
-export type StorageBackend = "libsql" | "sqlite" | "d1" | "none";
+export type StorageBackend = "libsql" | "sqlite" | "ephemeral" | "d1" | "none";
 
 export type StorageResolution = {
   backend: StorageBackend;
@@ -366,7 +366,18 @@ export function resolveStorage(env: Record<string, unknown>): StorageResolution 
     return cached;
   }
 
-  const sqlitePath = typeof env.QUEUEPROOF_SQLITE_PATH === "string" ? env.QUEUEPROOF_SQLITE_PATH : "";
+  const configuredPath = typeof env.QUEUEPROOF_SQLITE_PATH === "string" ? env.QUEUEPROOF_SQLITE_PATH : "";
+
+  // Explicit opt-in to instance-local storage. A serverless instance has a writable
+  // /tmp that survives for the life of that warm instance and no longer, so this makes
+  // the product genuinely usable end to end without any hosted database account — while
+  // being named `ephemeral` everywhere so nobody mistakes it for durability. It is
+  // deliberately never automatic: silently degrading persistence would be far worse than
+  // refusing to start.
+  const allowEphemeral = env.QUEUEPROOF_ALLOW_EPHEMERAL_STORAGE === "true";
+  const sqlitePath = configuredPath || (allowEphemeral ? "/tmp/queueproof-ephemeral.db" : "");
+  const backendLabel: StorageBackend = configuredPath ? "sqlite" : "ephemeral";
+
   if (sqlitePath) {
     try {
       // `process.getBuiltinModule` (Node >=22.3) loads a builtin at runtime without an
@@ -387,9 +398,14 @@ export function resolveStorage(env: Record<string, unknown>): StorageResolution 
         throw new Error("node:sqlite did not expose DatabaseSync.");
       }
       cached = {
-        backend: "sqlite",
+        backend: backendLabel,
         database: new CompatDatabase(new SqliteExecutor(new DatabaseSync(sqlitePath))),
-        detail: "node:sqlite durable storage active (local development).",
+        detail:
+          backendLabel === "sqlite"
+            ? "node:sqlite durable storage active (local development)."
+            : "Ephemeral instance storage active. Data lives only for the life of this " +
+              "serverless instance and is lost on cold start. Set TURSO_DATABASE_URL and " +
+              "TURSO_AUTH_TOKEN for durable storage.",
       };
       return cached;
     } catch (error) {
@@ -406,8 +422,10 @@ export function resolveStorage(env: Record<string, unknown>): StorageResolution 
     backend: "none",
     database: null,
     detail:
-      "No durable storage configured. Set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN (hosted) " +
-      "or QUEUEPROOF_SQLITE_PATH (local).",
+      "No storage configured. Set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN for durable " +
+      "hosted storage, QUEUEPROOF_SQLITE_PATH for local development, or " +
+      "QUEUEPROOF_ALLOW_EPHEMERAL_STORAGE=true to run on instance-local storage that does " +
+      "not survive a cold start.",
   };
   return cached;
 }

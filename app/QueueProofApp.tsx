@@ -236,6 +236,17 @@ export default function QueueProofApp({
         </div>
       </header>
 
+      {view.storageBackend === "ephemeral" && (
+        <div className="storage-banner" role="status">
+          <CircleAlert size={14} />
+          <span>
+            <strong>Ephemeral storage.</strong> This deployment stores data on the serverless
+            instance only. It is lost on cold start. Set <code>TURSO_DATABASE_URL</code> and{" "}
+            <code>TURSO_AUTH_TOKEN</code> for durable storage.
+          </span>
+        </div>
+      )}
+
       {(error || notice) && (
         <div className={`toast ${error ? "error" : "success"}`} role="status">
           {error ? <CircleAlert size={16} /> : <CircleCheck size={16} />}
