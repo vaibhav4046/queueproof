@@ -188,8 +188,28 @@ export async function POST(request: Request) {
     // A 202 from HydraDB means queued, not indexed. The source id is recorded and the
     // stage stays `processing` until a status poll observes a terminal state — reporting
     // "indexed" here is exactly how an upload appears to work while returning nothing.
-    const results = (ingest.data as { results?: Array<{ id?: string; status?: string }> } | null)?.results ?? [];
+    // HydraDB wraps its payload in a {success, data, error, meta} envelope, and the
+    // client returns that envelope verbatim, so the results live one level deeper than
+    // they appear. Both shapes are read: without the source id the document can never be
+    // polled to a terminal state or cited as evidence, so a silent null here would make
+    // the upload look successful and be useless.
+    const envelope = ingest.data as
+      | { results?: Array<{ id?: string }>; data?: { results?: Array<{ id?: string }> } }
+      | null;
+    const results = envelope?.data?.results ?? envelope?.results ?? [];
     const sourceId = results[0]?.id ?? null;
+
+    if (!sourceId) {
+      await recordStage(workspaceId, documentId, "failed", "HydraDB accepted the upload but returned no source id.");
+      await db
+        .prepare(`UPDATE documents SET stage = 'failed', error = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
+        .bind("HydraDB returned no source id, so the document cannot be tracked or cited.", documentId)
+        .run();
+      return noStoreJson(
+        { ok: false, error: "HydraDB accepted the upload but returned no source id.", documentId },
+        { status: 502 },
+      );
+    }
 
     await db
       .prepare(
