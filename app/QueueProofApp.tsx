@@ -8,13 +8,8 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import type { WorkspaceView } from "../lib/server/workspace-state";
 
-type WorkspaceState = {
-  actor: { displayName: string; localDevelopment: boolean };
-  workspace: null | { id: string; name: string; slug: string; mode: string };
-  hydradb: { configured: boolean; verifiedAt?: string | null; fingerprint?: string | null };
-  platform?: { runtime: string; storageAvailable: boolean };
-};
 
 type CredentialField = {
   name: string; required?: boolean; title?: string; description?: string;
@@ -66,6 +61,9 @@ type McpToken = {
 };
 type ActiveTab = "command" | "ask" | "sources" | "agent";
 
+/** The only view in which the main application shell renders. */
+type ReadyView = Extract<WorkspaceView, { kind: "ready" }>;
+
 const nav = [
   { id: "command", label: "Command", icon: Command },
   { id: "ask", label: "Ask", icon: MessageSquareText },
@@ -109,43 +107,54 @@ function band(score: number) {
   return score >= 80 ? "Critical" : score >= 60 ? "High" : score >= 35 ? "Normal" : "Low";
 }
 
-export default function QueueProofApp() {
+export default function QueueProofApp({
+  initialView,
+  initialError,
+}: {
+  initialView: WorkspaceView | null;
+  initialError: string | null;
+}) {
   const [tab, setTab] = useState<ActiveTab>("command");
-  const [workspace, setWorkspace] = useState<WorkspaceState | null>(null);
+  // Seeded from the server render, so the first paint is already the correct screen.
+  // There is no boot state: the HTML that arrives is the answer.
+  const [view, setView] = useState<WorkspaceView | null>(initialView);
+  const [bootError, setBootError] = useState(initialError ?? "");
+  const [retrying, setRetrying] = useState(false);
   const [connectors, setConnectors] = useState<Connector[]>([]);
   const [queue, setQueue] = useState<QueueData>({ generatedAt: null, items: [] });
   const [selectedPacket, setSelectedPacket] = useState<Packet | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState("");
-  const [booting, setBooting] = useState(true);
+
+  const workspaceId = view?.kind === "ready" ? view.workspace.id : null;
 
   const loadConnectors = useCallback(async () => {
-    if (!workspace?.workspace) return;
+    if (!workspaceId) return;
     const data = await api<{ connectors: Connector[] }>("/api/connectors");
     setConnectors(data.connectors);
-  }, [workspace?.workspace]);
+  }, [workspaceId]);
 
   const reloadWorkspace = useCallback(async () => {
-    const state = await api<WorkspaceState>("/api/workspace");
-    setWorkspace(state);
-    return state;
+    const payload = await api<{ view: WorkspaceView }>("/api/workspace");
+    setView(payload.view);
+    setBootError("");
+    return payload.view;
   }, []);
 
-  useEffect(() => {
-    let active = true;
-    void api<WorkspaceState>("/api/workspace").then((state) => {
-      if (active) setWorkspace(state);
-    }).catch((reason: Error) => {
-      if (active) setError(reason.message);
-    }).finally(() => {
-      if (active) setBooting(false);
-    });
-    return () => { active = false; };
-  }, []);
+  const retryBoot = useCallback(async () => {
+    setRetrying(true);
+    try {
+      await reloadWorkspace();
+    } catch (reason) {
+      setBootError(reason instanceof Error ? reason.message : "QueueProof is still unreachable.");
+    } finally {
+      setRetrying(false);
+    }
+  }, [reloadWorkspace]);
 
   useEffect(() => {
-    if (!workspace?.workspace) return;
+    if (!workspaceId) return;
     let active = true;
     void Promise.all([
       api<{ connectors: Connector[] }>("/api/connectors"),
@@ -158,7 +167,7 @@ export default function QueueProofApp() {
       if (active) setError(reason.message);
     });
     return () => { active = false; };
-  }, [workspace?.workspace]);
+  }, [workspaceId]);
 
   const verified = connectors.filter((connector) => connector.state === "data_verified");
 
@@ -173,9 +182,25 @@ export default function QueueProofApp() {
     finally { setBusy(""); }
   }
 
-  if (booting) return <BootScreen />;
-  if (workspace?.platform?.storageAvailable === false) return <StorageNotConfigured />;
-  if (!workspace?.workspace) return <WorkspaceSetup onDone={reloadWorkspace} />;
+  // Every branch below is a named, reachable state. There is no "still deciding" screen:
+  // if the server could not determine the state, that is an error with a retry, not a
+  // spinner that waits forever.
+  if (bootError || !view) {
+    return (
+      <BootError
+        message={bootError || "QueueProof could not determine the workspace state."}
+        busy={retrying}
+        onRetry={retryBoot}
+      />
+    );
+  }
+  if (view.kind === "storage_unconfigured") return <StorageNotConfigured detail={view.detail} />;
+  if (view.kind === "sign_in_required") {
+    return <SignIn signInConfigured={view.signInConfigured} onSignedIn={reloadWorkspace} />;
+  }
+  if (view.kind === "no_workspace") return <WorkspaceSetup onDone={reloadWorkspace} />;
+
+  const { actor } = view;
 
   return (
     <div className="qp-app">
@@ -195,7 +220,9 @@ export default function QueueProofApp() {
         <div className="header-status">
           <span className={verified.length ? "status-orb live" : "status-orb"} />
           <span>{verified.length ? `${verified.length} source${verified.length === 1 ? "" : "s"} live` : "Setup required"}</span>
-          <span className="avatar">{workspace.actor.displayName.slice(0, 2).toUpperCase()}</span>
+          <span className="avatar" title={actor.displayName}>
+            {actor.displayName.slice(0, 2).toUpperCase()}
+          </span>
         </div>
       </header>
 
@@ -214,18 +241,153 @@ export default function QueueProofApp() {
             onSelectPacket={setSelectedPacket} />
         )}
         {tab === "ask" && <AskScreen verifiedCount={verified.length} onOpenSources={() => setTab("sources")} setError={setError} />}
-        {tab === "sources" && <SourcesScreen workspace={workspace} connectors={connectors}
+        {tab === "sources" && <SourcesScreen workspace={view} connectors={connectors}
           reloadWorkspace={reloadWorkspace} reloadConnectors={loadConnectors}
           setError={setError} setNotice={setNotice} />}
-        {tab === "agent" && <AgentScreen workspace={workspace} setError={setError} setNotice={setNotice} />}
+        {tab === "agent" && <AgentScreen workspace={view} setError={setError} setNotice={setNotice} />}
       </main>
       {selectedPacket && <PacketDrawer packet={selectedPacket} onClose={() => setSelectedPacket(null)} />}
     </div>
   );
 }
 
-function BootScreen() {
-  return <div className="boot-screen"><div className="boot-core"><ShieldCheck size={34} /></div><p>Establishing workspace trust boundary…</p></div>;
+/**
+ * Shown when the server could not determine the workspace state.
+ *
+ * This replaces the former BootScreen, an indefinite "Establishing workspace trust
+ * boundary…" spinner that was also what the server rendered into the HTML, so any client
+ * that could not complete a round trip stayed on it forever. A state that cannot resolve
+ * is an error, and an error needs a cause and a retry.
+ */
+function BootError({
+  message,
+  busy,
+  onRetry,
+}: {
+  message: string;
+  busy: boolean;
+  onRetry: () => void;
+}) {
+  return (
+    <div className="onboarding-screen">
+      <div className="onboarding-card">
+        <span className="step-code">ERROR</span>
+        <CircleAlert size={30} />
+        <h1>QueueProof could not start.</h1>
+        <p>{message}</p>
+        <p className="muted">
+          This is usually a missing database binding or an unreachable deployment. The
+          diagnostics endpoint reports which dependency is at fault.
+        </p>
+        <button className="primary-button" onClick={onRetry} disabled={busy}>
+          {busy ? <LoaderCircle className="spin" size={15} /> : <RefreshCw size={15} />} Retry
+        </button>
+        <a className="muted-link" href="/api/health/dependencies">
+          View diagnostics <ExternalLink size={13} />
+        </a>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Sign-in for a hosted deployment. Exchanges the deployment access token for the
+ * HMAC-signed httpOnly session cookie issued by /api/session. The token is never stored
+ * client-side and never placed in the URL.
+ */
+function SignIn({
+  signInConfigured,
+  onSignedIn,
+}: {
+  signInConfigured: boolean;
+  onSignedIn: () => Promise<unknown>;
+}) {
+  const [accessToken, setAccessToken] = useState("");
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      await api("/api/session", {
+        method: "POST",
+        body: JSON.stringify({ accessToken, email: email || undefined }),
+      });
+      setAccessToken("");
+      await onSignedIn();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Sign-in failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!signInConfigured) {
+    return (
+      <div className="onboarding-screen">
+        <div className="onboarding-card">
+          <span className="step-code">SETUP / 01</span>
+          <KeyRound size={30} />
+          <h1>Sign-in is not configured.</h1>
+          <p>
+            This deployment has durable storage but no way for a person to authenticate, so
+            no workspace can be reached.
+          </p>
+          <ul className="setup-list">
+            <li><code>QUEUEPROOF_ACCESS_TOKEN</code> — 16+ characters, then redeploy</li>
+          </ul>
+          <a className="primary-button" href="/api/health/dependencies">
+            View diagnostics <ArrowRight size={15} />
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="onboarding-screen">
+      <div className="onboarding-art">
+        <Image src="/queueproof-sentinel.webp" alt="QueueProof sentinel" fill priority />
+      </div>
+      <form className="onboarding-card" onSubmit={submit}>
+        <span className="step-code">SIGN IN</span>
+        <LockKeyhole size={30} />
+        <h1>Open your control plane.</h1>
+        <p>
+          Enter this deployment&rsquo;s access token. QueueProof issues a signed, expiring
+          session cookie; the token itself is never stored in your browser.
+        </p>
+        <label>
+          Access token
+          <input
+            type="password"
+            value={accessToken}
+            onChange={(event) => setAccessToken(event.target.value)}
+            autoComplete="current-password"
+            required
+            minLength={16}
+            autoFocus
+          />
+        </label>
+        <label>
+          Email <span className="muted">(optional, labels the session)</span>
+          <input
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            autoComplete="username"
+          />
+        </label>
+        {error && <div className="inline-error"><CircleAlert size={14} />{error}</div>}
+        <button className="primary-button" disabled={busy || accessToken.length < 16}>
+          {busy ? <LoaderCircle className="spin" size={15} /> : <ArrowRight size={15} />} Sign in
+        </button>
+      </form>
+    </div>
+  );
 }
 
 /**
@@ -236,7 +398,7 @@ function BootScreen() {
  * looked like a finished product but was a dead end. It now states the actual
  * configuration gap and the exact variables that close it.
  */
-function StorageNotConfigured() {
+function StorageNotConfigured({ detail }: { detail?: string }) {
   return (
     <div className="onboarding-screen">
       <div className="onboarding-art">
@@ -251,6 +413,7 @@ function StorageNotConfigured() {
           receipts, and the audit trail in a database. This deployment does not have one bound
           yet, so no workspace can be created and nothing is being faked in the meantime.
         </p>
+        {detail && <p className="muted">{detail}</p>}
         <p>Set these on the deployment, then redeploy:</p>
         <ul className="setup-list">
           <li><code>TURSO_DATABASE_URL</code> and <code>TURSO_AUTH_TOKEN</code> — hosted libSQL</li>
@@ -269,7 +432,7 @@ function StorageNotConfigured() {
   );
 }
 
-function WorkspaceSetup({ onDone }: { onDone: () => Promise<WorkspaceState> }) {
+function WorkspaceSetup({ onDone }: { onDone: () => Promise<WorkspaceView> }) {
   const [name, setName] = useState("My QueueProof");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -386,7 +549,7 @@ function EvidenceCard({ evidence, index }: { evidence: Evidence; index: number }
 }
 
 function SourcesScreen({ workspace, connectors, reloadWorkspace, reloadConnectors, setError, setNotice }: {
-  workspace: WorkspaceState; connectors: Connector[]; reloadWorkspace: () => Promise<WorkspaceState>;
+  workspace: ReadyView; connectors: Connector[]; reloadWorkspace: () => Promise<WorkspaceView>;
   reloadConnectors: () => Promise<void>; setError: (value: string) => void; setNotice: (value: string) => void;
 }) {
   const [apiKey, setApiKey] = useState("");
@@ -479,7 +642,7 @@ function ProofModal({ data, onClose, onConfigured, setError }: { data: Record<st
   return <div className="modal-layer"><div className="modal-card proof-modal"><button className="modal-close" onClick={onClose}><X size={16} /></button><span className="eyebrow"><ShieldCheck size={13} /> Connection proof</span><h2>{connector?.name ?? "Verified source"}</h2>{verification ? <><div className="proof-seal"><CircleCheck size={28} /><div><strong>{String(verification.stage ?? "Proof available")}</strong><span>{String(verification.canaryResultCount ?? 0)} real provider records · {dateLabel(String(verification.verifiedAt ?? ""))}</span></div></div><div className="proof-grid"><div><small>CURSOR EVIDENCE</small><code>{String(verification.cursorEvidenceHash ?? "Not available").slice(0, 24)}</code></div><div><small>PROVIDER COVERAGE</small><strong>{Array.isArray(verification.providerCoverage) ? verification.providerCoverage.join(", ") : "Not available"}</strong></div><div><small>LAST SYNC</small><strong>{dateLabel(String(verification.lastSuccessfulSync ?? ""))}</strong></div><div><small>FAILURE</small><strong>{String(verification.failureReason ?? "None")}</strong></div></div><details className="trace-drawer"><summary><Terminal size={14} /> Raw proof record</summary><pre>{JSON.stringify(verification, null, 2)}</pre></details></> : <><p>Select the smallest resource scope QueueProof may index. Configure starts HydraDB’s initial backfill automatically.</p><div className="resource-picker">{resources.map((resource) => <label key={resource.id}><input type="checkbox" checked={selected.includes(resource.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, resource.id] : current.filter((id) => id !== resource.id))} /><span><strong>{resource.name}</strong><small>{resource.resourceType} · {resource.id}</small></span><Check size={14} /></label>)}</div><button className="primary-button" disabled={!selected.length || busy} onClick={() => void configure()}>{busy ? <LoaderCircle className="spin" size={15} /> : <Zap size={15} />} Save scope and start sync</button></>}</div></div>;
 }
 
-function AgentScreen({ workspace, setError, setNotice }: { workspace: WorkspaceState; setError: (value: string) => void; setNotice: (value: string) => void }) {
+function AgentScreen({ workspace, setError, setNotice }: { workspace: ReadyView; setError: (value: string) => void; setNotice: (value: string) => void }) {
   const [tokens, setTokens] = useState<McpToken[]>([]);
   const [clientType, setClientType] = useState("codex");
   const [writeScopes, setWriteScopes] = useState(false);

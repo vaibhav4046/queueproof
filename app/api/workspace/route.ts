@@ -7,45 +7,18 @@ import {
   ensureCoreSchema,
   workspaceForUser,
 } from "../../../lib/server/store";
-import { hydraAccountForWorkspace } from "../../../lib/server/hydradb-account";
+import { loadWorkspaceView } from "../../../lib/server/workspace-state";
 
+/**
+ * Returns the same discriminated view the server-rendered page uses, so a client refresh
+ * can never disagree with the HTML it hydrated into. Unauthenticated callers get the
+ * `sign_in_required` view rather than a 401, because this endpoint's job is to describe
+ * which screen to show — the routes that actually touch workspace data still fail closed.
+ */
 export async function GET() {
   try {
-    if (!runtimeEnv().DB) {
-      return noStoreJson({
-        ok: true,
-        actor: { displayName: "Deployment preview", localDevelopment: false },
-        workspace: null,
-        hydradb: { configured: false },
-        platform: { runtime: "vercel", storageAvailable: false },
-      });
-    }
-    const actor = await requireRequestActor();
-    const workspace = await workspaceForUser(actor.id);
-    if (!workspace) {
-      return noStoreJson({
-        ok: true,
-        actor: { displayName: actor.displayName, localDevelopment: actor.localDevelopment },
-        workspace: null,
-        hydradb: { configured: false },
-      });
-    }
-    const account = await hydraAccountForWorkspace(String(workspace.id));
-    return noStoreJson({
-      ok: true,
-      actor: { displayName: actor.displayName, localDevelopment: actor.localDevelopment },
-      workspace: {
-        id: workspace.id,
-        name: workspace.name,
-        slug: workspace.slug,
-        mode: workspace.mode,
-      },
-      hydradb: {
-        configured: Boolean(account),
-        verifiedAt: account?.verified_at ?? null,
-        fingerprint: account?.key_fingerprint ?? null,
-      },
-    });
+    const view = await loadWorkspaceView();
+    return noStoreJson({ ok: true, view });
   } catch (error) {
     return apiError(error);
   }
