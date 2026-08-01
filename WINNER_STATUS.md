@@ -1,43 +1,65 @@
 # WINNER_STATUS
 
-CURRENT GATE: Gate 1 (public application) — code complete, awaiting hosted database
-credential to be provable on production. Gates 2–10 blocked on external authorisation.
+CURRENT GATE: Gates 1, 3 (document artefact), 5, 6, 7 and 9 have landed as far as they can
+without credentials. Gates 2, 4, 8 and 10 are blocked on external authorisation and cannot
+be reached by writing code.
 
 IMPLEMENTED:
-- Server-rendered shell. `app/page.tsx` is now a server component that resolves the
-  screen before any HTML is sent, via `lib/server/workspace-state.ts`. The boot screen is
-  deleted, not hidden.
-- Named states replace nullable inference: `storage_unconfigured`, `sign_in_required`,
-  `no_workspace`, `ready`. `GET /api/workspace` returns the same view the page renders, so
-  server and client cannot disagree.
-- Sign-in screen (`SignIn`), which did not exist. Posts to `/api/session`, which issues an
-  HMAC-signed httpOnly session cookie. The token is never stored client-side.
-- Recoverable boot error with retry (`BootError`), replacing the indefinite spinner.
-- Storage-unconfigured screen now shows the live diagnostic detail from the runtime.
-- Dead code removed: `WorkspaceState` type, unused destructure, the `chatgpt.site` link.
+- **Gate 1 — public application.** `app/page.tsx` is a server component that resolves the
+  screen before any HTML is sent, via `lib/server/workspace-state.ts` (discriminated union:
+  `storage_unconfigured` / `sign_in_required` / `no_workspace` / `ready`). Boot screen
+  deleted. Sign-in screen added — it did not exist. `BootError` gives a cause and a retry.
+- **Gate 3 — document artefact.** `scripts/generate-large-pdf.mjs` writes a real 346-page
+  PDF with no external dependencies, plus 22 planted ground-truth facts.
+  HydraDB ingestion is NOT implemented and is not claimed.
+- **Gate 5 — priority integrity.** `ranking_items.sensitivity_json` now stores the real
+  `RankingInput` (was `{}`), making scores replayable. `whyAboveNext` explains a ranking gap
+  from score components only. `applyAssumption` re-scores a single named assumption without
+  mutating stored input.
+- **Gate 6 — evaluation.** `scripts/run-evals.mjs` runs 39 cases across all 15 categories
+  against the real `planRetrieval` and real `rank()`. Fixture and live metrics are labelled
+  separately; `--live` without credentials exits 2 rather than fabricating.
+- **Gate 7 — parity.** Canonical hash and `why_above_next` are computed once during queue
+  generation and persisted inside `packet_json`, so every surface reads the same bytes.
+- **Gate 9 — quality.** No dead controls, no fabricated metrics, no external dead links.
 
-PROVEN BY (raw HTML, JavaScript disabled, production build via `next build --webpack` +
-`next start`):
-- storage + no session → `Establishing workspace trust boundary` count **0**;
-  "Open your control plane" (sign-in) count **1**.
-- after sign-in → "Create your control plane" count **1**; boot text **0**.
-- after workspace creation → `Primary navigation` count **1**; boot text **0**.
-- `GET /` 200, `GET /api/health/live` 200, `GET /api/health/ready` 200,
-  `GET /api/session` 200.
-- Typecheck 0, lint 0, production build 0, 119/119 tests pass.
+PROVEN BY:
+- Server-rendered shell, production build, JavaScript disabled, reading raw HTML:
+  `Establishing workspace trust boundary` count **0** in every state; sign-in **1**;
+  create-workspace **1**; primary navigation **1**.
+- Production: `GET /` 200, `/api/health/live` 200, `/api/session` 200,
+  `/api/health/ready` 503 naming `databaseBinding`, `encryptionKey`.
+- Large PDF, clean run, exit 0: **346 pages, 958,096 bytes**, SHA-256
+  `c047a3d09c45ecf97e3ed8e2115eda08ea0f6152206237955030f4304fa2ed93`, 699 xref offsets
+  verified, 78 internal checks passed. Identical hash across runs. Verified with an
+  independent PDF parser, not only its own inspector.
+- Evaluation, measured not claimed: **router mode accuracy 29/39 = 74.4%**, per-category
+  breakdown exported to `BENCHMARK_REPORT.md`. Unmeasurable metrics written as
+  "not measured".
+- Nine authentication attack variants return 401; a valid session returns 200.
+- **162 tests**, typecheck 0, lint 0, production build 0.
 
-FAILED: nothing in this phase.
+FAILED:
+- Router aggregate accuracy did not improve after fixing the exact-ID short-circuit:
+  under-escalations fell 8 → 7, over-escalations rose 2 → 3, net 74.4% unchanged. Recorded
+  as measured rather than presented as a win. Known cause: 7 of 13 declared
+  `QueryCategory` values are never returned by the router, so entity-dedup and priority
+  cases cannot classify correctly.
+- Document upload route and the Linear action path were started and not delivered: both
+  subagents terminated immediately on an account session limit. No partial code was
+  written; the working tree stayed clean.
 
 EXTERNAL AUTHORISATION REQUIRED (see `AUTH_REQUIRED.md`):
-1. Hosted database — `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`. Until set,
-   production renders the storage-unconfigured screen and Gate 1 cannot be demonstrated
-   on `queueproof.vercel.app`.
-2. `QUEUEPROOF_ENCRYPTION_KEY` and `QUEUEPROOF_ACCESS_TOKEN` on the deployment.
-3. HydraDB API key — gates Gates 2–6.
-4. Slack, Gmail, Linear OAuth — gate Gates 2, 4, 8.
+1. `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `QUEUEPROOF_ENCRYPTION_KEY`,
+   `QUEUEPROOF_ACCESS_TOKEN` on the deployment — until then production renders the
+   storage-unconfigured screen.
+2. HydraDB API key — gates 2, 3 (ingestion), 4, 6 (live half).
+3. Slack, Gmail, Linear OAuth — gates 2, 4, 8.
 
-NEXT CODE ACTION: Gate 3 document ingestion is the largest fully-unblocked P0 item
-(upload route, file signature/MIME validation, SHA-256 duplicate detection, real
-processing-state polling) — the HydraDB ingest call itself needs the key, but everything
-up to that boundary can be built and tested now. `scripts/generate-large-pdf.mjs` is also
-completable offline.
+Check current state at any time:
+`QUEUEPROOF_URL=https://queueproof.vercel.app node scripts/doctor.mjs`
+
+NEXT CODE ACTION: document upload route (`app/api/documents`) with magic-byte validation,
+SHA-256 duplicate detection and real stage tracking up to the HydraDB boundary; then the
+Linear proposal/approval path with deterministic idempotency keys. Both are fully specified
+and unblocked apart from execution against the live providers.
