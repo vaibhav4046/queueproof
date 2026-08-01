@@ -374,7 +374,11 @@ export function resolveStorage(env: Record<string, unknown>): StorageResolution 
   // being named `ephemeral` everywhere so nobody mistakes it for durability. It is
   // deliberately never automatic: silently degrading persistence would be far worse than
   // refusing to start.
-  const allowEphemeral = env.QUEUEPROOF_ALLOW_EPHEMERAL_STORAGE === "true";
+  // Trimmed: values set through a CLI pipe routinely carry a trailing newline, and an
+  // exact === comparison against "true" then silently fails while presence checks pass.
+  const allowEphemeral =
+    typeof env.QUEUEPROOF_ALLOW_EPHEMERAL_STORAGE === "string" &&
+    env.QUEUEPROOF_ALLOW_EPHEMERAL_STORAGE.trim() === "true";
   const sqlitePath = configuredPath || (allowEphemeral ? "/tmp/queueproof-ephemeral.db" : "");
   const backendLabel: StorageBackend = configuredPath ? "sqlite" : "ephemeral";
 

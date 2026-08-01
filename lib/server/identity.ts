@@ -164,12 +164,17 @@ export async function requireRequestActor(): Promise<RequestActor> {
 /** True when a hosted deployment has a way for a human to sign in. */
 export function signInConfigured(): boolean {
   const env = runtimeEnv() as Record<string, unknown>;
-  return typeof env.QUEUEPROOF_ACCESS_TOKEN === "string" && env.QUEUEPROOF_ACCESS_TOKEN.length >= 16;
+  const raw = env.QUEUEPROOF_ACCESS_TOKEN;
+  return typeof raw === "string" && raw.trim().length >= 16;
 }
 
 export function accessTokenMatches(candidate: string): boolean {
   const env = runtimeEnv() as Record<string, unknown>;
-  const expected = env.QUEUEPROOF_ACCESS_TOKEN;
-  if (typeof expected !== "string" || expected.length < 16) return false;
-  return timingSafeEqual(candidate, expected);
+  const raw = env.QUEUEPROOF_ACCESS_TOKEN;
+  if (typeof raw !== "string") return false;
+  // Trimmed on both sides: a value set through a CLI pipe carries a trailing newline,
+  // which would make every sign-in fail with a correct token and no useful signal.
+  const expected = raw.trim();
+  if (expected.length < 16) return false;
+  return timingSafeEqual(candidate.trim(), expected);
 }
