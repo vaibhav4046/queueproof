@@ -41,7 +41,9 @@ export function canonicalJson(value: unknown): string {
  * carry its own hash without the value depending on itself.
  */
 export async function receiptHash(receipt: Record<string, unknown>): Promise<string> {
-  const { receipt_hash: _ignored, ...rest } = receipt;
+  const rest = Object.fromEntries(
+    Object.entries(receipt).filter(([key]) => key !== "receipt_hash"),
+  );
   return sha256(canonicalJson(rest));
 }
 

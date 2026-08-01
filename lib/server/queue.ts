@@ -5,6 +5,7 @@ import { audit, createId, ensureCoreSchema } from "./store";
 import { DEFAULT_POLICY_VERSION, rank } from "../../packages/ranking/src";
 import { isPotentialPromptInjection, sha256 } from "../../packages/security/src";
 import { executionPacketSchema, type RankingInput } from "../../packages/contracts/src";
+import { receiptHash, whyAboveNext } from "./decision-receipt";
 
 type RecordValue = Record<string, unknown>;
 
@@ -358,6 +359,21 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
       permissions: { read: [item.evidence.provider], write: [], approval_required: true },
       completion_callback: { type: "mcp_tool", tool: "queueproof_report_execution_result" },
     });
+
+    // Explain the gap to the next-ranked item, computed from score components only.
+    // The last item has no runner-up, so it carries null rather than an invented reason.
+    const runnerUp = ranked[index + 1];
+    const whyAbove = runnerUp ? whyAboveNext(item.input, runnerUp.input) : null;
+
+    // The receipt hash is computed once, here, and persisted inside packet_json. Every
+    // surface — web, API, MCP, CLI — reads that same stored object, so parity holds by
+    // construction rather than by three code paths agreeing to recompute it identically.
+    const packetWithProof = {
+      ...packet,
+      why_above_next: whyAbove,
+      receipt_hash: await receiptHash({ ...packet, why_above_next: whyAbove }),
+    };
+
     statements.push(
       db.prepare(
         `INSERT INTO source_references
@@ -408,7 +424,7 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
         `INSERT INTO execution_packets
          (id, workspace_id, task_id, policy_version, packet_json, status)
          VALUES (?, ?, ?, ?, ?, 'available')`,
-      ).bind(packetId, workspaceId, item.taskId, item.result.policyVersion, JSON.stringify(packet)),
+      ).bind(packetId, workspaceId, item.taskId, item.result.policyVersion, JSON.stringify(packetWithProof)),
     );
   }
   statements.push(
