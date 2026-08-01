@@ -26,17 +26,18 @@ async function selectRows(
   orderBy = "created_at DESC",
   limit = 100,
 ) {
-  const allowed = new Set([
-    "connectors",
-    "commitments",
-    "conflicts",
-    "skills",
-    "memories",
-    "audit_events",
-    "execution_packets",
-    "queue_snapshots",
-  ]);
+  // Only tables that ensureCoreSchema() actually creates AND that some code path
+  // actually writes. Previously this listed commitments, conflicts, skills and
+  // memories — none of which are created at runtime or written by anything, so the
+  // tools reading them either threw "no such table" or returned an empty set that
+  // an agent would read as a positive "there are none".
+  const allowed = new Set(["connectors", "audit_events", "execution_packets", "queue_snapshots"]);
   if (!allowed.has(table)) throw new Error("Unsupported QueueProof resource table.");
+
+  // orderBy is interpolated, so it must be allowlisted too rather than trusted.
+  const allowedOrder = new Set(["created_at DESC", "created_at ASC", "name ASC"]);
+  if (!allowedOrder.has(orderBy)) throw new Error("Unsupported QueueProof sort order.");
+
   const result = await requireDb()
     .prepare(`SELECT * FROM ${table} WHERE workspace_id = ? ORDER BY ${orderBy} LIMIT ?`)
     .bind(workspaceId, limit)
@@ -76,12 +77,18 @@ export function buildQueueProofServer(
       }),
       annotations: readOnly,
     },
-    async () =>
-      text({
-        status: "live",
-        workspaceId,
-        policyVersion: "queueproof-default-1.0.0",
-      }),
+    // Previously returned the literal "live" and so could never report a problem — a
+    // health check that cannot fail is worse than none, because an agent treats it as
+    // confirmation. This now actually probes durable storage.
+    async () => {
+      let status = "live";
+      try {
+        await requireDb().prepare("SELECT 1 AS ok").first();
+      } catch (error) {
+        status = `degraded: ${error instanceof Error ? error.message : "storage unavailable"}`;
+      }
+      return text({ status, workspaceId, policyVersion: "queueproof-default-1.0.0" });
+    },
   );
 
   server.registerTool(
@@ -335,125 +342,39 @@ export function buildQueueProofServer(
     },
   );
 
-  const tableTools = [
-    ["queueproof_what_changed", "queue_snapshots", "created_at DESC"],
-    ["queueproof_find_commitments", "commitments", "created_at DESC"],
-    ["queueproof_find_untracked_commitments", "commitments", "created_at DESC"],
-    ["queueproof_detect_conflicts", "conflicts", "created_at DESC"],
-    ["queueproof_list_skills", "skills", "name ASC"],
-  ] as const;
-
-  for (const [name, table, order] of tableTools) {
-    server.registerTool(
-      name,
-      {
-        title: name.replaceAll("_", " "),
-        description: `Read ${table.replaceAll("_", " ")} from the authenticated QueueProof workspace.`,
-        inputSchema: z.object({ limit: z.number().int().min(1).max(100).default(50) }),
-        outputSchema: z.object({ items: z.array(z.record(z.string(), z.unknown())) }),
-        annotations: readOnly,
-      },
-      async ({ limit }) => text({ items: await selectRows(workspaceId, table, order, limit) }),
-    );
-  }
-
+  // Removed here, deliberately: queueproof_find_commitments,
+  // queueproof_find_untracked_commitments, queueproof_detect_conflicts and
+  // queueproof_list_skills. Each read a table that ensureCoreSchema() never creates and
+  // that nothing writes. detect_conflicts was the most dangerous: it returned an empty
+  // list, which an agent reads as "no conflicts exist" — the opposite of the truth for a
+  // product whose entire claim is conflict-aware prioritisation. find_commitments and
+  // find_untracked_commitments were also character-for-character identical queries, so
+  // "untracked" was never computed. Advertising an unimplemented capability to an agent
+  // is worse than not offering it. They return when there is an extractor behind them.
   server.registerTool(
-    "queueproof_get_entity",
+    "queueproof_list_queue_snapshots",
     {
-      title: "Get canonical entity",
-      description: "Read one canonical entity with aliases from the authenticated workspace.",
-      inputSchema: z.object({ entityId: z.string() }),
-      outputSchema: z.object({
-        entity: z.record(z.string(), z.unknown()).nullable(),
-        aliases: z.array(z.record(z.string(), z.unknown())),
-      }),
+      title: "List queue snapshots",
+      description:
+        "List stored queue snapshots for the authenticated workspace, newest first. " +
+        "Returns raw snapshot rows; it does not diff them.",
+      inputSchema: z.object({ limit: z.number().int().min(1).max(100).default(50) }),
+      outputSchema: z.object({ items: z.array(z.record(z.string(), z.unknown())) }),
       annotations: readOnly,
     },
-    async ({ entityId }) => {
-      const entity = await requireDb()
-        .prepare(`SELECT * FROM canonical_entities WHERE workspace_id = ? AND id = ? LIMIT 1`)
-        .bind(workspaceId, entityId)
-        .first();
-      const aliases = await requireDb()
-        .prepare(`SELECT * FROM entity_aliases WHERE workspace_id = ? AND entity_id = ?`)
-        .bind(workspaceId, entityId)
-        .all();
-      return text({ entity, aliases: aliases.results });
-    },
+    async ({ limit }) =>
+      text({ items: await selectRows(workspaceId, "queue_snapshots", "created_at DESC", limit) }),
   );
 
-  server.registerTool(
-    "queueproof_get_entity_timeline",
-    {
-      title: "Get entity timeline",
-      description: "Return source references linked to a canonical entity in chronological order.",
-      inputSchema: z.object({ entityId: z.string(), limit: z.number().int().min(1).max(100).default(50) }),
-      outputSchema: z.object({ events: z.array(z.record(z.string(), z.unknown())) }),
-      annotations: readOnly,
-    },
-    async ({ entityId, limit }) => {
-      const result = await requireDb()
-        .prepare(
-          `SELECT sr.* FROM source_references sr
-           JOIN entity_aliases ea ON ea.source_id = sr.id
-           WHERE sr.workspace_id = ? AND ea.entity_id = ?
-           ORDER BY sr.source_timestamp ASC LIMIT ?`,
-        )
-        .bind(workspaceId, entityId, limit)
-        .all();
-      return text({ events: result.results });
-    },
-  );
-
-  server.registerTool(
-    "queueproof_run_evaluation",
-    {
-      title: "Run saved evaluation",
-      description: "Create a queued evaluation run from an existing workspace suite.",
-      inputSchema: z.object({ suiteId: z.string(), mode: z.enum(["fast", "thinking"]) }),
-      outputSchema: z.object({ runId: z.string(), status: z.string() }),
-      annotations: {
-        readOnlyHint: false,
-        destructiveHint: false,
-        idempotentHint: false,
-        openWorldHint: true,
-      },
-    },
-    async ({ suiteId, mode }) => {
-      const runId = createId("eval");
-      await requireDb()
-        .prepare(
-          `INSERT INTO eval_runs (id, workspace_id, suite_id, mode, status, started_at)
-           VALUES (?, ?, ?, ?, 'queued', CURRENT_TIMESTAMP)`,
-        )
-        .bind(runId, workspaceId, suiteId, mode)
-        .run();
-      return text({ runId, status: "queued" });
-    },
-  );
-
-  server.registerTool(
-    "queueproof_activate_skill",
-    {
-      title: "Activate a QueueProof skill",
-      description: "Record activation of an installed, enabled skill. Does not alter skill source.",
-      inputSchema: z.object({ skillId: z.string() }),
-      outputSchema: z.object({ skillId: z.string(), activated: z.boolean() }),
-      annotations: {
-        readOnlyHint: false,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
-    },
-    async ({ skillId }) => {
-      const skill = await requireDb()
-        .prepare(`SELECT id FROM skills WHERE workspace_id = ? AND id = ? AND enabled = 1 LIMIT 1`)
-        .bind(workspaceId, skillId)
-        .first();
-      return text({ skillId, activated: Boolean(skill) });
-    },
-  );
+  // Also removed: queueproof_get_entity and queueproof_get_entity_timeline
+  // (canonical_entities / entity_aliases are never created and no entity-resolution code
+  // exists), queueproof_run_evaluation (inserted an eval_runs row into a table that is
+  // never created, with no reader and no worker, so runs would sit "queued" forever), and
+  // queueproof_activate_skill (annotated as a write, but its handler was a SELECT that
+  // wrote nothing — no activation column or skill runtime exists anywhere in the repo).
+  //
+  // These reappear when entity resolution, an evaluation worker and a skill runtime are
+  // actually implemented.
 
   if (scopes.includes("queueproof:propose")) server.registerTool(
     "queueproof_propose_action",

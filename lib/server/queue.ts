@@ -140,10 +140,22 @@ function rankingInput(evidence: Evidence, id: string, title: string): RankingInp
   const commitment = /\b(i will|we will|promised|committed|must|need(?:s)? to|please)\b/i.test(text);
   const owner = ownerFromEvidence(evidence);
   const fresh = freshness(evidence.timestamp);
-  const confidence = Math.min(
-    0.96,
-    0.38 + (actionable.test(text) ? 0.18 : 0) + (owner ? 0.12 : 0) + (evidence.timestamp ? 0.1 : 0) + (evidence.url ? 0.08 : 0),
-  );
+  // Evidence completeness: the fraction of independent corroborating signals present on
+  // this candidate. This replaces an invented weighted sum whose 0.38 floor meant nothing
+  // could ever report below 38% confidence — including a candidate with no owner, no
+  // timestamp, no link and no actionable verb — and whose 0.96 ceiling was unreachable
+  // (the weights summed to 0.86), so the cap was dead code presented as a measurement.
+  //
+  // This value is deliberately NOT a probability. It answers "how much of the evidence we
+  // look for is actually here", which is the question the receipt needs, and it can
+  // legitimately reach 0 when nothing corroborates the candidate.
+  const completenessSignals = [
+    actionable.test(text),
+    Boolean(owner),
+    Boolean(evidence.timestamp),
+    Boolean(evidence.url),
+  ];
+  const confidence = completenessSignals.filter(Boolean).length / completenessSignals.length;
   return {
     id,
     title,

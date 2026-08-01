@@ -7,10 +7,34 @@ describe("public contracts", () => {
     expect(connectorStateSchema.options).toContain("permission_insufficient");
     expect(connectorStateSchema.options).toContain("rate_limited");
   });
-  it("rejects an ungrounded action proposal", () => {
-    expect(actionProposalSchema.safeParse({ provider: "linear", accountScope: "team", resourceId: "LIN-1",
-      actionType: "comment", payload: {}, reason: "Follow up", evidenceIds: [], riskClass: "low",
-      idempotencyKey: "123" }).success).toBe(false);
+  // This test previously passed for the wrong reason: it supplied
+  // idempotencyKey: "123", which fails the schema's .min(16) on its own, so the
+  // assertion held even with the evidence-grounding rule removed. The product's central
+  // promise — that no action can be proposed without evidence — was therefore unpinned.
+  // The proposal below is valid in every respect except evidenceIds, and the positive
+  // control proves the only reason the negative case fails is the missing evidence.
+  const groundedProposal = {
+    provider: "linear",
+    accountScope: "team",
+    resourceId: "LIN-1",
+    actionType: "comment",
+    payload: {},
+    reason: "Follow up",
+    evidenceIds: ["src-1"],
+    riskClass: "low",
+    idempotencyKey: "idem-0123456789abcdef",
+  };
+
+  it("accepts an action proposal that cites evidence", () => {
+    expect(actionProposalSchema.safeParse(groundedProposal).success).toBe(true);
+  });
+
+  it("rejects an otherwise-valid action proposal that cites no evidence", () => {
+    const result = actionProposalSchema.safeParse({ ...groundedProposal, evidenceIds: [] });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((issue) => issue.path.includes("evidenceIds"))).toBe(true);
+    }
   });
   it("requires evidence and approval semantics in execution packets", () => {
     const packet = {

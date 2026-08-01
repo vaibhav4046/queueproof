@@ -131,8 +131,15 @@ export async function POST(request: Request) {
         selectedSources: sources.map((source) => source.id),
         validation: {
           exactIdentifiers: plan.exactParallel,
-          promptInjectionScreened: true,
-          unsupportedClaimsPrevented: true,
+          // Counts, not assertions. `promptInjectionScreened` was previously the literal
+          // `true` and is now the number of chunks actually put through the screen, so it
+          // cannot drift away from what the code does. The former sibling field
+          // `unsupportedClaimsPrevented: true` was removed outright: it was unconditional
+          // and no claim validator exists anywhere in the codebase, so it asserted a
+          // guarantee the product does not provide.
+          promptInjectionScreened: chunks.length,
+          untrustedInstructionsFlagged: chunks.filter((chunk) => chunk.untrustedInstructionDetected)
+            .length,
         },
         callCount: 1,
         hydradbLatencyMs: response.latencyMs,

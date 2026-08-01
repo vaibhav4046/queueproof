@@ -145,6 +145,33 @@ const schemaStatements = [
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
+  // Action proposal tables. queueproof_propose_action and queueproof_get_action_status
+  // read and write these, but ensureCoreSchema() never created them, so both tools threw
+  // "no such table" at runtime — undetected because no test invokes an MCP handler.
+  // The UNIQUE constraint on idempotency_key is what makes a repeated proposal a no-op
+  // rather than a duplicate.
+  `CREATE TABLE IF NOT EXISTS action_proposals (
+    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, provider TEXT NOT NULL,
+    action_type TEXT NOT NULL, payload_json TEXT NOT NULL,
+    evidence_ids_json TEXT NOT NULL DEFAULT '[]', risk_class TEXT NOT NULL DEFAULT 'low',
+    idempotency_key TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'proposed',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(workspace_id, idempotency_key)
+  )`,
+  `CREATE TABLE IF NOT EXISTS action_approvals (
+    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, proposal_id TEXT NOT NULL,
+    decision TEXT NOT NULL, decided_by TEXT, decided_at TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(proposal_id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS action_executions (
+    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, proposal_id TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending', provider_response_id TEXT, error TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(proposal_id)
+  )`,
   `CREATE TABLE IF NOT EXISTS audit_events (
     id TEXT PRIMARY KEY, workspace_id TEXT, actor_id TEXT NOT NULL,
     operation TEXT NOT NULL, operation_id TEXT NOT NULL, target_type TEXT,
