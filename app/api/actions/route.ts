@@ -8,6 +8,11 @@ import {
   riskClass,
   type Commitment,
 } from "../../../packages/actions/src";
+import { isPotentialPromptInjection } from "../../../packages/security/src";
+
+const MAX_SUMMARY = 4_000;
+const MAX_FIELD = 200;
+const MAX_EVIDENCE_IDS = 50;
 
 /** List proposals with their approval and execution state. */
 export async function GET() {
@@ -69,11 +74,32 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+    if (evidenceIds.length > MAX_EVIDENCE_IDS || evidenceIds.some((id) => id.length > MAX_FIELD)) {
+      return noStoreJson({ ok: false, error: "Too many or oversized evidence references." }, { status: 400 });
+    }
     if (typeof commitment.summary !== "string" || !commitment.summary.trim()) {
       return noStoreJson({ ok: false, error: "The commitment summary is required." }, { status: 400 });
     }
-    if (typeof body.teamId !== "string" || !body.teamId.trim()) {
-      return noStoreJson({ ok: false, error: "A Linear team id is required." }, { status: 400 });
+    // Bounded before anything is stored. Without this a single request could persist a
+    // multi-megabyte row and, worse, carry it into a provider write.
+    if (commitment.summary.length > MAX_SUMMARY) {
+      return noStoreJson(
+        { ok: false, error: `The commitment summary must be ${MAX_SUMMARY} characters or fewer.` },
+        { status: 400 },
+      );
+    }
+    if (typeof body.teamId !== "string" || !body.teamId.trim() || body.teamId.length > MAX_FIELD) {
+      return noStoreJson({ ok: false, error: "A valid Linear team id is required." }, { status: 400 });
+    }
+    for (const [name, value] of [
+      ["owner", commitment.owner],
+      ["customer", commitment.customer],
+      ["deadline", commitment.deadline],
+      ["sourceProvider", commitment.sourceProvider],
+    ] as const) {
+      if (typeof value === "string" && value.length > MAX_FIELD) {
+        return noStoreJson({ ok: false, error: `The ${name} field is too long.` }, { status: 400 });
+      }
     }
 
     const resolved: Commitment = {
@@ -87,6 +113,14 @@ export async function POST(request: Request) {
     };
 
     const payload = buildIssuePayload(resolved, body.teamId, body.projectId);
+
+    // The summary originates in retrieved source content, and this proposal is the path
+    // by which that content would reach a provider write. Screen it: instructions
+    // embedded in evidence are data, never commands, so a hit does not block the
+    // proposal but does force the highest risk class and is surfaced to the approver.
+    const injectionSuspected = isPotentialPromptInjection(resolved.summary);
+    const risk = injectionSuspected ? "critical" : riskClass(payload, resolved);
+
     const key = await idempotencyKeyFor(workspaceId, resolved.id, payload);
     const db = requireDb();
 
@@ -121,7 +155,7 @@ export async function POST(request: Request) {
         workspaceId,
         JSON.stringify(payload),
         JSON.stringify(evidenceIds),
-        riskClass(payload, resolved),
+        risk,
         key,
       )
       .run();
@@ -134,7 +168,12 @@ export async function POST(request: Request) {
       targetId: proposalId,
       outcome: "success",
       riskClass: "write",
-      metadata: { provider: "linear", evidenceCount: evidenceIds.length },
+      metadata: {
+        provider: "linear",
+        evidenceCount: evidenceIds.length,
+        riskClass: risk,
+        injectionSuspected,
+      },
     });
 
     return noStoreJson(
@@ -144,9 +183,10 @@ export async function POST(request: Request) {
         proposalId,
         status: "proposed",
         approvalRequired: true,
-        riskClass: riskClass(payload, resolved),
+        riskClass: risk,
         payload,
         evidenceIds,
+        injectionSuspected,
       },
       { status: 201 },
     );
