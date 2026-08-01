@@ -11,10 +11,16 @@ export async function GET() {
       backend: (runtime.QUEUEPROOF_STORAGE_BACKEND as string) ?? "unknown",
       detail: (runtime.QUEUEPROOF_STORAGE_DETAIL as string) ?? "No storage diagnostics available.",
     },
-    r2: { configured: Boolean(runtime.FILES) },
+    // Reported as informational: document upload is not implemented, so this is
+    // expected to be false rather than a fault.
+    r2: { configured: Boolean(runtime.FILES), note: "Document upload is not implemented." },
     hydradb: {
-      configuredPerWorkspace: true,
-      baseUrl: "https://api.hydradb.com",
+      // This previously read `configuredPerWorkspace: true`, a hardcoded literal that
+      // asserted a configured state regardless of reality. HydraDB credentials are held
+      // per workspace in the database, so no deployment-wide answer exists; state the
+      // scope instead of claiming a status.
+      credentialScope: "per-workspace",
+      defaultBaseUrl: "https://api.hydradb.com",
       contractVersion: "2",
     },
   };

@@ -35,7 +35,14 @@ async function selectRows(
   if (!allowed.has(table)) throw new Error("Unsupported QueueProof resource table.");
 
   // orderBy is interpolated, so it must be allowlisted too rather than trusted.
-  const allowedOrder = new Set(["created_at DESC", "created_at ASC", "name ASC"]);
+  // Every value below is used by an actual call site; adding the allowlist without
+  // "provider ASC" previously made queueproof_list_connectors throw on every call.
+  const allowedOrder = new Set([
+    "created_at DESC",
+    "created_at ASC",
+    "name ASC",
+    "provider ASC",
+  ]);
   if (!allowedOrder.has(orderBy)) throw new Error("Unsupported QueueProof sort order.");
 
   const result = await requireDb()
@@ -456,12 +463,16 @@ export function buildQueueProofServer(
     },
   );
 
+  // "skills" and "policies" are removed for the same reason the corresponding tools were:
+  // they pointed at tables (skills, ranking_policies) that ensureCoreSchema() never
+  // creates and nothing writes, so reading either resource threw "no such table".
+  //
+  // "queue" and "changes" both map to queue_snapshots. That is retained but is not a diff:
+  // "changes" returns snapshot rows, it does not compute what changed between them.
   const resourceKinds = [
     ["queue", "queue_snapshots"],
     ["changes", "queue_snapshots"],
     ["connectors", "connectors"],
-    ["skills", "skills"],
-    ["policies", "ranking_policies"],
   ] as const;
   for (const [kind, table] of resourceKinds) {
     server.registerResource(
