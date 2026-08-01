@@ -1,0 +1,178 @@
+[
+  {
+    "id": "fact-begin-stop-work",
+    "page": 3,
+    "kind": "beginning_load_bearing",
+    "question": "Who at Helios Robotics holds the sole authority to declare a fleet wide stop work?",
+    "expectedAnswer": "The Duty Operations Lead.",
+    "exactIdentifier": null
+  },
+  {
+    "id": "fact-charter-id",
+    "page": 3,
+    "kind": "exact_identifier",
+    "question": "Which charter governs the Helios Robotics operations handbook, and when was it ratified?",
+    "expectedAnswer": "HR-CHARTER-9, ratified on 12 January 2031.",
+    "exactIdentifier": "HR-CHARTER-9"
+  },
+  {
+    "id": "fact-superseded-policy",
+    "page": 7,
+    "kind": "superseded_policy_original",
+    "question": "What did OPS-POL-14 originally permit for Rover SDK field firmware flashing?",
+    "expectedAnswer": "A single Tier 2 engineer could flash Rover SDK field firmware without a second approver while the rover was on a maintenance stand. This permission is no longer in force.",
+    "exactIdentifier": "OPS-POL-14"
+  },
+  {
+    "id": "fact-superseding-decision",
+    "page": 231,
+    "kind": "superseding_decision",
+    "question": "Is the single approver firmware flashing rule in OPS-POL-14 still in force?",
+    "expectedAnswer": "No. ADR-037, dated 9 September 2031, supersedes OPS-POL-14 and requires two approvers, one of whom must be a Safety Case Owner.",
+    "exactIdentifier": "ADR-037"
+  },
+  {
+    "id": "fact-escalation-sev1",
+    "page": 46,
+    "kind": "table_lookup",
+    "question": "In the escalation severity matrix, what is the SEV-1 acknowledgement target and who approves it?",
+    "expectedAnswer": "5 minutes, approved by the Duty Operations Lead.",
+    "exactIdentifier": null
+  },
+  {
+    "id": "fact-alias-rover-sdk",
+    "page": 80,
+    "kind": "project_alias",
+    "question": "Which internal programme code does the project alias Rover SDK refer to?",
+    "expectedAnswer": "HR-P4, the field autonomy toolkit.",
+    "exactIdentifier": "HR-P4"
+  },
+  {
+    "id": "fact-atlas-deadline",
+    "page": 81,
+    "kind": "deadline",
+    "question": "What was the committed general availability date for Atlas Launch?",
+    "expectedAnswer": "14 March 2031",
+    "exactIdentifier": null
+  },
+  {
+    "id": "fact-eng-456",
+    "page": 82,
+    "kind": "exact_identifier",
+    "question": "What work does ENG-456 track and when is it due?",
+    "expectedAnswer": "ENG-456 reduces the AuthShield operator token lifetime to fifteen minutes, due 30 June 2031.",
+    "exactIdentifier": "ENG-456"
+  },
+  {
+    "id": "fact-hindi-commitment",
+    "page": 83,
+    "kind": "hindi_commitment",
+    "question": "Which English issue identifier does the Hindi language commitment in the security section refer to?",
+    "expectedAnswer": "ENG-456. The commitment states that the AuthShield operator token lifetime will be cut to fifteen minutes by 30 June 2031.",
+    "exactIdentifier": "ENG-456"
+  },
+  {
+    "id": "fact-billing-cutover",
+    "page": 84,
+    "kind": "deadline",
+    "question": "When is the Billing Migration ledger cutover scheduled?",
+    "expectedAnswer": "1 October 2031",
+    "exactIdentifier": null
+  },
+  {
+    "id": "fact-rover-freeze",
+    "page": 85,
+    "kind": "deadline",
+    "question": "What is the code freeze date for Rover SDK 5.0?",
+    "expectedAnswer": "15 November 2031",
+    "exactIdentifier": null
+  },
+  {
+    "id": "fact-bug-123",
+    "page": 120,
+    "kind": "exact_identifier",
+    "question": "What defect does BUG-123 record and in which release was it fixed?",
+    "expectedAnswer": "Odometry drift after cold boot, fixed in Rover SDK 4.2.1 released on 21 May 2031.",
+    "exactIdentifier": "BUG-123"
+  },
+  {
+    "id": "fact-pr-8871",
+    "page": 121,
+    "kind": "exact_identifier",
+    "question": "What did PR-8871 change and when was it merged?",
+    "expectedAnswer": "The Atlas Launch telemetry schema version 3, merged on 2 July 2031.",
+    "exactIdentifier": "PR-8871"
+  },
+  {
+    "id": "fact-middle-beacon",
+    "page": 160,
+    "kind": "middle_load_bearing",
+    "question": "What beacon cadence do Rover SDK units fall back to during a communications blackout?",
+    "expectedAnswer": "90 seconds",
+    "exactIdentifier": null
+  },
+  {
+    "id": "fact-middle-buffer",
+    "page": 160,
+    "kind": "single_source_fact",
+    "question": "How many telemetry frames does a Rover SDK unit retain in its onboard ring buffer during a blackout?",
+    "expectedAnswer": "4096",
+    "exactIdentifier": null
+  },
+  {
+    "id": "fact-inc-2031",
+    "page": 180,
+    "kind": "exact_identifier",
+    "question": "What happened in INC-2031 and how long did customer impact last?",
+    "expectedAnswer": "A Billing Migration double charge event on 8 April 2031, with 41 minutes of customer impact.",
+    "exactIdentifier": "INC-2031"
+  },
+  {
+    "id": "fact-incident-table",
+    "page": 181,
+    "kind": "table_lookup",
+    "question": "In the incident log summary, what severity and impact window are recorded against INC-2031?",
+    "expectedAnswer": "SEV-2, with a 41 minute impact window.",
+    "exactIdentifier": "INC-2031"
+  },
+  {
+    "id": "fact-priya-raman",
+    "page": 203,
+    "kind": "entity_disambiguation",
+    "question": "What is Priya Raman's role at Helios Robotics and which programme does she own?",
+    "expectedAnswer": "Staff Reliability Engineer, employee HR-2214, engineering owner of AuthShield.",
+    "exactIdentifier": "HR-2214"
+  },
+  {
+    "id": "fact-priya-ramanathan",
+    "page": 203,
+    "kind": "entity_disambiguation",
+    "question": "What is Priya Ramanathan's role at Helios Robotics and which desk does she run?",
+    "expectedAnswer": "Customer Escalation Manager, employee HR-5871, running the Billing Migration escalation desk.",
+    "exactIdentifier": "HR-5871"
+  },
+  {
+    "id": "fact-oncall-ring0",
+    "page": 204,
+    "kind": "table_lookup",
+    "question": "Who is the Ring 0 on call contact for the Bengaluru depot?",
+    "expectedAnswer": "Priya Raman.",
+    "exactIdentifier": null
+  },
+  {
+    "id": "fact-distractor-draft",
+    "page": 290,
+    "kind": "distractor_discrimination",
+    "question": "Does DRAFT-OPS-14 permit single engineer firmware flashing today?",
+    "expectedAnswer": "No. DRAFT-OPS-14 was never ratified and carries no operational authority. The binding rule is ADR-037, which requires two approvers.",
+    "exactIdentifier": "DRAFT-OPS-14"
+  },
+  {
+    "id": "fact-end-battery",
+    "page": 340,
+    "kind": "end_load_bearing",
+    "question": "What share of the 2032 capital expenditure is reserved for battery replacement?",
+    "expectedAnswer": "18 percent",
+    "exactIdentifier": null
+  }
+]
