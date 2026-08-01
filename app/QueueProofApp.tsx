@@ -35,6 +35,11 @@ type Evidence = {
   title: string; excerpt: string; timestamp?: string | null;
   ingestionTimestamp?: string | null; url?: string | null; authority?: string;
 };
+type ComponentDelta = { component: string; delta: number; label: string };
+type WhyAboveNext = {
+  leaderId: string; runnerUpId: string; scoreDelta: number;
+  components: ComponentDelta[]; summary: string;
+};
 type Packet = {
   packet_id: string; created_at: string; policy_version: string;
   task: { title: string; objective: string; owner: string | null; project: string | null;
@@ -42,6 +47,10 @@ type Packet = {
   why_now: string[]; constraints: string[]; dependencies: string[];
   acceptance_criteria: string[]; evidence: Evidence[]; contradictions: unknown[];
   missing_information: string[]; recommended_agent: string;
+  // Persisted with the packet at generation time, so the value shown here is the same
+  // one the API and MCP return — parity is read, not recomputed.
+  receipt_hash?: string;
+  why_above_next?: WhyAboveNext | null;
   permissions: { read: string[]; write: string[]; approval_required: boolean };
 };
 type QueueItem = {
@@ -59,7 +68,7 @@ type McpToken = {
   id: string; clientId: string; clientType: string; scopes: string[]; expiresAt: string;
   revokedAt: string | null; createdAt: string; lastHandshakeAt: string | null; lastToolCallAt: string | null;
 };
-type ActiveTab = "command" | "ask" | "sources" | "agent";
+type ActiveTab = "command" | "ask" | "sources" | "lab" | "agent";
 
 /** The only view in which the main application shell renders. */
 type ReadyView = Extract<WorkspaceView, { kind: "ready" }>;
@@ -68,7 +77,8 @@ const nav = [
   { id: "command", label: "Command", icon: Command },
   { id: "ask", label: "Ask", icon: MessageSquareText },
   { id: "sources", label: "Sources", icon: Link2 },
-  { id: "agent", label: "Agent", icon: Bot },
+  { id: "lab", label: "Lab", icon: Braces },
+  { id: "agent", label: "Agents", icon: Bot },
 ] as const;
 
 const stateCopy: Record<string, string> = {
@@ -244,6 +254,7 @@ export default function QueueProofApp({
         {tab === "sources" && <SourcesScreen workspace={view} connectors={connectors}
           reloadWorkspace={reloadWorkspace} reloadConnectors={loadConnectors}
           setError={setError} setNotice={setNotice} />}
+        {tab === "lab" && <LabScreen setError={setError} />}
         {tab === "agent" && <AgentScreen workspace={view} setError={setError} setNotice={setNotice} />}
       </main>
       {selectedPacket && <PacketDrawer packet={selectedPacket} onClose={() => setSelectedPacket(null)} />}
@@ -665,8 +676,168 @@ function AgentScreen({ workspace, setError, setNotice }: { workspace: ReadyView;
   return <section className="screen agent-screen"><div className="screen-heading"><div><span className="eyebrow"><Bot size={13} /> Agent dock · MCP</span><h1>Give agents the plan.<br /><em>Keep humans in control.</em></h1><p>Generate a scoped token, connect any modern MCP client, and retrieve the exact execution packet shown in Command. Provider writes remain proposals unless a human approves them.</p></div></div><div className="agent-grid"><div className="token-console"><div className="console-line"><span><Terminal size={14} /> New agent connection</span><span className="secure-chip"><LockKeyhole size={12} /> hashed at rest</span></div><label>Client<select value={clientType} onChange={(event) => setClientType(event.target.value)}><option value="codex">Codex</option><option value="claude">Claude Code</option><option value="kimi">Kimi Code</option><option value="kilo">Kilo Code</option><option value="generic">Generic MCP client</option></select></label><label className="scope-choice"><input type="checkbox" checked={writeScopes} onChange={(event) => setWriteScopes(event.target.checked)} /><span><strong>Allow proposal + sync tools</strong><small>Still cannot execute a provider write without QueueProof approval.</small></span></label><button className="primary-button" onClick={() => void createToken()} disabled={busy}>{busy ? <LoaderCircle className="spin" size={15} /> : <KeyRound size={15} />} Generate 30-day token</button>{freshToken && <div className="token-reveal"><span><CircleAlert size={13} /> Copy once — it cannot be shown again</span><code>{freshToken}</code><button onClick={() => void navigator.clipboard.writeText(freshToken)}><Clipboard size={13} /> Copy token</button></div>}</div><div className="config-card"><div className="list-title"><span><Braces size={14} /> Project configuration</span><button onClick={() => void navigator.clipboard.writeText(JSON.stringify(config, null, 2))}><Clipboard size={13} /> Copy</button></div><pre>{JSON.stringify(config, null, 2)}</pre><div className="endpoint-row"><small>REMOTE MCP ENDPOINT</small><code>{endpoint}</code></div></div></div><div className="token-list"><div className="list-title"><span><ShieldCheck size={14} /> Issued credentials</span><small>{workspace.workspace?.name}</small></div>{tokens.length ? tokens.map((token) => <div className="token-row" key={token.id}><span className={token.revokedAt ? "status-orb" : token.lastHandshakeAt ? "status-orb live" : "status-orb indexing"} /><div><strong>{token.clientType}</strong><small>{token.scopes.join(" · ")} · expires {dateLabel(token.expiresAt)}</small></div><span>{token.revokedAt ? "Revoked" : token.lastHandshakeAt ? `Connected ${dateLabel(token.lastHandshakeAt)}` : "Awaiting handshake"}</span>{!token.revokedAt && <button onClick={() => void revoke(token.id)}>Revoke</button>}</div>) : <div className="honest-empty"><Bot size={24} /><div><strong>No agent credential exists.</strong><p>Create one only when you are ready to connect a client.</p></div></div>}</div></section>;
 }
 
+type LabResults = {
+  generatedAt?: string;
+  fixture?: {
+    label?: string;
+    caseCount?: number;
+    metrics?: {
+      totalCases?: number;
+      router?: { correct: number; total: number; accuracy: number };
+      perCategory?: Record<string, { total: number; correct: number; accuracy: number }>;
+    };
+    notMeasured?: string[];
+    caveat?: string;
+  };
+  live?: { status?: string; note?: string };
+};
+
+/**
+ * Evaluation Lab.
+ *
+ * Shows what was actually measured and, just as prominently, what was not. The fixture
+ * suite can only score the deterministic layer; citation quality, latency, call counts
+ * and cost need connected sources, so they are listed as unmeasured rather than shown as
+ * zero — a zero in a metrics panel reads as a result.
+ */
+function LabScreen({ setError }: { setError: (value: string) => void }) {
+  const [data, setData] = useState<LabResults | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    void api<{ results: LabResults }>("/api/lab")
+      .then((payload) => { if (active) setData(payload.results); })
+      .catch((reason: Error) => { if (active) setError(reason.message); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [setError]);
+
+  const router = data?.fixture?.metrics?.router;
+  const perCategory = Object.entries(data?.fixture?.metrics?.perCategory ?? {});
+  const notMeasured = (data?.fixture?.notMeasured ?? []).filter((entry) => entry && entry.trim());
+
+  return (
+    <section className="screen">
+      <div className="screen-heading">
+        <div>
+          <span className="eyebrow"><Braces size={13} /> Evaluation</span>
+          <h1>Measured, not<br /><em>asserted.</em></h1>
+          <p>
+            Every case below is scored by running the real retrieval router and the real
+            ranking policy. Metrics that require connected sources are named as unmeasured
+            rather than shown as zero.
+          </p>
+        </div>
+      </div>
+
+      {loading && <p className="muted">Loading evaluation results…</p>}
+
+      {router && (
+        <div className="lab-summary">
+          <div className="lab-metric">
+            <strong>{(router.accuracy * 100).toFixed(1)}%</strong>
+            <span>Router mode accuracy<br />{router.correct} of {router.total} cases</span>
+          </div>
+          <div className="lab-metric">
+            <strong>{data?.fixture?.metrics?.totalCases ?? perCategory.length}</strong>
+            <span>Ground-truth cases<br />across {perCategory.length} categories</span>
+          </div>
+          <div className="lab-metric">
+            <strong>{data?.live?.status === "not_requested" ? "Offline" : String(data?.live?.status ?? "—")}</strong>
+            <span>Live suite<br />requires connected sources</span>
+          </div>
+        </div>
+      )}
+
+      {perCategory.length > 0 && (
+        <div className="lab-table-wrap">
+          <table className="lab-table">
+            <thead>
+              <tr><th>Category</th><th>Correct</th><th>Total</th><th>Accuracy</th></tr>
+            </thead>
+            <tbody>
+              {perCategory.map(([name, entry]) => (
+                <tr key={name} className={entry.accuracy === 1 ? "pass" : entry.accuracy === 0 ? "fail" : ""}>
+                  <td>{name}</td>
+                  <td>{entry.correct}</td>
+                  <td>{entry.total}</td>
+                  <td>{(entry.accuracy * 100).toFixed(0)}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {notMeasured.length > 0 && (
+        <div className="packet-section">
+          <h3>Not measured<span>{notMeasured.length}</span></h3>
+          <ul>{notMeasured.map((entry) => <li key={entry}>{entry}</li>)}</ul>
+        </div>
+      )}
+
+      {data?.fixture?.caveat && <p className="muted">{data.fixture.caveat}</p>}
+      {data?.live?.note && <p className="muted">{data.live.note}</p>}
+      {data?.generatedAt && <p className="muted">Generated {dateLabel(data.generatedAt)} by <code>scripts/run-evals.mjs</code>.</p>}
+    </section>
+  );
+}
+
 function PacketDrawer({ packet, onClose }: { packet: Packet; onClose: () => void }) {
-  return <div className="drawer-layer" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><aside className="packet-drawer"><button className="modal-close" onClick={onClose}><X size={16} /></button><div className="drawer-head"><span className="eyebrow"><FileCheck2 size={13} /> Execution packet</span><code>{packet.packet_id}</code><h2>{packet.task.title}</h2><p>{packet.task.objective}</p></div><div className="drawer-score"><strong>{packet.task.priority_score}</strong><span>{band(packet.task.priority_score)} priority<br />{Math.round(packet.task.confidence * 100)}% confidence</span></div><PacketSection title="Why now" items={packet.why_now} /><div className="packet-columns"><PacketSection title="Constraints" items={packet.constraints} empty="None evidenced" /><PacketSection title="Dependencies" items={packet.dependencies} empty="None evidenced" /></div><PacketSection title="Acceptance criteria" items={packet.acceptance_criteria} /><div className="packet-section"><h3>Evidence receipts <span>{packet.evidence.length}</span></h3>{packet.evidence.map((item, index) => <EvidenceCard key={item.sourceId ?? index} evidence={item} index={index} />)}</div><PacketSection title="Missing information" items={packet.missing_information} empty="No missing fields" /><div className="permission-block"><LockKeyhole size={16} /><div><strong>Agent permissions</strong><span>Read: {packet.permissions.read.join(", ") || "none"} · Write: {packet.permissions.write.join(", ") || "none"} · Approval {packet.permissions.approval_required ? "required" : "not required"}</span></div></div><button className="secondary-button full" onClick={() => void navigator.clipboard.writeText(JSON.stringify(packet, null, 2))}><Clipboard size={14} /> Copy canonical JSON</button></aside></div>;
+  return <div className="drawer-layer" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><aside className="packet-drawer"><button className="modal-close" onClick={onClose}><X size={16} /></button><div className="drawer-head"><span className="eyebrow"><FileCheck2 size={13} /> Execution packet</span><code>{packet.packet_id}</code><h2>{packet.task.title}</h2><p>{packet.task.objective}</p></div><div className="drawer-score"><strong>{packet.task.priority_score}</strong><span>{band(packet.task.priority_score)} priority<br />{Math.round(packet.task.confidence * 100)}% confidence</span></div><PacketSection title="Why now" items={packet.why_now} /><div className="packet-columns"><PacketSection title="Constraints" items={packet.constraints} empty="None evidenced" /><PacketSection title="Dependencies" items={packet.dependencies} empty="None evidenced" /></div><PacketSection title="Acceptance criteria" items={packet.acceptance_criteria} /><div className="packet-section"><h3>Evidence receipts <span>{packet.evidence.length}</span></h3>{packet.evidence.map((item, index) => <EvidenceCard key={item.sourceId ?? index} evidence={item} index={index} />)}</div><WhyAboveSection why={packet.why_above_next} /><PacketSection title="Missing information" items={packet.missing_information} empty="No missing fields" /><ReceiptHashBlock hash={packet.receipt_hash} /><div className="permission-block"><LockKeyhole size={16} /><div><strong>Agent permissions</strong><span>Read: {packet.permissions.read.join(", ") || "none"} · Write: {packet.permissions.write.join(", ") || "none"} · Approval {packet.permissions.approval_required ? "required" : "not required"}</span></div></div><button className="secondary-button full" onClick={() => void navigator.clipboard.writeText(JSON.stringify(packet, null, 2))}><Clipboard size={14} /> Copy canonical JSON</button></aside></div>;
+}
+
+/**
+ * Why this item outranks the next one, rendered from stored score deltas.
+ *
+ * These numbers are arithmetic on the deterministic policy, not model prose, and they
+ * sum to the score gap — so the explanation accounts for the difference rather than
+ * gesturing at it. The last item in a queue has no runner-up and says so.
+ */
+function WhyAboveSection({ why }: { why?: WhyAboveNext | null }) {
+  if (!why) {
+    return (
+      <div className="packet-section">
+        <h3>Why above #2</h3>
+        <p>This is the last item in the queue, so there is no lower-ranked alternative to compare against.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="packet-section why-above">
+      <h3>Why above #2<span>{why.scoreDelta > 0 ? `+${why.scoreDelta}` : why.scoreDelta}</span></h3>
+      <p>{why.summary}</p>
+      {why.components.length > 0 && (
+        <ul className="delta-list">
+          {why.components.map((entry) => (
+            <li key={entry.component} className={entry.delta > 0 ? "gain" : "loss"}>
+              <code>{entry.delta > 0 ? `+${entry.delta}` : entry.delta}</code>
+              <span>{entry.label.replace(/^[+-][\d.]+\s/, "")}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The receipt hash. Stated precisely: it proves this receipt's content is identical
+ * wherever it is read, not that the provider data behind it is unchanged.
+ */
+function ReceiptHashBlock({ hash }: { hash?: string }) {
+  if (!hash) return null;
+  return (
+    <div className="receipt-hash">
+      <ShieldCheck size={15} />
+      <div>
+        <strong>Receipt hash</strong>
+        <code>{hash}</code>
+        <span>Identical in the web app, the API and MCP. It does not attest to the provider data itself.</span>
+      </div>
+    </div>
+  );
 }
 
 function PacketSection({ title, items, empty = "None" }: { title: string; items: string[]; empty?: string }) {

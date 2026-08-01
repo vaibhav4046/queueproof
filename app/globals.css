@@ -210,3 +210,104 @@ input, select { width: 100%; min-height: 42px; border: 1px solid var(--line); pa
   color: var(--text-muted, #9ba59c);
   font-size: 0.85rem;
 }
+
+/* --- Evaluation Lab ------------------------------------------------------- */
+.lab-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.lab-metric {
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--border, rgba(183, 255, 60, 0.14));
+  border-radius: 0.75rem;
+  background: var(--surface-raised, #121713);
+}
+
+.lab-metric strong {
+  display: block;
+  font-size: clamp(1.9rem, 1.3rem + 2vw, 2.6rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--signal, #b7ff3c);
+}
+
+.lab-metric span {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--text-muted, #9ba59c);
+}
+
+/* Wide content scrolls inside its own container, never the page body. */
+.lab-table-wrap { overflow-x: auto; margin: 1rem 0 1.5rem; }
+
+.lab-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; min-width: 30rem; }
+
+.lab-table th,
+.lab-table td {
+  text-align: left;
+  padding: 0.55rem 0.8rem;
+  border-bottom: 1px solid var(--border, rgba(183, 255, 60, 0.14));
+}
+
+.lab-table th { font-weight: 600; color: var(--text-muted, #9ba59c); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.lab-table tr.pass td:last-child { color: var(--signal, #b7ff3c); }
+.lab-table tr.fail td:last-child { color: var(--danger, #ff6b6b); }
+
+/* --- Why above #2 --------------------------------------------------------- */
+.delta-list { list-style: none; margin: 0.5rem 0 0; padding: 0; display: grid; gap: 0.4rem; }
+
+.delta-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  font-size: 0.88rem;
+}
+
+.delta-list code {
+  min-width: 3.2rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.delta-list li.gain code { color: var(--signal, #b7ff3c); }
+.delta-list li.loss code { color: var(--warning, #ffbf5e); }
+
+/* --- Receipt hash --------------------------------------------------------- */
+.receipt-hash {
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border, rgba(183, 255, 60, 0.14));
+  border-radius: 0.6rem;
+  background: var(--surface-raised, #121713);
+}
+
+.receipt-hash strong { display: block; font-size: 0.85rem; }
+
+.receipt-hash code {
+  display: block;
+  margin: 0.3rem 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
+  word-break: break-all;
+  color: var(--signal, #b7ff3c);
+}
+
+.receipt-hash span { font-size: 0.78rem; color: var(--text-muted, #9ba59c); }
+
+.muted-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.6rem;
+  font-size: 0.82rem;
+  color: var(--text-muted, #9ba59c);
+}
