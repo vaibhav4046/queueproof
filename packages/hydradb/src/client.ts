@@ -155,6 +155,38 @@ export class HydraDbClient {
     return this.request<Record<string, unknown>>(`/connectors/${encodeURIComponent(connectorId)}/resources`);
   }
 
+  /**
+   * Upload a document for indexing.
+   *
+   * Verified against the live API: the multipart field is `documents` (not `file`), the
+   * database must already exist and be provisioned, and a 202 means queued — NOT indexed.
+   * The returned source id must be polled with `contextStatus` until its indexing_status
+   * reaches a terminal state before the document can be queried. Treating the 202 as
+   * success is precisely how an upload appears to work while returning nothing.
+   */
+  async ingestDocument(input: {
+    database: string;
+    filename: string;
+    bytes: Uint8Array;
+    mime: string;
+  }) {
+    const form = new FormData();
+    form.set("database", input.database);
+    // Copy into a standalone buffer so a view over a larger pooled buffer cannot leak
+    // neighbouring bytes into the upload.
+    const buffer = new ArrayBuffer(input.bytes.byteLength);
+    new Uint8Array(buffer).set(input.bytes);
+    form.append("documents", new Blob([buffer], { type: input.mime }), input.filename);
+    return this.request<Record<string, unknown>>("/context/ingest", { method: "POST", body: form });
+  }
+
+  /** Poll one ingested source until its indexing_status is terminal. */
+  async contextStatus(database: string, sourceId: string) {
+    return this.request<Record<string, unknown>>(
+      `/context/status?database=${encodeURIComponent(database)}&id=${encodeURIComponent(sourceId)}`,
+    );
+  }
+
   query(payload: Record<string, unknown>) {
     return this.request<Record<string, unknown>>("/query", {
       method: "POST",

@@ -2,7 +2,7 @@ import { apiError, noStoreJson } from "../../../lib/server/api";
 import { requireRequestActor } from "../../../lib/server/identity";
 import { requireDb } from "../../../lib/server/runtime";
 import { audit, createId, ensureCoreSchema, requireWorkspaceForUser } from "../../../lib/server/store";
-import { hydraAccountForWorkspace } from "../../../lib/server/hydradb-account";
+import { hydraAccountForWorkspace, hydraClientForWorkspace } from "../../../lib/server/hydradb-account";
 import {
   MAX_DOCUMENT_BYTES,
   contentHash,
@@ -160,21 +160,60 @@ export async function POST(request: Request) {
       );
     }
 
-    // A HydraDB credential exists, but ingestion is not implemented yet. Say that
-    // plainly rather than reporting a state the system cannot reach.
-    await recordStage(workspaceId, documentId, "failed", "HydraDB document ingestion is not implemented.");
+    // Upload to HydraDB. The database defaults to the workspace slug so each tenant's
+    // documents land in their own database.
+    const database = String(form.get("database") || workspace.slug || workspaceId);
+    await recordStage(workspaceId, documentId, "uploading", `database=${database}`);
+
+    const client = await hydraClientForWorkspace(workspaceId);
+    const ingest = await client.ingestDocument({
+      database,
+      filename: file.name || "upload",
+      bytes,
+      mime: detected.mime,
+    });
+
+    if (!ingest.ok) {
+      await recordStage(workspaceId, documentId, "failed", ingest.error ?? "Ingestion was rejected.");
+      await db
+        .prepare(`UPDATE documents SET stage = 'failed', error = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
+        .bind(ingest.error ?? "HydraDB rejected the upload.", documentId)
+        .run();
+      return noStoreJson(
+        { ok: false, error: ingest.error ?? "HydraDB rejected the upload.", documentId },
+        { status: 502 },
+      );
+    }
+
+    // A 202 from HydraDB means queued, not indexed. The source id is recorded and the
+    // stage stays `processing` until a status poll observes a terminal state — reporting
+    // "indexed" here is exactly how an upload appears to work while returning nothing.
+    const results = (ingest.data as { results?: Array<{ id?: string; status?: string }> } | null)?.results ?? [];
+    const sourceId = results[0]?.id ?? null;
+
     await db
-      .prepare(`UPDATE documents SET stage = 'failed', error = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
-      .bind("HydraDB document ingestion is not implemented in this build.", documentId)
+      .prepare(
+        `UPDATE documents SET stage = 'processing', hydradb_source_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      )
+      .bind(sourceId, documentId)
       .run();
+    await recordStage(workspaceId, documentId, "processing", sourceId ?? "queued without a source id");
 
     return noStoreJson(
       {
         ok: true,
         hydradbConfigured: true,
-        document: { id: documentId, filename: file.name, mime: detected.mime, stage: "failed", contentHash: hash },
+        document: {
+          id: documentId,
+          filename: file.name,
+          mime: detected.mime,
+          stage: "processing",
+          contentHash: hash,
+          hydradbSourceId: sourceId,
+          database,
+        },
         message:
-          "Document stored, validated and hashed. HydraDB ingestion is not implemented in this build, so it is not yet retrievable.",
+          "Accepted by HydraDB and queued for indexing. Poll this document until its stage reaches indexed before querying it.",
       },
       { status: 202 },
     );
