@@ -54,15 +54,33 @@ function sourceMetadata(source: RecordValue) {
   };
 }
 
-function matchingChunk(source: RecordValue, chunks: RecordValue[], index: number) {
-  const sourceId = String(source.id ?? source.source_id ?? source.context_id ?? "");
-  const exact = chunks.find((chunk) =>
-    [chunk.source_id, chunk.context_id, chunk.document_id, chunk.parent_id]
+/**
+ * Pair a source with the chunk it actually came from.
+ *
+ * EVIDENCE INTEGRITY: this previously matched on chunk.source_id / context_id /
+ * document_id / parent_id. None of those fields exist on the HydraDB chunk shape â€” the
+ * real join key is `chunk.id` (used correctly in app/api/query/route.ts). So the lookup
+ * never matched and every call fell through to `chunks[index]`, pairing a *deduplicated*
+ * source list positionally against a *relevance-ranked* chunk list. That silently
+ * attached excerpts to the wrong source, which for a product whose entire claim is
+ * citable evidence is a correctness failure, not a cosmetic one.
+ *
+ * There is deliberately no positional fallback now. An unmatched source yields no
+ * excerpt: a missing citation is honest, a confidently wrong one is not.
+ */
+export function matchingChunk(source: RecordValue, chunks: RecordValue[]): RecordValue {
+  const candidateIds = [source.id, source.source_id, source.context_id]
+    .filter(Boolean)
+    .map(String);
+  if (candidateIds.length === 0) return {};
+
+  const exact = chunks.find((chunk) => {
+    const chunkKeys = [chunk.id, chunk.source_id, chunk.context_id]
       .filter(Boolean)
-      .map(String)
-      .includes(sourceId),
-  );
-  return exact ?? chunks[index] ?? chunks[0] ?? {};
+      .map(String);
+    return chunkKeys.some((key) => candidateIds.includes(key));
+  });
+  return exact ?? {};
 }
 
 function evidenceFromHydra(
@@ -142,8 +160,8 @@ function rankingInput(evidence: Evidence, id: string, title: string): RankingInp
   const fresh = freshness(evidence.timestamp);
   // Evidence completeness: the fraction of independent corroborating signals present on
   // this candidate. This replaces an invented weighted sum whose 0.38 floor meant nothing
-  // could ever report below 38% confidence — including a candidate with no owner, no
-  // timestamp, no link and no actionable verb — and whose 0.96 ceiling was unreachable
+  // could ever report below 38% confidence â€” including a candidate with no owner, no
+  // timestamp, no link and no actionable verb â€” and whose 0.96 ceiling was unreachable
   // (the weights summed to 0.86), so the cap was dead code presented as a measurement.
   //
   // This value is deliberately NOT a probability. It answers "how much of the evidence we
@@ -248,7 +266,7 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
       const evidence = evidenceFromHydra(
         connector,
         source,
-        matchingChunk(source, extracted.chunks, index),
+        matchingChunk(source, extracted.chunks),
         index,
       );
       if (evidence.excerpt || evidence.title) retrieved.push(evidence);

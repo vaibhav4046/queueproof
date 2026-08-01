@@ -127,10 +127,41 @@ The token exposed in chat is not in this repo but must still be rotated at its s
 
 ---
 
+## Fixed after the first pass (same session)
+
+- **MCP surface is now honest.** 22 tools → 13 for a read+propose token. Removed the eight
+  that queried tables nothing creates or writes (`find_commitments`,
+  `find_untracked_commitments`, `detect_conflicts`, `list_skills`, `get_entity`,
+  `get_entity_timeline`, `run_evaluation`, `activate_skill`). `what_changed` computed no
+  diff and is renamed `list_queue_snapshots`.
+- **Action proposals work.** `action_proposals` / `_approvals` / `_executions` added to
+  `ensureCoreSchema()`. Verified over the authenticated MCP endpoint: `propose_action`
+  returned `action_8640a592…`, and replaying the same idempotency key returned **the same
+  id** (no duplicate). `detect_conflicts` now returns `Tool not found` instead of a
+  misleading empty list.
+- **Evidence misattribution fixed.** `matchingChunk` joined on fields that do not exist on
+  the HydraDB chunk shape, so it never matched and fell back to positional pairing between
+  a deduplicated source list and a ranked chunk list — attaching excerpts to the wrong
+  source. Now joins on the real key, with no positional fallback. 5 regression tests.
+- **Fabricated values removed:** unconditional `unsupportedClaimsPrevented: true`; the
+  confidence figure with a 0.38 floor and unreachable 0.96 ceiling; hardcoded MCP health.
+- **A test that passed for the wrong reason was fixed.** Both it and the evidence-pairing
+  test were mutation-checked: breaking the constraint makes them fail.
+
+Tests: **90 passing** (was 67). Typecheck and production build clean.
+
+Protocol note: the MCP endpoint negotiates **2025-11-25**, the installed SDK's version —
+not the 2026-07-28 assumed during planning.
+
+Not verified: the MCP health tool's degraded branch. It reports `live` because storage is
+healthy; the failure path is implemented and typechecked but was not exercised.
+
 ## Next action
 
 1. Provide one hosted-database credential (`AUTH_REQUIRED.md`, Blocker 1) — this alone
    converts `queueproof.vercel.app` from a splash into the running product.
-2. Apply the drizzle migration at boot, or trim the MCP surface to the 20 tables that
-   actually exist. Currently 10 tools are guaranteed to throw.
-3. Provide a HydraDB key (Blocker 2) to start connector work.
+2. Provide a HydraDB key (Blocker 2) to start connector work.
+3. Remaining known HydraDB field defects (see `docs/research/hydradb-contracts.md`):
+   `resource.last_synced_at`, `source.ingestion_timestamp`, `provider.auth_types` and the
+   vacuous `source.connector_id` canary guard all reference fields absent from the SDK, so
+   they are permanently null/empty. These need live connector data to fix meaningfully.
