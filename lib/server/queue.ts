@@ -397,7 +397,12 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
         createId("ranked"), workspaceId, rankingRunId, item.taskId, index + 1,
         JSON.stringify(item.result.componentScores), JSON.stringify(item.result.penalties),
         Math.round(item.result.finalScore), Math.round(item.result.confidence * 100),
-        JSON.stringify(item.result.explanation), JSON.stringify({}),
+        // Persist the exact RankingInput that produced this row. It was previously
+        // written as {}, which made the ranking unreplayable: a counterfactual could not
+        // re-score the item, and explain_priority's promised sensitivity was always
+        // empty. Storing the input is what makes scoring deterministic *and* auditable —
+        // the same input and policy version must always yield the same score.
+        JSON.stringify(item.result.explanation), JSON.stringify(item.input),
       ),
       db.prepare(
         `INSERT INTO execution_packets
