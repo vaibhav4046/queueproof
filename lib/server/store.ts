@@ -145,6 +145,22 @@ const schemaStatements = [
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
+  // Document intake. UNIQUE(workspace_id, content_hash) is what makes duplicate
+  // detection real: a check-then-insert would race, whereas the constraint cannot be
+  // beaten by two concurrent uploads of the same file.
+  `CREATE TABLE IF NOT EXISTS documents (
+    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, filename TEXT NOT NULL,
+    mime TEXT NOT NULL, byte_size INTEGER NOT NULL, content_hash TEXT NOT NULL,
+    hydradb_source_id TEXT, stage TEXT NOT NULL DEFAULT 'received', error TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(workspace_id, content_hash)
+  )`,
+  `CREATE TABLE IF NOT EXISTS document_ingestion_runs (
+    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, document_id TEXT NOT NULL,
+    stage TEXT NOT NULL, detail TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
   // Action proposal tables. queueproof_propose_action and queueproof_get_action_status
   // read and write these, but ensureCoreSchema() never created them, so both tools threw
   // "no such table" at runtime — undetected because no test invokes an MCP handler.
