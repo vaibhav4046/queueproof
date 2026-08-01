@@ -151,6 +151,10 @@ const schemaStatements = [
   `CREATE TABLE IF NOT EXISTS documents (
     id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, filename TEXT NOT NULL,
     mime TEXT NOT NULL, byte_size INTEGER NOT NULL, content_hash TEXT NOT NULL,
+    -- The database a document was ingested into must travel with the row. Deriving it
+    -- later from the workspace slug queries the wrong database and every status poll
+    -- fails, which is exactly what happened before this column existed.
+    hydradb_database TEXT,
     hydradb_source_id TEXT, stage TEXT NOT NULL DEFAULT 'received', error TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,

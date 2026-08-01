@@ -23,11 +23,11 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 
     const document = await db
       .prepare(
-        `SELECT id, filename, stage, hydradb_source_id AS sourceId
+        `SELECT id, filename, stage, hydradb_source_id AS sourceId, hydradb_database AS database
          FROM documents WHERE workspace_id = ? AND id = ? LIMIT 1`,
       )
       .bind(workspaceId, id)
-      .first<{ id: string; filename: string; stage: string; sourceId: string | null }>();
+      .first<{ id: string; filename: string; stage: string; sourceId: string | null; database: string | null }>();
 
     if (!document) {
       return noStoreJson({ ok: false, error: "Document not found in this workspace." }, { status: 404 });
@@ -41,7 +41,9 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       });
     }
 
-    const database = String(workspace.slug || workspaceId);
+    // Use the database the document was actually ingested into, never a value derived
+    // from the workspace, or the poll queries the wrong database and always fails.
+    const database = document.database ?? String(workspace.slug || workspaceId);
     const client = await hydraClientForWorkspace(workspaceId);
     const status = await client.contextStatus(database, document.sourceId);
 

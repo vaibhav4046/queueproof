@@ -213,9 +213,10 @@ export async function POST(request: Request) {
 
     await db
       .prepare(
-        `UPDATE documents SET stage = 'processing', hydradb_source_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        `UPDATE documents SET stage = 'processing', hydradb_source_id = ?, hydradb_database = ?,
+         updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
       )
-      .bind(sourceId, documentId)
+      .bind(sourceId, database, documentId)
       .run();
     await recordStage(workspaceId, documentId, "processing", sourceId ?? "queued without a source id");
 
