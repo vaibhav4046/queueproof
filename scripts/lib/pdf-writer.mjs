@@ -103,6 +103,11 @@ export class PdfBuilder {
 
   /** Serialize to bytes, computing every xref offset from real serialized lengths. */
   serialize({ rootId, infoId, fileId }) {
+    // /ID is two hex strings. A missing or malformed value produced a trailer that node ignored
+    // but that a real parser choked on, so it is a hard error rather than a silent default.
+    if (typeof fileId !== "string" || !/^[0-9A-Fa-f]{32}$/.test(fileId)) {
+      throw new Error(`file identifier must be 32 hex characters, received ${JSON.stringify(fileId)}`);
+    }
     const chunks = [];
     let cursor = 0;
     const push = (value) => {
@@ -304,6 +309,10 @@ export function inspectPdf(bytes) {
 
   const countMatch = /\/Type\s*\/Pages\s*\/Count\s+(\d+)/.exec(text);
   if (!countMatch) problems.push("no /Type /Pages ... /Count entry found");
+
+  const idMatch = /\/ID\s*\[\s*<([^>]*)>\s*<([^>]*)>\s*\]/.exec(text);
+  if (!idMatch) problems.push("trailer has no /ID array");
+  else if (!/^[0-9A-Fa-f]{32}$/.test(idMatch[1])) problems.push(`trailer /ID is not hex: <${idMatch[1].slice(0, 24)}>`);
 
   return {
     ok: problems.length === 0,

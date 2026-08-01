@@ -56,8 +56,7 @@ function pageText(page) {
     .trim();
 }
 
-function verifyPlantedFacts(pages) {
-  const texts = pages.map(pageText);
+function verifyPlantedFacts(pages, texts) {
   const normalise = (value) => value.replace(/\s+/g, " ").trim();
 
   check("At least twelve ground-truth facts", PLANTED_FACTS.length >= MINIMUM_FACTS, `${PLANTED_FACTS.length} facts`);
@@ -136,15 +135,20 @@ function main() {
   const outputPath = requested ? path.resolve(process.cwd(), requested) : DEFAULT_OUTPUT;
 
   const pages = buildPages();
+  const texts = pages.map(pageText);
   check("Composed the planned page count", pages.length === TOTAL_PAGES, `${pages.length} pages`);
   check("Page count inside the 250 to 350 window", pages.length >= 250 && pages.length <= 350, `${pages.length} pages`);
 
-  verifyPlantedFacts(pages);
+  verifyPlantedFacts(pages, texts);
+
+  // The trailer /ID is derived from the text corpus, so it is stable across runs and changes only
+  // when the document does. Generation is otherwise fully deterministic.
+  const fileId = createHash("sha256").update(texts.join("\n")).digest("hex").slice(0, 32).toUpperCase();
 
   // A page that overflows its text frame throws here rather than dropping a planted fact.
   const { bytes, pageCount, objectCount } = renderDocument({
     pages,
-    info: DOCUMENT_INFO,
+    info: { ...DOCUMENT_INFO, fileId },
     annotations: ANNOTATIONS,
   });
 
