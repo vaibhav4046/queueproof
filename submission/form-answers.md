@@ -50,13 +50,22 @@ HydraDB is the evidence layer, and QueueProof cannot rank anything without it.
 - **Document ingestion.** A file uploaded through the product is sent to HydraDB
   `/context/ingest`, polled through `graph_creation` to `completed`, and reaches stage
   `indexed`. Verified with source id `5fa3cc1258f4d1380685120889e2e8f3`.
-- **Connector proof.** The Linear connector was created, discovered, configured, synced and
-  verified entirely through the product UI. Discovery returned a real team, "Helios
-  Robotics", resource type `linear_team`. Verification reached stage `data_verified` with
-  `realObjectsRetrieved` = 5 and five real source ids persisted in a verification record.
-  "Connected" is never inferred from a saved credential.
-- **Cross-source retrieval.** One query returned 10 sources: 6 ingested documents and 4
-  live Linear tickets (HEL-4, 5, 6, 7).
+- **Connector proof.** Two connectors were created, discovered, configured, synced and
+  verified entirely through the product UI. Linear: discovery returned a real team, "Helios
+  Robotics", resource type `linear_team`; verification reached stage `data_verified` with
+  `realObjectsRetrieved` = 5 and five real source ids persisted. Slack: resource
+  `C0B462AK7U3` (#all-qyntra) in workspace `qyntra`, stage `data_verified`,
+  `realObjectsRetrieved` = 3, verification id
+  `verify_87da58b8-9f1f-48d6-9c98-5f118ba9b93e`. "Connected" is never inferred from a saved
+  credential. Slack proved that: discovery succeeded while sync returned nothing, because
+  Slack does not return `conversations.history` until the bot is invited to the channel, and
+  QueueProof refused to report `data_verified` for the whole of that period.
+- **Cross-source retrieval.** One query returned 10 sources across ingested documents and
+  Linear tickets (HEL-4, 5, 6, 7). A second returned 11 sources across Linear and Slack
+  together, in `thinking` mode, in 4220 ms, and surfaced a contradiction rather than
+  averaging over it: Linear said the billing migration deadline moved to 14 August, Slack
+  said the Linear ticket still says 14 August but finance confirmed it is staying at
+  7 August and Linear is out of date.
 
 The HydraDB credential was configured through the product UI, is encrypted at rest, and
 shows only as fingerprint `503f442f560614fc`.
@@ -91,12 +100,17 @@ and does not execute.
 - 61 real providers loaded live with real credential schemas.
 - Document ingestion through the product to stage `indexed`.
 - Linear connector to stage `data_verified`, five real source ids persisted.
-- Cross-source retrieval, 10 sources across two source kinds.
-- Queue generation from live evidence, HTTP 200, three ranked items with real Linear
-  citations, receipt hashes and why-above-number-two explanations. Final ranking:
-  1. AuthShield authentication outage for Northwind (77)
-  2. Billing migration deadline (47)
-  3. Rover SDK docs refresh (35)
+- Slack connector to stage `data_verified`, `realObjectsRetrieved` = 3, verification id
+  `verify_87da58b8-9f1f-48d6-9c98-5f118ba9b93e`.
+- Cross-source retrieval, 11 sources spanning both Linear and Slack, `thinking` mode,
+  4220 ms, surfacing a genuine contradiction between the two providers.
+- Queue generation from live evidence, HTTP 200, three ranked items spanning both providers
+  with real citations, receipt hashes and why-above-number-two explanations. Final ranking:
+  1. AuthShield authentication outage for Northwind, linear (77)
+  2. Commitment to ship the AuthShield fix before 7 August, slack (67)
+  3. Promised post-mortem with no Linear issue tracking it, slack (58)
+- Rank three is an untracked commitment found in real evidence: a promise made in Slack with
+  no ticket behind it.
 - 208 tests passing. Typecheck, lint and production build clean.
 
 ## What did you measure?
@@ -105,7 +119,8 @@ and does not execute.
 measured.** Full breakdown in `BENCHMARK_REPORT.md`.
 
 Citation precision, citation recall, latency percentiles, HydraDB call counts and cost are
-**not measured**. No value is estimated for any of them.
+**not measured**. No value is estimated for any of them. One end-to-end query was timed at
+4220 ms; that is a single measurement, not a distribution, and must not be quoted as one.
 
 ## Biggest challenge
 
@@ -130,8 +145,10 @@ would have hidden:
 
 Answer this honestly if asked, and volunteer it if not:
 
-- **Slack and Gmail connectors: not connected.** Connecting them requires the owner's own
-  Slack and Gmail logins. Blocked on credentials.
+- **Gmail connector: not connected.** Google requires a passkey challenge to reach the App
+  Passwords page, and that challenge needs a physical biometric or hardware gesture. It is
+  blocked by the authentication mechanism, not by preference. Slack and Linear are both
+  connected and verified.
 - **Linear write execution: no real issue has been created.** The approval-gated path is
   built and unit-tested against an injected fetch only.
 - **MCP receipt-hash parity against an external client: unproven.** The hash is computed
@@ -148,5 +165,5 @@ Answer this honestly if asked, and volunteer it if not:
 - [ ] Repository access granted to judges, or made public.
 - [ ] Video recorded from `submission/60-second-script.md`, gated beats excluded.
 - [ ] Live URL loads and `/api/health/ready` still returns 200 on the day.
-- [ ] No answer above edited to claim Slack, Gmail, a real Linear write, or an unmeasured
-      metric.
+- [ ] No answer above edited to claim Gmail, a real Linear write, MCP receipt-hash parity,
+      or an unmeasured metric.

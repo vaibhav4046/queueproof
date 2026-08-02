@@ -1,0 +1,63 @@
+{
+  "generatedAt": "2026-08-02T17:41:05.942Z",
+  "rows": [
+    {
+      "label": "three-provider multi-hop",
+      "mode": "fast",
+      "ms": 1145,
+      "sources": 12,
+      "providers": [
+        "github",
+        "linear",
+        "slack"
+      ]
+    },
+    {
+      "label": "exact identifier",
+      "mode": "thinking",
+      "ms": 711,
+      "sources": 12,
+      "providers": [
+        "github",
+        "linear",
+        "slack"
+      ]
+    },
+    {
+      "label": "conflict",
+      "mode": "thinking",
+      "ms": 5878,
+      "sources": 13,
+      "providers": [
+        "github",
+        "linear",
+        "slack"
+      ]
+    },
+    {
+      "label": "untracked commitment",
+      "mode": "fast",
+      "ms": 941,
+      "sources": 12,
+      "providers": [
+        "github",
+        "linear",
+        "slack"
+      ]
+    },
+    {
+      "label": "stale work",
+      "mode": "fast",
+      "ms": 963,
+      "sources": 12,
+      "providers": [
+        "github",
+        "linear",
+        "slack"
+      ]
+    }
+  ],
+  "p50": 963,
+  "p95": 5878,
+  "n": 5
+}

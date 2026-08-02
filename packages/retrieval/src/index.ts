@@ -43,8 +43,15 @@ export function planRetrieval(query: string): RetrievalPlan {
   const crossSourceSignal = /\b(across|slack|gmail|linear|github|email)\b/.test(normalized);
   // "why", and clause-stacking ("and what", "and which"), both indicate the answer must
   // be assembled from more than one retrieval step.
+  // Clause stacking: a second interrogative clause after "and" means the answer has to
+  // be assembled from more than one retrieval step. Auxiliary verbs count too — a live
+  // run showed "…what did engineering commit to, and IS the fix already merged?" routing
+  // to fast, because only wh-words were matched. That question spans three providers.
   const multiHopSignal =
-    /\bwhy\b/.test(normalized) || /\band (?:what|which|who|where|when)\b/.test(normalized);
+    /\bwhy\b/.test(normalized) ||
+    /\band (?:what|which|who|whose|where|when|how|is|are|was|were|does|do|did|has|have|can|should|will)\b/.test(
+      normalized,
+    );
 
   const needsReasoning =
     temporal || conflictSignal || counterfactualSignal || crossSourceSignal || multiHopSignal;

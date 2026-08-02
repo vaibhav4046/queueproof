@@ -49,13 +49,32 @@ evidence always produces the same order, and a policy change is a diff rather th
 vibe shift.
 
 Verified on live production: queue generation from live evidence returned HTTP 200 with
-three ranked items, each carrying real Linear citations.
+three ranked items spanning both connected providers, each carrying real citations.
 
-| Rank | Item | Score |
-|---|---|---|
-| 1 | AuthShield authentication outage for Northwind | 77 |
-| 2 | Billing migration deadline | 47 |
-| 3 | Rover SDK docs refresh | 35 |
+| Rank | Score | Provider | Item |
+|---:|---:|---|---|
+| 1 | 77 | linear | AuthShield authentication outage for Northwind |
+| 2 | 67 | slack | Commitment to ship the AuthShield fix before 7 August |
+| 3 | 58 | slack | Promised post-mortem with no Linear issue tracking it |
+
+## The Action Gap
+
+Item three is the case QueueProof exists for. It is a commitment made in Slack with no
+ticket behind it: a promised post-mortem that exists in conversation and nowhere in the
+work system. It was found in real evidence rather than written into a fixture. Work that
+nobody tracks is work nobody prioritises, and it is invisible to any tool that only reads
+the issue tracker.
+
+The same two-provider evidence also surfaces contradictions instead of averaging over them.
+Asked "Who escalated the AuthShield outage, what deadline did engineering commit to, and
+does Linear agree?", retrieval returned 11 sources across both providers in `thinking` mode
+in 4220 ms, and reported the disagreement rather than a blended answer:
+
+- linear: "Billing migration deadline moved to 14 August"
+- slack: "the Linear ticket still says 14 August, but finance confirmed today it is staying
+  at 7 August. Linear is out of date."
+
+A system that blended those would have answered 14 August with confidence and been wrong.
 
 ## Decision Receipts
 
@@ -75,13 +94,21 @@ retrievable, and HydraDB is what makes that retrievable across source kinds:
 - **Ingestion is real.** A document uploaded through the product goes to HydraDB
   `/context/ingest`, is polled through `graph_creation` to `completed`, and lands at stage
   `indexed`. Verified with source id `5fa3cc1258f4d1380685120889e2e8f3`.
-- **Connector proof is a protocol, not a saved credential.** Linear went create, discover
-  (real team "Helios Robotics", resource type `linear_team`), configure, sync, verify, and
-  only then reached stage `data_verified`, with `realObjectsRetrieved` = 5 and five real
-  source ids persisted in a verification record.
-- **Cross-source retrieval is the payoff.** One query returned 10 sources: 6 ingested
-  documents and 4 live Linear tickets (HEL-4, 5, 6, 7). The queue that follows is ranked
-  over both kinds of evidence at once.
+- **Connector proof is a protocol, not a saved credential.** Two providers went through
+  create, discover, configure, sync, verify and only then reached stage `data_verified`.
+  Linear: real team "Helios Robotics", resource type `linear_team`,
+  `realObjectsRetrieved` = 5, five real source ids persisted in a verification record.
+  Slack: resource `C0B462AK7U3` (#all-qyntra) in workspace `qyntra`,
+  `realObjectsRetrieved` = 3, verification id
+  `verify_87da58b8-9f1f-48d6-9c98-5f118ba9b93e`.
+- **The protocol held under a real failure.** Slack discovery succeeded while sync returned
+  nothing, because Slack does not return `conversations.history` until the bot is invited to
+  the channel. That is Slack behaving correctly, not a connector defect. What matters is
+  that QueueProof refused to report `data_verified` throughout, exactly as it had for
+  Linear. The stage moved only when real objects came back.
+- **Cross-source retrieval is the payoff.** One query returned 10 sources across ingested
+  documents and Linear tickets (HEL-4, 5, 6, 7). A second, once Slack was verified, returned
+  11 sources across Linear and Slack together. The queue is ranked over all of it at once.
 
 ## Seven bugs found by testing against live services
 
@@ -113,18 +140,22 @@ Every one of these was invisible to mocks:
   `503f442f560614fc`.
 - 61 real providers loaded live with real credential schemas.
 - Document ingestion through the product to stage `indexed`.
-- Linear connector driven entirely through the product to stage `data_verified`.
-- Cross-source retrieval returning 10 sources across two source kinds.
-- Queue generation, HTTP 200, three ranked items with citations, receipt hashes and
-  why-above-number-two explanations.
+- Linear and Slack connectors, both driven entirely through the product to stage
+  `data_verified`.
+- Cross-source retrieval returning 10 sources across documents and Linear, and 11 sources
+  across Linear and Slack, the latter surfacing a genuine contradiction between providers.
+- Queue generation, HTTP 200, three ranked items spanning both providers, with citations,
+  receipt hashes and why-above-number-two explanations, including an untracked Slack
+  commitment at rank three.
 - 208 tests passing. Typecheck, lint and production build clean.
 
 ## Honest limitations
 
 State these plainly. None is dressed up.
 
-- **Slack and Gmail are not connected.** They are in the catalogue; connecting them
-  requires the owner's own logins. Blocked on credentials, not on code.
+- **Gmail is not connected.** Google requires a passkey challenge to reach the App Passwords
+  page, and that challenge needs a physical biometric or hardware gesture. It is blocked by
+  the authentication mechanism, not by preference and not by missing code.
 - **No real Linear issue has been created through the write path.** The approval-gated
   propose path is built and unit-tested against an injected fetch. It has not executed a
   real write.

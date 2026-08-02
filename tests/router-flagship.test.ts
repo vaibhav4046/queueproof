@@ -13,3 +13,25 @@ describe("flagship demo question", () => {
     expect(plan.exactParallel).toBe(true);
   });
 });
+
+describe("clause stacking with auxiliary verbs", () => {
+  it("routes a three-provider question joined by 'and is' to thinking", () => {
+    // Observed routing to fast on a live run: only wh-words were matched after "and".
+    const plan = planRetrieval(
+      "Who escalated the AuthShield outage, what did engineering commit to, and is the fix already merged?",
+    );
+    expect(plan.mode).toBe("thinking");
+  });
+
+  it.each([
+    "Who owns this and has it shipped?",
+    "What is the deadline and did finance confirm it?",
+    "Which issue is stale and should we close it?",
+  ])("treats an auxiliary second clause as multi-step: %s", (question) => {
+    expect(planRetrieval(question).mode).toBe("thinking");
+  });
+
+  it("still keeps a genuinely single-step lookup on fast", () => {
+    expect(planRetrieval("Show me the Rover SDK docs ticket").mode).toBe("fast");
+  });
+});
