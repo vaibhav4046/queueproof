@@ -11,9 +11,14 @@ export async function GET() {
       backend: (runtime.QUEUEPROOF_STORAGE_BACKEND as string) ?? "unknown",
       detail: (runtime.QUEUEPROOF_STORAGE_DETAIL as string) ?? "No storage diagnostics available.",
     },
-    // Reported as informational: document upload is not implemented, so this is
-    // expected to be false rather than a fault.
-    r2: { configured: Boolean(runtime.FILES), note: "Document upload is not implemented." },
+    // Documents stream directly to HydraDB after signature validation and hashing.
+    // R2 is an optional archival layer, not a prerequisite for ingestion or retrieval.
+    r2: {
+      configured: Boolean(runtime.FILES),
+      note: runtime.FILES
+        ? "Optional R2 archival is available."
+        : "Document ingestion is available through HydraDB; optional R2 archival is not enabled.",
+    },
     hydradb: {
       // This previously read `configuredPerWorkspace: true`, a hardcoded literal that
       // asserted a configured state regardless of reality. HydraDB credentials are held

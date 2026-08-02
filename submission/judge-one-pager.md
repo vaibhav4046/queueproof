@@ -94,13 +94,15 @@ retrievable, and HydraDB is what makes that retrievable across source kinds:
 - **Ingestion is real.** A document uploaded through the product goes to HydraDB
   `/context/ingest`, is polled through `graph_creation` to `completed`, and lands at stage
   `indexed`. Verified with source id `5fa3cc1258f4d1380685120889e2e8f3`.
-- **Connector proof is a protocol, not a saved credential.** Two providers went through
+- **Connector proof is a protocol, not a saved credential.** Three providers went through
   create, discover, configure, sync, verify and only then reached stage `data_verified`.
   Linear: real team "Helios Robotics", resource type `linear_team`,
   `realObjectsRetrieved` = 5, five real source ids persisted in a verification record.
   Slack: resource `C0B462AK7U3` (#all-qyntra) in workspace `qyntra`,
   `realObjectsRetrieved` = 3, verification id
   `verify_87da58b8-9f1f-48d6-9c98-5f118ba9b93e`.
+  GitHub is also `data_verified` and appeared in all six questions from the latest
+  three-provider live run.
 - **The protocol held under a real failure.** Slack discovery succeeded while sync returned
   nothing, because Slack does not return `conversations.history` until the bot is invited to
   the channel. That is Slack behaving correctly, not a connector defect. What matters is
@@ -140,32 +142,35 @@ Every one of these was invisible to mocks:
   `503f442f560614fc`.
 - 61 real providers loaded live with real credential schemas.
 - Document ingestion through the product to stage `indexed`.
-- Linear and Slack connectors, both driven entirely through the product to stage
+- Linear, Slack, and GitHub connectors, all driven through the proof lifecycle to stage
   `data_verified`.
 - Cross-source retrieval returning 10 sources across documents and Linear, and 11 sources
   across Linear and Slack, the latter surfacing a genuine contradiction between providers.
 - Queue generation, HTTP 200, three ranked items spanning both providers, with citations,
   receipt hashes and why-above-number-two explanations, including an untracked Slack
   commitment at rank three.
-- 208 tests passing. Typecheck, lint and production build clean.
+- Six live production questions returned evidence from all three verified providers;
+  measured latency p50 4401 ms and p95 6347 ms (small sample, not an SLA).
+- 217 tests across 20 files passing. Typecheck, lint and production build clean.
 
 ## Honest limitations
 
 State these plainly. None is dressed up.
 
-- **Gmail is not connected.** Google requires a passkey challenge to reach the App Passwords
-  page, and that challenge needs a physical biometric or hardware gesture. It is blocked by
-  the authentication mechanism, not by preference and not by missing code.
-- **No real Linear issue has been created through the write path.** The approval-gated
-  propose path is built and unit-tested against an injected fetch. It has not executed a
-  real write.
+- **Gmail is configured and authenticated, not verified.** Eight real labels were
+  discovered and configuration succeeded, but its free-plan backfill has not produced
+  cursor evidence, so QueueProof correctly refuses to count it as live.
+- **No real Linear issue has been created through the write path.** The product now exposes
+  the exact payload, evidence, risk, second confirmation, and at-most-once execution guard;
+  the final provider call remains live-unproven.
 - **MCP receipt-hash parity is unproven against an external client.** The hash is computed
   and persisted; no external MCP client has fetched the same receipt.
 - **The 346-page ground-truth PDF has not been ingested into HydraDB.** It is deterministic
   (958,096 bytes, SHA-256 `c047a3d0...`, 22 planted facts) but it is an artefact, not an
   indexed source.
-- **Citation precision, citation recall, latency percentiles, HydraDB call counts and cost
-  are not measured.** No figure is estimated for any of them.
+- **Citation precision, citation recall, HydraDB call counts and cost are not measured.**
+  Latency was measured over six live questions (p50 4401 ms, p95 6347 ms) and is explicitly
+  labelled a small sample rather than an SLA.
 - **Memory, skills runtime, decision replay, execution leases and change-ledger diffing are
   not implemented.**
 - **The repository is private** (github.com/vaibhav4046/queueproof). It needs access

@@ -1,17 +1,9 @@
 import { runtimeEnv } from "../../../../lib/server/runtime";
 
 /**
- * Readiness reflects what QueueProof actually needs to serve a request today:
- * durable storage and a credential-encryption key.
- *
- * It previously also required `FILES`, an R2 object-storage binding. That binding cannot
- * exist on the Vercel runtime, and nothing in the codebase writes to it because document
- * upload is not implemented — so readiness could never return 200 on the canonical
- * deployment no matter how it was configured. A health check that is permanently red
- * carries no signal.
- *
- * The upload binding is still reported, as informational context rather than a gate, so
- * the absence stays visible instead of being quietly dropped.
+ * Readiness reflects the dependencies QueueProof needs to serve a request: durable
+ * storage and a credential-encryption key. Documents stream directly to HydraDB after
+ * local validation, so optional R2 archival is observable but never a readiness gate.
  */
 export async function GET() {
   const runtime = runtimeEnv();
@@ -31,8 +23,9 @@ export async function GET() {
       checks: required,
       missing,
       informational: {
-        // Document upload is not implemented; this is expected to be false.
+        // Kept for API compatibility. This means optional archival, not upload support.
         uploadBinding: Boolean(runtime.FILES),
+        documentIngestion: "direct-to-hydradb",
       },
     },
     { status: ready ? 200 : 503 },

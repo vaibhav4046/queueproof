@@ -2,9 +2,9 @@
 
 import {
   ArrowRight, Bot, Braces, Check, ChevronRight, CircleAlert, CircleCheck,
-  Clipboard, Command, Database, ExternalLink, Eye, FileCheck2, KeyRound,
+  Clipboard, Command, Database, ExternalLink, Eye, FileCheck2, FileText, KeyRound,
   Link2, LoaderCircle, LockKeyhole, MessageSquareText, Plus, RefreshCw,
-  Search, ShieldCheck, Sparkles, Terminal, Unplug, X, Zap,
+  Search, ShieldCheck, Sparkles, Terminal, Unplug, UploadCloud, X, Zap,
 } from "lucide-react";
 import Image from "next/image";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
@@ -68,7 +68,18 @@ type McpToken = {
   id: string; clientId: string; clientType: string; scopes: string[]; expiresAt: string;
   revokedAt: string | null; createdAt: string; lastHandshakeAt: string | null; lastToolCallAt: string | null;
 };
-type ActiveTab = "command" | "ask" | "sources" | "lab" | "agent";
+type DocumentRecord = {
+  id: string; filename: string; mime: string; byteSize: number; contentHash: string;
+  hydradbSourceId: string | null; stage: string; error: string | null; createdAt: string;
+};
+type ActionProposal = {
+  id: string; provider: string; actionType: string; payloadJson: string;
+  evidenceIdsJson: string; riskClass: string; status: string; createdAt: string;
+  decision: string | null; decidedAt: string | null; executionStatus: string | null;
+  providerResponseId: string | null;
+};
+type IssuePayload = { title?: string; description?: string; teamId?: string; projectId?: string };
+type ActiveTab = "command" | "ask" | "sources" | "lab" | "approvals" | "agent";
 
 /** The only view in which the main application shell renders. */
 type ReadyView = Extract<WorkspaceView, { kind: "ready" }>;
@@ -78,6 +89,7 @@ const nav = [
   { id: "ask", label: "Ask", icon: MessageSquareText },
   { id: "sources", label: "Sources", icon: Link2 },
   { id: "lab", label: "Lab", icon: Braces },
+  { id: "approvals", label: "Approvals", icon: ShieldCheck },
   { id: "agent", label: "Agents", icon: Bot },
 ] as const;
 
@@ -90,9 +102,10 @@ const stateCopy: Record<string, string> = {
 };
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
+  const jsonBody = typeof init?.body === "string";
   const response = await fetch(url, {
     ...init,
-    headers: { ...(init?.body ? { "Content-Type": "application/json" } : {}), ...(init?.headers ?? {}) },
+    headers: { ...(jsonBody ? { "Content-Type": "application/json" } : {}), ...(init?.headers ?? {}) },
     cache: "no-store",
   });
   const text = await response.text();
@@ -133,6 +146,7 @@ export default function QueueProofApp({
   const [connectors, setConnectors] = useState<Connector[]>([]);
   const [queue, setQueue] = useState<QueueData>({ generatedAt: null, items: [] });
   const [selectedPacket, setSelectedPacket] = useState<Packet | null>(null);
+  const [proposalPacket, setProposalPacket] = useState<Packet | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState("");
@@ -266,9 +280,13 @@ export default function QueueProofApp({
           reloadWorkspace={reloadWorkspace} reloadConnectors={loadConnectors}
           setError={setError} setNotice={setNotice} />}
         {tab === "lab" && <LabScreen setError={setError} />}
+        {tab === "approvals" && <ApprovalsScreen key={proposalPacket?.packet_id ?? "approvals"}
+          seedPacket={proposalPacket} onSeedUsed={() => setProposalPacket(null)}
+          setError={setError} setNotice={setNotice} />}
         {tab === "agent" && <AgentScreen workspace={view} setError={setError} setNotice={setNotice} />}
       </main>
-      {selectedPacket && <PacketDrawer packet={selectedPacket} onClose={() => setSelectedPacket(null)} />}
+      {selectedPacket && <PacketDrawer packet={selectedPacket} onClose={() => setSelectedPacket(null)}
+        onPropose={() => { setProposalPacket(selectedPacket); setSelectedPacket(null); setTab("approvals"); }} />}
     </div>
   );
 }
@@ -612,9 +630,95 @@ function SourcesScreen({ workspace, connectors, reloadWorkspace, reloadConnector
     {!workspace.hydradb.configured ? <form className="hydra-setup" onSubmit={connectHydra}><div className="hydra-symbol"><Database size={29} /></div><div><span className="eyebrow">Step 1 · Evidence engine</span><h2>Attach your HydraDB account.</h2><p>Use a newly generated API key. QueueProof verifies it against the authenticated database endpoint, encrypts it with AES-GCM, and never returns it.</p><label>HydraDB API key<input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder="Paste new key" autoComplete="off" required minLength={12} /></label><button className="primary-button" disabled={busy === "hydra"}>{busy === "hydra" ? <LoaderCircle className="spin" size={15} /> : <KeyRound size={15} />} Verify and encrypt</button></div></form> : <>
       <div className="source-stats"><div><small>HYDRADB</small><strong><CircleCheck size={14} /> Authenticated</strong><span>{workspace.hydradb.fingerprint ?? "Encrypted"}</span></div><div><small>CONNECTED</small><strong>{connectors.length}</strong><span>workplace sources</span></div><div><small>VERIFIED</small><strong>{connectors.filter((item) => item.state === "data_verified").length}</strong><span>eligible for retrieval</span></div><div><small>POLICY</small><strong>Fail closed</strong><span>no proof · no ranking</span></div></div>
       {connectors.length ? <div className="connector-list">{connectors.map((connector) => <article className="connector-row" key={connector.id}><span className="provider-glyph large">{providerGlyph(connector.provider)}</span><div className="connector-identity"><strong>{connector.name}</strong><span>{connector.provider} · {connector.database}{connector.collection ? ` / ${connector.collection}` : ""}</span></div><div className="connector-state"><span className={connector.state === "data_verified" ? "status-orb live" : connector.state.includes("sync") ? "status-orb indexing" : "status-orb"} /><strong>{stateCopy[connector.state] ?? connector.state}</strong><small>{connector.state === "data_verified" ? `${connector.canaryResultCount ?? 0} live records proven` : connector.lastError || "Awaiting next lifecycle step"}</small></div><button className="secondary-button" onClick={() => void connectorAction(connector)} disabled={busy === connector.id}>{busy === connector.id ? <LoaderCircle className="spin" size={14} /> : connector.state === "data_verified" ? <Eye size={14} /> : connector.state === "connector_created" || connector.state === "resources_discovered" ? <Search size={14} /> : <RefreshCw size={14} />}{connector.state === "data_verified" ? "View proof" : connector.state === "connector_created" || connector.state === "resources_discovered" ? "Choose scope" : connector.state === "resources_selected" ? "Start sync" : "Check proof"}</button></article>)}</div> : <div className="empty-source"><Unplug size={28} /><div><h2>No workplace source yet.</h2><p>Add Slack, Gmail, Linear, or any provider exposed by your live HydraDB catalogue.</p></div><button className="primary-button" onClick={() => setSetupOpen(true)}><Plus size={15} /> Add first source</button></div>}
+      <DocumentsPanel databases={[...new Set(connectors.map((item) => item.database).filter(Boolean))]}
+        setError={setError} setNotice={setNotice} />
     </>}
     {setupOpen && <SourceSetup onClose={() => setSetupOpen(false)} onDone={async () => { setSetupOpen(false); await reloadConnectors(); setNotice("Connector created. Choose the exact resources QueueProof may index."); }} setError={setError} />}
     {proof && <ProofModal data={proof} onClose={() => setProof(null)} onConfigured={async () => { setProof(null); await reloadConnectors(); setNotice("Scope saved and initial backfill started. Check proof when indexing completes."); }} setError={setError} />}
+  </section>;
+}
+
+function prettyBytes(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function DocumentsPanel({ databases, setError, setNotice }: {
+  databases: string[]; setError: (value: string) => void; setNotice: (value: string) => void;
+}) {
+  const [documents, setDocuments] = useState<DocumentRecord[]>([]);
+  const [file, setFile] = useState<File | null>(null);
+  const [database, setDatabase] = useState(databases[0] ?? "");
+  const [busy, setBusy] = useState("");
+  const [inputKey, setInputKey] = useState(0);
+  async function load() {
+    const data = await api<{ documents: DocumentRecord[] }>("/api/documents");
+    setDocuments(data.documents);
+  }
+
+  useEffect(() => {
+    let active = true;
+    void api<{ documents: DocumentRecord[] }>("/api/documents")
+      .then((data) => { if (active) setDocuments(data.documents); })
+      .catch((reason: Error) => { if (active) setError(reason.message); });
+    return () => { active = false; };
+  }, [setError]);
+
+  async function upload(event: FormEvent) {
+    event.preventDefault();
+    if (!file) return;
+    setBusy("upload"); setError("");
+    const form = new FormData();
+    form.append("file", file);
+    if (database) form.append("database", database);
+    try {
+      const data = await api<{ message?: string; duplicate?: boolean }>("/api/documents", { method: "POST", body: form });
+      await load();
+      setFile(null); setInputKey((value) => value + 1);
+      setNotice(data.message ?? (data.duplicate ? "This document was already indexed." : "Document accepted for indexing."));
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Document ingestion failed."); }
+    finally { setBusy(""); }
+  }
+
+  async function poll(document: DocumentRecord) {
+    setBusy(document.id); setError("");
+    try {
+      const data = await api<{ document: DocumentRecord; terminal?: boolean; indexingStatus?: string | null }>(`/api/documents/${document.id}/status`);
+      await load();
+      setNotice(data.terminal ? `${document.filename} is ${data.document.stage}.` : `${document.filename}: ${data.indexingStatus ?? data.document.stage}.`);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Indexing check failed."); }
+    finally { setBusy(""); }
+  }
+
+  return <section className="document-panel">
+    <div className="section-kicker"><span><FileText size={14} /> Document evidence</span><small>PDF · Markdown · text · 25 MB max</small></div>
+    <div className="document-grid">
+      <form className="upload-card" onSubmit={upload} onDragOver={(event) => event.preventDefault()}
+        onDrop={(event) => { event.preventDefault(); setFile(event.dataTransfer.files[0] ?? null); }}>
+        <UploadCloud size={30} />
+        <h2>Drop knowledge into the evidence graph.</h2>
+        <p>QueueProof validates the real file signature, deduplicates by SHA-256, then waits for HydraDB to confirm indexing.</p>
+        <label className="file-picker">
+          <input key={inputKey} type="file" accept=".pdf,.md,.markdown,.txt,application/pdf,text/markdown,text/plain"
+            onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
+          <span>{file ? file.name : "Choose a document"}</span>
+          <small>{file ? prettyBytes(file.size) : "or drag it here"}</small>
+        </label>
+        {databases.length > 0 && <label className="database-choice">Evidence database<select value={database} onChange={(event) => setDatabase(event.target.value)}>{databases.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>}
+        <button className="primary-button" disabled={!file || busy === "upload"}>{busy === "upload" ? <LoaderCircle className="spin" size={14} /> : <UploadCloud size={14} />}{busy === "upload" ? "Validating and sending" : "Ingest document"}</button>
+      </form>
+      <div className="document-list">
+        <div className="list-title"><span><ShieldCheck size={14} /> Ingestion ledger</span><button onClick={() => void load()}><RefreshCw size={12} /> Refresh</button></div>
+        {documents.length ? documents.map((document) => <article className="document-row" key={document.id}>
+          <span className={`document-stage ${document.stage}`}><FileText size={15} /></span>
+          <div><strong>{document.filename}</strong><small>{prettyBytes(document.byteSize)} · {document.mime} · {dateLabel(document.createdAt)}</small><code>{document.contentHash.slice(0, 18)}…</code>{document.error && <em>{document.error}</em>}</div>
+          <span className={`stage-chip ${document.stage}`}>{document.stage}</span>
+          {(document.stage === "processing" || document.stage === "validated" || document.stage === "uploading") && <button className="secondary-button" onClick={() => void poll(document)} disabled={busy === document.id}>{busy === document.id ? <LoaderCircle className="spin" size={13} /> : <RefreshCw size={13} />} Check</button>}
+        </article>) : <div className="honest-empty"><FileText size={24} /><div><strong>No document evidence yet.</strong><p>The ledger will show validation, hashing, processing, and the real terminal indexing state.</p></div></div>}
+      </div>
+    </div>
   </section>;
 }
 
@@ -662,6 +766,113 @@ function ProofModal({ data, onClose, onConfigured, setError }: { data: Record<st
     finally { setBusy(false); }
   }
   return <div className="modal-layer"><div className="modal-card proof-modal"><button className="modal-close" onClick={onClose}><X size={16} /></button><span className="eyebrow"><ShieldCheck size={13} /> Connection proof</span><h2>{connector?.name ?? "Verified source"}</h2>{verification ? <><div className="proof-seal"><CircleCheck size={28} /><div><strong>{String(verification.stage ?? "Proof available")}</strong><span>{String(verification.canaryResultCount ?? 0)} real provider records · {dateLabel(String(verification.verifiedAt ?? ""))}</span></div></div><div className="proof-grid"><div><small>CURSOR EVIDENCE</small><code>{String(verification.cursorEvidenceHash ?? "Not available").slice(0, 24)}</code></div><div><small>PROVIDER COVERAGE</small><strong>{Array.isArray(verification.providerCoverage) ? verification.providerCoverage.join(", ") : "Not available"}</strong></div><div><small>LAST SYNC</small><strong>{dateLabel(String(verification.lastSuccessfulSync ?? ""))}</strong></div><div><small>FAILURE</small><strong>{String(verification.failureReason ?? "None")}</strong></div></div><details className="trace-drawer"><summary><Terminal size={14} /> Raw proof record</summary><pre>{JSON.stringify(verification, null, 2)}</pre></details></> : <><p>Select the smallest resource scope QueueProof may index. Configure starts HydraDB’s initial backfill automatically.</p><div className="resource-picker">{resources.map((resource) => <label key={resource.id}><input type="checkbox" checked={selected.includes(resource.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, resource.id] : current.filter((id) => id !== resource.id))} /><span><strong>{resource.name}</strong><small>{resource.resourceType} · {resource.id}</small></span><Check size={14} /></label>)}</div><button className="primary-button" disabled={!selected.length || busy} onClick={() => void configure()}>{busy ? <LoaderCircle className="spin" size={15} /> : <Zap size={15} />} Save scope and start sync</button></>}</div></div>;
+}
+
+function parseJson<T>(value: string, fallback: T): T {
+  try { return JSON.parse(value) as T; } catch { return fallback; }
+}
+
+function ApprovalsScreen({ seedPacket, onSeedUsed, setError, setNotice }: {
+  seedPacket: Packet | null; onSeedUsed: () => void;
+  setError: (value: string) => void; setNotice: (value: string) => void;
+}) {
+  const seedEvidence = seedPacket?.evidence
+    .map((item) => item.sourceId ?? item.id ?? item.externalId)
+    .filter((item): item is string => Boolean(item)) ?? [];
+  const [proposals, setProposals] = useState<ActionProposal[]>([]);
+  const [selected, setSelected] = useState<ActionProposal | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(Boolean(seedPacket));
+  const [summary, setSummary] = useState(seedPacket?.task.objective || seedPacket?.task.title || "");
+  const [owner, setOwner] = useState(seedPacket?.task.owner ?? "");
+  const [deadline, setDeadline] = useState(seedPacket?.task.deadline ?? "");
+  const [evidenceIds, setEvidenceIds] = useState(seedEvidence.join("\n"));
+  const [teamId, setTeamId] = useState("");
+  const [projectId, setProjectId] = useState("");
+  const [busy, setBusy] = useState("");
+  async function load() {
+    const data = await api<{ proposals: ActionProposal[] }>("/api/actions");
+    setProposals(data.proposals);
+  }
+
+  useEffect(() => {
+    let active = true;
+    void api<{ proposals: ActionProposal[] }>("/api/actions")
+      .then((data) => { if (active) setProposals(data.proposals); })
+      .catch((reason: Error) => { if (active) setError(reason.message); });
+    return () => { active = false; };
+  }, [setError]);
+
+  async function createProposal(event: FormEvent) {
+    event.preventDefault(); setBusy("create"); setError("");
+    const ids = evidenceIds.split(/[\n,]/).map((item) => item.trim()).filter(Boolean);
+    try {
+      const data = await api<{ replayed?: boolean; proposalId: string }>("/api/actions", {
+        method: "POST",
+        body: JSON.stringify({
+          commitment: {
+            id: seedPacket?.packet_id,
+            summary, owner: owner || null, deadline: deadline || null,
+            customer: null, evidenceIds: ids,
+            sourceProvider: [...new Set(seedPacket?.evidence.map((item) => item.provider) ?? ["queueproof"])].join(", "),
+          },
+          teamId, projectId: projectId || undefined,
+        }),
+      });
+      await load(); setComposerOpen(false); onSeedUsed();
+      setNotice(data.replayed ? "The identical proposal already exists; QueueProof reused it." : "Proposal sealed. A human must review the exact payload before execution.");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Proposal creation failed."); }
+    finally { setBusy(""); }
+  }
+
+  async function approve() {
+    if (!selected || !confirmed) return;
+    setBusy(selected.id); setError("");
+    try {
+      const data = await api<{ executed?: boolean; message?: string }>(`/api/actions/${selected.id}/approve`, { method: "POST" });
+      await load(); setSelected(null); setConfirmed(false);
+      setNotice(data.message ?? (data.executed ? "Linear confirmed the issue creation." : "Human approval recorded."));
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Approval failed."); }
+    finally { setBusy(""); }
+  }
+
+  const pending = proposals.filter((item) => !item.decision && item.status === "proposed").length;
+  const executed = proposals.filter((item) => item.executionStatus === "succeeded" || item.status === "executed").length;
+
+  return <section className="screen approvals-screen">
+    <div className="screen-heading"><div><span className="eyebrow"><ShieldCheck size={13} /> Human control plane</span><h1>Agents propose.<br /><em>Humans commit.</em></h1><p>Review the exact provider payload, its evidence chain, and risk class. Approval is an auditable decision; execution is idempotent and can happen at most once.</p></div><button className="primary-button" onClick={() => setComposerOpen(true)}><Plus size={15} /> New proposal</button></div>
+    <div className="approval-stats"><div><small>PENDING REVIEW</small><strong>{pending}</strong><span>nothing executes silently</span></div><div><small>EXECUTED ONCE</small><strong>{executed}</strong><span>provider-confirmed writes</span></div><div><small>GUARDRAIL</small><strong>At most once</strong><span>unique execution claim</span></div></div>
+    <div className="approval-list">
+      <div className="list-title"><span><LockKeyhole size={14} /> Action ledger</span><button onClick={() => void load()}><RefreshCw size={12} /> Refresh</button></div>
+      {proposals.length ? proposals.map((proposal) => {
+        const payload = parseJson<IssuePayload>(proposal.payloadJson, {});
+        const evidence = parseJson<string[]>(proposal.evidenceIdsJson, []);
+        const complete = proposal.executionStatus === "succeeded" || proposal.status === "executed";
+        return <article className="approval-row" key={proposal.id}>
+          <span className={`risk-mark ${proposal.riskClass}`}><ShieldCheck size={17} /></span>
+          <div className="approval-copy"><span><b>{proposal.provider}</b> · {proposal.actionType.replaceAll("_", " ")} · {dateLabel(proposal.createdAt)}</span><strong>{payload.title ?? "Untitled provider action"}</strong><small>{evidence.length} evidence receipt{evidence.length === 1 ? "" : "s"} · risk {proposal.riskClass}</small></div>
+          <span className={`stage-chip ${complete ? "indexed" : proposal.decision ? "validated" : "processing"}`}>{complete ? "executed" : proposal.decision ?? "review"}</span>
+          <button className="secondary-button" onClick={() => { setSelected(proposal); setConfirmed(false); }}>{complete ? <Eye size={13} /> : <ShieldCheck size={13} />}{complete ? "Inspect" : proposal.decision ? "Approved" : "Review"}</button>
+        </article>;
+      }) : <div className="honest-empty"><ShieldCheck size={24} /><div><strong>No provider write is waiting.</strong><p>Open an execution packet and send it here, or create a grounded proposal manually.</p></div></div>}
+    </div>
+
+    {composerOpen && <div className="modal-layer"><form className="modal-card action-composer" onSubmit={createProposal}><button type="button" className="modal-close" onClick={() => { setComposerOpen(false); onSeedUsed(); }}><X size={16} /></button><span className="eyebrow"><Plus size={13} /> Approval-gated Linear issue</span><h2>Seal the proposed payload.</h2><p>This step records a proposal only. It cannot write to Linear until a human separately reviews and approves the exact result.</p><div className="setup-form"><label>Commitment summary<textarea value={summary} onChange={(event) => setSummary(event.target.value)} required maxLength={4000} /></label><div className="two-cols"><label>Owner <small>optional</small><input value={owner} onChange={(event) => setOwner(event.target.value)} /></label><label>Deadline <small>optional</small><input value={deadline} onChange={(event) => setDeadline(event.target.value)} /></label></div><label>Evidence receipt IDs<textarea value={evidenceIds} onChange={(event) => setEvidenceIds(event.target.value)} placeholder="One source ID per line" required /></label><div className="two-cols"><label>Linear team ID<input value={teamId} onChange={(event) => setTeamId(event.target.value)} placeholder="Required provider team UUID" required /></label><label>Linear project ID <small>optional</small><input value={projectId} onChange={(event) => setProjectId(event.target.value)} /></label></div><button className="primary-button" disabled={busy === "create" || !summary.trim() || !evidenceIds.trim() || !teamId.trim()}>{busy === "create" ? <LoaderCircle className="spin" size={14} /> : <ShieldCheck size={14} />} Create reviewable proposal</button></div></form></div>}
+
+    {selected && <ApprovalModal proposal={selected} confirmed={confirmed} setConfirmed={setConfirmed}
+      busy={busy === selected.id} onApprove={approve} onClose={() => { setSelected(null); setConfirmed(false); }} />}
+  </section>;
+}
+
+function ApprovalModal({ proposal, confirmed, setConfirmed, busy, onApprove, onClose }: {
+  proposal: ActionProposal; confirmed: boolean; setConfirmed: (value: boolean) => void;
+  busy: boolean; onApprove: () => Promise<void>; onClose: () => void;
+}) {
+  const payload = parseJson<IssuePayload>(proposal.payloadJson, {});
+  const evidence = parseJson<string[]>(proposal.evidenceIdsJson, []);
+  const complete = proposal.executionStatus === "succeeded" || proposal.status === "executed";
+  const decided = Boolean(proposal.decision);
+  return <div className="modal-layer"><div className="modal-card approval-modal"><button className="modal-close" onClick={onClose}><X size={16} /></button><span className="eyebrow"><ShieldCheck size={13} /> Exact provider payload</span><h2>{complete ? "Execution receipt." : decided ? "Approval recorded." : "Review before commit."}</h2><div className="risk-banner"><span className={`risk-mark ${proposal.riskClass}`}><CircleAlert size={16} /></span><div><strong>{proposal.riskClass} risk · Linear create issue</strong><small>Proposal {proposal.id}</small></div></div><div className="payload-grid"><div><small>TITLE</small><strong>{payload.title ?? "Missing title"}</strong></div><div><small>TEAM</small><code>{payload.teamId ?? "Missing team"}</code></div>{payload.projectId && <div><small>PROJECT</small><code>{payload.projectId}</code></div>}<div className="payload-description"><small>DESCRIPTION</small><pre>{payload.description ?? "Missing description"}</pre></div></div><div className="evidence-receipts"><small>EVIDENCE RECEIPTS · {evidence.length}</small>{evidence.map((id) => <code key={id}>{id}</code>)}</div>{complete ? <div className="proof-seal"><CircleCheck size={25} /><div><strong>Provider-confirmed execution</strong><span>Linear response ID {proposal.providerResponseId ?? "recorded"} · duplicate execution is blocked</span></div></div> : decided ? <div className="proof-seal"><CircleCheck size={25} /><div><strong>Human approval recorded</strong><span>{dateLabel(proposal.decidedAt)} · execution unavailable or pending</span></div></div> : <><label className="approval-confirm"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} /><span><strong>I reviewed this exact payload and its evidence.</strong><small>I understand QueueProof will attempt one Linear issue creation if the deployment has execution credentials.</small></span></label><button className="primary-button full" disabled={!confirmed || busy} onClick={() => void onApprove()}>{busy ? <LoaderCircle className="spin" size={14} /> : <Zap size={14} />}{busy ? "Claiming execution slot" : "Approve and execute once"}</button></>}</div></div>;
 }
 
 function AgentScreen({ workspace, setError, setNotice }: { workspace: ReadyView; setError: (value: string) => void; setNotice: (value: string) => void }) {
@@ -795,8 +1006,8 @@ function LabScreen({ setError }: { setError: (value: string) => void }) {
   );
 }
 
-function PacketDrawer({ packet, onClose }: { packet: Packet; onClose: () => void }) {
-  return <div className="drawer-layer" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><aside className="packet-drawer"><button className="modal-close" onClick={onClose}><X size={16} /></button><div className="drawer-head"><span className="eyebrow"><FileCheck2 size={13} /> Execution packet</span><code>{packet.packet_id}</code><h2>{packet.task.title}</h2><p>{packet.task.objective}</p></div><div className="drawer-score"><strong>{packet.task.priority_score}</strong><span>{band(packet.task.priority_score)} priority<br />{Math.round(packet.task.confidence * 100)}% confidence</span></div><PacketSection title="Why now" items={packet.why_now} /><div className="packet-columns"><PacketSection title="Constraints" items={packet.constraints} empty="None evidenced" /><PacketSection title="Dependencies" items={packet.dependencies} empty="None evidenced" /></div><PacketSection title="Acceptance criteria" items={packet.acceptance_criteria} /><div className="packet-section"><h3>Evidence receipts <span>{packet.evidence.length}</span></h3>{packet.evidence.map((item, index) => <EvidenceCard key={item.sourceId ?? index} evidence={item} index={index} />)}</div><WhyAboveSection why={packet.why_above_next} /><PacketSection title="Missing information" items={packet.missing_information} empty="No missing fields" /><ReceiptHashBlock hash={packet.receipt_hash} /><div className="permission-block"><LockKeyhole size={16} /><div><strong>Agent permissions</strong><span>Read: {packet.permissions.read.join(", ") || "none"} · Write: {packet.permissions.write.join(", ") || "none"} · Approval {packet.permissions.approval_required ? "required" : "not required"}</span></div></div><button className="secondary-button full" onClick={() => void navigator.clipboard.writeText(JSON.stringify(packet, null, 2))}><Clipboard size={14} /> Copy canonical JSON</button></aside></div>;
+function PacketDrawer({ packet, onClose, onPropose }: { packet: Packet; onClose: () => void; onPropose: () => void }) {
+  return <div className="drawer-layer" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><aside className="packet-drawer"><button className="modal-close" onClick={onClose}><X size={16} /></button><div className="drawer-head"><span className="eyebrow"><FileCheck2 size={13} /> Execution packet</span><code>{packet.packet_id}</code><h2>{packet.task.title}</h2><p>{packet.task.objective}</p></div><div className="drawer-score"><strong>{packet.task.priority_score}</strong><span>{band(packet.task.priority_score)} priority<br />{Math.round(packet.task.confidence * 100)}% confidence</span></div><PacketSection title="Why now" items={packet.why_now} /><div className="packet-columns"><PacketSection title="Constraints" items={packet.constraints} empty="None evidenced" /><PacketSection title="Dependencies" items={packet.dependencies} empty="None evidenced" /></div><PacketSection title="Acceptance criteria" items={packet.acceptance_criteria} /><div className="packet-section"><h3>Evidence receipts <span>{packet.evidence.length}</span></h3>{packet.evidence.map((item, index) => <EvidenceCard key={item.sourceId ?? index} evidence={item} index={index} />)}</div><WhyAboveSection why={packet.why_above_next} /><PacketSection title="Missing information" items={packet.missing_information} empty="No missing fields" /><ReceiptHashBlock hash={packet.receipt_hash} /><div className="permission-block"><LockKeyhole size={16} /><div><strong>Agent permissions</strong><span>Read: {packet.permissions.read.join(", ") || "none"} · Write: {packet.permissions.write.join(", ") || "none"} · Approval {packet.permissions.approval_required ? "required" : "not required"}</span></div></div><div className="drawer-actions"><button className="primary-button" onClick={onPropose}><ShieldCheck size={14} /> Send to approval</button><button className="secondary-button" onClick={() => void navigator.clipboard.writeText(JSON.stringify(packet, null, 2))}><Clipboard size={14} /> Copy canonical JSON</button></div></aside></div>;
 }
 
 /**

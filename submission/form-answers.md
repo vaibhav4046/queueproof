@@ -50,14 +50,16 @@ HydraDB is the evidence layer, and QueueProof cannot rank anything without it.
 - **Document ingestion.** A file uploaded through the product is sent to HydraDB
   `/context/ingest`, polled through `graph_creation` to `completed`, and reaches stage
   `indexed`. Verified with source id `5fa3cc1258f4d1380685120889e2e8f3`.
-- **Connector proof.** Two connectors were created, discovered, configured, synced and
+- **Connector proof.** Three connectors were created, discovered, configured, synced and
   verified entirely through the product UI. Linear: discovery returned a real team, "Helios
   Robotics", resource type `linear_team`; verification reached stage `data_verified` with
   `realObjectsRetrieved` = 5 and five real source ids persisted. Slack: resource
   `C0B462AK7U3` (#all-qyntra) in workspace `qyntra`, stage `data_verified`,
   `realObjectsRetrieved` = 3, verification id
-  `verify_87da58b8-9f1f-48d6-9c98-5f118ba9b93e`. "Connected" is never inferred from a saved
-  credential. Slack proved that: discovery succeeded while sync returned nothing, because
+  `verify_87da58b8-9f1f-48d6-9c98-5f118ba9b93e`. GitHub is also `data_verified` and returned
+  attributable evidence in all six questions from the latest three-provider live run.
+  "Connected" is never inferred from a saved credential. Slack proved that: discovery
+  succeeded while sync returned nothing, because
   Slack does not return `conversations.history` until the bot is invited to the channel, and
   QueueProof refused to report `data_verified` for the whole of that period.
 - **Cross-source retrieval.** One query returned 10 sources across ingested documents and
@@ -111,16 +113,19 @@ and does not execute.
   3. Promised post-mortem with no Linear issue tracking it, slack (58)
 - Rank three is an untracked commitment found in real evidence: a promise made in Slack with
   no ticket behind it.
-- 208 tests passing. Typecheck, lint and production build clean.
+- GitHub is also `data_verified`. Six live questions returned evidence from GitHub,
+  Linear, and Slack on 6/6 runs.
+- 217 tests across 20 files passing. Typecheck, lint and production build clean.
 
 ## What did you measure?
 
 39 ground-truth cases across 15 categories. **Router mode accuracy: 29/39 = 74.4 per cent,
 measured.** Full breakdown in `BENCHMARK_REPORT.md`.
 
-Citation precision, citation recall, latency percentiles, HydraDB call counts and cost are
-**not measured**. No value is estimated for any of them. One end-to-end query was timed at
-4220 ms; that is a single measurement, not a distribution, and must not be quoted as one.
+Six production questions measured end-to-end latency at **p50 4401 ms, p95 6347 ms, min
+990 ms, max 6347 ms**. All six returned evidence from GitHub, Linear, and Slack. This is a
+small measured sample, not a stable distribution or SLA. Citation precision, citation
+recall, HydraDB call counts and cost remain **not measured**.
 
 ## Biggest challenge
 
@@ -145,12 +150,12 @@ would have hidden:
 
 Answer this honestly if asked, and volunteer it if not:
 
-- **Gmail connector: not connected.** Google requires a passkey challenge to reach the App
-  Passwords page, and that challenge needs a physical biometric or hardware gesture. It is
-  blocked by the authentication mechanism, not by preference. Slack and Linear are both
-  connected and verified.
-- **Linear write execution: no real issue has been created.** The approval-gated path is
-  built and unit-tested against an injected fetch only.
+- **Gmail connector: configured and authenticated, not verified.** Eight real labels were
+  discovered and configuration succeeded. Its free-plan backfill has not produced cursor
+  evidence, so QueueProof refuses `data_verified`. Linear, Slack, and GitHub are verified.
+- **Linear write execution: no real issue has been created.** The approval UI, exact
+  payload review, second confirmation, and at-most-once execution path are built and
+  tested; the final provider call remains live-unproven.
 - **MCP receipt-hash parity against an external client: unproven.** The hash is computed
   and persisted; no external MCP client has fetched the same receipt.
 - **The 346-page ground-truth PDF is not ingested into HydraDB.** It is generated
