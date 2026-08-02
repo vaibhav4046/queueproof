@@ -273,6 +273,14 @@ export async function audit(input: {
 export async function workspaceForUser(userId: string) {
   await ensureCoreSchema();
   const db = requireDb();
+  // Public-access mode intentionally exposes the shared demo workspace to anonymous
+  // visitors. The actor is server-generated (`user:public-access`), never caller input;
+  // all normal users remain constrained to their workspace_members row below.
+  if (userId === "user:public-access") {
+    return db
+      .prepare(`SELECT * FROM workspaces ORDER BY created_at ASC LIMIT 1`)
+      .first<Record<string, unknown>>();
+  }
   return db
     .prepare(
       `SELECT w.* FROM workspaces w
