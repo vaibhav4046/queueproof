@@ -98,3 +98,34 @@ product exists to catch.
 
 Still not connected: Gmail. Its App Password flow re-prompts for the account password,
 so it requires the owner. Nothing about it is claimed here.
+
+## Gmail: configured, authenticated, not verified
+
+Status as of 2026-08-02. Recorded because the distinction matters.
+
+What works: the Google App Password authenticates. HydraDB connector
+`3c628abf-b14d-4cfa-bbc7-27a03fa6b2ac` was created through the product, discovery
+returned eight real labels (INBOX, All Mail, Drafts, Important and others), and configure
+succeeded with `configured: 1`.
+
+What has not happened: `provider_cursor` is still empty after roughly 50 minutes across
+two lookback settings, so verification correctly reports `sync_evidence_missing` and
+refuses to mark the connector `data_verified`.
+
+Cause, read from the resource record rather than guessed:
+
+    backfill_chunk_interval_seconds : 1800
+    backfill_status                 : active
+    plan                            : free
+
+HydraDB's free plan advances the backfill one chunk per 30 minutes. Triggering a manual
+sync does not bypass that scheduler, which was confirmed by reducing the lookback from 90
+days to 1 and observing no change in cadence. This is a throughput limit of the plan, not
+a credential fault and not a defect in the connector lifecycle.
+
+The expected outcome is that Gmail reaches `data_verified` unattended once enough chunks
+have run. It is NOT claimed as verified here, and the submission materials list it as
+unverified. Three connectors, Linear, Slack and GitHub, are verified with evidence.
+
+The product behaved correctly throughout: it never reported a connector as connected on
+the strength of a stored credential.
