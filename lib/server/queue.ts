@@ -48,6 +48,19 @@ const clean = (value: string, max = 900) =>
 
 const actionable = /\b(will|must|need(?:s)? to|should|please|todo|action|follow[ -]?up|blocked|unblock|due|deadline|urgent|asap|ship|send|review|fix|investigate|resolve|renewal|incident|outage|escalat|deliver|approve)\b/i;
 
+/**
+ * Coerce any provider timestamp to Z-suffixed ISO-8601, or null when unparseable.
+ *
+ * Providers are inconsistent here — numeric offsets, microsecond precision, epoch
+ * seconds — and the packet schema accepts exactly one form. Normalising once at the
+ * ingestion boundary keeps that variance out of every downstream consumer.
+ */
+function isoTimestamp(value: string | null): string | null {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isFinite(parsed.getTime()) ? parsed.toISOString() : null;
+}
+
 function sourceMetadata(source: RecordValue) {
   return {
     ...asRecord(source.metadata),
@@ -114,8 +127,15 @@ function evidenceFromHydra(
     title: title || `${provider} record`,
     excerpt,
     url: firstText(source, ["url", "source_url", "web_url", "permalink"]),
-    timestamp: firstText(source, ["timestamp", "source_timestamp", "created_at", "updated_at"]),
-    ingestionTimestamp: firstText(source, ["ingestion_timestamp", "uploaded_at", "indexed_at"]),
+    // Normalised to Z-suffixed ISO-8601. HydraDB returns timestamps such as
+    // "2026-08-01T22:20:43.520449+00:00" — a numeric UTC offset with microsecond
+    // precision. The execution packet schema validates these with zod .datetime(),
+    // which rejects offsets by default, so real provider data failed validation and
+    // queue generation returned 500 for every workspace with a live connector.
+    timestamp: isoTimestamp(firstText(source, ["timestamp", "source_timestamp", "created_at", "updated_at"])),
+    ingestionTimestamp: isoTimestamp(
+      firstText(source, ["ingestion_timestamp", "uploaded_at", "indexed_at", "source_upload_time"]),
+    ),
     authority: "primary",
     metadata,
     unsafeInstruction: isPotentialPromptInjection(excerpt),
