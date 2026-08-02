@@ -3,6 +3,7 @@ import { hydraClientForWorkspace } from "../../../../../lib/server/hydradb-accou
 import {
   extractQuerySources,
   extractResources,
+  canonicalProvider,
   providerFromSource,
   unwrapHydra,
 } from "../../../../../lib/server/hydradb-shapes";
@@ -48,12 +49,28 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     const syncStatus = String(connectorDetail.sync_status ?? connectorDetail.syncStatus ?? connectorDetail.status ?? "unknown");
     const lastSuccessfulSync = connectorDetail.last_successful_sync_at ?? connectorDetail.lastSuccessfulSyncAt ?? null;
     const upstreamError = connectorDetail.last_error ?? connectorDetail.lastError ?? null;
+    /**
+     * Sync evidence: a provider cursor OR a recorded successful sync.
+     *
+     * Requiring a cursor alone is wrong. HydraDB does not populate `provider_cursor` for
+     * every provider — a Gmail connector indexed 20 real messages while its cursor stayed
+     * empty for the better part of an hour, so verification could never pass no matter how
+     * much real data arrived.
+     *
+     * This deliberately does NOT weaken the bar for calling a connector verified. The
+     * canary below is still mandatory and still has to return real, provider-matched,
+     * connector-scoped objects. Retrieving actual records is stronger proof that a sync
+     * happened than the presence of a cursor string; this change stops a bookkeeping
+     * field from overriding that evidence.
+     */
+    const hasSyncEvidence = hasCursor || Boolean(lastSuccessfulSync);
+
     const canaryQuery = `Return one recent source from ${connector.provider} for connection verification.`;
     let canaryCount = 0;
     let sourceIds: string[] = [];
     let providerCoverage: string[] = [];
     let queryRequestId: string | null = null;
-    if (hasCursor) {
+    if (hasSyncEvidence) {
       const query = await client.query({
         database: connector.database,
         ...(connector.collection ? { collections: [connector.collection] } : {}),
@@ -69,7 +86,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       if (query.ok) {
         const extracted = extractQuerySources(query.data);
         const matching = extracted.sources.filter((source) => {
-          if (providerFromSource(source) !== connector.provider.toLowerCase()) return false;
+          if (providerFromSource(source) !== canonicalProvider(connector.provider)) return false;
           const metadata = typeof source.additional_metadata === "object" && source.additional_metadata
             ? source.additional_metadata as Record<string, unknown> : {};
           const sourceConnector = source.connector_id ?? metadata.connector_id;
@@ -80,12 +97,12 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
         providerCoverage = [...new Set(extracted.sources.map(providerFromSource).filter(Boolean))] as string[];
       }
     }
-    const verified = resourceResponse.ok && connectorResponse.ok && hasCursor && canaryCount > 0 && !upstreamError;
+    const verified = resourceResponse.ok && connectorResponse.ok && hasSyncEvidence && canaryCount > 0 && !upstreamError;
     const stage = verified
       ? "data_verified"
       : !resourceResponse.ok || !connectorResponse.ok
         ? "resource_status_failed"
-        : !hasCursor
+        : !hasSyncEvidence
           ? "sync_evidence_missing"
           : "canary_failed";
     const verificationId = createId("verify");

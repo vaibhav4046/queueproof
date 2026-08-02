@@ -29,11 +29,34 @@ export function extractQuerySources(value: unknown) {
   return { root, sources, chunks };
 }
 
+/**
+ * Providers HydraDB labels differently on the source than on the connector.
+ *
+ * A Gmail connector is created as `gmail`, but every source it indexes comes back tagged
+ * `app_provider: "google"`. Comparing the two directly means a working connector matches
+ * none of its own sources, which is exactly what happened during live verification.
+ */
+const PROVIDER_ALIASES: Record<string, string> = {
+  google: "gmail",
+  google_mail: "gmail",
+  googlemail: "gmail",
+  google_drive: "google_drive",
+  msteams: "microsoft_teams",
+  ms_teams: "microsoft_teams",
+};
+
+/** Normalise a provider label to the name the connector is registered under. */
+export function canonicalProvider(value: string | null): string | null {
+  if (!value) return null;
+  const lower = value.toLowerCase();
+  return PROVIDER_ALIASES[lower] ?? lower;
+}
+
 export function providerFromSource(source: Record<string, unknown>): string | null {
   const provider = source.app_provider ?? source.provider;
-  if (provider) return String(provider).toLowerCase();
+  if (provider) return canonicalProvider(String(provider));
   const metadata = record(source.additional_metadata);
   const nested = metadata.app_provider ?? metadata.provider;
-  return nested ? String(nested).toLowerCase() : null;
+  return nested ? canonicalProvider(String(nested)) : null;
 }
 
