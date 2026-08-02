@@ -55,6 +55,30 @@ const actionable = /\b(will|must|need(?:s)? to|should|please|todo|action|follow[
  * seconds — and the packet schema accepts exactly one form. Normalising once at the
  * ingestion boundary keeps that variance out of every downstream consumer.
  */
+/**
+ * Keyword signal detection that is not fooled by negation.
+ *
+ * A plain keyword test scored a ticket reading "Low priority. No customer impact." as
+ * customer-relevant, because "customer" appears in it — and the deterministic
+ * explanation then reported "+9 customer or revenue consequence" for an item that
+ * explicitly disclaims exactly that. The keyword is only counted when it is not
+ * immediately preceded by a negation.
+ *
+ * This is a heuristic over source prose, not sentiment analysis: it catches the common
+ * "no X" / "not X" / "without X" phrasings that invert meaning, and no more.
+ */
+const NEGATION = /\b(no|not|non|never|without|zero|isn't|aren't|wasn't|weren't|lacks?|excluding)\b[\s\-]*(?:\w+[\s\-]+){0,2}$/i;
+
+export function matchesSignal(text: string, pattern: RegExp): boolean {
+  const global = new RegExp(pattern.source, pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`);
+  for (const hit of text.matchAll(global)) {
+    const preceding = text.slice(Math.max(0, (hit.index ?? 0) - 40), hit.index ?? 0);
+    // One unnegated occurrence is enough for the signal to count.
+    if (!NEGATION.test(preceding)) return true;
+  }
+  return false;
+}
+
 function isoTimestamp(value: string | null): string | null {
   if (!value) return null;
   const parsed = new Date(value);
@@ -172,10 +196,10 @@ function deadlineFromEvidence(evidence: Evidence) {
 
 function rankingInput(evidence: Evidence, id: string, title: string): RankingInput {
   const text = `${title} ${evidence.excerpt}`;
-  const security = /\b(security|vulnerability|breach|incident|outage|sev[ -]?[01])\b/i.test(text);
-  const customer = /\b(customer|client|enterprise|renewal|revenue|contract|churn)\b/i.test(text);
-  const urgent = /\b(today|urgent|asap|immediately|blocking|deadline|overdue|before (?:monday|tuesday|wednesday|thursday|friday))\b/i.test(text);
-  const dependency = /\b(blocked|blocking|unblock|depends? on|prerequisite)\b/i.test(text);
+  const security = matchesSignal(text, /\b(security|vulnerability|breach|incident|outage|sev[ -]?[01])\b/i);
+  const customer = matchesSignal(text, /\b(customer|client|enterprise|renewal|revenue|contract|churn)\b/i);
+  const urgent = matchesSignal(text, /\b(today|urgent|asap|immediately|blocking|deadline|overdue|before (?:monday|tuesday|wednesday|thursday|friday))\b/i);
+  const dependency = matchesSignal(text, /\b(blocked|blocking|unblock|depends? on|prerequisite)\b/i);
   const commitment = /\b(i will|we will|promised|committed|must|need(?:s)? to|please)\b/i.test(text);
   const owner = ownerFromEvidence(evidence);
   const fresh = freshness(evidence.timestamp);
