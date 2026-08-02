@@ -8,8 +8,10 @@ overrides:
 
 # Sites installs with pnpm's strict build-script policy. These packages are direct or
 # transitive build tools required by Vite/Workers; every resolved version is pinned by
-# pnpm-lock.yaml and was checked by the Sites supply-chain verifier before installation.
-onlyBuiltDependencies:
-  - "esbuild"
-  - "unrs-resolver"
-  - "workerd"
+# pnpm-lock.yaml and checked by the Sites supply-chain verifier before installation.
+# pnpm 10.32+ writes this map from `pnpm approve-builds`; using its current shape keeps
+# the policy effective on both pnpm 10 and pnpm 11.
+allowBuilds:
+  "esbuild": true
+  "unrs-resolver": true
+  "workerd": true
