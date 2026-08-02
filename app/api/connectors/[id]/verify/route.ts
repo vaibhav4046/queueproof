@@ -65,12 +65,29 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
      */
     const hasSyncEvidence = hasCursor || Boolean(lastSuccessfulSync);
 
+    /**
+     * The canary runs whenever the connector looks healthy, not only once HydraDB has
+     * written its own sync bookkeeping.
+     *
+     * A live Gmail connector had 20 real, connector-scoped, queryable messages while both
+     * `provider_cursor` and `last_successful_sync_at` were absent, because the backfill was
+     * still running. Retrieving those records is direct evidence that the sync delivered
+     * data; the two bookkeeping fields are indirect evidence of the same thing. Gating on
+     * the indirect signal alone means a connector that demonstrably works cannot verify.
+     *
+     * What `data_verified` asserts is precisely "this connector returns real data", NOT
+     * "the backfill is complete". Those are different claims, so `syncStatus` is recorded
+     * on the verification record and surfaced in the response: a reader can see the
+     * backfill was still in progress when the evidence was collected.
+     */
+    const canRunCanary = hasSyncEvidence || (resourceResponse.ok && connectorResponse.ok && !upstreamError);
+
     const canaryQuery = `Return one recent source from ${connector.provider} for connection verification.`;
     let canaryCount = 0;
     let sourceIds: string[] = [];
     let providerCoverage: string[] = [];
     let queryRequestId: string | null = null;
-    if (hasSyncEvidence) {
+    if (canRunCanary) {
       const query = await client.query({
         database: connector.database,
         ...(connector.collection ? { collections: [connector.collection] } : {}),
@@ -97,7 +114,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
         providerCoverage = [...new Set(extracted.sources.map(providerFromSource).filter(Boolean))] as string[];
       }
     }
-    const verified = resourceResponse.ok && connectorResponse.ok && hasSyncEvidence && canaryCount > 0 && !upstreamError;
+    const verified = resourceResponse.ok && connectorResponse.ok && canaryCount > 0 && !upstreamError;
     const stage = verified
       ? "data_verified"
       : !resourceResponse.ok || !connectorResponse.ok
