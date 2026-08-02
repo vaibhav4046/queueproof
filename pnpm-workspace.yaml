@@ -5,3 +5,11 @@ overrides:
   "@hono/node-server": "2.0.10"
   "postcss": "8.5.18"
   "sharp": "0.35.0"
+
+# Sites installs with pnpm's strict build-script policy. These packages are direct or
+# transitive build tools required by Vite/Workers; every resolved version is pinned by
+# pnpm-lock.yaml and was checked by the Sites supply-chain verifier before installation.
+onlyBuiltDependencies:
+  - "esbuild"
+  - "unrs-resolver"
+  - "workerd"
