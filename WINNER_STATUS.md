@@ -63,3 +63,38 @@ NEXT CODE ACTION: document upload route (`app/api/documents`) with magic-byte va
 SHA-256 duplicate detection and real stage tracking up to the HydraDB boundary; then the
 Linear proposal/approval path with deterministic idempotency keys. Both are fully specified
 and unblocked apart from execution against the live providers.
+
+---
+
+## Live verification, 2026-08-02
+
+Two connectors verified end to end, both driven entirely through the product.
+
+| Connector | Stage | Real objects | Evidence |
+| --- | --- | --- | --- |
+| Linear | `data_verified` | 5 | `verify_fafc753e`, providerCoverage `["linear"]` |
+| Slack | `data_verified` | 3 | `verify_87da58b8`, resource `C0B462AK7U3` |
+
+Cross-source retrieval, one question, 11 sources spanning both providers, `thinking`
+mode, 4220 ms end to end:
+
+  "Who escalated the AuthShield outage, what deadline did engineering commit to,
+   and does Linear agree?"
+
+It returned the contradiction rather than averaging over it:
+
+  linear -> "Billing migration deadline moved to 14 August"
+  slack  -> "the Linear ticket still says 14 August, but finance confirmed today
+             it is staying at 7 August. Linear is out of date."
+
+Queue regenerated with both providers present:
+
+  #1  77  linear  AuthShield authentication outage for Northwind
+  #2  67  slack   commitment to ship the AuthShield fix before 7 August
+  #3  58  slack   promised post-mortem with no Linear issue tracking it
+
+Item 3 is an untracked commitment surfaced from real evidence, which is the case the
+product exists to catch.
+
+Still not connected: Gmail. Its App Password flow re-prompts for the account password,
+so it requires the owner. Nothing about it is claimed here.
