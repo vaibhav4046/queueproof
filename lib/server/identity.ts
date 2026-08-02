@@ -147,10 +147,27 @@ function actorFromLocalOptIn(): RequestActor | null {
   };
 }
 
+/**
+ * Explicit public-demo mode. This is intentionally opt-in at deployment time: when
+ * enabled, every anonymous visitor shares the workspace actor and can use the full
+ * product surface, including mutations. It must never become an accidental fallback.
+ */
+function actorFromPublicAccess(): RequestActor | null {
+  const env = runtimeEnv() as Record<string, unknown>;
+  if (env.QUEUEPROOF_PUBLIC_ACCESS !== "true") return null;
+  return {
+    id: "user:public-access",
+    email: "public@queueproof.local",
+    displayName: "Public workspace",
+    localDevelopment: false,
+  };
+}
+
 export async function getRequestActor(): Promise<RequestActor | null> {
   return (
     (await actorFromSessionCookie()) ??
     (await actorFromTrustedGateway()) ??
+    actorFromPublicAccess() ??
     actorFromLocalOptIn()
   );
 }
