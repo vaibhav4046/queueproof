@@ -1,106 +1,93 @@
-# QueueProof acceptance matrix
+# QueueProof requirements matrix
 
-Status labels are deliberately narrow. Nothing is marked exercised unless it was actually
-run and observed.
+Status labels are deliberately narrow.
 
-- **exercised**: the behaviour was run and the result observed, locally or on the live
-  deployment.
-- **built-unproven**: the code exists and passes typecheck, lint, and the test suite, but
-  the path has never been run against a live account. Not a working feature.
-- **blocked-credentials**: cannot be proven without a HydraDB API key or provider
-  authorisation. Neither is present, and no fixture is substituted.
-- **not-built**: does not exist in this repository.
+- **verified-live**: run against live production at <https://queueproof.vercel.app> and the
+  result observed.
+- **measured**: a number was produced by a runner and recorded as produced, not rounded or
+  estimated.
+- **built-untested-live**: the code exists and passes the test suite, but the path has never
+  been exercised against the real external service. Not a working feature.
+- **blocked-on-credentials**: cannot be proven without the owner's own provider logins. No
+  fixture is substituted.
+- **not-implemented**: does not exist.
 
-## Platform and security
+Nothing below is marked complete on the strength of a passing test alone.
 
-| Capability | Status | Evidence or gate |
+## Evidence layer and HydraDB
+
+| Criterion | What exists | Evidence | Status | Limitation |
+|---|---|---|---|---|
+| HydraDB configured through the product | Credential entered through the product UI, encrypted at rest, surfaced only as a fingerprint | Fingerprint `503f442f560614fc` | verified-live | Single workspace credential exercised |
+| Live provider catalogue | Providers and their credential schemas loaded from HydraDB at runtime, not hardcoded | 61 real providers loaded live with real credential schemas | verified-live | Only Linear was taken through to a verified connector |
+| Document ingestion | Upload through the product, HydraDB `/context/ingest`, poll `graph_creation` to `completed`, stage `indexed` | Source id `5fa3cc1258f4d1380685120889e2e8f3` | verified-live | Ingestion volume not stress-tested |
+| Connector proof protocol | create, discover, configure, sync, verify, reaching `data_verified` only after a canary query returns provider-attributable objects | Linear driven entirely through the product. Discovery returned real team "Helios Robotics", resource type `linear_team`. `configured=1`. Verification reached `data_verified` with `realObjectsRetrieved`=5 and five real source ids persisted in a verification record | verified-live | One provider only |
+| Cross-source retrieval | One query spanning ingested documents and live connector objects | 10 sources returned: 6 ingested documents and 4 Linear tickets (HEL-4, 5, 6, 7) | verified-live | Two source kinds; no third kind exercised |
+| Slack connector | Present in the catalogue with a real credential schema | Not connected | blocked-on-credentials | Requires the owner's own Slack login. Not complete |
+| Gmail connector | Present in the catalogue with a real credential schema | Not connected | blocked-on-credentials | Requires the owner's own Gmail login. Not complete |
+
+## Priority Compiler and Decision Receipts
+
+| Criterion | What exists | Evidence | Status | Limitation |
+|---|---|---|---|---|
+| Queue generation from live evidence | Ranking over evidence retrieved from HydraDB | HTTP 200, three ranked items | verified-live | Three items; not tested at queue scale |
+| Real citations on ranked items | Each item carries evidence with real Linear source citations | Citations present on all three items | verified-live | Citation precision and recall are not measured |
+| Receipt hash | Hash computed and persisted with the packet | Present on generated items | verified-live | Parity against an external MCP client is unproven |
+| Why-above-number-two explanation | Computed from score component deltas, not narrated after the fact | Present on generated items | verified-live | |
+| Deterministic ranking | Score is a function over explicit components | Final ranking: AuthShield authentication outage for Northwind (77), Billing migration deadline (47), Rover SDK docs refresh (35) | verified-live | Calibration against a large corpus not done |
+| Negation handling in ranking signals | Fixed after the receipt exposed it | A ticket reading "No customer impact" scored +9 for customer consequence and ranked #2. Caught from the component deltas in the receipt | verified-live | Found by inspection of the receipt, not by an automated test |
+
+## Security
+
+| Criterion | What exists | Evidence | Status | Limitation |
+|---|---|---|---|---|
+| Session authentication | HMAC-signed httpOnly session cookie | Nine attack variants return 401: spoofed identity header, Host-prefix bypass, no credentials, wrong token, garbage signature, payload swap with the signature kept, unsigned payload, expired but correctly signed, unauthenticated route access. Valid session returns 200 | verified-live | Run against live production; identity is never taken from a caller-controlled header |
+| Credential encryption at rest | Provider credential encrypted, browser sees only a fingerprint | Fingerprint `503f442f560614fc` | verified-live | |
+| Durable storage | Turso/libSQL, EU West | `/api/health/ready` returns 200 ready | verified-live | |
+| Approval gate on writes | Propose path records payload and evidence and stops | Unit-tested against an injected fetch | built-untested-live | No real Linear issue has been created through it. Not complete |
+
+## Agent surface
+
+| Criterion | What exists | Evidence | Status | Limitation |
+|---|---|---|---|---|
+| MCP endpoint | Authenticated, workspace-bound | Covered by the test suite | built-untested-live | Not exercised against an external MCP client in this pass |
+| Receipt-hash parity across clients | Hash computed and persisted once | No external MCP client has fetched the same receipt | built-untested-live | Do not claim parity. Not complete |
+
+## Evaluation
+
+| Criterion | What exists | Evidence | Status | Limitation |
+|---|---|---|---|---|
+| Ground-truth evaluation suite | 39 cases across 15 categories | Runner output recorded in `BENCHMARK_REPORT.md` | measured | |
+| Router mode accuracy | Router decision compared against hand-written labels | 29/39 = 74.4 per cent | measured | Reported as measured, not improved to fit the pitch |
+| Exact-identifier routing defect found and fixed | `planRetrieval` short-circuited on any exact identifier and returned `mode: "fast"` before evaluating multi-step signals, so the flagship demo question ("Who filed BUG-123, which project are they working on, and what did they say about the fix in Slack?") could never have been answered. Reasoning signals are now computed before the identifier lane is chosen; the lane still runs text and hybrid retrieval in parallel but escalates to `thinking` when the question needs multi-step reasoning | Commit `360c176`. `tests/router-flagship.test.ts`, 2 tests passing: the BUG-123 question asserts `mode === "thinking"`, `exactParallel === true`, `category === "exact_identifier"`; a bare "Show me BUG-123" asserts `mode === "fast"`, `exactParallel === true` | verified-live | **Aggregate accuracy did not improve.** It stayed at 29/39 = 74.4 per cent; under-escalations fell 8 to 7 and over-escalations rose 2 to 3. Not a score improvement and must not be presented as one |
+| Citation precision | Not measured | No value produced | not-implemented | Requires a human-labelled citation key |
+| Citation recall | Not measured | No value produced | not-implemented | Requires the full correct source set per question |
+| Latency percentiles | Not measured | No value produced | not-implemented | |
+| HydraDB call count | Not measured | No value produced | not-implemented | |
+| Cost per query | Not measured | No value produced | not-implemented | |
+
+## Artefacts and engineering hygiene
+
+| Criterion | What exists | Evidence | Status | Limitation |
+|---|---|---|---|---|
+| Large ground-truth document | 346-page PDF, deterministic across runs | 958,096 bytes, SHA-256 `c047a3d09c45ecf97e3ed8e2115eda08ea0f6152206237955030f4304fa2ed93`, 22 planted ground-truth facts | verified-live (generation only) | **Not ingested into HydraDB.** It is an artefact, not an indexed source |
+| Test suite | Unit and contract tests | 208 passing | verified-live | Passing tests are not evidence of live behaviour; the live claims above stand on their own runs |
+| Typecheck, lint, production build | All three clean | Clean | verified-live | |
+| Repository | github.com/vaibhav4046/queueproof | Private | blocked-on-credentials | A judge cannot read it until access is granted or it is made public |
+
+## Not implemented
+
+| Criterion | Status | Note |
 |---|---|---|
-| Durable storage adapter | exercised | `lib/server/d1-compat.ts` implements the D1 statement surface over hosted libSQL/Turso and `node:sqlite`. Workspace created, persisted across requests, duplicate rejected. |
-| Session authentication | exercised (manually) | HMAC-signed httpOnly cookie via `/api/session`. Nine attack variants all returned 401: spoofed `oai-authenticated-user-email`; `Host: localhost.attacker.example`; `Host: localhost` reading `/api/mcp-tokens`; no credentials; wrong access token; garbage signature; payload swapped with signature kept; unsigned payload; correctly signed but expired. Valid session returned 200. Run by hand and recorded in `BUILD_STATUS.md`; no automated test covers it. |
-| Local run without accounts | exercised | `npm run dev` with `QUEUEPROOF_ENCRYPTION_KEY` and `QUEUEPROOF_ALLOW_LOCAL_IDENTITY=true`. `/api/health/ready` returned 200 with all three checks true; `/api/session` issued a local actor. |
-| Live deployment | exercised | <https://queueproof.vercel.app> is up. No database is bound and no environment variables are set, so it renders a setup screen naming what it needs. `/api/health/ready` returns 503 with `databaseBinding`, `uploadBinding`, and `encryptionKey` all false. |
-| Readiness endpoint on Vercel | known defect | `/api/health/ready` requires `uploadBinding`, which resolves from the Cloudflare R2 `FILES` binding. The Vercel runtime has no Cloudflare bindings, so readiness returns 503 there even when storage and the encryption key are set correctly. The user-facing screen is gated on storage availability instead, so a configured deployment would still work while readiness misreports it. It is weak in the other direction too: the Vercel runtime falls through to `process.env`, so a stray `FILES` variable of any value flips it to 200 for a bucket that does not exist. Do not present the 503 as purely "no database bound". |
-| `/api/health/dependencies` HydraDB field | known defect | `hydradb.configuredPerWorkspace` is a hardcoded `true` literal, not a live check. Only the `storage.*` fields in that response are meaningful. |
-| Honest empty state | exercised | With no storage the app reports `not_ready` and names the missing variables. It does not fall back to fixtures or browser storage. |
-| Secret hygiene | exercised | Secret scan over the working tree, the full git history, and the build output found zero secrets. |
-| Quality gates | exercised | 90 tests pass across 9 files. Typecheck, lint, and the production build are clean. |
-| Prompt-injection screening | exercised (unit) | 13 security tests pass. Gate: live adversarial evaluation against real retrieved content. |
-| SSRF URL policy | exercised (unit) | 17 SSRF tests pass. |
-| Credential encryption | built-unproven | AES-GCM with a random IV per secret, keyed by a SHA-256 digest of `QUEUEPROOF_ENCRYPTION_KEY`; the browser receives only a 16 character fingerprint. No live provider credential has been stored. |
+| Memory | not-implemented | |
+| Skills runtime | not-implemented | |
+| Decision replay | not-implemented | |
+| Execution leases | not-implemented | |
+| Change-ledger diffing | not-implemented | |
 
-## Ranking and packets
+## The single honest gate
 
-| Capability | Status | Evidence or gate |
-|---|---|---|
-| Deterministic ranking policy | exercised | `packages/ranking` is a pure function. Nine components plus a penalty map, clamped 0 to 100, banded, carrying `policyVersion` and an explanation array. 4 ranking tests pass. Gate: calibration against a live corpus. |
-| Ranking comparison | exercised (unit) | Covered by the ranking tests. |
-| Counterfactual analysis | not-built (as a feature) | The arithmetic exists in `packages/ranking` and is unit tested, but no production code path calls it. Must not be presented as a product capability. |
-| Execution Packet schema | built-unproven | Contract tests pass over the required evidence shape (source, title, excerpt, timestamp, link, authority). No packet has been built from real provider evidence. |
-| Command Queue | blocked-credentials | Live-only retrieval feeding the shared ranker. Requires actionable records from a live source. |
-| Web, API, and MCP read the same packet | built-unproven | The shared storage path exists in code. Not exercised with a live packet ID. |
-
-## MCP
-
-| Capability | Status | Evidence or gate |
-|---|---|---|
-| Authenticated MCP endpoint | exercised | Handshake completes and negotiates protocol version `2025-11-25`. |
-| Tool surface and scope gating | exercised, with a gap | Fourteen tools are registered. A read plus propose token is offered 13; `queueproof_sync_connector` requires `queueproof:sync`. Gating happens at registration, so an out-of-scope tool is never listed. Gap: the static fallback credential (`QUEUEPROOF_MCP_TOKEN` plus `QUEUEPROOF_MCP_WORKSPACE_ID`) authenticates without a stored token row and keeps the default full scope set, so scope narrowing applies to app-issued tokens only. |
-| MCP resources for absent tables | known defect | The server registers `queueproof-skills` and `queueproof-policies` resources whose tables are neither in the read allowlist nor created by the schema, so reading either throws. An agent listing resources sees two capabilities this matrix lists as not-built. A third, `queueproof-changes`, does resolve, but only as an alias for `queue_snapshots`; it is not a change ledger. |
-| Idempotent action proposal | exercised | `queueproof_propose_action` called twice with the same `idempotencyKey` returned the same `proposalId` rather than creating a second proposal. |
-| MCP token lifecycle | built-unproven | Tokens are shown once, stored only as a hash, and carry an audience, expiry, and scopes. Token authentication was exercised; the browser create and revoke flow was not separately exercised. |
-| Agent completion report | built-unproven | `queueproof_report_execution_result` records an event and never performs a provider write. Gate: a live agent call. |
-| OAuth 2.1 authorisation server | not-built | Not claimed. MCP uses bearer tokens. |
-
-## Connectors and evidence
-
-There is no Linear, Slack, or Gmail *integration* in this repository: no provider client,
-no auth flow, no API call. The connector layer is provider-agnostic and expects providers
-to arrive from the HydraDB runtime catalogue. Grepping the tree for those names returns
-exactly four kinds of hit, none of which contacts a provider: a query-mode keyword regex
-in `packages/retrieval`, a generic-title stop-word regex in `lib/server/queue.ts`, UI
-empty-state copy offering them as catalogue examples, and query strings in the routing
-fixtures under `evals/fixtures/cases.json` and `tests/retrieval.test.ts`.
-
-**No connector has ever been run live, and no provider write has ever been executed.**
-
-| Capability | Status | Gate |
-|---|---|---|
-| HydraDB catalogue and contract hydration | blocked-credentials | HydraDB API key |
-| Database list and create | blocked-credentials | HydraDB account |
-| Dynamic credential fields and account scope | blocked-credentials | Provider contract |
-| Resource discovery | blocked-credentials | Provider authorisation |
-| Scoped configure and initial backfill | blocked-credentials | Live resources |
-| Connector proof reaching `data_verified` | blocked-credentials | A completed live sync plus a canary retrieval |
-| Slack | blocked-credentials | Slack authorisation. No Slack integration exists. |
-| Gmail | blocked-credentials | Gmail authorisation. No Gmail integration exists. |
-| Linear | blocked-credentials | Linear authorisation. No Linear integration exists. |
-| Cross-source Ask with citations | blocked-credentials | Two or more live sources |
-
-## Not built
-
-| Capability | Status | Note |
-|---|---|---|
-| Document and PDF upload, HydraDB ingestion | not-built | No upload code. `scripts/generate-large-pdf.mjs` is a two line stub that generates nothing. |
-| Evaluation lab, accuracy, latency, cost | not-built | `scripts/run-evals.mjs` is seven lines and reports the length of a fixture array. No quality figure is produced anywhere in this repository. |
-| Memory and learning | not-built | |
-| Skills runtime | not-built | |
-| Decision replay | not-built | |
-| Execution leases | not-built | |
-| Change-ledger diffing | not-built | |
-| Provider write executor | not-built | By design: the system proposes and records, and stops at the approval gate. |
-| R2 upload staging | not-built | The `FILES` binding is declared and readiness checks it, but nothing writes to it. |
-
-## Not assessed
-
-| Item | Note |
-|---|---|
-| Responsive and accessibility sweep | Not exercised in this pass. Do not claim device or accessibility coverage. |
-| Second hosted deployment | The previously advertised `queueproof-control-plane.vaibhav09908.chatgpt.site` returns 401 and is not usable by a judge. It is no longer referenced. <https://queueproof.vercel.app> is the only deployment claimed. |
-
-## Definition-of-done blocker
-
-The single blocker is unchanged: without a HydraDB API key and provider authorisation,
-this repository cannot honestly claim a working connector, a live cross-source answer, or
-any measured quality figure. That gate is stated plainly rather than papered over with
-fixtures. Everything outside that gate, storage, authentication, the MCP surface, the
-ranking policy, and the honest empty state, is exercised and checkable on a laptop.
+Two connectors, Slack and Gmail, and the real Linear write are blocked on the owner's own
+provider logins, not on unwritten code. They are marked blocked-on-credentials above and
+must not be described as complete anywhere in the submission. Everything marked
+verified-live was run against <https://queueproof.vercel.app> and observed.

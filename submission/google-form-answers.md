@@ -1,4 +1,9 @@
-# Submission form answers
+# Submission form answers (SUPERSEDED, do not paste)
+
+> **Superseded by `submission/form-answers.md`.** This file was written before the live
+> deployment was configured and is now factually wrong in several places: it claims the
+> readiness endpoint returns 503, that no repository exists, that no upload code exists,
+> and that no connector has been run. All four are out of date. Use `form-answers.md`.
 
 Filled sections are true as written. Sections marked **PENDING** must not be submitted
 until the underlying operation has actually succeeded.

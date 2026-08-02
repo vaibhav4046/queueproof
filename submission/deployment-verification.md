@@ -1,4 +1,9 @@
-# Deployment verification
+# Deployment verification (SUPERSEDED)
+
+> **Historical record from 2026-07-31, retained for provenance only.** It predates the
+> configured deployment and reports `/api/health/ready` as 503 with no storage bound, plus
+> a 67-test count. Current verified state is in `BENCHMARK_REPORT.md` and
+> `submission/requirements-matrix.md`. Do not quote this file in the submission.
 
 Status: deployed and smoke-tested on 2026-07-31.
 

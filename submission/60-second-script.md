@@ -1,119 +1,125 @@
 # Sixty-second demo script
 
-Every beat below can be performed today, on a laptop, with no HydraDB account and no
-provider authorisation. Nothing here requires a connector to have run.
+Every beat below has been performed against live production at
+<https://queueproof.vercel.app> with a real Turso database, a real HydraDB credential, and
+a real Linear connector. Nothing here is staged with fixtures.
 
-Beats that need credentials are listed separately at the bottom and are **not** part of
-this recording. Do not stage them with fixtures.
+Beats that need Slack or Gmail are listed at the bottom under **requires connector setup**
+and are deliberately not in the recording.
 
-## Setup before recording
+## Before you record
 
-```bash
-npm install
-# .env.local
-#   QUEUEPROOF_ENCRYPTION_KEY=<32 random bytes, base64>
-#   QUEUEPROOF_ALLOW_LOCAL_IDENTITY=true
-npm run dev
-```
+Have three things open:
 
-The dev server takes the next free port if 3000 is busy and prints the one it chose, and
-on some Windows setups it binds IPv6 loopback only. Confirm the real port before
-recording and substitute it everywhere below, using `http://[::1]:<port>` if `localhost`
-refuses the connection. A failed curl mid-take is the one avoidable way to lose this
-recording.
+1. A browser on <https://queueproof.vercel.app>, already signed in, on the **Command** tab.
+2. A terminal.
+3. A second browser tab on the **Sources** tab, so you can cut to it without navigating.
 
-Have four things open: the local app, a terminal, an MCP client pointed at the local
-`/mcp`, and a browser tab on <https://queueproof.vercel.app>.
+Warm the app once before the take so the first request is not a cold start.
 
 ## The script
 
-**0 to 8s. The problem.**
-Open the local app on an empty queue.
+### 0 to 8 seconds. The problem.
 
-Be aware before framing this shot: the empty-state copy reads "Connect Slack, Gmail,
-Linear, or another HydraDB provider". Those are catalogue examples, not integrations, and
-none is connected. Either keep that copy out of frame or say plainly that nothing is
-connected yet. Never let it imply a working integration.
+Open on the **Command** tab with the queue already generated.
 
-> "Your agents can already execute. They cannot tell you which piece of work deserves
-> execution next, or defend the answer afterwards. That is the layer QueueProof builds."
+> "Agents can execute. What they cannot do is defend which piece of work deserves
+> execution next. QueueProof compiles that decision from real evidence, and writes down
+> why."
 
-**8 to 18s. Refusing to fake it.**
-Switch to the live Vercel tab. It shows the setup screen naming the environment variables
-it needs. Run in the terminal:
+### 8 to 18 seconds. Real evidence, not a demo fixture.
 
-```bash
-curl -i https://queueproof.vercel.app/api/health/ready
-```
+Cut to **Sources**. Show the HydraDB credential fingerprint `503f442f560614fc`, configured
+through the product UI and encrypted at rest. Show the provider catalogue: 61 real
+providers with their real credential schemas, loaded live. Show the Linear connector
+sitting at stage `data_verified`.
 
-Show `503` and `{"databaseBinding":false,"uploadBinding":false,"encryptionKey":false}`.
+> "HydraDB is configured through the product, credential encrypted at rest. Sixty-one
+> providers load live with their real credential schemas. The Linear connector was
+> created, discovered, configured, synced and verified entirely through this UI. It only
+> shows verified once a canary query pulls back objects that actually came from Linear:
+> five of them, from a real team called Helios Robotics."
 
-> "This deployment has no database bound. It says so, precisely, instead of rendering a
-> dashboard of invented numbers. When QueueProof has no evidence, it returns an empty
-> state."
-
-Narrate only that. Do **not** say or imply that setting the variables would flip this
-endpoint to ready: `uploadBinding` is a Cloudflare R2 binding that the Vercel runtime
-cannot provide, so readiness stays 503 there by construction. That is a known defect,
-recorded in `ARCHITECTURE.md`. If a judge asks, say so directly.
-
-**18 to 30s. The security boundary.**
-Back to the terminal, against the local server:
+Optional terminal cut if you want a hard proof frame:
 
 ```bash
-curl -i localhost:3000/api/health/ready     # 200 ready, all three checks true
+curl -s https://queueproof.vercel.app/api/health/ready
 ```
 
-Then run the session attack set and show the wall of `401`s, all nine: spoofed
-`oai-authenticated-user-email` header; `Host: localhost.attacker.example`;
-`Host: localhost` reading `/api/mcp-tokens`; no credentials; wrong access token; garbage
-signature; payload swapped to another email with the signature kept; unsigned payload;
-correctly signed but expired. Then a valid session cookie returning `200`.
+Returns 200 and ready. Storage is Turso, EU West.
 
-> "Sessions are HMAC-signed httpOnly cookies. Nine attack variants, nine 401s. Identity
-> is never taken from a header a caller controls."
+### 18 to 30 seconds. Cross-source retrieval.
 
-**30 to 44s. The agent path, and why proposing is not executing.**
-Switch to the MCP client. Show the handshake completing on protocol `2025-11-25`, then
-the tool list: 13 tools for a read plus propose token. Point at the scope split.
+Cut to **Ask**. Run the query that returns ten sources.
 
-Call `queueproof_propose_action` twice with the same `idempotencyKey`.
+> "One question, ten sources. Six are documents I uploaded through the product, ingested
+> into HydraDB and polled through graph creation to `indexed`. Four are live Linear
+> tickets: HEL-4, 5, 6 and 7. That is a single answer built across two different kinds of
+> source."
 
-> "Same key, same proposal ID. An agent that retries does not create a second action.
-> And propose is not execute: QueueProof records the exact payload and its evidence, then
-> stops at the approval gate. No provider write has ever been executed by this system,
-> and there is no executor to do it."
+### 30 to 44 seconds. The Decision Receipt.
 
-**44 to 54s. Determinism.**
-Show `packages/ranking` on screen, then run:
+Back to **Command**. Open the packet for the top item.
 
-```bash
-npm test
-```
+> "AuthShield authentication outage for Northwind, score 77. Second is a billing migration
+> deadline at 47. The packet carries evidence receipts with real Linear citations, a
+> receipt hash, and a why-above-number-two block computed from the differences between
+> score components. Not a summary of the decision. The arithmetic of it."
 
-Show `90 passed (90)`.
+Point at the component deltas as you say the last sentence.
 
-> "Ranking is a pure function. Nine components, explicit penalties, clamped to a hundred,
-> and every result carries its policy version and a written explanation. The same
-> evidence always produces the same answer, and you can diff it when the policy changes."
+### 44 to 54 seconds. Why the receipt matters.
 
-**54 to 60s. Close.**
+Stay on the why-above block.
 
-> "QueueProof is the part that has to be trustworthy before autonomy is safe: a
-> defensible next action, with receipts, and an honest empty state when there is nothing
-> to defend."
+> "This is not decoration. A ticket that read 'No customer impact' scored plus nine for
+> customer consequence and ranked second. The ranking signals were negation-blind. Nobody
+> would have caught that from the score alone. It was caught because the receipt explains
+> itself in component deltas, and plus nine on that ticket was obviously wrong. That is one
+> of seven bugs found by testing against live services rather than mocks."
 
-## Not in this recording
+If you have a second to spare, name a second bug: HydraDB nests the source id one level
+deeper than expected, so every upload returned a null id and was untrackable until it was
+fixed.
 
-These require a HydraDB API key and provider authorisation before they can be shown.
-They are written but have never been run against a live account, so they must not be
-demonstrated, narrated as working, or simulated with fixtures:
+### 54 to 60 seconds. Close.
 
-- Connector create, resource discovery, scoped configure, backfill, sync, and
-  canary verification reaching `data_verified`.
-- Any Linear, Slack, or Gmail specific behaviour. There is no provider integration in the
-  repository: no client, no auth flow, no API call.
-- Cross-source Ask with real citations and a live retrieval trace.
-- A queue or Execution Packet built from real provider evidence.
-- Any accuracy, latency, or cost figure. No such measurement exists in this repository.
-- Document or PDF upload and ingestion. No upload code exists.
+> "Thirty-nine ground-truth cases, fifteen categories, router accuracy measured at
+> 74.4 per cent. Not rounded up, not estimated. Where a number is not measured, the report
+> says not measured. QueueProof is the layer that has to be trustworthy before autonomy is
+> safe."
+
+## Alternative beat: the security boundary
+
+Swap this in for 18 to 30 seconds if the audience is security-minded. It is fully
+performable against live production.
+
+Run the session attack set and show the wall of 401s, all nine: spoofed identity header,
+Host-prefix bypass, no credentials, wrong token, garbage signature, payload swapped with
+the signature kept, unsigned payload, expired but correctly signed, and unauthenticated
+route access. Then a valid session cookie returning 200.
+
+> "Sessions are HMAC-signed httpOnly cookies. Nine attack variants, nine 401s. Identity is
+> never read from a header the caller controls."
+
+## Requires connector setup, not in this recording
+
+Do not demonstrate, narrate as working, or simulate any of these:
+
+- **Slack and Gmail connectors. Requires connector setup.** Both appear in the
+  61-provider catalogue with real credential schemas, but neither is connected, because
+  connecting them needs the owner's own Slack and Gmail logins.
+- **Linear write execution.** The approval-gated propose path is built and unit-tested
+  against an injected fetch. No real Linear issue has been created through it. Do not imply
+  that approving a proposal writes to Linear today.
+- **MCP receipt-hash parity against an external client.** The receipt hash is computed and
+  persisted, but no external MCP client has fetched the same receipt, so do not claim
+  cross-client parity on camera.
+- **The 346-page PDF.** It is generated deterministically (958,096 bytes, SHA-256
+  `c047a3d09c45ecf97e3ed8e2115eda08ea0f6152206237955030f4304fa2ed93`, 22 planted
+  ground-truth facts) but it has not been ingested into HydraDB. Show it as an artefact if
+  you want, never as an indexed source.
+- **Citation precision, citation recall, latency percentiles, HydraDB call counts and
+  cost.** None of these is measured. Do not quote a figure for any of them.
+- **Memory, skills runtime, decision replay, execution leases, change-ledger diffing.**
+  Not implemented. Do not gesture at them as coming soon during the take.

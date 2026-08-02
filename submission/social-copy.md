@@ -1,4 +1,9 @@
-# Social copy
+# Social copy (SUPERSEDED, needs rewrite before posting)
+
+> Written before the live runs. It says "the current build intentionally shows an honest
+> disconnected state", which is no longer accurate, and it implies Slack and Gmail
+> connectivity that does not exist. Rewrite from `submission/judge-one-pager.md` before
+> posting anything.
 
 ## LinkedIn
 
