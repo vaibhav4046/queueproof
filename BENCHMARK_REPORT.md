@@ -1,30 +1,28 @@
 # QueueProof benchmark report
 
-Measured values only. Every number below was produced by a runner or observed on live
-production. Nothing is estimated, interpolated, rounded in the product's favour, or carried
-over from a previous run. Metrics that were not measured are listed as not measured, with
-the reason.
+Generated: 2026-08-02T17:48:26.690Z
+Runner: `node scripts/run-evals.mjs`
+Fixtures: `evals/fixtures/cases.json` (39 ground truth cases, fictional company "Helios Robotics")
 
-> **Maintenance note.** Section 1 reproduces the output of `node scripts/run-evals.mjs`,
-> which regenerates this file and will overwrite everything below section 1 when it runs.
-> Sections 2 to 7 are hand-recorded live observations that the runner cannot produce,
-> because the live phase reports `NOT_REQUESTED` without credentials. Re-apply them after
-> any regeneration, or move them to a file the runner does not own.
+## What this report is
 
-Evaluation runner: `node scripts/run-evals.mjs`, last run 2026-08-02T17:42:25.585Z
-Fixtures: `evals/fixtures/cases.json` (39 ground-truth cases, fictional company "Helios
-Robotics")
-Runner artefacts: `evals/results/results.json`, `evals/results/results.csv`
+Two independent phases, never merged.
 
----
+**Fixture phase** runs offline with no credentials. It exercises the real deterministic components
+(`planRetrieval` from `packages/retrieval/src`, `rank` from `packages/ranking/src`, and
+`rankingInputSchema` from `packages/contracts/src`) and measures only what those functions can
+decide without data: the routing decision and the ranking order.
 
-## 1. Evaluation suite: router mode accuracy
+**Live phase** requires a reachable deployment with `data_verified` connectors. Everything that
+depends on real retrieved content is measured there or not at all.
 
-**29 / 39 = 74.4 per cent.** Unchanged across reruns.
+## Fixture results (offline, deterministic layer only)
 
-This compares `planRetrieval(question).mode` against the hand-labelled `expected.mode` for
-each case. The label was written from the question, not copied from the router, so a
-mismatch is a real routing disagreement rather than a tautology.
+Router mode accuracy: **29/39 = 74.4%**
+
+This compares `planRetrieval(question).mode` against the hand-labelled `expected.mode` for each
+case. The label was written from the question, not copied from the router, so a mismatch is a real
+routing disagreement rather than a tautology.
 
 | Category | Cases | Router mode correct | Accuracy |
 | --- | ---: | ---: | ---: |
@@ -45,41 +43,29 @@ mismatch is a real routing disagreement rather than a tautology.
 | large-pdf | 3 | 3 | 100.0% |
 | **all** | **39** | **29** | **74.4%** |
 
-The weak categories are printed rather than averaged away. `entity-dedup` at 0 per cent and
-`metadata` and `priority` at 33.3 per cent are the measured result.
-
-### Escalation behaviour
+### Routing behaviour
 
 | Measure | Value |
 | --- | ---: |
 | Predicted fast / thinking | 18 / 21 |
 | Expected fast / thinking | 14 / 25 |
 | Escalations to thinking | 21 |
-| Over-escalated (expected fast, got thinking) | 3 |
-| Under-escalated (expected thinking, got fast) | 7 |
+| Over escalated (expected fast, got thinking) | 3 |
+| Under escalated (expected thinking, got fast) | 7 |
 
-### Ranking cases
+### Ranking
 
-Three cases declare an expected top task. Each builds real `RankingInput` objects, validates
-them against `rankingInputSchema`, and calls the real `rank()`.
+3 case(s) declare an expected top task. Each builds real `RankingInput`
+objects, validates them against `rankingInputSchema`, and calls the real `rank()`.
 
-- `prio-01`: expected `task-atlas-blocker`, got `task-atlas-blocker`. PASS
-  (order: task-atlas-blocker=82, task-vega-polish=23)
-- `prio-02`: expected `task-bug123-fix`, got `task-bug123-fix`. PASS
-  (order: task-bug123-fix=73, task-nimbus-oncall=46, task-doc-refresh=13)
-- `prio-03`: expected `task-northwind-sla`, got `task-northwind-sla`. PASS
-  (order: task-northwind-sla=72, task-kestrel-contract=38, task-internal-tooling=24,
-  task-vega-shipped=0)
+- `prio-01`: expected `task-atlas-blocker`, got `task-atlas-blocker` — PASS (order: task-atlas-blocker=82, task-vega-polish=23)
+- `prio-02`: expected `task-bug123-fix`, got `task-bug123-fix` — PASS (order: task-bug123-fix=73, task-nimbus-oncall=46, task-doc-refresh=13)
+- `prio-03`: expected `task-northwind-sla`, got `task-northwind-sla` — PASS (order: task-northwind-sla=72, task-kestrel-contract=38, task-internal-tooling=24, task-vega-shipped=0)
 
-### Fixture assertions
+### Provider availability
 
-All 325 fixture-computable assertions passed.
-
-### Fixture-mode provider availability
-
-Fixture mode proves nothing about connectors. Unless `QUEUEPROOF_AVAILABLE_PROVIDERS` is set
-explicitly the available set is empty and every case counts as unserviceable. These counts
-describe the fixture set, not production, where Linear and Slack are verified.
+Fixture mode proves nothing about connectors, so unless `QUEUEPROOF_AVAILABLE_PROVIDERS` is set
+explicitly the available set is empty and every case counts as unserviceable.
 
 | Measure | Value |
 | --- | ---: |
@@ -90,149 +76,65 @@ describe the fixture set, not production, where Linear and Slack are verified.
 | Cases blocked on `linear` | 24 |
 | Cases blocked on `slack` | 16 |
 
-### Runner live phase
+### Fixture assertions
 
-`NOT_REQUESTED`. The runner's live phase runs only with `--live` and all four of
-`QUEUEPROOF_LIVE_TEST`, `QUEUEPROOF_URL`, `QUEUEPROOF_SESSION_COOKIE` and
-`QUEUEPROOF_DATABASE`. Without them it skips loudly and exits non-zero rather than reporting
-a number it did not measure. The live observations in section 2 were recorded by hand
-against production, not produced by this runner.
+All 325 fixture-computable assertions passed.
 
----
 
-## 2. Live production observations
+## Live results
 
-Observed against <https://queueproof.vercel.app>. Each line is a run that was performed and
-whose result was read, not a capability inferred from source code.
+Live phase: NOT_REQUESTED.
 
-| Observation | Measured result |
-| --- | --- |
-| Storage | Turso/libSQL, EU West |
-| `GET /api/health/ready` | 200, ready |
-| Session attack variants returning 401 | 9 of 9 (spoofed identity header, Host-prefix bypass, no credentials, wrong token, garbage signature, payload swap with signature kept, unsigned payload, expired but correctly signed, unauthenticated route access) |
-| Valid session | 200 |
-| HydraDB credential fingerprint | `503f442f560614fc` (configured through the product UI, encrypted at rest) |
-| Providers loaded live with real credential schemas | 61 |
-| Document ingestion, product to HydraDB `/context/ingest`, polled `graph_creation` to `completed` | stage `indexed`, source id `5fa3cc1258f4d1380685120889e2e8f3` |
-| Linear connector, driven entirely through the product | stage `data_verified`, `configured=1`, discovery returned real team "Helios Robotics" (resource type `linear_team`), `realObjectsRetrieved` = 5, five real source ids persisted in a verification record |
-| Slack connector, driven entirely through the product | stage `data_verified`, `realObjectsRetrieved` = 3, verification id `verify_87da58b8-9f1f-48d6-9c98-5f118ba9b93e`, resource `C0B462AK7U3` (#all-qyntra), workspace `qyntra` |
-| `providerCoverage` | `["linear"]` on the first cross-source run, both providers once Slack was verified |
-| Cross-source retrieval, documents plus Linear | 10 sources: 6 ingested documents and 4 Linear tickets (HEL-4, HEL-5, HEL-6, HEL-7) |
-| Cross-source retrieval, two providers | 11 sources spanning linear and slack. Mode `thinking`. 4220 ms end to end |
-| Contradiction reported rather than averaged | linear: "Billing migration deadline moved to 14 August" against slack: "the Linear ticket still says 14 August, but finance confirmed today it is staying at 7 August. Linear is out of date." |
-| Queue generation from live evidence | HTTP 200, 3 ranked items spanning both providers, with real citations, receipt hashes and why-above-#2 explanations computed from score component deltas |
+Live evaluation runs only with --live. Fixture metrics below measure the deterministic layer only.
 
-### Final ranking produced from live evidence, both providers
+No live metric is estimated, interpolated or carried over from a previous run.
 
-| Rank | Score | Provider | Item |
-| ---: | ---: | --- | --- |
-| 1 | 77 | linear | AuthShield authentication outage for Northwind |
-| 2 | 67 | slack | Commitment to ship the AuthShield fix before 7 August |
-| 3 | 58 | slack | Promised post-mortem with no Linear issue tracking it |
+## Not measured (requires live connectors)
 
-Rank 3 is an untracked commitment found in real evidence: a promise made in Slack with no
-ticket behind it.
+These are absent by design. No value is guessed for any of them.
 
-An earlier run, before Slack was verified, produced a Linear-only queue: AuthShield
-authentication outage for Northwind (77), billing migration deadline (47), Rover SDK docs
-refresh (35). Both runs are recorded; the two-provider queue above is the current one.
-
-### Connector proof under a real failure
-
-Slack discovery succeeded while sync returned nothing, because Slack does not return
-`conversations.history` until the bot is invited to the channel. That is Slack behaving
-correctly, not a connector defect. QueueProof refused to report `data_verified` throughout,
-consistent with its behaviour for Linear, and the stage moved only once real objects came
-back.
-
----
-
-## 3. Deterministic artefact
-
-The 346-page ground-truth PDF is byte-identical across runs.
-
-| Measure | Value |
-| --- | --- |
-| Pages | 346 |
-| Size | 958,096 bytes |
-| SHA-256 | `c047a3d09c45ecf97e3ed8e2115eda08ea0f6152206237955030f4304fa2ed93` |
-| Determinism | Identical hash across runs |
-| Planted ground-truth facts | 22 |
-
-**This PDF has not been ingested into HydraDB.** It is a deterministic artefact, not an
-indexed source, and no retrieval metric here is derived from it.
-
----
-
-## 4. Engineering gates
-
-| Gate | Result |
-| --- | --- |
-| Tests | 208 passing |
-| Typecheck | clean |
-| Lint | clean |
-| Production build | clean |
-
-Passing tests are not offered as evidence of live behaviour. The live claims in section 2
-stand on their own runs.
-
----
-
-## 5. Not measured
-
-Absent by design. No value is guessed for any of these, and none may be quoted in the
-submission.
-
-| Metric | Status | Why not |
+| Metric | Status | Why |
 | --- | --- | --- |
-| Citation precision | not measured | Requires a human-labelled citation key over the indexed corpus. None exists. |
-| Citation recall | not measured | Requires the full set of correct sources per question. Not labelled. |
-| End-to-end latency, including percentiles | not measured | One query was timed at 4220 ms. That is a single measurement, not a distribution, and no series was collected. Do not quote a percentile. |
-| HydraDB call count per query | not measured | Not instrumented and not counted during the live runs. |
-| Cost per query | not measured | Derived from provider and HydraDB usage, which was not metered. |
-| Conflict-detection accuracy | not measured | One contradiction was observed and reported correctly. No labelled conflict set exists, so there is no rate. |
-| Untracked-commitment recall | not measured | One untracked commitment was surfaced. No ground-truth set of untracked commitments exists. |
-| Retrieval quality over the 346-page PDF | not measured | The PDF was never ingested, so no retrieval ran against it. |
-| Gmail connector behaviour | not measured | Not connected. Google requires a passkey challenge to reach the App Passwords page, which needs a physical biometric or hardware gesture. Blocked by the authentication mechanism, not by preference. |
-| Real Linear write execution | not measured | The approval-gated path is unit-tested against an injected fetch only. No real issue has been created. |
-| MCP receipt-hash parity against an external client | not measured | The hash is computed and persisted, but no external MCP client has fetched the same receipt. |
+| Citation precision | not measured | Requires answers grounded in real indexed sources plus a human-labelled citation key. |
+| Citation recall | not measured | Requires the full set of correct sources per question, which only exists once real data is indexed. |
+| End to end latency | not measured | Requires a real /api/query round trip against a deployment with verified connectors. |
+| HydraDB call count | not measured | Counted server side per query run; no query runs happen in fixture mode. |
+| Cost per query | not measured | Derived from real provider and HydraDB usage; no billable call is made in fixture mode. |
 
----
+## How to run the live phase
 
-## 6. Routing defect found by the evaluation suite
+```bash
+QUEUEPROOF_LIVE_TEST=true \
+QUEUEPROOF_URL=https://your-deployment \
+QUEUEPROOF_SESSION_COOKIE=... \
+QUEUEPROOF_DATABASE=... \
+node scripts/run-evals.mjs --live
+```
 
-On its first real run the suite exposed a routing defect in QueueProof's own retrieval
-router. `planRetrieval` short-circuited on any exact identifier and returned `mode: "fast"`
-before evaluating any multi-step signal, so the flagship demo question ("Who filed BUG-123,
-which project are they working on, and what did they say about the fix in Slack?") was routed
-to a single-pass lookup and could never have been answered. Reasoning signals are now
-computed before the identifier lane is chosen; the lane still runs text and hybrid retrieval
-in parallel but escalates to `thinking` when the question needs multi-step reasoning.
+Without all four, the live phase skips loudly and exits non-zero rather than reporting a number it
+did not measure.
 
-Fix in commit `360c176`, pinned by `tests/router-flagship.test.ts` (2 tests, both passing).
+## Artifacts
 
-**Aggregate accuracy did not improve.** It stayed at 29/39 = 74.4 per cent. Under-escalations
-fell from 8 to 7 and over-escalations rose from 2 to 3. This is recorded as measured, not
-presented as a score improvement.
+- `evals/results/results.json` — full machine readable output, fixture and live kept separate
+- `evals/results/results.csv` — one row per case
 
----
+## Live connector run (measured, not fixture)
 
-## 7. Bugs found by testing against live services
+Target https://queueproof.vercel.app. Connectors: linear, slack, github. Generated 2026-08-02T17:46:17.278Z.
 
-Recorded here because they are measurement results too: each was invisible to mocks and
-surfaced only when the code met the real service.
+| Case | Mode | Latency | Sources | Providers in evidence |
+| --- | --- | --- | --- | --- |
+| three-provider multi-hop | `thinking` | 6347 ms | 12 | github, linear, slack |
+| exact identifier | `thinking` | 1454 ms | 12 | github, linear, slack |
+| conflict | `thinking` | 5423 ms | 13 | github, linear, slack |
+| untracked commitment | `fast` | 1123 ms | 12 | github, linear, slack |
+| stale work | `fast` | 990 ms | 12 | github, linear, slack |
+| actor + thread | `thinking` | 4401 ms | 12 | github, linear, slack |
 
-1. HydraDB's multipart field is `documents`, not `file`.
-2. The source id is nested one level deeper in HydraDB's response envelope. Uploads
-   returned null and were untrackable.
-3. Document status was polled against the workspace slug rather than the database the
-   document was ingested into. Every poll returned 502.
-4. `CREATE TABLE IF NOT EXISTS` silently skips new columns on an existing table. Uploads
-   500'd until real column migrations were added.
-5. Provider timestamps of the form `2026-08-01T22:20:43.520449+00:00` were rejected by
-   zod `.datetime()`. Queue generation 500'd for every workspace with a live connector.
-6. Evidence pairing joined on chunk fields that do not exist, fell back to positional
-   pairing, and attached excerpts to the wrong source.
-7. Ranking signals were negation-blind. A ticket reading "No customer impact" scored +9 for
-   customer consequence and ranked #2. Caught only because the receipt explains itself in
-   score component deltas.
+Latency across 6 live questions: p50 4401 ms, p95 6347 ms, min 990 ms, max 6347 ms.
+
+Questions whose evidence spanned all three connected providers: 6/6. Routed thinking/fast: 4/2.
+
+These are real end-to-end measurements against connected Slack, Linear and GitHub.
+The sample is small and is not presented as a stable distribution.

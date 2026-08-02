@@ -26,7 +26,7 @@
  *   node scripts/run-evals.mjs
  *   node scripts/run-evals.mjs --live
  */
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, readFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -528,7 +528,46 @@ did not measure.
 await mkdir(RESULTS_DIR, { recursive: true });
 await writeFile(new URL("results.json", RESULTS_DIR), `${JSON.stringify(results, null, 2)}\n`);
 await writeFile(new URL("results.csv", RESULTS_DIR), `${toCsv(csvRows)}\n`);
-await writeFile(repoUrl("BENCHMARK_REPORT.md"), report);
+// Live-connector results come from a separate run against production, stored in
+// evals/results/live-run.json. They are APPENDED on every regeneration rather than
+// hand-edited into the report, because this file is rewritten wholesale each run and
+// any manual section would be silently destroyed the next time evals are run.
+let liveRunSection = "";
+try {
+  const live = JSON.parse(await readFile(new URL("live-run.json", RESULTS_DIR), "utf8"));
+  const rows = (live.rows || [])
+    .map((r) =>
+      "| " + r.label + " | `" + r.mode + "` | " + r.latencyMs + " ms | " + r.sources +
+      " | " + (r.providers || []).join(", ") + " |")
+    .join("\n");
+  liveRunSection = [
+    "",
+    "## Live connector run (measured, not fixture)",
+    "",
+    "Target " + live.target + ". Connectors: " + (live.connectors || []).join(", ") +
+      ". Generated " + live.generatedAt + ".",
+    "",
+    "| Case | Mode | Latency | Sources | Providers in evidence |",
+    "| --- | --- | --- | --- | --- |",
+    rows,
+    "",
+    "Latency across " + live.cases + " live questions: p50 " + live.latencyMs.p50 +
+      " ms, p95 " + live.latencyMs.p95 + " ms, min " + live.latencyMs.min +
+      " ms, max " + live.latencyMs.max + " ms.",
+    "",
+    "Questions whose evidence spanned all three connected providers: " +
+      live.allThreeProviders + "/" + live.cases + ". Routed thinking/fast: " +
+      live.thinking + "/" + live.fast + ".",
+    "",
+    "These are real end-to-end measurements against connected Slack, Linear and GitHub.",
+    "The sample is small and is not presented as a stable distribution.",
+    "",
+  ].join("\n");
+} catch {
+  liveRunSection = "\n## Live connector run\n\nNot present. Run the live measurement to produce evals/results/live-run.json.\n";
+}
+
+await writeFile(repoUrl("BENCHMARK_REPORT.md"), report + liveRunSection);
 
 // ---------------------------------------------------------------------------
 // Console summary
