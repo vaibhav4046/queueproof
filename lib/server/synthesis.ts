@@ -141,7 +141,11 @@ function valuePatternsForQuestion(question: string): RegExp[] {
   const date = new RegExp(`\\b\\d{1,2}\\s+${months}\\s+\\d{4}\\b`, "gi");
   const version = /\b[A-Z][A-Za-z]*\s+SDK\s+\d+(?:\.\d+)+\b/gi;
 
-  if (anchored && /\b(release|released|fixed in|fix was|merged on|merged|ratified|when was|when did|shipped)\b/i.test(question)) {
+  // Date/version/release windows are the most likely to surface marginal text,
+  // so they additionally require an exact record identifier (BUG-123, PR-8871)
+  // in the question rather than any capitalised word.
+  if (anchored && /\b[A-Z][A-Z0-9]+-\d+\b/.test(question) &&
+      /\b(release|released|fixed in|fix was|merged on|merged|ratified|when was|when did|shipped)\b/i.test(question)) {
     patterns.push(date);
     patterns.push(version);
     patterns.push(/\bfixed\s+in\s+[^.!?\n]{0,80}/gi);

@@ -193,7 +193,9 @@ export default function EvidenceOrbit({
       style={{ "--orbit-rx": `${parallax.rx}deg`, "--orbit-ry": `${parallax.ry}deg` } as CSSProperties}
     >
       <div className="orbit-glow" aria-hidden="true" />
-      <div className="orbit-stage" aria-hidden="true">
+      <div className="orbit-stage">
+        {/* Only the decorative canvas is hidden from assistive tech; the source
+            node buttons, core label and action card below stay in the a11y tree. */}
         <svg
           className="orbit-svg"
           viewBox="0 0 1440 470"
@@ -273,6 +275,8 @@ export default function EvidenceOrbit({
                 if (element) pulseRefs.current.set(node.provider, element);
               }}
               className="orbit-pulse"
+              cx={node.x}
+              cy={node.y}
               r="4"
               fill={PROVIDER_COLOR[node.provider] ?? "#d7ff48"}
               style={{ opacity: motionAllowed ? 1 : 0 }}
@@ -332,7 +336,7 @@ export default function EvidenceOrbit({
           );
         })}
 
-        {/* Core DOM label */}
+        {/* Core DOM label (decorative duplicate of the status row) */}
         <div className="orbit-core-label" aria-hidden="true">
           <strong>PROOF</strong>
           <small>{stage === "idle" ? "STANDBY" : stage === "insufficient" ? "INSUFFICIENT EVIDENCE" : stage === "verified" ? "ANSWER VALIDATED" : showContradiction ? "CONTRADICTION" : stage.toUpperCase()}</small>

@@ -1199,8 +1199,10 @@ input, select { width: 100%; min-height: 42px; border: 1px solid var(--line); pa
 .evidence-orbit {
   position: relative;
   width: 100%;
-  aspect-ratio: 1440 / 430;
-  max-height: 450px;
+  /* Must match the SVG viewBox (1440x470) so DOM node coordinates align 1:1
+     with the SVG routes and core at every width. */
+  aspect-ratio: 1440 / 470;
+  max-height: 480px;
   isolation: isolate;
   --orbit-rx: 0deg;
   --orbit-ry: 0deg;

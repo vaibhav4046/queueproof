@@ -892,6 +892,7 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
       }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Evidence retrieval failed.");
+      clearOrbitTimers();
       setOrbitStage("idle");
     } finally { runPending.current = false; setBusy(false); }
   }
