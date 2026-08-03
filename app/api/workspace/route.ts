@@ -1,5 +1,5 @@
 import { apiError, noStoreJson, readJson } from "../../../lib/server/api";
-import { requireRequestActor } from "../../../lib/server/identity";
+import { requirePrivateControlActor, requireRequestActor } from "../../../lib/server/identity";
 import { requireDb, runtimeEnv } from "../../../lib/server/runtime";
 import {
   audit,
@@ -33,6 +33,7 @@ export async function POST(request: Request) {
       );
     }
     const actor = await requireRequestActor();
+    requirePrivateControlActor(actor, "Workspace creation");
     const payload = await readJson<{ name?: string }>(request);
     const name = payload.name?.trim() ?? "";
     if (name.length < 2 || name.length > 80) {

@@ -14,6 +14,10 @@ import { sha256 } from "../../packages/security/src";
  */
 
 export const MAX_DOCUMENT_BYTES = 25 * 1024 * 1024;
+// Multipart boundaries, headers and the optional database field need a small allowance
+// beyond the file itself. This cap is intentionally checked from Content-Length before
+// Request.formData() can materialise the entire body in memory.
+export const MAX_DOCUMENT_REQUEST_BYTES = MAX_DOCUMENT_BYTES + 64 * 1024;
 
 export type IngestionStage =
   | "received"

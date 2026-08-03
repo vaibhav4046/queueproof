@@ -22,6 +22,7 @@ async function serve(request: Request) {
   const runtime = runtimeEnv();
   const configuredToken = runtime.QUEUEPROOF_MCP_TOKEN;
   const configuredWorkspaceId = runtime.QUEUEPROOF_MCP_WORKSPACE_ID;
+  const expectedAudience = runtime.QUEUEPROOF_MCP_AUDIENCE?.trim() || "queueproof-mcp";
   if (!runtime.DB && (!configuredToken || !configuredWorkspaceId)) {
     return noStoreJson(
       { error: "Remote MCP authentication is not configured for this deployment." },
@@ -43,9 +44,14 @@ async function serve(request: Request) {
     const row = await requireDb().prepare(
       `SELECT mt.workspace_id AS workspaceId, mt.client_id AS clientId, mt.scopes_json AS scopesJson
        FROM mcp_tokens mt
-       WHERE mt.token_hash = ? AND mt.revoked_at IS NULL AND mt.expires_at > CURRENT_TIMESTAMP
+       WHERE mt.token_hash = ? AND mt.audience = ?
+         AND mt.revoked_at IS NULL AND mt.expires_at > CURRENT_TIMESTAMP
        LIMIT 1`,
-    ).bind(await sha256(token)).first<{ workspaceId: string; clientId: string; scopesJson: string }>();
+    ).bind(await sha256(token), expectedAudience).first<{
+      workspaceId: string;
+      clientId: string;
+      scopesJson: string;
+    }>();
     if (row) {
       workspaceId = row.workspaceId;
       clientId = row.clientId;

@@ -1,11 +1,38 @@
-# Technical deep dive
+# QueueProof technical deep dive
 
-QueueProof’s central invariant is that user-visible confidence can never outrun its evidence.
+QueueProof is organized around one invariant: evidence may inform an action, but it may
+not silently expand authority.
 
-Connector state is a proof protocol, not a Boolean. Credentials submitted, connector created, resources discovered, resources selected, sync requested, and data verified are distinct durable states. Only a provider object with sync evidence plus a canary query containing matching provider sources reaches `data_verified`.
+## Retrieval
 
-Retrieval is planned before HydraDB is called. Exact identifiers use lexical lookup semantics; temporal, conflict, cross-source, and counterfactual questions select thinking mode and graph context. The trace records classification, plan, actual calls, provider coverage, source IDs, latency, and injection screening.
+The deterministic planner chooses fast or thinking mode before calling HydraDB. Exact
+identifiers execute text and hybrid lanes concurrently, then merge/deduplicate their
+sources and chunks. Evidence is accepted only through connector/resource lineage;
+provider-name coincidence is rejected.
 
-Ranking is deterministic. Positive components total 100 possible points; explicit evidence/actionability penalties reduce the result. Completed or cancelled work scores zero. Comparison and counterfactual functions operate on the same versioned policy.
+## Synthesis and evaluation
 
-MCP shares the same D1 workspace and core contracts as the UI. Remote access is bound to a configured workspace rather than a client-supplied workspace ID. Tool annotations distinguish closed-world reads, external reads, sync requests, and action proposals. No current tool claims a provider write executed.
+Answers are grounded, partial, or abstained. Each claim references receipt IDs, and
+multi-part questions declare missing facets. The strict grader requires every fact,
+resolves every citation, checks claim text and provider against the excerpt, and requires
+two cited providers for a labelled contradiction.
+
+## Decision and execution
+
+Conflict-aware clustering keeps disjoint exact IDs separate. A pure ranking policy creates
+an Execution Packet with score math, evidence, constraints, permissions, and a receipt
+hash. Provider writes require an exact proposal, one approval row, and a uniquely claimed
+execution row before provider I/O.
+
+## Trust boundaries
+
+Versioned signed sessions, exact public-workspace selection, encrypted credentials, MCP
+audience enforcement, server-side public control guards, and a forward action-integrity
+migration make the boundaries explicit and testable.
+
+Read the canonical details in:
+
+- [Architecture](../docs/ARCHITECTURE.md)
+- [Security](../docs/SECURITY.md)
+- [Evaluation methodology](../docs/EVALUATION_METHODOLOGY.md)
+- [Large-PDF proof status](../docs/LARGE_PDF_PROOF.md)

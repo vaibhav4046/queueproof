@@ -202,6 +202,55 @@ function contradictions(question: string, claims: GroundedClaim[], evidenceById:
   return result;
 }
 
+type RequestedFacet = {
+  label: string;
+  requestedBy: RegExp;
+  supportedBy: RegExp;
+};
+
+// These are deliberately narrow, observable facets rather than a general language
+// model. They prevent a one-sentence hit from being labelled fully grounded when a
+// compound question explicitly asks for several independent facts.
+const REQUESTED_FACETS: RequestedFacet[] = [
+  {
+    label: "escalation actor",
+    requestedBy: /\bwho\b[^?]{0,100}\bescalat\w*\b|\bwho\s+escalat\w*\b/i,
+    supportedBy: /\b(?:escalat|reported|raised)\w*\b/i,
+  },
+  {
+    label: "engineering commitment",
+    requestedBy: /\b(?:commit|promise)\w*\b/i,
+    supportedBy: /\b(?:commit|promise)\w*\b|\bhard customer commitment\b/i,
+  },
+  {
+    label: "completion state",
+    requestedBy: /\b(?:already\s+)?(?:merged|shipped|resolved|closed)\b|\bis\s+the\s+fix\b/i,
+    supportedBy: /\b(?:merged|shipped|resolved|closed|completed)\b/i,
+  },
+  {
+    label: "date or deadline",
+    requestedBy: /\bwhen\b|\bdue\b|\bdeadline\b/i,
+    supportedBy: /\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})\b/i,
+  },
+  {
+    label: "filing actor",
+    requestedBy: /\bwho\s+filed\b/i,
+    supportedBy: /\bfiled\b/i,
+  },
+  {
+    label: "project association",
+    requestedBy: /\bwhich\s+project\b|\bproject\b[^?]{0,80}\bagainst\b/i,
+    supportedBy: /\b(?:against|project|programme)\b/i,
+  },
+];
+
+function missingRequestedFacets(question: string, claims: GroundedClaim[]) {
+  const supportedCorpus = claims.map((claim) => claim.text).join(" ");
+  return REQUESTED_FACETS
+    .filter((facet) => facet.requestedBy.test(question) && !facet.supportedBy.test(supportedCorpus))
+    .map((facet) => `Insufficient evidence for the requested ${facet.label}.`);
+}
+
 /**
  * Evidence-constrained synthesis: every displayed sentence is copied from a cited source.
  * It deliberately abstains instead of generating connective facts that were not retrieved.
@@ -254,19 +303,27 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
   const evidenceIndex = new Map(citedOrder.map((id, index) => [id, index + 1]));
   const answer = claims.length
     ? claims.map((claim) => `${claim.text} [${evidenceIndex.get(claim.evidenceIds[0])}]`).join(" ")
-    : "No safe supporting evidence was returned. QueueProof will not invent an answer.";
+    : "Insufficient evidence. QueueProof will not invent an answer.";
   const evidenceById = new Map(ranked.map((item) => [item.id, item]));
   const detectedContradictions = contradictions(question, claims, evidenceById);
   const providerCoverage = [...new Set(claims.flatMap((claim) => claim.providers))];
+  const missingInformation = claims.length
+    ? missingRequestedFacets(question, claims)
+    : ["No claim could be supported by the retrieved records."];
+  const validationStatus = claims.length === 0
+    ? "abstained" as const
+    : missingInformation.length > 0
+      ? "partial" as const
+      : "grounded" as const;
 
   return {
     answer,
     evidence: ranked,
     claims,
     contradictions: detectedContradictions,
-    missingInformation: claims.length ? [] : ["No claim could be supported by the retrieved records."],
+    missingInformation,
     validation: {
-      status: claims.length ? "grounded" as const : "abstained" as const,
+      status: validationStatus,
       claimCount: claims.length,
       citedClaimCount: claims.filter((claim) => claim.evidenceIds.length > 0).length,
       evidenceCount: ranked.length,

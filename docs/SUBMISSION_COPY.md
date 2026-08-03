@@ -1,15 +1,57 @@
 # Submission copy
 
-## QueueProof — one answer, every system, proven
+## QueueProof - One answer. Every system. Proven.
 
-QueueProof is an evidence control plane for AI agents built on HydraDB. It connects the same people, projects, incidents and commitments across GitHub, Linear, Slack, Gmail and uploaded documents; retrieves the minimum context needed; preserves contradictions; and produces a grounded answer plus one deterministic, inspectable next-action packet.
+QueueProof is an evidence-backed control plane for autonomous work, built on HydraDB. It
+connects work evidence across GitHub, Linear, Slack, Gmail, and uploaded documents;
+retrieves the minimum context needed; preserves conflicts; and produces a cited answer
+plus a deterministic next-action packet.
 
-Every claim cites a source receipt. Every retrieval exposes mode, routing reason, provider coverage, latency, HydraDB calls and relative cost units. Every priority exposes its six-factor formula, evidence penalties, confidence, deduplicated records and safe next action. Agents receive the identical packet through MCP, but provider writes remain proposal-only until a human approves the exact payload.
+Every claim resolves to a receipt. Every retrieval exposes its routing reason, provider
+coverage, HydraDB calls, and elapsed time. Every queue item exposes the versioned score
+components, evidence, constraints, permissions, missing information, and receipt hash.
+Agents can read the same packet through MCP, while an external write remains an exact
+proposal until a human approves it and the database grants the one execution claim.
 
-The reproducible evaluation includes 39 labelled difficult questions and a deterministic 346-page PDF with 22 planted facts near the beginning, middle and end. QueueProof separately reports fixture routing, production expected-fact recall, citation completeness, unsupported-claim rate, p50/p95 latency, calls and provider coverage—never a blended vanity score.
+HydraDB is the evidence layer, not a logo integration. QueueProof discovers provider
+contracts, scopes connectors, waits for sync, and promotes a connector to `data_verified`
+only after a canary returns attributable records. Exact identifiers run text and hybrid
+retrieval concurrently. Strong connector/resource lineage prevents evidence from being
+credited merely because its provider name matches.
 
-**Live:** https://queueproof.vercel.app
+The current deterministic benchmark passes 39/39 labelled router cases and 331
+assertions. The full release suite passes 274 tests across 29 files, including 13 security
+and 8 MCP tests, plus typecheck, lint, production build, E2E, and deployment checks. The
+interface is verified from 360x800 through 3840x2160 with all six destinations available
+on mobile.
 
-**Replay:** `npm run benchmark:live -- --url https://queueproof.vercel.app`
+The public product is intentionally a shared evidence sandbox. It allows grounded
+questions, queue inspection, and shared proposals, but disables credential changes,
+connector control, uploads, MCP token administration, and external execution. The exact
+public workspace is selected by configuration and ambiguous multi-workspace state fails
+closed.
 
-**Built for:** HydraDB Connectors Hackathon
+**Live product:** <https://queueproof.vercel.app>
+
+**Repository:** <https://github.com/vaibhav4046/queueproof>
+
+**Replay the deterministic benchmark:** `npm run benchmark:router`
+
+## Evidence to quote
+
+- Four last-observed production connectors at `data_verified`: GitHub, Gmail, Linear,
+  and Slack.
+- Flagship production answer with cited GitHub, Linear, and Slack evidence in one thinking
+  query.
+- 39/39 deterministic router cases; 331 assertions.
+- 274 tests across 29 files; 13 security tests; 8 MCP tests.
+- Zero secret-pattern matching files across the complete pre-release history and final
+  release worktree.
+
+## Boundaries to quote with equal prominence
+
+- The stored 21/22 PDF run used the old grader. No fresh strict production PDF score is
+  claimed.
+- The stored six-query live run is a small historical sample, not an SLA.
+- Relative cost units are reported; no HydraDB USD cost is invented.
+- External execution is considered proven only after a provider response ID is persisted.

@@ -411,41 +411,55 @@ export const executionEvents = sqliteTable("execution_events", {
   ...timestamps,
 });
 
-export const actionProposals = sqliteTable("action_proposals", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  provider: text("provider").notNull(),
-  actionType: text("action_type").notNull(),
-  payloadJson: text("payload_json").notNull(),
-  evidenceIdsJson: text("evidence_ids_json").notNull(),
-  riskClass: text("risk_class").notNull(),
-  idempotencyKey: text("idempotency_key").notNull().unique(),
-  status: text("status").notNull().default("proposed"),
-  ...timestamps,
-});
+export const actionProposals = sqliteTable(
+  "action_proposals",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    provider: text("provider").notNull(),
+    actionType: text("action_type").notNull(),
+    payloadJson: text("payload_json").notNull(),
+    evidenceIdsJson: text("evidence_ids_json").notNull().default("[]"),
+    riskClass: text("risk_class").notNull().default("low"),
+    idempotencyKey: text("idempotency_key").notNull(),
+    status: text("status").notNull().default("proposed"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("action_proposals_workspace_idempotency_uq").on(
+      table.workspaceId,
+      table.idempotencyKey,
+    ),
+  ],
+);
 
-export const actionApprovals = sqliteTable("action_approvals", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  proposalId: text("proposal_id").notNull(),
-  approverId: text("approver_id").notNull(),
-  tokenHash: text("token_hash").notNull(),
-  expiresAt: text("expires_at").notNull(),
-  decision: text("decision"),
-  decidedAt: text("decided_at"),
-  ...timestamps,
-});
+export const actionApprovals = sqliteTable(
+  "action_approvals",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    proposalId: text("proposal_id").notNull(),
+    decision: text("decision").notNull(),
+    decidedBy: text("decided_by").notNull(),
+    decidedAt: text("decided_at").notNull(),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [uniqueIndex("action_approvals_proposal_uq").on(table.proposalId)],
+);
 
-export const actionExecutions = sqliteTable("action_executions", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  proposalId: text("proposal_id").notNull(),
-  providerResponseId: text("provider_response_id"),
-  status: text("status").notNull(),
-  resultJson: text("result_json").notNull().default("{}"),
-  compensationJson: text("compensation_json").notNull().default("{}"),
-  ...timestamps,
-});
+export const actionExecutions = sqliteTable(
+  "action_executions",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    proposalId: text("proposal_id").notNull(),
+    status: text("status").notNull().default("pending"),
+    providerResponseId: text("provider_response_id"),
+    error: text("error"),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex("action_executions_proposal_uq").on(table.proposalId)],
+);
 
 export const memories = sqliteTable("memories", {
   id: text("id").primaryKey(),

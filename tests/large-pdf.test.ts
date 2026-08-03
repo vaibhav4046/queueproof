@@ -5,6 +5,10 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import facts from "../evals/fixtures/large-pdf-facts.json";
+import { PDF_CANARY_KINDS, summarisePdfCanaries } from "../evals/lib/grounded-grader.mjs";
+
+type RequiredFact = { id: string; anyOf?: string[]; allOf?: string[][] };
+const factsWithRequirements = facts as unknown as Array<(typeof facts)[number] & { requiredFacts: RequiredFact[] }>;
 
 /**
  * The large-PDF fixture is only useful if it is a real document. These assertions run the
@@ -110,5 +114,30 @@ describe("large PDF ground truth", () => {
       expect(typeof fact.exactIdentifier, `${fact.id} has no exactIdentifier`).toBe("string");
       expect(bytes.toString("latin1")).toContain(String(fact.exactIdentifier));
     }
+  });
+
+  it("gives every PDF case an explicit non-empty required-fact set", () => {
+    for (const fact of factsWithRequirements) {
+      expect(fact.requiredFacts.length, `${fact.id} has no required facts`).toBeGreaterThan(0);
+      expect(new Set(fact.requiredFacts.map((required) => required.id)).size, `${fact.id} repeats a required fact id`)
+        .toBe(fact.requiredFacts.length);
+      for (const required of fact.requiredFacts) {
+        const alternatives = (required.anyOf?.length ?? 0) + (required.allOf?.length ?? 0);
+        expect(alternatives, `${fact.id}/${required.id} has no match alternatives`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("uses the fixture's exact beginning, middle, and end canary kinds", () => {
+    expect(PDF_CANARY_KINDS).toEqual({
+      beginning: "beginning_load_bearing",
+      middle: "middle_load_bearing",
+      end: "end_load_bearing",
+    });
+    const canaryKinds = new Set<string>(Object.values(PDF_CANARY_KINDS));
+    const canaryRows = facts
+      .filter((fact) => canaryKinds.has(fact.kind))
+      .map((fact) => ({ ...fact, pass: true }));
+    expect(summarisePdfCanaries(canaryRows)).toEqual({ beginning: true, middle: true, end: true });
   });
 });

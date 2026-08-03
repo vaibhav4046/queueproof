@@ -1,7 +1,7 @@
 import { apiError, noStoreJson } from "../../../lib/server/api";
 import { hydraClientForWorkspace } from "../../../lib/server/hydradb-account";
 import { extractProviderContracts } from "../../../lib/server/hydradb-shapes";
-import { requireRequestActor } from "../../../lib/server/identity";
+import { requirePrivateControlActor, requireRequestActor } from "../../../lib/server/identity";
 import { requireDb } from "../../../lib/server/runtime";
 import { audit, createId, requireWorkspaceForUser } from "../../../lib/server/store";
 import { genericProviderAdapter } from "../../../packages/connectors/src";
@@ -10,6 +10,7 @@ import { sha256 } from "../../../packages/security/src";
 export async function GET() {
   try {
     const actor = await requireRequestActor();
+    requirePrivateControlActor(actor, "HydraDB provider discovery");
     const workspace = await requireWorkspaceForUser(actor.id);
     const workspaceId = String(workspace.id);
     const client = await hydraClientForWorkspace(workspaceId);

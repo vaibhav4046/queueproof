@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { planRetrieval } from "../packages/retrieval/src";
+import { planRetrieval, retrievalQueryVariants } from "../packages/retrieval/src";
 
 describe("retrieval planner", () => {
   it("runs exact identifier lookup with parallel lexical fallback", () => {
-    expect(planRetrieval("What happened to LIN-442?")).toMatchObject({
+    const plan = planRetrieval("What happened to LIN-442?");
+    expect(plan).toMatchObject({
       category: "exact_identifier", mode: "fast", queryBy: "text", exactParallel: true,
     });
+    expect(retrievalQueryVariants(plan)).toEqual(["text", "hybrid"]);
   });
   it.each([
     ["What changed since yesterday?", "temporal_reasoning"],
@@ -16,6 +18,8 @@ describe("retrieval planner", () => {
     expect(planRetrieval(query)).toMatchObject({ category, mode: "thinking", graphContext: true });
   });
   it("keeps a simple fact query fast", () => {
-    expect(planRetrieval("Who owns the launch?")).toMatchObject({ category: "single_source_fact", mode: "fast" });
+    const plan = planRetrieval("Who owns the launch?");
+    expect(plan).toMatchObject({ category: "single_source_fact", mode: "fast" });
+    expect(retrievalQueryVariants(plan)).toEqual(["hybrid"]);
   });
 });

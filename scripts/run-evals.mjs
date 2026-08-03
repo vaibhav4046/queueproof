@@ -31,6 +31,7 @@ import { readFileSync } from "node:fs";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { EVAL_CATEGORIES, EVAL_PROVIDERS, NOT_MEASURED_WITHOUT_LIVE, computeMetrics, toCsv } from "../evals/lib/metrics.mjs";
+import { GROUNDED_GRADER_VERSION } from "../evals/lib/grounded-grader.mjs";
 import { rankingInputSchema } from "../packages/contracts/src/index.ts";
 import { rank } from "../packages/ranking/src/index.ts";
 import { planRetrieval } from "../packages/retrieval/src/index.ts";
@@ -560,38 +561,55 @@ await writeFile(new URL("results.csv", RESULTS_DIR), `${toCsv(csvRows)}\n`);
 let liveRunSection = "";
 try {
   const live = JSON.parse(await readFile(new URL("live-run.json", RESULTS_DIR), "utf8"));
-  const rows = (live.rows || [])
-    .map((r) =>
-      "| " + r.label + " | `" + r.mode + "` | " + r.latencyMs + " ms | " + r.sources +
-      " | " + (r.providers || []).join(", ") + " |")
-    .join("\n");
-  liveRunSection = [
-    "",
-    "## Live connector run (measured, not fixture)",
-    "",
-    "Target " + live.target + ". Connectors: " + (live.connectors || []).join(", ") +
-      ". Generated " + live.generatedAt + ".",
-    "",
-    "| Case | Mode | Latency | Sources | Providers in evidence |",
-    "| --- | --- | --- | --- | --- |",
-    rows,
-    "",
-    "Latency across " + live.cases + " live questions: p50 " + live.latencyMs.p50 +
-      " ms, p95 " + live.latencyMs.p95 + " ms, min " + live.latencyMs.min +
-      " ms, max " + live.latencyMs.max + " ms.",
-    "",
-    "Questions whose evidence spanned all three connected providers: " +
-      live.allThreeProviders + "/" + live.cases + ". Routed thinking/fast: " +
-      live.thinking + "/" + live.fast + ".",
-    "",
-    "Answer-only required-fact recall: " + ((live.quality?.requiredFactRecall ?? 0) * 100).toFixed(1) +
-      "%. Citation completeness: " + ((live.quality?.citationCompleteness ?? 0) * 100).toFixed(1) +
-      "%. Unsupported-claim rate: " + ((live.quality?.unsupportedClaimRate ?? 0) * 100).toFixed(1) + "%.",
-    "",
-    "These are real end-to-end measurements against connected Slack, Linear and GitHub.",
-    "The sample is small and is not presented as a stable distribution.",
-    "",
-  ].join("\n");
+  if (live.grader !== GROUNDED_GRADER_VERSION) {
+    liveRunSection = [
+      "",
+      "## Historical live connector artifact (legacy grader; not a release score)",
+      "",
+      "Target " + live.target + ". Generated " + live.generatedAt + ".",
+      "Artifact grader: `" + (live.grader || "unversioned-legacy") + "`; current grader: `" +
+        GROUNDED_GRADER_VERSION + "`.",
+      "",
+      "This artifact proves that a live connector run occurred, but its cases and quality figures",
+      "are intentionally not presented as current measurements because the legacy grader is not",
+      "comparable with the strict grounded-answer contract. Run `npm run benchmark:live` with",
+      "explicit production authorization to generate a current strict artifact.",
+      "",
+    ].join("\n");
+  } else {
+    const rows = (live.rows || [])
+      .map((r) =>
+        "| " + r.label + " | `" + r.mode + "` | " + r.latencyMs + " ms | " + r.sources +
+        " | " + (r.providers || []).join(", ") + " |")
+      .join("\n");
+    liveRunSection = [
+      "",
+      "## Live connector run (strict grader; measured, not fixture)",
+      "",
+      "Target " + live.target + ". Connectors: " + (live.connectors || []).join(", ") +
+        ". Generated " + live.generatedAt + ". Grader: `" + GROUNDED_GRADER_VERSION + "`.",
+      "",
+      "| Case | Mode | Latency | Sources | Providers in evidence |",
+      "| --- | --- | --- | --- | --- |",
+      rows,
+      "",
+      "Latency across " + live.cases + " live questions: p50 " + live.latencyMs.p50 +
+        " ms, p95 " + live.latencyMs.p95 + " ms, min " + live.latencyMs.min +
+        " ms, max " + live.latencyMs.max + " ms.",
+      "",
+      "Questions whose evidence spanned all three connected providers: " +
+        live.allThreeProviders + "/" + live.cases + ". Routed thinking/fast: " +
+        live.thinking + "/" + live.fast + ".",
+      "",
+      "Required-fact recall: " + ((live.quality?.requiredFactRecall ?? 0) * 100).toFixed(1) +
+        "%. Citation completeness: " + ((live.quality?.citationCompleteness ?? 0) * 100).toFixed(1) +
+        "%. Unsupported-claim rate: " + ((live.quality?.unsupportedClaimRate ?? 0) * 100).toFixed(1) + "%.",
+      "",
+      "These are real end-to-end measurements against connected providers.",
+      "The sample is small and is not presented as a stable distribution.",
+      "",
+    ].join("\n");
+  }
 } catch {
   liveRunSection = "\n## Live connector run\n\nNot present. Run the live measurement to produce evals/results/live-run.json.\n";
 }

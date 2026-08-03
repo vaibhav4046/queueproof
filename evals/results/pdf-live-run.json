@@ -1,0 +1,521 @@
+{
+  "generatedAt": "2026-08-03T08:57:19.265Z",
+  "grader": "legacy-token-recall-v1",
+  "target": "https://queueproof.vercel.app",
+  "runner": "scripts/run-pdf-benchmark.mjs",
+  "document": {
+    "filename": "helios-operations-handbook.pdf",
+    "pages": 346,
+    "sha256": "c047a3d09c45ecf97e3ed8e2115eda08ea0f6152206237955030f4304fa2ed93"
+  },
+  "cases": 22,
+  "passed": 21,
+  "canaries": {
+    "beginning": true,
+    "middle": true,
+    "end": false
+  },
+  "latencyMs": {
+    "p50": 401,
+    "p95": 4007,
+    "min": 236,
+    "max": 4778
+  },
+  "crossSource": {
+    "question": "According to the Helios operations handbook, what does ENG-456 require, and do Slack, Linear, or GitHub show related AuthShield work?",
+    "answer": "Linear issue ENG-456 is still showing as open even though the code is shipped. [1] Hindi, transliterated to Latin script Helios Robotics ki suraksha team vachan deti hai ki ENG-456 ke tahat AuthShield operator token ka jeevankaal 30 June 2031 tak ghatakar pandrah minute kar diya jaayega.. [2] ://linear.app/settings/integrations/slack>) Create issues from Slack messages and sync threads * **[GitHub](<https://linear.app/settings/integrations/github>) / [GitLab](<https://linear.app/settings/integrations/gitlab>)** Automate your pull request, commit workflows, and keep issues synced both ways * [**Agents**](<https://linear.app/integrations/agents>) Deploy AI agents that work alongside you as teammates. [3] Helios Robotics Operations Handbook, Revision 7 | Part VIII. [4]",
+    "providers": [
+      "github",
+      "document",
+      "linear"
+    ],
+    "pass": false,
+    "runId": "query_aeecf0dc-dc20-44f9-83cb-7c008333546c"
+  },
+  "rows": [
+    {
+      "id": "fact-begin-stop-work",
+      "page": 3,
+      "kind": "beginning_load_bearing",
+      "question": "Who at Helios Robotics holds the sole authority to declare a fleet wide stop work?",
+      "expectedAnswer": "The Duty Operations Lead.",
+      "exactIdentifier": null,
+      "ok": true,
+      "answer": "Prime directive one: one person can stop the fleet Across every depot and every shift, the sole authority to declare a fleet wide stop work rests with the Duty Operations Lead. [1] total loss | \\| passed | | \\| DRILL-2031-05 | \\| 9 May 2031 | \\| Duplicate billing simulation | \\| passed | | \\| DRILL-2031-06 | \\| 13 June 2031 | \\| Fleet wide stop work rehearsal | \\| passed | | \\| DRILL-2031-07 | \\| 10 July 2031 | \\| Credential broker outage +------------------+------------------+----------------------------------+---------- | \\| retry req |. [2] loss | \\| passed | | \\| DRILL-2031-05 | \\| 9 May 2031 | \\| Duplicate billing simulation | \\| passed | | \\| DRILL-2031-06 | \\| 13 June 2031 | \\| Fleet wide stop work rehearsal | \\| passed | | \\| DRILL-2031-07 | \\| 10 July 2031 | \\| Credential broker outage +------------------+------------------+----------------------------------+---------- | \\| retry req |. [2] | \\| passed | | \\| DRILL-2031-05 | \\| 9 May 2031 | \\| Duplicate billing simulation | \\| passed | | \\| DRILL-2031-06 | \\| 13 June 2031 | \\| Fleet wide stop work rehearsal | \\| passed | | \\| DRILL-2031-07 | \\| 10 July 2031 | \\| Credential broker outage +------------------+----------------",
+      "pass": true,
+      "exactIdPass": true,
+      "tokenRecall": 1,
+      "documentReceipt": true,
+      "citationCount": 2,
+      "providers": [
+        "document"
+      ],
+      "mode": "fast",
+      "latencyMs": 537,
+      "callCount": 1,
+      "runId": "query_6663886c-c4e9-4c2d-86d4-8153c6ec877e"
+    },
+    {
+      "id": "fact-charter-id",
+      "page": 3,
+      "kind": "exact_identifier",
+      "question": "Which charter governs the Helios Robotics operations handbook, and when was it ratified?",
+      "expectedAnswer": "HR-CHARTER-9, ratified on 12 January 2031.",
+      "exactIdentifier": "HR-CHARTER-9",
+      "ok": true,
+      "answer": "Charter: HR-CHARTER-9 Ratified: 12 January 2031 Revision: 7 This handbook is governed by HR-CHARTER-9, ratified on 12 January 2031 by the Helios Robotics operations board. [1] Helios Robotics Operations Handbook, Revision 7 | Front Matter. # Helios Robotics Operations Handbook. [2] ----- Helios Robotics Operations Handbook, Revision 7 | Part I. [3] Issued under charter HR-CHARTER-9 This handbook is the operating record of the Helios Robotics depot fleet. [2]",
+      "pass": true,
+      "exactIdPass": true,
+      "tokenRecall": 1,
+      "documentReceipt": true,
+      "citationCount": 3,
+      "providers": [
+        "document"
+      ],
+      "mode": "thinking",
+      "latencyMs": 4778,
+      "callCount": 1,
+      "runId": "query_9758dfa2-92ad-4aee-873d-2df7edfdc002"
+    },
+    {
+      "id": "fact-superseded-policy",
+      "page": 7,
+      "kind": "superseded_policy_original",
+      "question": "What did OPS-POL-14 originally permit for Rover SDK field firmware flashing?",
+      "expectedAnswer": "A single Tier 2 engineer could flash Rover SDK field firmware without a second approver while the rover was on a maintenance stand. This permission is no longer in force.",
+      "exactIdentifier": "OPS-POL-14",
+      "ok": true,
+      "answer": "Operating Policies. ## OPS-POL-14 Rover SDK field firmware flashing. [1] ## OPS-POL-14 Rover SDK field firmware flashing. [1] From this date every Rover SDK field firmware flash requires two approvers, and one of them must be a Safety Case Owner. [2] Rule At a depot, a single Tier 2 engineer may flash Rover SDK field firmware without a second approver, provided the rover is on a maintenance stand with the drive system isolated and the depot console shows the rover out of service.. [1]",
+      "pass": true,
+      "exactIdPass": true,
+      "tokenRecall": 0.8125,
+      "documentReceipt": true,
+      "citationCount": 2,
+      "providers": [
+        "document"
+      ],
+      "mode": "fast",
+      "latencyMs": 357,
+      "callCount": 1,
+      "runId": "query_0f68e43f-790c-4bf6-bb70-614d86fb3929"
+    },
+    {
+      "id": "fact-superseding-decision",
+      "page": 231,
+      "kind": "superseding_decision",
+      "question": "Is the single approver firmware flashing rule in OPS-POL-14 still in force?",
+      "expectedAnswer": "No. ADR-037, dated 9 September 2031, supersedes OPS-POL-14 and requires two approvers, one of whom must be a Safety Case Owner.",
+      "exactIdentifier": "ADR-037",
+      "ok": true,
+      "answer": "The single engineer permission in OPS-POL-14 is withdrawn and must not be relied on, whatever the depot staffing situation.. [1] ADR-037, dated 9 September 2031, supersedes OPS-POL-14. [1] It is routinely confused with OPS-POL-14, which was a real policy and which was itself superseded by ADR-037. [2] Status: Accepted Decided: 9 September 2031 Author: Kenji Sato Supersedes: OPS-POL-14. [3]",
+      "pass": true,
+      "exactIdPass": true,
+      "tokenRecall": 0.5,
+      "documentReceipt": true,
+      "citationCount": 3,
+      "providers": [
+        "document"
+      ],
+      "mode": "fast",
+      "latencyMs": 278,
+      "callCount": 1,
+      "runId": "query_771ae043-ada9-4f9b-a71a-8b35d4efc943"
+    },
+    {
+      "id": "fact-escalation-sev1",
+      "page": 46,
+      "kind": "table_lookup",
+      "question": "In the escalation severity matrix, what is the SEV-1 acknowledgement target and who approves it?",
+      "expectedAnswer": "5 minutes, approved by the Duty Operations Lead.",
+      "exactIdentifier": null,
+      "ok": true,
+      "answer": "``` +------------+------------------+--------------------------+----------------------+ ``` | \\| Severity | \\| Ack target | \\| Approver +------------+------------------+--------------------------+----------------------+ | \\| Paging ring | \\| | |---|---|---|---|---| | \\| SEV-1 | \\| 5 minutes | \\| Duty Operations Lead | \\| Ring 0 and Ring 1 | \\| | | \\| SEV-2 | \\| 15 minutes | \\| Depot Manager | \\| Ring 1 | \\| | | [1] |---|---|---|---|---| | \\| SEV-1 | \\| 5 minutes | \\| Duty Operations Lead | \\| Ring 0 and Ring 1 | \\| | | \\| SEV-2 | \\| 15 minutes | \\| Depot Manager | \\| Ring 1 | \\| | | \\| SEV-3 | \\| 2 hours | \\| Duty Engineer | \\| Ring 2 | \\| | | \\| SEV-4 | \\| 1 business day | \\| Team Lead +------------+------------------+--------------------------+----------------------+ | \\| none, ticket only | \\| |. [2] A one line configuration error that stops deliveries is a SEV-1. [1] Ring 1 is paged if Ring 0 does not acknowledge, or immediately for a SEV-1. [3]",
+      "pass": true,
+      "exactIdPass": true,
+      "tokenRecall": 0.8,
+      "documentReceipt": true,
+      "citationCount": 3,
+      "providers": [
+        "document"
+      ],
+      "mode": "thinking",
+      "latencyMs": 261,
+      "callCount": 1,
+      "runId": "query_db701e96-7290-4f79-8d44-5abd88f8cbd2"
+    },
+    {
+      "id": "fact-alias-rover-sdk",
+      "page": 80,
+      "kind": "project_alias",
+      "question": "Which internal programme code does the project alias Rover SDK refer to?",
+      "expectedAnswer": "HR-P4, the field autonomy toolkit.",
+      "exactIdentifier": "HR-P4",
+      "ok": true,
+      "answer": "Projects are known internally by an alias and formally by a programme code. [1] Work that belongs to no programme is filed against the owning team instead of a code. **Retired aliases** Two aliases from earlier revisions are retired and must not be used in new tickets: Atlas Lander, which was an early name for a hardware programme that was cancelled, and Rover CLI, which described a tool that was folded into the Rover SDK. [2] ### Objective The Rover SDK is the field autonomy toolkit that runs on the rover itself: navigation, telemetry, safety interlocks, and the firmware update path. [3] Project Workstreams. **Project alias registry**. [1]",
+      "pass": false,
+      "exactIdPass": false,
+      "tokenRecall": 0.75,
+      "documentReceipt": true,
+      "citationCount": 3,
+      "providers": [
+        "document"
+      ],
+      "mode": "thinking",
+      "latencyMs": 3005,
+      "callCount": 1,
+      "runId": "query_fd3b6c65-78fe-4947-9499-729f8334b096"
+    },
+    {
+      "id": "fact-atlas-deadline",
+      "page": 81,
+      "kind": "deadline",
+      "question": "What was the committed general availability date for Atlas Launch?",
+      "expectedAnswer": "14 March 2031",
+      "exactIdentifier": null,
+      "ok": true,
+      "answer": "Objective Atlas Launch took the depot fleet from a supervised pilot at two sites to general availability across all contracted depots, with unattended overnight operation as the acceptance bar.. [1] Delivery Atlas Launch reached general availability on 14 March 2031, four weeks later than the original plan. [1] The milestone column is the committed date at the time of this revision, not the original estimate.. [2] The committed completion date is 30 June 2031. [3]",
+      "pass": true,
+      "exactIdPass": true,
+      "tokenRecall": 1,
+      "documentReceipt": true,
+      "citationCount": 3,
+      "providers": [
+        "document"
+      ],
+      "mode": "fast",
+      "latencyMs": 401,
+      "callCount": 1,
+      "runId": "query_0709cd75-766d-4f88-83c0-ef46423dc876"
+    },
+    {
+      "id": "fact-eng-456",
+      "page": 82,
+      "kind": "exact_identifier",
+      "question": "What work does ENG-456 track and when is it due?",
+      "expectedAnswer": "ENG-456 reduces the AuthShield operator token lifetime to fifteen minutes, due 30 June 2031.",
+      "exactIdentifier": "ENG-456",
+      "ok": true,
+      "answer": "English translation The Helios Robotics security team commits that under ENG-456 the AuthShield operator token lifetime will be reduced to fifteen minutes by 30 June 2031.. [1] Open work ENG-456 reduces the AuthShield operator token lifetime to fifteen minutes, down from the eight hours a token inherits from the old session model. [2] Hindi, transliterated to Latin script Helios Robotics ki suraksha team vachan deti hai ki ENG-456 ke tahat AuthShield operator token ka jeevankaal 30 June 2031 tak ghatakar pandrah minute kar diya jaayega.. [1]",
+      "pass": true,
+      "exactIdPass": true,
+      "tokenRecall": 1,
+      "documentReceipt": true,
+      "citationCount": 2,
+      "providers": [
+        "document"
+      ],
+      "mode": "thinking",
+      "latencyMs": 269,
+      "callCount": 1,
+      "runId": "query_5e5ccf5e-4156-473d-91ff-15824ed208d0"
+    },
+    {
+      "id": "fact-hindi-commitment",
+      "page": 83,
+      "kind": "hindi_commitment",
+      "question": "Which English issue identifier does the Hindi language commitment in the security section refer to?",
+      "expectedAnswer": "ENG-456. The commitment states that the AuthShield operator token lifetime will be cut to fifteen minutes by 30 June 2031.",
+      "exactIdentifier": "ENG-456",
+      "ok": true,
+      "answer": "--- = The security team records commitments in the language they were made in, so that the wording a team actually agreed to is preserved rather than a translation of it.. [1] Project Workstreams. ## AuthShield commitment record. = The security team records commitments in the language they were made in, so that the wording a team actually agreed to is preserved rather than a translation of it.. [2] Commitment recorded in Hindi The Devanagari original of this commitment is carried in the PDF text annotation attached to this page and in the document Keywords entry, both encoded UTF-16BE with a byte order mark. [1] English translation The Helios Robotics security team commits that under ENG-456 the AuthShield operator token lifetime will be reduced to fifteen minutes by 30 June 2031.. [1]",
+      "pass": true,
+      "exactIdPass": true,
+      "tokenRecall": 0.9230769230769231,
+      "documentReceipt": true,
+      "citationCount": 2,
+      "providers": [
+        "document"
+      ],
+      "mode": "fast",
+      "latencyMs": 381,
+      "callCount": 1,
+      "runId": "query_b8c55577-f72b-4a56-beb0-2744df5d06e4"
+    },
+    {
+      "id": "fact-billing-cutover",
+      "page": 84,
+      "kind": "deadline",
+      "question": "When is the Billing Migration ledger cutover scheduled?",
+      "expectedAnswer": "1 October 2031",
+      "exactIdentifier": null,
+      "ok": true,
+      "answer": "Cutover The Billing Migration ledger cutover is scheduled for 1 October 2031. [1] | Depot fleet general availability | \\| 14 March 2031 | | \\| AuthShield | \\| HR-P2 | \\| Operator identity and tokens | \\| 30 June 2031 | | \\| Billing Migration | \\| HR-P3 | \\| Ledger cutover to usage billing | \\| 1 October 2031 | | \\| Rover SDK +--------------------+--------+----------------------------------+------------------ | \\| HR-P4 | \\| Field autonomy toolkit | \\| 15 November 2031 | **Reading the registry**. [2] lability | \\| 14 March 2031 | | \\| AuthShield | \\| HR-P2 | \\| Operator identity and tokens | \\| 30 June 2031 | | \\| Billing Migration | \\| HR-P3 | \\| Ledger cutover to usage billing | \\| 1 October 2031 | | \\| Rover SDK +--------------------+--------+----------------------------------+------------------ | \\| HR-P4 | \\| Field autonomy toolkit | \\| 15 November 2031 | **Reading the registry**. [2] y | \\| 14 March 2031 | | \\| AuthShield | \\| HR-P2 | \\| Operator identity and tokens | \\| 30 June 2031 | | \\| Billing Migration | \\| HR-P3 | \\| Ledger cutover to usage billing | \\| 1 October 2031 | | \\| Rover SDK +--------------------+--------+----------------------------------+------------------ |",
+      "pass": true,
+      "exactIdPass": true,
+      "tokenRecall": 1,
+      "documentReceipt": true,
+      "citationCount": 2,
+      "providers": [
+        "document"
+      ],
+      "mode": "fast",
+      "latencyMs": 444,
+      "callCount": 1,
+      "runId": "query_6cb5d771-d37f-460f-acef-7c97ab13b6bf"
+    },
+    {
+      "id": "fact-rover-freeze",
+      "page": 85,
+      "kind": "deadline",
+      "question": "What is the code freeze date for Rover SDK 5.0?",
+      "expectedAnswer": "15 November 2031",
+      "exactIdentifier": null,
+      "ok": true,
+      "answer": "Release plan Rover SDK 5.0 enters code freeze on 15 November 2031, with a six week soak at three depots before any wider rollout. [1] From this date every Rover SDK field firmware flash requires two approvers, and one of them must be a Safety Case Owner. [2] Work that belongs to no programme is filed against the owning team instead of a code. **Retired aliases** Two aliases from earlier revisions are retired and must not be used in new tickets: Atlas Lander, which was an early name for a hardware programme that was cancelled, and Rover CLI, which described a tool that was folded into the Rover SDK. [3] ### Objective The Rover SDK is the field autonomy toolkit that runs on the rover itself: navigation, telemetry, safety interlocks, and the firmware update path. [1]",
+      "pass": true,
+      "exactIdPass": true,
+      "tokenRecall": 1,
+      "documentReceipt": true,
+      "citationCount": 3,
+      "providers": [
+        "document"
+      ],
+      "mode": "fast",
+      "latencyMs": 480,
+      "callCount": 1,
+      "runId": "query_2a41aef0-b8e6-4a5e-b388-ad1da613ac3d"
+    },
+    {
+      "id": "fact-bug-123",
+      "page": 120,
+      "kind": "exact_identifier",
+      "question": "What defect does BUG-123 record and in which release was it fixed?",
+      "expectedAnswer": "Odometry drift after cold boot, fixed in Rover SDK 4.2.1 released on 21 May 2031.",
+      "exactIdentifier": "BUG-123",
+      "ok": true,
+      "answer": "Change Log. ## Defect record BUG-123. [1] ## Defect record BUG-123. [2] Symptom BUG-123 records odometry drift after cold boot on Rover SDK 4.2.0. [1]",
+      "pass": true,
+      "exactIdPass": true,
+      "tokenRecall": 0.625,
+      "documentReceipt": true,
+      "citationCount": 2,
+      "providers": [
+        "document"
+      ],
+      "mode": "fast",
+      "latencyMs": 236,
+      "callCount": 1,
+      "runId": "query_0f2346ba-de25-4947-9e80-08b7691b03c0"
+    },
+    {
+      "id": "fact-pr-8871",
+      "page": 121,
+      "kind": "exact_identifier",
+      "question": "What did PR-8871 change and when was it merged?",
+      "expectedAnswer": "The Atlas Launch telemetry schema version 3, merged on 2 July 2031.",
+      "exactIdentifier": "PR-8871",
+      "ok": true,
+      "answer": "What changed PR-8871 merged the Atlas Launch telemetry schema version 3 on 2 July 2031. [1] Change Log. ## Change record PR-8871. [1] ## Change record PR-8871. [1] Merged changes are listed in the order they reached the depot fleet, not the order they were reviewed. [2]",
+      "pass": true,
+      "exactIdPass": true,
+      "tokenRecall": 1,
+      "documentReceipt": true,
+      "citationCount": 2,
+      "providers": [
+        "document"
+      ],
+      "mode": "thinking",
+      "latencyMs": 245,
+      "callCount": 1,
+      "runId": "query_50e2c22d-7a04-4fc0-b716-81cb3e350422"
+    },
+    {
+      "id": "fact-middle-beacon",
+      "page": 160,
+      "kind": "middle_load_bearing",
+      "question": "What beacon cadence do Rover SDK units fall back to during a communications blackout?",
+      "expectedAnswer": "90 seconds",
+      "exactIdentifier": null,
+      "ok": true,
+      "answer": "Rover behaviour during a blackout Rover SDK units fall back to a beacon cadence of 90 seconds, up from the two second cadence used when the link is healthy. [1] Field Runbooks. ## Rover SDK communications blackout protocol. [1] ## Rover SDK communications blackout protocol. [2] What a blackout is A communications blackout is any period longer than four minutes in which a rover cannot reach the depot gateway. [1]",
+      "pass": true,
+      "exactIdPass": true,
+      "tokenRecall": 1,
+      "documentReceipt": true,
+      "citationCount": 2,
+      "providers": [
+        "document"
+      ],
+      "mode": "fast",
+      "latencyMs": 414,
+      "callCount": 1,
+      "runId": "query_3c137e8e-8639-4a09-a0cf-754f2a11123f"
+    },
+    {
+      "id": "fact-middle-buffer",
+      "page": 160,
+      "kind": "single_source_fact",
+      "question": "How many telemetry frames does a Rover SDK unit retain in its onboard ring buffer during a blackout?",
+      "expectedAnswer": "4096",
+      "exactIdentifier": null,
+      "ok": true,
+      "answer": "While the link is down the unit retains the last 4096 telemetry frames in the onboard ring buffer and replays them in order once contact returns. [1] Rover behaviour during a blackout Rover SDK units fall back to a beacon cadence of 90 seconds, up from the two second cadence used when the link is healthy. [1] | \\| Ring 0 | \\| Toronto | \\| Daniel Okafor | \\| Billing Migration | \\| | | \\| Ring 1 | \\| Rotterdam | \\| Marta Kilburn | \\| Atlas Launch | \\| | | \\| Ring 1 | \\| Osaka | \\| Kenji Sato | \\| Rover SDK | \\| | | \\| Ring 2 | \\| Manchester | \\| Owen Fitzgerald +----------+----------------+----------------------+----------------------+ | \\| shared | \\| |. [2] ### Objective The Rover SDK is the field autonomy toolkit that runs on the rover itself: navigation, telemetry, safety interlocks, and the firmware update path. [3]",
+      "pass": true,
+      "exactIdPass": true,
+      "tokenRecall": 1,
+      "documentReceipt": true,
+      "citationCount": 3,
+      "providers": [
+        "document"
+      ],
+      "mode": "fast",
+      "latencyMs": 403,
+      "callCount": 1,
+      "runId": "query_7e5e3701-ca38-4478-a83f-8cc1ac168444"
+    },
+    {
+      "id": "fact-inc-2031",
+      "page": 180,
+      "kind": "exact_identifier",
+      "question": "What happened in INC-2031 and how long did customer impact last?",
+      "expectedAnswer": "A Billing Migration double charge event on 8 April 2031, with 41 minutes of customer impact.",
+      "exactIdentifier": "INC-2031",
+      "ok": true,
+      "answer": "| \\| INC-2031 | \\| 8 April 2031 | \\| SEV-2 | \\| 41 min | \\| closed | \\| | | \\| INC-2032 | \\| 3 June 2031 | \\| SEV-3 +------------+-------------------+--------+----------+------------+ | \\| 19 min | \\| closed | \\| |. [1] Incident Reports. ## Incident report INC-2031. [2] Summary INC-2031 was a Billing Migration double charge event on 8 April 2031. [2] | INC-2029 | \\| 2 March 2031 | \\| SEV-3 | \\| 26 min | \\| closed | \\| | | \\| INC-2030 | \\| 29 March 2031 | \\| SEV-4 | \\| 8 min | \\| closed | \\| | | \\| INC-2031 | \\| 8 April 2031 | \\| SEV-2 | \\| 41 min | \\| closed | \\| | | \\| INC-2032 | \\| 3 June 2031 | \\| SEV-3 +------------+-------------------+--------+----------+------------+ | \\| 19 min | \\| closed | \\| |. [3]",
+      "pass": true,
+      "exactIdPass": true,
+      "tokenRecall": 0.6363636363636364,
+      "documentReceipt": true,
+      "citationCount": 3,
+      "providers": [
+        "document"
+      ],
+      "mode": "thinking",
+      "latencyMs": 271,
+      "callCount": 1,
+      "runId": "query_b1009aee-08c0-4bd0-9001-0063e058563f"
+    },
+    {
+      "id": "fact-incident-table",
+      "page": 181,
+      "kind": "table_lookup",
+      "question": "In the incident log summary, what severity and impact window are recorded against INC-2031?",
+      "expectedAnswer": "SEV-2, with a 41 minute impact window.",
+      "exactIdentifier": "INC-2031",
+      "ok": true,
+      "answer": "Internal degradations that no customer could perceive are recorded in the change log instead. ``` +------------+-------------------+--------+----------+------------+ ``` | \\| Incident | \\| Date | \\| Sev +------------+-------------------+--------+----------+------------+ | \\| Impact | \\| Status | \\| | |---|---|---|---|---|---| | \\| INC-2028 | \\| 17 February 2031 | \\| SEV-3 | \\| 12 min | \\| closed | \\| | [1] | \\| INC-2031 | \\| 8 April 2031 | \\| SEV-2 | \\| 41 min | \\| closed | \\| | | \\| INC-2032 | \\| 3 June 2031 | \\| SEV-3 +------------+-------------------+--------+----------+------------+ | \\| 19 min | \\| closed | \\| |. [2] | INC-2029 | \\| 2 March 2031 | \\| SEV-3 | \\| 26 min | \\| closed | \\| | | \\| INC-2030 | \\| 29 March 2031 | \\| SEV-4 | \\| 8 min | \\| closed | \\| | | \\| INC-2031 | \\| 8 April 2031 | \\| SEV-2 | \\| 41 min | \\| closed | \\| | | \\| INC-2032 | \\| 3 June 2031 | \\| SEV-3 +------------+-------------------+--------+----------+------------+ | \\| 19 min | \\| closed | \\| |. [3] Impact is the customer visible window, not the time the incident channel stayed open.. [2]",
+      "pass": true,
+      "exactIdPass": true,
+      "tokenRecall": 0.6,
+      "documentReceipt": true,
+      "citationCount": 3,
+      "providers": [
+        "document"
+      ],
+      "mode": "fast",
+      "latencyMs": 252,
+      "callCount": 1,
+      "runId": "query_327668f2-e3df-4be4-8ef7-021a5b490db5"
+    },
+    {
+      "id": "fact-priya-raman",
+      "page": 203,
+      "kind": "entity_disambiguation",
+      "question": "What is Priya Raman's role at Helios Robotics and which programme does she own?",
+      "expectedAnswer": "Staff Reliability Engineer, employee HR-2214, engineering owner of AuthShield.",
+      "exactIdentifier": "HR-2214",
+      "ok": true,
+      "answer": "Engineering owner The engineering owner for AuthShield is Priya Raman. [1] Engineering Priya Raman, Staff Reliability Engineer, employee HR-2214, based in Bengaluru. [2] ### Customer operations Priya Ramanathan, Customer Escalation Manager, employee HR-5871, based in Toronto. [3] A ticket that names only Priya is routed by subject: identity to HR-2214, billing to HR-5871.. [3]",
+      "pass": true,
+      "exactIdPass": true,
+      "tokenRecall": 1,
+      "documentReceipt": true,
+      "citationCount": 3,
+      "providers": [
+        "document"
+      ],
+      "mode": "thinking",
+      "latencyMs": 4007,
+      "callCount": 1,
+      "runId": "query_08b6bff1-c40d-431b-9a2a-2dc8251cbe41"
+    },
+    {
+      "id": "fact-priya-ramanathan",
+      "page": 203,
+      "kind": "entity_disambiguation",
+      "question": "What is Priya Ramanathan's role at Helios Robotics and which desk does she run?",
+      "expectedAnswer": "Customer Escalation Manager, employee HR-5871, running the Billing Migration escalation desk.",
+      "exactIdentifier": "HR-5871",
+      "ok": true,
+      "answer": "### Customer operations Priya Ramanathan, Customer Escalation Manager, employee HR-5871, based in Toronto. [1] Customer operations Priya Ramanathan, Customer Escalation Manager, employee HR-5871, based in Toronto. [2] A ticket that names only Priya is routed by subject: identity to HR-2214, billing to HR-5871.. [1] Engineering owner The engineering owner for AuthShield is Priya Raman. [3]",
+      "pass": true,
+      "exactIdPass": true,
+      "tokenRecall": 0.6666666666666666,
+      "documentReceipt": true,
+      "citationCount": 3,
+      "providers": [
+        "document"
+      ],
+      "mode": "thinking",
+      "latencyMs": 3772,
+      "callCount": 1,
+      "runId": "query_a0df71a3-7f7b-4117-8292-6103f834269d"
+    },
+    {
+      "id": "fact-oncall-ring0",
+      "page": 204,
+      "kind": "table_lookup",
+      "question": "Who is the Ring 0 on call contact for the Bengaluru depot?",
+      "expectedAnswer": "Priya Raman.",
+      "exactIdentifier": null,
+      "ok": true,
+      "answer": "Escalation beyond the rings If no ring answers within fifteen minutes, the depot manager pages the operations board directly. [1] She is the engineering owner of AuthShield and sits in the Ring 1 on call rotation. [2] ``` +----------+----------------+----------------------+----------------------+ ``` | \\| Ring | \\| Depot | \\| Primary +----------+----------------+----------------------+----------------------+ | \\| Programme | \\| | |---|---|---|---|---| | \\| Ring 0 | \\| Bengaluru | \\| Priya Raman | \\| AuthShield | \\| | | \\| Ring 0 | \\| Toronto | \\| Daniel Okafor | \\| Billing Migration | \\| | | \\| Ring 1 | \\| Rot [3] |---|---|---|---|---| | \\| SEV-1 | \\| 5 minutes | \\| Duty Operations Lead | \\| Ring 0 and Ring 1 | \\| | | \\| SEV-2 | \\| 15 minutes | \\| Depot Manager | \\| Ring 1 | \\| | | \\| SEV-3 | \\| 2 hours | \\| Duty Engineer | \\| Ring 2 | \\| | | \\| SEV-4 | \\| 1 business day | \\| Team Lead +------------+------------------+--------------------------+----------------------+ | \\| none, ticket only | \\| |. [4]",
+      "pass": true,
+      "exactIdPass": true,
+      "tokenRecall": 1,
+      "documentReceipt": true,
+      "citationCount": 4,
+      "providers": [
+        "document"
+      ],
+      "mode": "fast",
+      "latencyMs": 479,
+      "callCount": 1,
+      "runId": "query_66855533-859e-481b-bc2c-dc4cd7d10084"
+    },
+    {
+      "id": "fact-distractor-draft",
+      "page": 290,
+      "kind": "distractor_discrimination",
+      "question": "Does DRAFT-OPS-14 permit single engineer firmware flashing today?",
+      "expectedAnswer": "No. DRAFT-OPS-14 was never ratified and carries no operational authority. The binding rule is ADR-037, which requires two approvers.",
+      "exactIdentifier": "DRAFT-OPS-14",
+      "ok": true,
+      "answer": "Neither the draft nor the superseded policy permits single engineer flashing today.. [1] Rule At a depot, a single Tier 2 engineer may flash Rover SDK field firmware without a second approver, provided the rover is on a maintenance stand with the drive system isolated and the depot console shows the rover out of service.. [2] ### DRAFT-OPS-14 DRAFT-OPS-14 was never ratified and carries no operational authority. [1] DRAFT-OPS-14 DRAFT-OPS-14 was never ratified and carries no operational authority. [3]",
+      "pass": true,
+      "exactIdPass": true,
+      "tokenRecall": 0.6363636363636364,
+      "documentReceipt": true,
+      "citationCount": 3,
+      "providers": [
+        "document"
+      ],
+      "mode": "thinking",
+      "latencyMs": 266,
+      "callCount": 1,
+      "runId": "query_814d4441-6bd7-4fbe-9822-1c59e726feff"
+    },
+    {
+      "id": "fact-end-battery",
+      "page": 340,
+      "kind": "end_load_bearing",
+      "question": "What share of the 2032 capital expenditure is reserved for battery replacement?",
+      "expectedAnswer": "18 percent",
+      "exactIdentifier": null,
+      "ok": true,
+      "answer": "Envelope The approved fleet renewal envelope reserves 18 percent of 2032 capital expenditure for battery replacement, which is the single largest line in the renewal plan and the only line that cannot be deferred without taking rovers out of service.. [1] Envelope The approved fleet renewal envelope reserves 18 percent of 2032 capital expenditure for battery replacement, which is the single largest line in the renewal plan and the only line that cannot be deferred without taking rovers out of service.. [2]",
+      "pass": true,
+      "exactIdPass": true,
+      "tokenRecall": 1,
+      "documentReceipt": true,
+      "citationCount": 2,
+      "providers": [
+        "document"
+      ],
+      "mode": "fast",
+      "latencyMs": 406,
+      "callCount": 1,
+      "runId": "query_267c49e1-63c6-4e53-b42a-983620709a50"
+    }
+  ]
+}

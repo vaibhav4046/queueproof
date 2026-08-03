@@ -1,16 +1,17 @@
 import { apiError, noStoreJson, readJson } from "../../../lib/server/api";
 import { hydraClientForWorkspace } from "../../../lib/server/hydradb-account";
 import { extractQuerySources, providerFromSource } from "../../../lib/server/hydradb-shapes";
-import { requireRequestActor } from "../../../lib/server/identity";
+import { requirePrivateControlActor, requireRequestActor } from "../../../lib/server/identity";
 import { requireDb } from "../../../lib/server/runtime";
 import { audit, createId, requireWorkspaceForUser } from "../../../lib/server/store";
 import { queryRequestSchema } from "../../../packages/contracts/src";
-import { planRetrieval } from "../../../packages/retrieval/src";
+import { planRetrieval, retrievalQueryVariants } from "../../../packages/retrieval/src";
 import { isPotentialPromptInjection, redactSecrets } from "../../../packages/security/src";
 
 export async function POST(request: Request) {
   try {
     const actor = await requireRequestActor();
+    requirePrivateControlActor(actor, "Raw HydraDB queries");
     const workspace = await requireWorkspaceForUser(actor.id);
     const workspaceId = String(workspace.id);
     const parsed = queryRequestSchema.safeParse(await readJson<unknown>(request));
@@ -22,23 +23,44 @@ export async function POST(request: Request) {
     const runId = createId("query");
     const started = Date.now();
     const client = await hydraClientForWorkspace(workspaceId);
-    const response = await client.query({
-      database: parsed.data.database,
-      ...(parsed.data.collections ? { collections: parsed.data.collections } : {}),
-      query: parsed.data.query,
-      type: "knowledge",
-      query_by: plan.queryBy,
-      mode,
-      max_results: 12,
-      graph_context: plan.graphContext,
-      query_forceful_relations: plan.graphContext,
-      query_apps: true,
-      recency_bias: plan.recencyBias,
-    });
+    const responses = await Promise.all(retrievalQueryVariants(plan).map(async (queryBy) => ({
+      queryBy,
+      response: await client.query({
+        database: parsed.data.database,
+        ...(parsed.data.collections ? { collections: parsed.data.collections } : {}),
+        query: parsed.data.query,
+        type: "knowledge",
+        query_by: queryBy,
+        mode,
+        max_results: 12,
+        graph_context: plan.graphContext,
+        query_forceful_relations: plan.graphContext,
+        query_apps: true,
+        recency_bias: plan.recencyBias,
+      }),
+    })));
     const latencyMs = Date.now() - started;
-    const extracted = response.ok
-      ? extractQuerySources(response.data)
-      : { root: {}, sources: [], chunks: [] };
+    const successfulResponses = responses.filter(({ response }) => response.ok);
+    const extractedResponses = successfulResponses.map(({ response }) => extractQuerySources(response.data));
+    const sourceKeys = new Set<string>();
+    const chunkKeys = new Set<string>();
+    const extracted = {
+      root: extractedResponses.find(({ root }) => root.graph_context)?.root ?? extractedResponses[0]?.root ?? {},
+      sources: extractedResponses.flatMap(({ sources }) => sources).filter((source) => {
+        const key = String(source.id ?? source.source_id ?? `${providerFromSource(source) ?? "unknown"}:${source.title ?? "untitled"}`);
+        if (sourceKeys.has(key)) return false;
+        sourceKeys.add(key);
+        return true;
+      }),
+      chunks: extractedResponses.flatMap(({ chunks }) => chunks).filter((chunk) => {
+        const key = String(chunk.chunk_id ?? chunk.id ?? chunk.chunk_content ?? "");
+        if (chunkKeys.has(key)) return false;
+        chunkKeys.add(key);
+        return true;
+      }),
+    };
+    const primaryError = responses.find(({ response }) => !response.ok)?.response;
+    const completed = successfulResponses.length > 0;
     const providers = [
       ...new Set(extracted.sources.map(providerFromSource).filter(Boolean)),
     ] as string[];
@@ -77,10 +99,10 @@ export async function POST(request: Request) {
         JSON.stringify(plan),
         JSON.stringify(providers),
         sources.length,
-        1,
+        responses.length,
         latencyMs,
-        response.ok ? "completed" : "failed",
-        response.ok ? null : `hydradb_${response.status}`,
+        completed ? "completed" : "failed",
+        completed ? null : `hydradb_${primaryError?.status ?? 502}`,
       )
       .run();
     await audit({
@@ -89,31 +111,31 @@ export async function POST(request: Request) {
       operation: "query.run",
       targetType: "query_run",
       targetId: runId,
-      outcome: response.ok ? "success" : "failure",
+      outcome: completed ? "success" : "failure",
       metadata: {
         category: plan.category,
         mode,
         providers,
         sourceCount: sources.length,
-        requestId: response.requestId,
+        requests: responses.map(({ queryBy, response }) => ({ queryBy, requestId: response.requestId, ok: response.ok })),
         latencyMs,
       },
     });
-    if (!response.ok) {
+    if (!completed) {
       return noStoreJson(
         {
           ok: false,
-          error: response.error,
+          error: primaryError?.error ?? "HydraDB retrieval failed.",
           trace: {
             runId,
             plan,
             actualMode: mode,
-            callCount: 1,
+            callCount: responses.length,
             latencyMs,
-            requestId: response.requestId,
+            requests: responses.map(({ queryBy, response }) => ({ queryBy, requestId: response.requestId, status: response.status })),
           },
         },
-        { status: response.status || 502 },
+        { status: primaryError?.status || 502 },
       );
     }
     return noStoreJson({
@@ -123,7 +145,7 @@ export async function POST(request: Request) {
         runId,
         classification: plan.category,
         plannedSteps: [plan.reason],
-        actualSteps: ["HydraDB /query"],
+        actualSteps: responses.map(({ queryBy }) => `HydraDB /query (${queryBy})`),
         filters: { database: parsed.data.database, collections: parsed.data.collections ?? [] },
         queryMode: mode,
         resultCount: chunks.length,
@@ -141,14 +163,13 @@ export async function POST(request: Request) {
           untrustedInstructionsFlagged: chunks.filter((chunk) => chunk.untrustedInstructionDetected)
             .length,
         },
-        callCount: 1,
-        hydradbLatencyMs: response.latencyMs,
+        callCount: responses.length,
+        hydradbLatencyMs: Math.max(...responses.map(({ response }) => response.latencyMs ?? 0)),
         endToEndLatencyMs: latencyMs,
-        requestId: response.requestId,
+        requestIds: responses.map(({ response }) => response.requestId).filter(Boolean),
       },
     });
   } catch (error) {
     return apiError(error);
   }
 }
-

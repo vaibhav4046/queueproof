@@ -23,7 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const title = "QueueProof — One Answer. Every System. Proven.";
   const description =
     "QueueProof reconstructs commitments and dependencies across workplace systems and produces defensible next actions with source-level evidence.";
-  const image = new URL("/og.png", metadataBase).toString();
+  const image = new URL("/og-v2.png", metadataBase).toString();
   return {
     metadataBase,
     title: { default: title, template: "%s · QueueProof" },
@@ -33,7 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
       type: "website",
       title,
       description,
-      images: [{ url: image, width: 1200, height: 630, alt: "QueueProof evidence network joining four work systems into a verified proof seal" }],
+      images: [{ url: image, width: 1731, height: 909, alt: "QueueProof evidence streams converging into a verified proof seal and next action" }],
     },
     twitter: {
       card: "summary_large_image",

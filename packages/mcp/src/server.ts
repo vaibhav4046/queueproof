@@ -388,14 +388,19 @@ export function buildQueueProofServer(
     {
       title: "Propose approval-gated action",
       description:
-        "Create an action proposal with exact payload and evidence. This never executes the provider action.",
+        "Create a grounded Linear issue proposal with exact payload and workspace-owned evidence. This never executes the provider action.",
       inputSchema: z.object({
-        provider: z.string(),
-        actionType: z.string(),
-        payload: z.record(z.string(), z.unknown()),
-        evidenceIds: z.array(z.string()).min(1),
+        provider: z.literal("linear"),
+        actionType: z.literal("create_issue"),
+        payload: z.object({
+          title: z.string().trim().min(1).max(200),
+          description: z.string().trim().min(1).max(10_000),
+          teamId: z.string().trim().min(1).max(200),
+          projectId: z.string().trim().min(1).max(200).optional(),
+        }).strict(),
+        evidenceIds: z.array(z.string().trim().min(1).max(200)).min(1).max(50),
         riskClass: z.enum(["low", "medium", "high", "critical"]),
-        idempotencyKey: z.string().min(16),
+        idempotencyKey: z.string().min(16).max(200),
       }),
       outputSchema: z.object({
         proposalId: z.string(),
@@ -410,13 +415,41 @@ export function buildQueueProofServer(
       },
     },
     async ({ provider, actionType, payload, evidenceIds, riskClass, idempotencyKey }) => {
-      const existing = await requireDb()
-        .prepare(`SELECT id FROM action_proposals WHERE workspace_id = ? AND idempotency_key = ? LIMIT 1`)
+      const db = requireDb();
+      const uniqueEvidenceIds = [...new Set(evidenceIds)];
+      const ownedEvidence = await db
+        .prepare(
+          `SELECT id FROM source_references
+           WHERE workspace_id = ? AND id IN (${uniqueEvidenceIds.map(() => "?").join(", ")})`,
+        )
+        .bind(workspaceId, ...uniqueEvidenceIds)
+        .all<{ id: string }>();
+      if (ownedEvidence.results.length !== uniqueEvidenceIds.length) {
+        throw new Error("Every proposal reference must be evidence stored in this workspace.");
+      }
+      if (uniqueEvidenceIds.some((id) => !payload.description.includes(id))) {
+        throw new Error("The exact provider payload must carry every cited evidence ID.");
+      }
+      const storedRiskClass = riskClass === "critical" ? "critical" : "high";
+      const payloadJson = JSON.stringify(payload);
+      const evidenceJson = JSON.stringify(uniqueEvidenceIds);
+      const existing = await db
+        .prepare(
+          `SELECT id, provider, action_type AS actionType, payload_json AS payloadJson,
+                  evidence_ids_json AS evidenceIdsJson
+           FROM action_proposals WHERE workspace_id = ? AND idempotency_key = ? LIMIT 1`,
+        )
         .bind(workspaceId, idempotencyKey)
-        .first<{ id: string }>();
+        .first<{ id: string; provider: string; actionType: string; payloadJson: string; evidenceIdsJson: string }>();
+      if (existing && (
+        existing.provider !== provider || existing.actionType !== actionType ||
+        existing.payloadJson !== payloadJson || existing.evidenceIdsJson !== evidenceJson
+      )) {
+        throw new Error("That idempotency key is already bound to a different proposal.");
+      }
       const proposalId = existing?.id ?? createId("action");
       if (!existing) {
-        await requireDb()
+        await db
           .prepare(
             `INSERT INTO action_proposals
              (id, workspace_id, provider, action_type, payload_json, evidence_ids_json, risk_class, idempotency_key, status)
@@ -427,9 +460,9 @@ export function buildQueueProofServer(
             workspaceId,
             provider,
             actionType,
-            JSON.stringify(payload),
-            JSON.stringify(evidenceIds),
-            riskClass,
+            payloadJson,
+            evidenceJson,
+            storedRiskClass,
             idempotencyKey,
           )
           .run();

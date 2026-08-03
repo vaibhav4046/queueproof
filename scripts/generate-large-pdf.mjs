@@ -155,12 +155,13 @@ function main() {
   mkdirSync(path.dirname(outputPath), { recursive: true });
   writeFileSync(outputPath, bytes);
 
-  const fixture = PLANTED_FACTS.map(({ id, page, kind, question, expectedAnswer, exactIdentifier }) => ({
+  const fixture = PLANTED_FACTS.map(({ id, page, kind, question, expectedAnswer, requiredFacts, exactIdentifier }) => ({
     id,
     page,
     kind,
     question,
     expectedAnswer,
+    requiredFacts,
     exactIdentifier,
   }));
   mkdirSync(path.dirname(FACTS_OUTPUT), { recursive: true });

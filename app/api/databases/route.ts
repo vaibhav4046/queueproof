@@ -1,7 +1,7 @@
 import { apiError, noStoreJson, readJson } from "../../../lib/server/api";
 import { hydraClientForWorkspace } from "../../../lib/server/hydradb-account";
 import { unwrapHydra } from "../../../lib/server/hydradb-shapes";
-import { requireRequestActor } from "../../../lib/server/identity";
+import { requirePrivateControlActor, requireRequestActor } from "../../../lib/server/identity";
 import { audit, requireWorkspaceForUser } from "../../../lib/server/store";
 
 function databaseList(value: unknown) {
@@ -13,6 +13,7 @@ function databaseList(value: unknown) {
 export async function GET() {
   try {
     const actor = await requireRequestActor();
+    requirePrivateControlActor(actor, "HydraDB database discovery");
     const workspace = await requireWorkspaceForUser(actor.id);
     const response = await (await hydraClientForWorkspace(String(workspace.id))).listDatabases();
     if (!response.ok) {
@@ -27,6 +28,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const actor = await requireRequestActor();
+    requirePrivateControlActor(actor, "Database creation");
     const workspace = await requireWorkspaceForUser(actor.id);
     const { database: raw } = await readJson<{ database?: string }>(request);
     const database = raw?.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-|-$/g, "") ?? "";

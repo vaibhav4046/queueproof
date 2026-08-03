@@ -8,7 +8,7 @@ import {
   sourceBelongsToConnector,
   unwrapHydra,
 } from "../../../../../lib/server/hydradb-shapes";
-import { requireRequestActor } from "../../../../../lib/server/identity";
+import { requirePrivateControlActor, requireRequestActor } from "../../../../../lib/server/identity";
 import { requireDb } from "../../../../../lib/server/runtime";
 import { audit, createId, requireWorkspaceForUser } from "../../../../../lib/server/store";
 import { sha256 } from "../../../../../packages/security/src";
@@ -16,6 +16,7 @@ import { sha256 } from "../../../../../packages/security/src";
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const actor = await requireRequestActor();
+    requirePrivateControlActor(actor, "Connector verification");
     const workspace = await requireWorkspaceForUser(actor.id);
     const workspaceId = String(workspace.id);
     const { id } = await context.params;

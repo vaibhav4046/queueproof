@@ -1,76 +1,90 @@
 # QueueProof
 
-**The evidence-backed control plane for autonomous work.**
+**One answer. Every system. Proven.**
 
-Agents can execute. QueueProof decides what deserves execution next, proves why, and
-keeps the final write behind a human approval boundary.
+QueueProof is an evidence-backed control plane for autonomous work. It retrieves work
+evidence through HydraDB, produces cited answers, compiles a deterministic next-action
+queue, and keeps external writes behind an approval boundary.
 
-Live product: <https://queueproof.vercel.app>
+- Live product: <https://queueproof.vercel.app>
+- Repository: <https://github.com/vaibhav4046/queueproof>
+- Canonical demo: [docs/DEMO_SCRIPT_60S.md](docs/DEMO_SCRIPT_60S.md)
+- Judge-ready copy: [docs/SUBMISSION_COPY.md](docs/SUBMISSION_COPY.md)
 
-## The product loop
+## Why it is different
 
-1. **Connect evidence.** QueueProof discovers live provider contracts from HydraDB,
-   encrypts credentials at rest, scopes each connector, and refuses to call it verified
-   until a canary query returns provider-attributable records.
-2. **Add documents.** PDF, Markdown, and text files are signature-validated, bounded to
-   25 MB, hashed for duplicate prevention, streamed to HydraDB, and shown with their real
-   indexing stage.
-3. **Ask across systems.** One question fans out across every verified source. The answer
-   includes excerpts, source links, timestamps, provider attribution, and the retrieval
-   trace. Conflicts remain conflicts; unsupported prose is never filled in.
-4. **Compile the queue.** A deterministic, versioned policy ranks retrieved commitments.
-   Each item becomes a persisted Execution Packet containing evidence, constraints,
-   dependencies, acceptance criteria, permissions, component scores, and a receipt hash.
-5. **Review the write.** An agent or person can convert a packet into an exact Linear issue
-   proposal. The Approvals control plane shows the complete payload, evidence chain, and
-   risk class before requiring an explicit second confirmation.
-6. **Execute at most once.** A unique database claim is acquired before the Linear call.
-   Replays and double-clicks cannot create a second provider issue, and QueueProof reports
-   success only when Linear returns a real issue id.
+QueueProof treats retrieval, ranking, and execution as one inspectable chain:
 
-## Live evidence, 2 August 2026
+1. A connector is eligible only after HydraDB returns attributable records and QueueProof
+   stores a proof receipt.
+2. Questions are routed to fast or thinking retrieval. Exact identifiers run lexical text
+   and hybrid lanes in parallel, then merge and deduplicate the evidence.
+3. Every answer claim must point to a receipt. Partial answers and abstentions expose the
+   missing information instead of filling gaps.
+4. Queue records are clustered without merging unrelated exact IDs, then scored by a
+   deterministic, versioned policy.
+5. The resulting Execution Packet carries evidence, constraints, score components,
+   permissions, and a receipt hash.
+6. Provider writes begin as proposals. Approval and a database-backed at-most-once claim
+   are required before execution.
 
-- Durable hosted Turso/libSQL storage; `/api/health/ready` returns `200 ready`.
-- HydraDB configured through the product; the browser only receives its encrypted-secret
-  fingerprint.
-- **Linear, Slack, and GitHub** reached `data_verified` through create → discover → scope →
-  sync → proof. Gmail is authenticated and configured, but remains unverified while its
-  free-plan backfill advances; QueueProof correctly refuses to promote it early.
-- A six-question production benchmark returned evidence from all three verified providers
-  on **6/6 questions**. Measured latency: **p50 4,401 ms**, **p95 6,347 ms**, min 990 ms,
-  max 6,347 ms. This is a small measured sample, not a long-term SLA.
-- Document ingestion reached a real HydraDB source id and terminal `indexed` state.
-- Router fixture accuracy is **29/39 = 74.4%** across 15 labelled categories. All 325
-  fixture-computable assertions pass. The score is printed as measured, not rounded up.
-- **217 tests across 20 files** pass. Typecheck, lint, production build, and deployment
-  binding checks are clean.
+## Public demo boundary
 
-The complete measurements and caveats live in [BENCHMARK_REPORT.md](BENCHMARK_REPORT.md)
-and [submission/requirements-matrix.md](submission/requirements-matrix.md).
+The public deployment is intentionally a shared evidence sandbox.
+`QUEUEPROOF_PUBLIC_WORKSPACE_ID` selects its exact workspace. A single-workspace
+deployment can use the unambiguous singleton fallback; multiple workspaces without an
+exact selector fail closed. Visitors can inspect evidence, ask questions, review queue
+packets, and create shared in-product proposals.
+Anonymous visitors cannot configure credentials, create or modify connectors, create
+databases, enumerate the HydraDB account or provider catalogue, use the raw database query API, create
+workspaces, refresh ingestion state, upload documents, mint or revoke MCP tokens, or
+execute external provider writes. Those control-plane operations require a private
+workspace actor. Public proof queries, queue generation, and proposals are rate-limited;
+the bounded `/api/ask` workflow remains available to judges.
 
-## What makes it trustworthy
+## Verified release evidence - 3 August 2026
 
-- HMAC-SHA-256 signed, httpOnly sessions; identity is never trusted from a caller-supplied
-  header unless an explicitly configured gateway owns that boundary.
-- AES-GCM credential encryption with a random IV per secret.
-- Workspace ownership enforced server-side on every operational row.
-- Prompt-injection screening on evidence that is about to cross into a provider write.
-- Scoped, expiring, revocable MCP tokens stored only as hashes.
-- The same persisted packet and receipt hash are read by the web app, API, and MCP server.
-- No fixture fallback in production. Missing storage, credentials, evidence, or provider
-  proof produces a named failure state rather than a fabricated dashboard.
+| Gate | Result |
+| --- | ---: |
+| TypeScript | pass |
+| ESLint | pass |
+| Production build | pass |
+| End-to-end shell contract | pass |
+| Deployment binding check | pass |
+| Full test suite | 274 tests across 29 files |
+| Security suite | 13 tests |
+| MCP suite | 8 tests |
+| Offline router benchmark | 39/39 cases; 331 assertions |
+
+Responsive browser QA covers 360x800, 390x844, 768x1024, 1440x900, 1920x1080,
+2560x1440, and 3840x2160. The mobile shell retains all six destinations; dialogs manage
+focus; citations are interactive; and grounded, partial, and abstained answers have
+distinct states.
+
+The last observed production workspace showed four `data_verified` connectors: GitHub,
+Gmail, Linear, and Slack. The flagship question returned cited GitHub, Linear, and Slack
+evidence in one thinking query. This is connector evidence, not a universal availability
+or latency promise. See [docs/CONNECTOR_PROOF.md](docs/CONNECTOR_PROOF.md).
+
+The stored large-PDF artifact is a historical pre-hardening run: 21/22 under the old
+grader. It is not comparable with the current strict grader and is not claimed as a fresh
+release result. See [docs/LARGE_PDF_PROOF.md](docs/LARGE_PDF_PROOF.md).
 
 ## Architecture
 
 | Layer | Responsibility |
-|---|---|
-| Next.js / React 19 | Server-rendered product shell and authenticated control planes |
+| --- | --- |
+| Next.js 16 / React 19 | Product shell, API routes, public/private control boundaries |
 | HydraDB | Provider catalogue, connector lifecycle, retrieval, document indexing |
-| Turso / libSQL | Durable workspace, proof, packet, token, document, approval, and audit state |
-| `packages/retrieval` | Deterministic query planning and cross-source evidence normalization |
+| Turso / libSQL | Durable workspace, proof, queue, token, approval, execution, and audit state |
+| `packages/retrieval` | Deterministic routing, exact-ID dual lanes, evidence normalization |
 | `packages/ranking` | Pure, versioned priority policy and score deltas |
-| `packages/actions` | Exact Linear payloads, risk classification, redaction, provider execution |
-| MCP | Scoped agent access to the same workspace-bound product state |
+| `packages/actions` | Exact Linear payloads, risk classification, provider execution |
+| MCP | Scoped agent access to the same workspace-bound product records |
+
+The detailed data and trust boundaries are in
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and
+[docs/SECURITY.md](docs/SECURITY.md).
 
 ## Run locally
 
@@ -83,22 +97,22 @@ npm install
 Create `.env.local`:
 
 ```bash
-QUEUEPROOF_ENCRYPTION_KEY=<at least 16 characters; use a 32-byte random secret>
+QUEUEPROOF_ENCRYPTION_KEY=<at least 16 characters; use a random secret>
 QUEUEPROOF_ALLOW_LOCAL_IDENTITY=true
 QUEUEPROOF_SQLITE_PATH=.data/queueproof.db
 QUEUEPROOF_TEST_MODE=false
 ```
 
-Then start the app:
+Then run:
 
 ```bash
 npm run dev
 ```
 
-For hosted storage, replace `QUEUEPROOF_SQLITE_PATH` with
-`TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`. Enter the HydraDB credential inside the
-Sources UI. `LINEAR_API_KEY` is optional: without it approvals are durably recorded but
-the exact Linear payload is not executed.
+For hosted storage, use `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` instead of
+`QUEUEPROOF_SQLITE_PATH`. HydraDB credentials are entered through the private Sources UI.
+`LINEAR_API_KEY` is optional; without it, approval can be recorded but no external issue
+is created.
 
 ## Verify
 
@@ -106,31 +120,46 @@ the exact Linear payload is not executed.
 npm run typecheck
 npm run lint
 npm test
+npm run test:security
+npm run test:mcp
+npm run benchmark:router
 npm run build
 npm run deploy:check
 ```
 
-Additional gates:
+For local E2E, start the built app in another terminal, then run the shell check:
 
 ```bash
-npm run test:security
-npm run test:mcp
-npm run eval
-npm run doctor
+npm run start
+# separate terminal
+npm run test:e2e
 ```
+
+Production benchmarks are deliberately separate because they send labelled questions to
+live indexed data:
+
+```bash
+npm run benchmark:live -- --url https://queueproof.vercel.app
+npm run benchmark:pdf -- --url https://queueproof.vercel.app
+```
+
+## Evidence index
+
+- [Benchmark report](BENCHMARK_REPORT.md) (fixture results plus version-labelled live provenance)
+- [Evaluation methodology](docs/EVALUATION_METHODOLOGY.md)
+- [Connector proof](docs/CONNECTOR_PROOF.md)
+- [Large-PDF proof status](docs/LARGE_PDF_PROOF.md)
+- [Security model](docs/SECURITY.md)
+- [Secret-scan evidence](audit/secret-scan-2026-08-03.md)
+- [Judging matrix](docs/JUDGING_MATRIX.md)
+- [Submission copy](docs/SUBMISSION_COPY.md)
 
 ## Honest boundaries
 
-- Gmail is configured and authenticated, not yet `data_verified`; the free HydraDB plan's
-  backfill cadence is still advancing. It is never counted among the three live sources.
-- Linear execution code is production-built and provider-mocked in tests, but no claim is
-  made that the current public deployment has created a real Linear issue until a live
-  provider receipt is recorded.
-- Citation precision and recall, cost per query, memory, a skills runtime, decision replay,
-  execution leases, and change-ledger diffing are not claimed.
-- The six-query live latency run is deliberately labelled as a small sample.
-
-## Demo
-
-Use [submission/60-second-script.md](submission/60-second-script.md) for the judge flow and
-[submission/judge-one-pager.md](submission/judge-one-pager.md) for the concise evidence pack.
+- No fresh production PDF score is claimed after the strict grader was introduced.
+- The six-question live sample in `BENCHMARK_REPORT.md` is historical, small, and not an SLA.
+- Relative query units are shown; QueueProof does not invent a HydraDB dollar cost.
+- Public visitors cannot mutate credentials, connector configuration, uploads, tokens, or
+  external systems.
+- A real Linear execution must be evidenced by a stored provider response ID; code and
+  tests are not presented as proof that the public deployment created an issue.

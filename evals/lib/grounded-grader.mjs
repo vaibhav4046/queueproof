@@ -1,0 +1,232 @@
+/**
+ * Pure grading helpers for grounded QueueProof answers.
+ *
+ * This module performs no I/O. A benchmark case passes only when every explicit
+ * required fact is present, every required provider has a supporting cited claim,
+ * all claim citation IDs resolve, every claim is textually supported by its cited
+ * excerpt, and any required contradiction is backed by two cited providers.
+ */
+
+export const GROUNDED_GRADER_VERSION = "grounded-grader-v2";
+
+/** @template T @param {T[] | unknown} value @returns {T[]} */
+const asArray = (value) => Array.isArray(value) ? value : [];
+
+/** @param {unknown} value */
+export function normaliseGradeText(value) {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function alternativesMatch(corpus, alternatives) {
+  return asArray(alternatives).find((candidate) => {
+    const normalised = normaliseGradeText(candidate);
+    return normalised.length > 0 && corpus.includes(normalised);
+  }) ?? null;
+}
+
+/**
+ * A required fact supports either:
+ * - `anyOf`: one complete phrase must occur; or
+ * - `allOf`: every inner alternative group must have a match.
+ * @param {unknown} answer
+ * @param {{ id?: unknown, label?: unknown, anyOf?: unknown[], allOf?: unknown[][] }} fact
+ */
+export function matchRequiredFact(answer, fact) {
+  const corpus = normaliseGradeText(answer);
+  const anyMatch = alternativesMatch(corpus, fact?.anyOf);
+  const allGroups = asArray(fact?.allOf);
+  const allMatches = allGroups.map((group) => alternativesMatch(corpus, group));
+  const hasAnyConstraint = asArray(fact?.anyOf).length > 0;
+  const hasAllConstraint = allGroups.length > 0;
+  const matched = (!hasAnyConstraint || Boolean(anyMatch)) &&
+    (!hasAllConstraint || allMatches.every(Boolean)) &&
+    (hasAnyConstraint || hasAllConstraint);
+  return {
+    id: String(fact?.id ?? "unnamed-fact"),
+    label: String(fact?.label ?? fact?.id ?? "Unnamed required fact"),
+    matched,
+    matchedAlternatives: [anyMatch, ...allMatches].filter(Boolean),
+  };
+}
+
+function claimCitationIds(claim) {
+  return [...new Set(asArray(claim?.citation_ids ?? claim?.evidenceIds).map(String).filter(Boolean))];
+}
+
+function contradictionCitationIds(contradiction) {
+  return [...new Set(asArray(contradiction?.evidenceIds ?? contradiction?.evidence_ids).map(String).filter(Boolean))];
+}
+
+function claimSupportedByCitation(claim, citation) {
+  const claimText = normaliseGradeText(claim?.text);
+  const excerpt = normaliseGradeText(citation?.excerpt);
+  if (!claimText || !excerpt || !excerpt.includes(claimText)) return false;
+  const claimProviders = asArray(claim?.providers).map((provider) => normaliseGradeText(provider));
+  const citationProvider = normaliseGradeText(citation?.provider);
+  return citationProvider.length > 0 && claimProviders.includes(citationProvider);
+}
+
+const ratio = (numerator, denominator) => denominator > 0 ? numerator / denominator : null;
+
+/**
+ * @param {{
+ *   answer?: unknown,
+ *   claims?: Array<{ text?: unknown, citation_ids?: unknown[], evidenceIds?: unknown[], providers?: unknown[] }>,
+ *   citations?: Array<{ id?: unknown, provider?: unknown, title?: unknown, excerpt?: unknown }>,
+ *   contradictions?: Array<{ summary?: unknown, evidenceIds?: unknown[], evidence_ids?: unknown[], providers?: unknown[] }>,
+ *   providerCoverage?: unknown[],
+ *   requiredFacts?: Array<{ id?: unknown, label?: unknown, anyOf?: unknown[], allOf?: unknown[][] }>,
+ *   requiredProviders?: unknown[],
+ *   requiresContradiction?: boolean,
+ * }} [input]
+ */
+export function gradeGroundedAnswer({
+  answer = "",
+  claims = [],
+  citations = [],
+  contradictions = [],
+  providerCoverage = [],
+  requiredFacts = [],
+  requiredProviders = [],
+  requiresContradiction = false,
+} = {}) {
+  const factResults = asArray(requiredFacts).map((fact) => matchRequiredFact(answer, fact));
+  const matchedFacts = factResults.filter((fact) => fact.matched);
+  const missingFacts = factResults.filter((fact) => !fact.matched);
+
+  const citationById = new Map(asArray(citations)
+    .filter((citation) => citation && citation.id)
+    .map((citation) => [String(citation.id), citation]));
+  const invalidCitationIds = new Set();
+  const referencedCitationIds = new Set();
+  const supportedCitationIds = new Set();
+  const unsupportedClaims = [];
+  let claimCitationPairCount = 0;
+  let supportedClaimCitationPairCount = 0;
+  let supportedClaimCount = 0;
+
+  for (const [index, claim] of asArray(claims).entries()) {
+    const ids = claimCitationIds(claim);
+    let supported = false;
+    for (const id of ids) {
+      claimCitationPairCount += 1;
+      referencedCitationIds.add(id);
+      const citation = citationById.get(id);
+      if (!citation) {
+        invalidCitationIds.add(id);
+        continue;
+      }
+      if (!claimSupportedByCitation(claim, citation)) continue;
+      supported = true;
+      supportedClaimCitationPairCount += 1;
+      supportedCitationIds.add(id);
+    }
+    if (supported) {
+      supportedClaimCount += 1;
+    } else {
+      unsupportedClaims.push({
+        index,
+        text: String(claim?.text ?? ""),
+        citationIds: ids,
+      });
+    }
+  }
+
+  const supportedContradictions = [];
+  for (const [index, contradiction] of asArray(contradictions).entries()) {
+    const ids = contradictionCitationIds(contradiction);
+    ids.forEach((id) => referencedCitationIds.add(id));
+    const resolved = ids.map((id) => {
+      const citation = citationById.get(id);
+      if (!citation) invalidCitationIds.add(id);
+      return citation;
+    }).filter(Boolean);
+    const providers = [...new Set(resolved.map((citation) => normaliseGradeText(citation.provider)).filter(Boolean))];
+    if (ids.length >= 2 && resolved.length === ids.length && providers.length >= 2 && String(contradiction?.summary ?? "").trim()) {
+      ids.forEach((id) => supportedCitationIds.add(id));
+      supportedContradictions.push({ index, summary: String(contradiction.summary), evidenceIds: ids, providers });
+    }
+  }
+
+  const supportedProviders = [...new Set([...supportedCitationIds]
+    .map((id) => citationById.get(id)?.provider)
+    .map(normaliseGradeText)
+    .filter(Boolean))].sort();
+  const expectedProviders = [...new Set(asArray(requiredProviders).map(normaliseGradeText).filter(Boolean))].sort();
+  const missingProviders = expectedProviders.filter((provider) => !supportedProviders.includes(provider));
+  const reportedProviders = [...new Set(asArray(providerCoverage).map(normaliseGradeText).filter(Boolean))].sort();
+  const reportedWithoutSupportingCitation = reportedProviders.filter((provider) => !supportedProviders.includes(provider));
+  const citedButUnreportedProviders = supportedProviders.filter((provider) => !reportedProviders.includes(provider));
+
+  const claimCount = asArray(claims).length;
+  const citationPrecision = ratio(supportedClaimCitationPairCount, claimCitationPairCount);
+  const citationCompleteness = ratio(supportedClaimCount, claimCount);
+  const unsupportedClaimRate = ratio(unsupportedClaims.length, claimCount);
+  const citationPass = claimCount > 0 && invalidCitationIds.size === 0 && unsupportedClaims.length === 0 &&
+    citationPrecision === 1 && citationCompleteness === 1;
+  const contradictionPass = !requiresContradiction || supportedContradictions.length > 0;
+  const factPass = factResults.length > 0 && missingFacts.length === 0;
+  const providerPass = expectedProviders.length > 0 && missingProviders.length === 0;
+
+  const citedSources = [...referencedCitationIds]
+    .map((id) => citationById.get(id))
+    .filter(Boolean)
+    .map((citation) => ({
+      id: String(citation.id),
+      provider: String(citation.provider ?? "unknown"),
+      title: String(citation.title ?? "Untitled source"),
+      excerpt: String(citation.excerpt ?? "").slice(0, 700),
+      supported: supportedCitationIds.has(String(citation.id)),
+    }));
+
+  return {
+    pass: factPass && providerPass && citationPass && contradictionPass,
+    factPass,
+    factResults,
+    matchedFacts,
+    missingFacts,
+    matchedFactCount: matchedFacts.length,
+    requiredFactCount: factResults.length,
+    requiredFactRecall: ratio(matchedFacts.length, factResults.length),
+    providerPass,
+    requiredProviders: expectedProviders,
+    supportedProviders,
+    missingProviders,
+    reportedProviders,
+    reportedWithoutSupportingCitation,
+    citedButUnreportedProviders,
+    citationPass,
+    citationPrecision,
+    citationCompleteness,
+    unsupportedClaimRate,
+    claimCount,
+    supportedClaimCount,
+    claimCitationPairCount,
+    supportedClaimCitationPairCount,
+    invalidCitationIds: [...invalidCitationIds],
+    unsupportedClaims,
+    requiresContradiction: Boolean(requiresContradiction),
+    contradictionPass,
+    supportedContradictions,
+    citedSources,
+  };
+}
+
+export const PDF_CANARY_KINDS = Object.freeze({
+  beginning: "beginning_load_bearing",
+  middle: "middle_load_bearing",
+  end: "end_load_bearing",
+});
+
+/** @param {Array<{ kind?: string, pass?: boolean }> | undefined} rows */
+export function summarisePdfCanaries(rows) {
+  return Object.fromEntries(Object.entries(PDF_CANARY_KINDS).map(([position, kind]) => [
+    position,
+    asArray(rows).find((row) => row?.kind === kind)?.pass === true,
+  ]));
+}

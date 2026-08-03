@@ -1,20 +1,42 @@
 # HydraDB hackathon judging matrix
 
-| Criterion | QueueProof evidence | Demo moment |
+| Criterion | Verifiable QueueProof evidence | 60-second demo moment |
 | --- | --- | --- |
-| Correctness | Grounded answer contract, claim receipt IDs, explicit missing information, answer-only expected-fact checks | Run flagship proof; open one citation drawer |
-| Cross-source reasoning | Verified GitHub, Linear, Slack and Gmail; one query can preserve status disagreement across three providers | Show connector rail, then contradiction receipt |
-| Latency | Auto router chooses fast for stable facts and thinking for cross-source/temporal work; p50/p95 stored per live run | Open Benchmarks and filter Fast versus Thinking |
-| Cost | HydraDB calls and weighted units appear in every receipt; no invented USD price | Point to calls and cost units beside answer |
-| Reproducibility | 39 labelled fixtures, 22 planted PDF facts, deterministic generator, JSON/CSV reports, one-command runners | Copy the replay command from Benchmarks |
-| Developer experience | Same persisted packet in web, API and MCP; copyable IDs; current provider contracts; actionable errors | Open Developer dock and copy config |
+| Correctness | Grounded/partial/abstained contract; strict fact and citation grader; explicit missing information | Run the flagship question, then open a citation receipt |
+| Cross-source reasoning | Four verified connectors; flagship GitHub + Linear + Slack answer; contradictions remain explicit | Point to provider coverage and tracked-state disagreement |
+| Retrieval quality | Exact IDs execute text and hybrid lanes concurrently; sources merge/dedupe; strong connector/resource lineage | Show routing reason and retrieval receipt |
+| Latency and cost | Receipts expose elapsed time, actual call count, and relative units; stored live sample is clearly labelled small | Open Benchmarks and distinguish measured from unmeasured |
+| Reproducibility | 39 labelled router cases, 331 assertions, deterministic 346-page PDF, 22 questions, 56 fact groups | Show the replay commands and historical/current labels |
+| Trust and safety | Public sandbox guard, versioned signed sessions, encrypted credentials, approval gate, at-most-once execution | Show the sandbox notice and exact proposal payload |
+| Developer experience | Same persisted packets across web/API/MCP; MCP scope, expiry, revocation, and audience enforcement | Open Developer and show the bounded contract |
+| Product quality | Proof-first first viewport, six mobile destinations, interactive citations, focus-managed dialogs, distinct result states | Resize to mobile and navigate without losing functionality |
+
+## Release evidence
+
+- Typecheck, lint, production build, E2E, and deployment check: pass.
+- Full suite: 274 tests across 29 files.
+- Security suite: 13 tests.
+- MCP suite: 8 tests.
+- Router benchmark: 39/39 cases, 331 assertions.
+- Responsive QA: 360x800, 390x844, 768x1024, 1440x900, 1920x1080,
+  2560x1440, and 3840x2160.
+- Secret scan: zero matching files across the final worktree and complete pre-release history.
 
 ## Differentiator
 
-Search products retrieve information. QueueProof proves the transition from fragmented evidence to a safe next action: connector proof → grounded claims → contradiction handling → deterministic priority → approval-gated execution.
+Search products return snippets. QueueProof proves the transition from fragmented
+evidence to a safe next action:
 
-## Honest gaps
+`connector proof -> grounded claims -> preserved conflicts -> deterministic priority -> approval-gated execution`
 
-- Provider availability is constrained by hackathon credentials and HydraDB indexing time.
-- HydraDB pricing is not assumed; relative weighted query units are reported.
-- A queued document is never called indexed until the status endpoint says `completed`.
+The receipt is not decorative. It explains which evidence entered the answer, which
+score components moved the queue item, what remains unknown, and what permission is
+required before a write.
+
+## Honest limits
+
+- The retained PDF production result predates the strict grader; no fresh strict score is
+  claimed.
+- The historical six-query live sample is not a stable latency distribution or SLA.
+- Public sandbox visitors cannot modify integration or external-provider state.
+- A provider write is considered executed only when a provider response ID is stored.

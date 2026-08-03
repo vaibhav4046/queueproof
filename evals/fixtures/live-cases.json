@@ -1,0 +1,81 @@
+[
+  {
+    "id": "live-three-provider-multi-hop",
+    "label": "three-provider multi-hop",
+    "question": "Who escalated the AuthShield outage, what did engineering commit to, and is the fix already merged?",
+    "expected": "Northwind escalated AuthShield; engineering committed to ship by 7 August; GitHub reports the fix merged.",
+    "requiredFacts": [
+      { "id": "northwind-escalation", "label": "Northwind escalated AuthShield", "allOf": [["northwind"], ["escalated", "escalation"], ["authshield"]] },
+      { "id": "engineering-commitment", "label": "Engineering committed to ship by 7 August", "allOf": [["engineering"], ["committed", "commitment"], ["7 august"]] },
+      { "id": "merged-fix", "label": "The AuthShield fix is merged", "allOf": [["authshield"], ["merged"]] }
+    ],
+    "requiredProviders": ["github", "linear", "slack"],
+    "requiresContradiction": false
+  },
+  {
+    "id": "live-deadline-conflict",
+    "label": "deadline conflict",
+    "question": "Which sources disagree about the billing migration deadline?",
+    "expected": "The answer must preserve the 7 August versus 14 August deadline disagreement and cite the sources.",
+    "requiredFacts": [
+      { "id": "billing-migration", "label": "Billing Migration is the subject", "anyOf": ["billing migration"] },
+      { "id": "first-deadline", "label": "One source says 7 August", "anyOf": ["7 august"] },
+      { "id": "second-deadline", "label": "Another source says 14 August", "anyOf": ["14 august"] }
+    ],
+    "requiredProviders": ["linear", "slack"],
+    "requiresContradiction": true
+  },
+  {
+    "id": "live-untracked-commitment",
+    "label": "untracked commitment",
+    "question": "Which promise to Northwind has no issue tracking it?",
+    "expected": "The written incident post-mortem promised by 10 August is not tracked in Linear.",
+    "requiredFacts": [
+      { "id": "post-mortem", "label": "A written incident post-mortem was promised", "allOf": [["written"], ["incident post mortem", "post mortem"], ["promised", "promise"]] },
+      { "id": "post-mortem-date", "label": "The promise is due 10 August", "anyOf": ["10 august"] },
+      { "id": "not-tracked", "label": "The promise has no Linear issue", "anyOf": ["not tracked in linear", "no linear issue", "has no linear issue", "without a linear issue", "lacks a linear issue"] }
+    ],
+    "requiredProviders": ["linear", "slack"],
+    "requiresContradiction": false
+  },
+  {
+    "id": "live-stale-tracked-work",
+    "label": "stale tracked work",
+    "question": "Which open issue appears to be already resolved elsewhere?",
+    "expected": "The AuthShield fix is merged or shipped while its tracked issue remains open.",
+    "requiredFacts": [
+      { "id": "authshield", "label": "The work is the AuthShield fix", "anyOf": ["authshield"] },
+      { "id": "completed-elsewhere", "label": "The fix is complete elsewhere", "anyOf": ["merged", "shipped", "resolved"] },
+      { "id": "tracked-open", "label": "The tracked issue remains open", "anyOf": ["remains open", "still open", "showing as open", "issue is open"] }
+    ],
+    "requiredProviders": ["github", "linear"],
+    "requiresContradiction": true
+  },
+  {
+    "id": "live-actor-reconstruction",
+    "label": "actor reconstruction",
+    "question": "Who is Priya Raman and what has she been working on?",
+    "expected": "Priya Raman is tied to the Northwind/AuthShield incident and Atlas Launch work.",
+    "requiredFacts": [
+      { "id": "actor", "label": "The actor is Priya Raman", "anyOf": ["priya raman"] },
+      { "id": "incident", "label": "Priya is tied to the Northwind AuthShield incident", "allOf": [["northwind"], ["authshield"]] },
+      { "id": "project", "label": "Priya is tied to Atlas Launch", "anyOf": ["atlas launch"] }
+    ],
+    "requiredProviders": ["linear", "slack"],
+    "requiresContradiction": false
+  },
+  {
+    "id": "live-exact-identifier-context",
+    "label": "exact identifier plus context",
+    "question": "What is BUG-123, who filed it, and which project is it against?",
+    "expected": "BUG-123 is the AuthShield/Northwind incident work, filed by Priya Raman against Atlas Launch.",
+    "requiredFacts": [
+      { "id": "identifier", "label": "The issue is BUG-123", "anyOf": ["bug-123"] },
+      { "id": "incident-context", "label": "BUG-123 is AuthShield work for Northwind", "allOf": [["authshield"], ["northwind"]] },
+      { "id": "filed-by", "label": "Priya Raman filed it", "allOf": [["priya raman"], ["filed"]] },
+      { "id": "project", "label": "It is against Atlas Launch", "anyOf": ["atlas launch"] }
+    ],
+    "requiredProviders": ["linear", "slack"],
+    "requiresContradiction": false
+  }
+]

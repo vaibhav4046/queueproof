@@ -1,5 +1,5 @@
 import { apiError, noStoreJson, readJson } from "../../../lib/server/api";
-import { requireRequestActor } from "../../../lib/server/identity";
+import { requirePrivateControlActor, requireRequestActor } from "../../../lib/server/identity";
 import { requireDb, runtimeEnv } from "../../../lib/server/runtime";
 import { audit, createId, ensureCoreSchema, requireWorkspaceForUser } from "../../../lib/server/store";
 import { sha256 } from "../../../packages/security/src";
@@ -36,6 +36,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const actor = await requireRequestActor();
+    requirePrivateControlActor(actor, "MCP token minting");
     const workspace = await requireWorkspaceForUser(actor.id);
     const workspaceId = String(workspace.id);
     const payload = await readJson<{ clientType?: string; scopes?: string[]; expiresInDays?: number }>(request);
@@ -58,7 +59,7 @@ export async function POST(request: Request) {
         `INSERT INTO mcp_tokens (id, workspace_id, client_id, token_hash, audience, scopes_json, expires_at)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
       ).bind(tokenId, workspaceId, clientId, await sha256(token),
-        runtimeEnv().QUEUEPROOF_MCP_AUDIENCE ?? "queueproof-mcp", JSON.stringify(scopes), expiresAt),
+        runtimeEnv().QUEUEPROOF_MCP_AUDIENCE?.trim() || "queueproof-mcp", JSON.stringify(scopes), expiresAt),
     ]);
     await audit({ workspaceId, actorId: actor.id, operation: "mcp.token.create", targetType: "mcp_token",
       targetId: tokenId, outcome: "success", riskClass: "write", metadata: { clientType, scopes, expiresAt } });
@@ -72,6 +73,7 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const actor = await requireRequestActor();
+    requirePrivateControlActor(actor, "MCP token revocation");
     const workspace = await requireWorkspaceForUser(actor.id);
     const { tokenId } = await readJson<{ tokenId?: string }>(request);
     if (!tokenId) return noStoreJson({ ok: false, error: "tokenId is required." }, { status: 400 });

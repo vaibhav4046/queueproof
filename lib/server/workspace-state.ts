@@ -29,7 +29,7 @@ export type WorkspaceView =
       storageBackend: string;
     };
 
-export type ActorView = { displayName: string; localDevelopment: boolean };
+export type ActorView = { displayName: string; localDevelopment: boolean; publicAccess: boolean };
 
 export type WorkspaceSummary = {
   id: string;
@@ -67,6 +67,7 @@ export async function loadWorkspaceView(): Promise<WorkspaceView> {
   const actorView: ActorView = {
     displayName: actor.displayName,
     localDevelopment: actor.localDevelopment,
+    publicAccess: actor.id === "user:public-access",
   };
 
   if (!workspace) return { kind: "no_workspace", actor: actorView };

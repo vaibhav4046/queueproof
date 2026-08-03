@@ -1,6 +1,6 @@
 import { apiError, noStoreJson } from "../../../../../lib/server/api";
 import { hydraClientForWorkspace } from "../../../../../lib/server/hydradb-account";
-import { requireRequestActor } from "../../../../../lib/server/identity";
+import { requirePrivateControlActor, requireRequestActor } from "../../../../../lib/server/identity";
 import { requireDb } from "../../../../../lib/server/runtime";
 import { audit, createId, requireWorkspaceForUser } from "../../../../../lib/server/store";
 import { genericProviderAdapter } from "../../../../../packages/connectors/src";
@@ -8,6 +8,7 @@ import { genericProviderAdapter } from "../../../../../packages/connectors/src";
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const actor = await requireRequestActor();
+    requirePrivateControlActor(actor, "Connector discovery");
     const workspace = await requireWorkspaceForUser(actor.id);
     const workspaceId = String(workspace.id);
     const { id } = await context.params;
@@ -64,4 +65,3 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     return apiError(error);
   }
 }
-

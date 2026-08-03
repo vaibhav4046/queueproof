@@ -1,4 +1,4 @@
-import { requireDb } from "./runtime";
+import { requireDb, runtimeEnv } from "./runtime";
 
 let initialised = false;
 
@@ -169,8 +169,8 @@ const schemaStatements = [
   // Action proposal tables. queueproof_propose_action and queueproof_get_action_status
   // read and write these, but ensureCoreSchema() never created them, so both tools threw
   // "no such table" at runtime — undetected because no test invokes an MCP handler.
-  // The UNIQUE constraint on idempotency_key is what makes a repeated proposal a no-op
-  // rather than a duplicate.
+  // The workspace-scoped UNIQUE constraint on idempotency_key makes a repeated
+  // proposal a no-op without coupling otherwise independent workspaces.
   `CREATE TABLE IF NOT EXISTS action_proposals (
     id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, provider TEXT NOT NULL,
     action_type TEXT NOT NULL, payload_json TEXT NOT NULL,
@@ -182,7 +182,7 @@ const schemaStatements = [
   )`,
   `CREATE TABLE IF NOT EXISTS action_approvals (
     id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, proposal_id TEXT NOT NULL,
-    decision TEXT NOT NULL, decided_by TEXT, decided_at TEXT,
+    decision TEXT NOT NULL, decided_by TEXT NOT NULL, decided_at TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(proposal_id)
   )`,
@@ -274,16 +274,71 @@ export async function audit(input: {
     .run();
 }
 
+/**
+ * Durable public-sandbox rate limit backed by the existing audit ledger.
+ *
+ * The first count avoids adding rows after a bucket is already full. Recording before
+ * the second count means concurrent requests cannot all pass from the same stale count:
+ * excess contenders see the enlarged bucket and fail closed. Private actors bypass this
+ * helper because their signed identity is the accountability boundary.
+ */
+export async function enforcePublicRateLimit(input: {
+  actorId: string;
+  workspaceId: string;
+  operation: string;
+  limit: number;
+  windowMs: number;
+}) {
+  if (input.actorId !== "user:public-access") return;
+  await ensureCoreSchema();
+  const db = requireDb();
+  const auditOperation = `rate_limit.${input.operation}`;
+  const cutoff = new Date(Date.now() - input.windowMs).toISOString().slice(0, 19).replace("T", " ");
+  const count = async () => Number((await db
+    .prepare(
+      `SELECT COUNT(*) AS total FROM audit_events
+       WHERE workspace_id = ? AND actor_id = ? AND operation = ? AND created_at >= ?`,
+    )
+    .bind(input.workspaceId, input.actorId, auditOperation, cutoff)
+    .first<{ total: number }>())?.total ?? 0);
+  const retryAfter = Math.max(1, Math.ceil(input.windowMs / 1_000));
+  const reject = () => {
+    throw new Response(
+      `Public sandbox rate limit reached for ${input.operation}. Try again later.`,
+      { status: 429, headers: { "Retry-After": String(retryAfter) } },
+    );
+  };
+  if (await count() >= input.limit) reject();
+  await audit({
+    workspaceId: input.workspaceId,
+    actorId: input.actorId,
+    operation: auditOperation,
+    targetType: "public_rate_limit",
+    outcome: "success",
+    metadata: { limit: input.limit, windowMs: input.windowMs },
+  });
+  if (await count() > input.limit) reject();
+}
+
 export async function workspaceForUser(userId: string) {
   await ensureCoreSchema();
   const db = requireDb();
-  // Public-access mode intentionally exposes the shared demo workspace to anonymous
-  // visitors. The actor is server-generated (`user:public-access`), never caller input;
-  // all normal users remain constrained to their workspace_members row below.
+  // Public access must resolve to one deliberate workspace, never whichever tenant was
+  // created first. Deployments with multiple workspaces configure the exact id; a
+  // single-workspace demo can safely use the unambiguous fallback. Ambiguity fails shut.
   if (userId === "user:public-access") {
-    return db
-      .prepare(`SELECT * FROM workspaces ORDER BY created_at ASC LIMIT 1`)
-      .first<Record<string, unknown>>();
+    const configuredId = runtimeEnv().QUEUEPROOF_PUBLIC_WORKSPACE_ID?.trim();
+    if (configuredId) {
+      return db
+        .prepare(`SELECT * FROM workspaces WHERE id = ? LIMIT 1`)
+        .bind(configuredId)
+        .first<Record<string, unknown>>();
+    }
+    return db.prepare(
+      `SELECT w.* FROM workspaces w
+       WHERE NOT EXISTS (SELECT 1 FROM workspaces other WHERE other.id <> w.id)
+       LIMIT 1`,
+    ).first<Record<string, unknown>>();
   }
   return db
     .prepare(

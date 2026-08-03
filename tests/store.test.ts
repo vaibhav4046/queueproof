@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { requireDb } from "../lib/server/runtime";
-import { audit, createId, ensureCoreSchema, workspaceForUser } from "../lib/server/store";
+import { audit, createId, enforcePublicRateLimit, ensureCoreSchema, workspaceForUser } from "../lib/server/store";
 
 /**
  * First tests to exercise the real persistence layer.
@@ -104,6 +104,10 @@ describe("workspace ownership", () => {
     expect(await workspaceForUser("user:carol")).toBeNull();
   });
 
+  it("fails closed instead of assigning an ambiguous oldest workspace to public access", async () => {
+    expect(await workspaceForUser("user:public-access")).toBeNull();
+  });
+
   it("rolls back the whole workspace batch if membership insertion fails", async () => {
     const db = requireDb();
     const workspaceId = createId("ws");
@@ -157,6 +161,22 @@ describe("audit trail", () => {
     expect(row?.outcome).toBe("success");
     expect(row?.risk_class).toBe("write");
     expect(row?.actor_id).toBe("user:alice");
+
+    const rateWorkspace = createId("ws_rate");
+    await enforcePublicRateLimit({
+      actorId: "user:public-access", workspaceId: rateWorkspace,
+      operation: "test", limit: 1, windowMs: 60_000,
+    });
+    try {
+      await enforcePublicRateLimit({
+        actorId: "user:public-access", workspaceId: rateWorkspace,
+        operation: "test", limit: 1, windowMs: 60_000,
+      });
+      throw new Error("rate limit did not reject");
+    } catch (error) {
+      expect(error).toBeInstanceOf(Response);
+      expect((error as Response).status).toBe(429);
+    }
   });
 
   it("accepts an event with no workspace, so failures before workspace resolution are recorded", async () => {

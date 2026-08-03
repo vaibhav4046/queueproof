@@ -5,6 +5,15 @@
     "kind": "beginning_load_bearing",
     "question": "Who at Helios Robotics holds the sole authority to declare a fleet wide stop work?",
     "expectedAnswer": "The Duty Operations Lead.",
+    "requiredFacts": [
+      {
+        "id": "stop-work-authority",
+        "label": "The Duty Operations Lead has sole authority",
+        "anyOf": [
+          "Duty Operations Lead"
+        ]
+      }
+    ],
     "exactIdentifier": null
   },
   {
@@ -13,6 +22,22 @@
     "kind": "exact_identifier",
     "question": "Which charter governs the Helios Robotics operations handbook, and when was it ratified?",
     "expectedAnswer": "HR-CHARTER-9, ratified on 12 January 2031.",
+    "requiredFacts": [
+      {
+        "id": "charter",
+        "label": "The governing charter is HR-CHARTER-9",
+        "anyOf": [
+          "HR-CHARTER-9"
+        ]
+      },
+      {
+        "id": "ratified",
+        "label": "The charter was ratified on 12 January 2031",
+        "anyOf": [
+          "12 January 2031"
+        ]
+      }
+    ],
     "exactIdentifier": "HR-CHARTER-9"
   },
   {
@@ -21,6 +46,56 @@
     "kind": "superseded_policy_original",
     "question": "What did OPS-POL-14 originally permit for Rover SDK field firmware flashing?",
     "expectedAnswer": "A single Tier 2 engineer could flash Rover SDK field firmware without a second approver while the rover was on a maintenance stand. This permission is no longer in force.",
+    "requiredFacts": [
+      {
+        "id": "single-engineer",
+        "label": "A single Tier 2 engineer could perform the flash",
+        "anyOf": [
+          "single Tier 2 engineer"
+        ]
+      },
+      {
+        "id": "field-firmware",
+        "label": "The permission covered Rover SDK field firmware flashing",
+        "allOf": [
+          [
+            "Rover SDK"
+          ],
+          [
+            "field firmware"
+          ],
+          [
+            "flash",
+            "flashing"
+          ]
+        ]
+      },
+      {
+        "id": "without-second-approver",
+        "label": "No second approver was required",
+        "anyOf": [
+          "without a second approver",
+          "no second approver"
+        ]
+      },
+      {
+        "id": "maintenance-stand",
+        "label": "The rover had to be on a maintenance stand",
+        "anyOf": [
+          "maintenance stand"
+        ]
+      },
+      {
+        "id": "no-longer-force",
+        "label": "The permission is no longer in force",
+        "anyOf": [
+          "no longer in force",
+          "permission is withdrawn",
+          "permission was withdrawn",
+          "policy was superseded"
+        ]
+      }
+    ],
     "exactIdentifier": "OPS-POL-14"
   },
   {
@@ -29,6 +104,60 @@
     "kind": "superseding_decision",
     "question": "Is the single approver firmware flashing rule in OPS-POL-14 still in force?",
     "expectedAnswer": "No. ADR-037, dated 9 September 2031, supersedes OPS-POL-14 and requires two approvers, one of whom must be a Safety Case Owner.",
+    "requiredFacts": [
+      {
+        "id": "not-in-force",
+        "label": "The single-approver rule is not in force",
+        "anyOf": [
+          "not in force",
+          "no longer in force",
+          "withdrawn",
+          "must not be relied on"
+        ]
+      },
+      {
+        "id": "decision",
+        "label": "ADR-037 is the superseding decision",
+        "anyOf": [
+          "ADR-037"
+        ]
+      },
+      {
+        "id": "decision-date",
+        "label": "ADR-037 is dated 9 September 2031",
+        "anyOf": [
+          "9 September 2031"
+        ]
+      },
+      {
+        "id": "supersedes-policy",
+        "label": "ADR-037 supersedes OPS-POL-14",
+        "allOf": [
+          [
+            "supersedes",
+            "superseded"
+          ],
+          [
+            "OPS-POL-14"
+          ]
+        ]
+      },
+      {
+        "id": "two-approvers",
+        "label": "Two approvers are required",
+        "anyOf": [
+          "two approvers",
+          "two-approver"
+        ]
+      },
+      {
+        "id": "safety-owner",
+        "label": "One approver must be a Safety Case Owner",
+        "anyOf": [
+          "Safety Case Owner"
+        ]
+      }
+    ],
     "exactIdentifier": "ADR-037"
   },
   {
@@ -37,6 +166,29 @@
     "kind": "table_lookup",
     "question": "In the escalation severity matrix, what is the SEV-1 acknowledgement target and who approves it?",
     "expectedAnswer": "5 minutes, approved by the Duty Operations Lead.",
+    "requiredFacts": [
+      {
+        "id": "severity",
+        "label": "The row is SEV-1",
+        "anyOf": [
+          "SEV-1"
+        ]
+      },
+      {
+        "id": "ack-target",
+        "label": "The acknowledgement target is 5 minutes",
+        "anyOf": [
+          "5 minutes"
+        ]
+      },
+      {
+        "id": "approver",
+        "label": "The Duty Operations Lead approves it",
+        "anyOf": [
+          "Duty Operations Lead"
+        ]
+      }
+    ],
     "exactIdentifier": null
   },
   {
@@ -45,6 +197,29 @@
     "kind": "project_alias",
     "question": "Which internal programme code does the project alias Rover SDK refer to?",
     "expectedAnswer": "HR-P4, the field autonomy toolkit.",
+    "requiredFacts": [
+      {
+        "id": "alias",
+        "label": "The alias is Rover SDK",
+        "anyOf": [
+          "Rover SDK"
+        ]
+      },
+      {
+        "id": "programme-code",
+        "label": "The programme code is HR-P4",
+        "anyOf": [
+          "HR-P4"
+        ]
+      },
+      {
+        "id": "scope",
+        "label": "The programme is the field autonomy toolkit",
+        "anyOf": [
+          "field autonomy toolkit"
+        ]
+      }
+    ],
     "exactIdentifier": "HR-P4"
   },
   {
@@ -53,6 +228,15 @@
     "kind": "deadline",
     "question": "What was the committed general availability date for Atlas Launch?",
     "expectedAnswer": "14 March 2031",
+    "requiredFacts": [
+      {
+        "id": "ga-date",
+        "label": "Atlas Launch general availability was 14 March 2031",
+        "anyOf": [
+          "14 March 2031"
+        ]
+      }
+    ],
     "exactIdentifier": null
   },
   {
@@ -61,6 +245,45 @@
     "kind": "exact_identifier",
     "question": "What work does ENG-456 track and when is it due?",
     "expectedAnswer": "ENG-456 reduces the AuthShield operator token lifetime to fifteen minutes, due 30 June 2031.",
+    "requiredFacts": [
+      {
+        "id": "issue",
+        "label": "The issue is ENG-456",
+        "anyOf": [
+          "ENG-456"
+        ]
+      },
+      {
+        "id": "work",
+        "label": "It reduces the AuthShield operator token lifetime",
+        "allOf": [
+          [
+            "AuthShield"
+          ],
+          [
+            "operator token lifetime"
+          ],
+          [
+            "reduces",
+            "reduced"
+          ]
+        ]
+      },
+      {
+        "id": "lifetime",
+        "label": "The target lifetime is fifteen minutes",
+        "anyOf": [
+          "fifteen minutes"
+        ]
+      },
+      {
+        "id": "due-date",
+        "label": "It is due 30 June 2031",
+        "anyOf": [
+          "30 June 2031"
+        ]
+      }
+    ],
     "exactIdentifier": "ENG-456"
   },
   {
@@ -69,6 +292,41 @@
     "kind": "hindi_commitment",
     "question": "Which English issue identifier does the Hindi language commitment in the security section refer to?",
     "expectedAnswer": "ENG-456. The commitment states that the AuthShield operator token lifetime will be cut to fifteen minutes by 30 June 2031.",
+    "requiredFacts": [
+      {
+        "id": "issue",
+        "label": "The English issue identifier is ENG-456",
+        "anyOf": [
+          "ENG-456"
+        ]
+      },
+      {
+        "id": "commitment",
+        "label": "The commitment concerns the AuthShield operator token lifetime",
+        "allOf": [
+          [
+            "AuthShield"
+          ],
+          [
+            "operator token lifetime"
+          ]
+        ]
+      },
+      {
+        "id": "lifetime",
+        "label": "The target lifetime is fifteen minutes in English",
+        "anyOf": [
+          "fifteen minutes"
+        ]
+      },
+      {
+        "id": "date",
+        "label": "The commitment is due 30 June 2031",
+        "anyOf": [
+          "30 June 2031"
+        ]
+      }
+    ],
     "exactIdentifier": "ENG-456"
   },
   {
@@ -77,6 +335,15 @@
     "kind": "deadline",
     "question": "When is the Billing Migration ledger cutover scheduled?",
     "expectedAnswer": "1 October 2031",
+    "requiredFacts": [
+      {
+        "id": "cutover-date",
+        "label": "The ledger cutover is scheduled for 1 October 2031",
+        "anyOf": [
+          "1 October 2031"
+        ]
+      }
+    ],
     "exactIdentifier": null
   },
   {
@@ -85,6 +352,15 @@
     "kind": "deadline",
     "question": "What is the code freeze date for Rover SDK 5.0?",
     "expectedAnswer": "15 November 2031",
+    "requiredFacts": [
+      {
+        "id": "freeze-date",
+        "label": "The Rover SDK 5.0 code freeze is 15 November 2031",
+        "anyOf": [
+          "15 November 2031"
+        ]
+      }
+    ],
     "exactIdentifier": null
   },
   {
@@ -93,6 +369,34 @@
     "kind": "exact_identifier",
     "question": "What defect does BUG-123 record and in which release was it fixed?",
     "expectedAnswer": "Odometry drift after cold boot, fixed in Rover SDK 4.2.1 released on 21 May 2031.",
+    "requiredFacts": [
+      {
+        "id": "defect",
+        "label": "BUG-123 records odometry drift after cold boot",
+        "allOf": [
+          [
+            "odometry drift"
+          ],
+          [
+            "cold boot"
+          ]
+        ]
+      },
+      {
+        "id": "release",
+        "label": "It was fixed in Rover SDK 4.2.1",
+        "anyOf": [
+          "Rover SDK 4.2.1"
+        ]
+      },
+      {
+        "id": "release-date",
+        "label": "The release date was 21 May 2031",
+        "anyOf": [
+          "21 May 2031"
+        ]
+      }
+    ],
     "exactIdentifier": "BUG-123"
   },
   {
@@ -101,6 +405,27 @@
     "kind": "exact_identifier",
     "question": "What did PR-8871 change and when was it merged?",
     "expectedAnswer": "The Atlas Launch telemetry schema version 3, merged on 2 July 2031.",
+    "requiredFacts": [
+      {
+        "id": "change",
+        "label": "PR-8871 changed the Atlas Launch telemetry schema version 3",
+        "allOf": [
+          [
+            "Atlas Launch"
+          ],
+          [
+            "telemetry schema version 3"
+          ]
+        ]
+      },
+      {
+        "id": "merge-date",
+        "label": "It merged on 2 July 2031",
+        "anyOf": [
+          "2 July 2031"
+        ]
+      }
+    ],
     "exactIdentifier": "PR-8871"
   },
   {
@@ -109,6 +434,15 @@
     "kind": "middle_load_bearing",
     "question": "What beacon cadence do Rover SDK units fall back to during a communications blackout?",
     "expectedAnswer": "90 seconds",
+    "requiredFacts": [
+      {
+        "id": "beacon-cadence",
+        "label": "The fallback beacon cadence is 90 seconds",
+        "anyOf": [
+          "90 seconds"
+        ]
+      }
+    ],
     "exactIdentifier": null
   },
   {
@@ -117,6 +451,15 @@
     "kind": "single_source_fact",
     "question": "How many telemetry frames does a Rover SDK unit retain in its onboard ring buffer during a blackout?",
     "expectedAnswer": "4096",
+    "requiredFacts": [
+      {
+        "id": "buffer-frames",
+        "label": "The ring buffer retains 4096 telemetry frames",
+        "anyOf": [
+          "4096"
+        ]
+      }
+    ],
     "exactIdentifier": null
   },
   {
@@ -125,6 +468,42 @@
     "kind": "exact_identifier",
     "question": "What happened in INC-2031 and how long did customer impact last?",
     "expectedAnswer": "A Billing Migration double charge event on 8 April 2031, with 41 minutes of customer impact.",
+    "requiredFacts": [
+      {
+        "id": "event",
+        "label": "INC-2031 was a Billing Migration double charge event",
+        "allOf": [
+          [
+            "Billing Migration"
+          ],
+          [
+            "double charge"
+          ]
+        ]
+      },
+      {
+        "id": "event-date",
+        "label": "It happened on 8 April 2031",
+        "anyOf": [
+          "8 April 2031"
+        ]
+      },
+      {
+        "id": "impact",
+        "label": "Customer impact lasted 41 minutes",
+        "allOf": [
+          [
+            "41 minutes",
+            "41 minute",
+            "41 min"
+          ],
+          [
+            "customer impact",
+            "customer visible"
+          ]
+        ]
+      }
+    ],
     "exactIdentifier": "INC-2031"
   },
   {
@@ -133,6 +512,24 @@
     "kind": "table_lookup",
     "question": "In the incident log summary, what severity and impact window are recorded against INC-2031?",
     "expectedAnswer": "SEV-2, with a 41 minute impact window.",
+    "requiredFacts": [
+      {
+        "id": "severity",
+        "label": "INC-2031 is SEV-2",
+        "anyOf": [
+          "SEV-2"
+        ]
+      },
+      {
+        "id": "impact-window",
+        "label": "The impact window is 41 minutes",
+        "anyOf": [
+          "41 minutes",
+          "41 minute",
+          "41 min"
+        ]
+      }
+    ],
     "exactIdentifier": "INC-2031"
   },
   {
@@ -141,6 +538,34 @@
     "kind": "entity_disambiguation",
     "question": "What is Priya Raman's role at Helios Robotics and which programme does she own?",
     "expectedAnswer": "Staff Reliability Engineer, employee HR-2214, engineering owner of AuthShield.",
+    "requiredFacts": [
+      {
+        "id": "role",
+        "label": "Priya Raman is a Staff Reliability Engineer",
+        "anyOf": [
+          "Staff Reliability Engineer"
+        ]
+      },
+      {
+        "id": "employee",
+        "label": "Her employee identifier is HR-2214",
+        "anyOf": [
+          "HR-2214"
+        ]
+      },
+      {
+        "id": "ownership",
+        "label": "She is the engineering owner of AuthShield",
+        "allOf": [
+          [
+            "engineering owner"
+          ],
+          [
+            "AuthShield"
+          ]
+        ]
+      }
+    ],
     "exactIdentifier": "HR-2214"
   },
   {
@@ -149,6 +574,34 @@
     "kind": "entity_disambiguation",
     "question": "What is Priya Ramanathan's role at Helios Robotics and which desk does she run?",
     "expectedAnswer": "Customer Escalation Manager, employee HR-5871, running the Billing Migration escalation desk.",
+    "requiredFacts": [
+      {
+        "id": "role",
+        "label": "Priya Ramanathan is a Customer Escalation Manager",
+        "anyOf": [
+          "Customer Escalation Manager"
+        ]
+      },
+      {
+        "id": "employee",
+        "label": "Her employee identifier is HR-5871",
+        "anyOf": [
+          "HR-5871"
+        ]
+      },
+      {
+        "id": "desk",
+        "label": "She runs the Billing Migration escalation desk",
+        "allOf": [
+          [
+            "Billing Migration"
+          ],
+          [
+            "escalation desk"
+          ]
+        ]
+      }
+    ],
     "exactIdentifier": "HR-5871"
   },
   {
@@ -157,6 +610,15 @@
     "kind": "table_lookup",
     "question": "Who is the Ring 0 on call contact for the Bengaluru depot?",
     "expectedAnswer": "Priya Raman.",
+    "requiredFacts": [
+      {
+        "id": "ring-zero-contact",
+        "label": "The Ring 0 Bengaluru contact is Priya Raman",
+        "anyOf": [
+          "Priya Raman"
+        ]
+      }
+    ],
     "exactIdentifier": null
   },
   {
@@ -165,6 +627,46 @@
     "kind": "distractor_discrimination",
     "question": "Does DRAFT-OPS-14 permit single engineer firmware flashing today?",
     "expectedAnswer": "No. DRAFT-OPS-14 was never ratified and carries no operational authority. The binding rule is ADR-037, which requires two approvers.",
+    "requiredFacts": [
+      {
+        "id": "not-permitted",
+        "label": "The draft does not permit single-engineer flashing today",
+        "anyOf": [
+          "does not permit",
+          "neither the draft nor the superseded policy permits",
+          "not permitted"
+        ]
+      },
+      {
+        "id": "never-ratified",
+        "label": "DRAFT-OPS-14 was never ratified",
+        "anyOf": [
+          "never ratified"
+        ]
+      },
+      {
+        "id": "no-authority",
+        "label": "The draft has no operational authority",
+        "anyOf": [
+          "no operational authority"
+        ]
+      },
+      {
+        "id": "binding-rule",
+        "label": "ADR-037 is the binding rule",
+        "anyOf": [
+          "ADR-037"
+        ]
+      },
+      {
+        "id": "two-approvers",
+        "label": "The binding rule requires two approvers",
+        "anyOf": [
+          "two approvers",
+          "two-approver"
+        ]
+      }
+    ],
     "exactIdentifier": "DRAFT-OPS-14"
   },
   {
@@ -173,6 +675,16 @@
     "kind": "end_load_bearing",
     "question": "What share of the 2032 capital expenditure is reserved for battery replacement?",
     "expectedAnswer": "18 percent",
+    "requiredFacts": [
+      {
+        "id": "battery-share",
+        "label": "Battery replacement receives 18 percent",
+        "anyOf": [
+          "18 percent",
+          "18%"
+        ]
+      }
+    ],
     "exactIdentifier": null
   }
 ]

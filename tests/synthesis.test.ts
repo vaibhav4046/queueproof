@@ -43,6 +43,30 @@ describe("evidence-constrained synthesis", () => {
     expect(result.claims.every((claim) => claim.evidenceIds.length > 0)).toBe(true);
   });
 
+  it("marks a multi-part answer partial when retrieved evidence covers only one requested facet", () => {
+    const result = synthesiseGroundedAnswer(
+      "Who escalated the AuthShield outage, what did engineering commit to, and is the fix already merged?",
+      [evidence[1]],
+    );
+
+    expect(result.validation.status).toBe("partial");
+    expect(result.missingInformation).toEqual(expect.arrayContaining([
+      expect.stringMatching(/commitment/i),
+      expect.stringMatching(/completion state/i),
+    ]));
+    expect(result.answer).toMatch(/escalat/i);
+  });
+
+  it("uses the explicit insufficient-evidence language when no claim is supportable", () => {
+    const result = synthesiseGroundedAnswer(
+      "What did engineering commit to for AuthShield?",
+      [evidence[3]],
+    );
+
+    expect(result.validation.status).toBe("abstained");
+    expect(result.answer).toMatch(/^Insufficient evidence\./i);
+  });
+
   it("ranks on-topic receipts above unrelated retrieved records", () => {
     const ranked = rankEvidenceForQuestion("Is the AuthShield fix merged?", evidence);
     expect(ranked[0].id).toBe("github-1");

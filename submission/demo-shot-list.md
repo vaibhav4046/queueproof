@@ -1,16 +1,17 @@
-# Demo shot list (SUPERSEDED)
+# QueueProof demo shot list
 
-> **Use `submission/60-second-script.md` instead.** This list includes shots that cannot be
-> performed today: a counterfactual panel, an external MCP client tool result, and a mobile
-> pass that was not exercised.
+Use with the canonical [60-second script](../docs/DEMO_SCRIPT_60S.md).
 
-1. Desktop Command, verified connector rail, no personal message excerpts.
-2. Ask query and live execution trace.
-3. Ranked queue and Proof Packet.
-4. Comparison/counterfactual panel.
-5. Commitment and approval-gated proposal.
-6. Agent Dock plus external client tool result.
-7. Evaluation strip.
-8. Mobile Command and Connectors states.
+1. Desktop first viewport: product promise, public-sandbox disclosure, proof console, and
+   verified connector rail in one frame.
+2. Flagship question: thinking-mode trace and returned provider coverage.
+3. Interactive citation: supporting excerpt, provider, source ID, and timestamp.
+4. Preserved disagreement or missing-information state; do not hide it.
+5. Queue packet: score components, penalties, evidence, permissions, and receipt hash.
+6. Approval payload: show proposal boundary; do not attempt public external execution.
+7. Benchmarks: 39/39, 331 assertions, and historical PDF label.
+8. Mobile 390x844: show that Proof, Queue, Evidence, Benchmarks, Approvals, and Developer
+   are all reachable.
 
-Capture a clean test workspace, blur account identifiers, and retain the private verification receipts outside the public video.
+Keep private account identifiers and credentials out of the recording. Do not show the
+historical 21/22 PDF artifact as a current strict-grade pass.

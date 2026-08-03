@@ -1,35 +1,61 @@
-# QueueProof baseline audit
+# QueueProof baseline audit - historical before-state
 
-Audit date: 3 August 2026. Baseline commit: `cafcd727acd18ce2828c49f0969d040ef6656395`.
+> This document records the state found at the start of the 3 August 2026 hardening pass.
+> It is intentionally not current release evidence. Use `README.md`,
+> `BENCHMARK_REPORT.md`, and the other proof documents in `docs/` for current claims.
 
-## What was real
+Audit date: 3 August 2026
 
-- Public Vercel product at `https://queueproof.vercel.app` with durable Turso storage.
-- Four data-verified HydraDB connectors across GitHub, Linear, and Slack; Gmail also contained retrievable records.
-- Public workspace access was an intentional deployment policy, not an authentication bypass.
-- Claim-level synthesis, connector proof records, document ingestion, queue packets, MCP tokens, and approval proposals were already implemented.
-- Release gates passed: lint, typecheck, 224 tests, build, deploy check, and 6/6 production showcase questions.
+Recorded baseline commit: `cafcd727acd18ce2828c49f0969d040ef6656395`
 
-## Measured baseline
+## What was already real
 
-| Measure | Baseline |
+- A public Vercel product with durable Turso/libSQL storage.
+- Four `data_verified` HydraDB connectors across GitHub, Gmail, Linear, and Slack.
+- Claim-level synthesis, connector proof records, document ingestion, queue packets, MCP
+  tokens, and action proposals.
+- A functioning flagship query with GitHub, Linear, and Slack evidence.
+
+## Baseline measurements (do not quote as current)
+
+| Measure | Historical baseline |
 | --- | ---: |
-| Offline router mode agreement | 29/39 (74.4%) |
-| Live showcase expected-answer pass | 6/6 |
-| Live p50 | 778 ms in the audit rerun; 660 ms in the stored artifact |
-| Flagship provider coverage | GitHub, Linear, Slack |
-| Flagship HydraDB calls | 1 thinking query |
-| Flagship cited claims | 4/4 |
+| Offline router agreement | 29/39 (74.4%) |
+| Baseline full suite | 224 tests |
+| Stored showcase run | 6 questions |
 
-## Defects found
+Later measurements use different code and, for the PDF suite, a stricter grading contract.
+They must not be combined with these numbers.
 
-- Seven visible desktop controls were below a 44 px interaction target.
-- Navigation state was not addressable by URL; refresh/back could not restore the active surface.
-- Queue sorting, benchmark filtering, source preview, receipt copying, and score-formula disclosure were absent.
-- Multiple records about the same work could become duplicate queue items.
-- Document receipts did not preserve page count or processing duration.
-- The answer API exposed legacy camelCase claims instead of one explicit grounded contract.
-- The router over-escalated stable single-source questions and missed several reasoning cues.
-- Production configuration had no early fail-closed validator, and the redactor lacked Linear, QueueProof, Attio, credential-URL, and query-token patterns.
+## Defects found in the baseline
 
-This audit is intentionally a before-state. Current results belong in `BENCHMARK_REPORT.md` and the proof documents in this directory.
+- The proof console was below the first viewport at important screen sizes.
+- Sticky header and fixed toast positioning were accidentally overridden by later CSS.
+- Approvals and Developer destinations disappeared from mobile navigation.
+- Dialog focus, citation interaction, selected-state semantics, and URL/restoration
+  behavior were incomplete.
+- Partial or abstained answers could look fully grounded.
+- Exact-ID planning described dual retrieval but did not execute both lanes.
+- Same-product records could collapse into duplicate or incorrectly merged queue work.
+- Connector attribution could fall back to provider name rather than strong lineage.
+- Public demo users could reach sensitive control-plane mutations.
+- Session payload parsing, MCP token audience validation, and action-execution uniqueness
+  needed hardening.
+- The PDF grader accepted token overlap without proving claim-to-citation support and used
+  the wrong end-canary key.
+
+## Current disposition
+
+The current release candidate addresses those findings with:
+
+- proof-first responsive layout and six-destination navigation;
+- grounded/partial/abstained result states and accessible receipt dialogs;
+- concurrent text + hybrid exact-ID retrieval;
+- conflict-aware task clustering and fail-closed connector/resource lineage;
+- a public sandbox control guard;
+- versioned session claims, MCP audience enforcement, and an action integrity migration;
+- a strict fact, citation, provider, and contradiction grader.
+
+Current verified gates are 274 tests across 29 files, 13 security tests, 8 MCP tests,
+39/39 router cases with 331 fixture assertions, plus passing typecheck, lint, build, E2E,
+and deployment checks.

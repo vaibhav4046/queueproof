@@ -1,15 +1,51 @@
-# Social post drafts
+# QueueProof social posts
 
-Drafts only—do not publish without explicit approval.
+These drafts use only release evidence verified on 3 August 2026.
 
-## Short launch
+## LinkedIn
 
-Built QueueProof for the HydraDB Connectors Hackathon: one evidence control plane across GitHub, Linear, Slack, Gmail and documents. It preserves contradictions, cites every claim, ranks the next safe action with a deterministic receipt, and keeps provider writes human-approved. Live: https://queueproof.vercel.app
+Agents can execute. The harder problem is proving what deserves execution next.
 
-## Technical thread opener
+QueueProof is an evidence-backed control plane built on HydraDB. It retrieves across
+GitHub, Linear, Slack, Gmail, and documents; turns the evidence into cited claims;
+preserves disagreements; and compiles a deterministic next-action packet with a receipt.
 
-Most agent demos stop at retrieval. QueueProof proves the full path: verified connector → source-level citation → grounded claim → cross-source contradiction → deterministic priority → approval-gated action. The benchmark ships inside the product: 39 labelled questions, live call/latency receipts, and a 346-page adversarial PDF with planted facts from page 3 through the ending section.
+The trust boundary is part of the product: the public sandbox supports shared evidence,
+questions, queue review, and proposals, while credentials, connector changes, uploads,
+tokens, and external writes require a private owner.
 
-## Judge-facing
+Release evidence: 39/39 labelled router cases, 331 assertions, and 274 tests across 29
+files, including 13 security and 8 MCP tests. Typecheck, lint, build, E2E, and deployment
+checks pass.
 
-QueueProof uses HydraDB fast mode for stable facts and thinking mode only for temporal, entity, conflict and multi-hop work. Every answer shows provider coverage, calls, latency and relative cost units; every queue item shows the exact scoring formula and evidence penalties. Reproduce the live run with one command from the Benchmarks screen.
+One answer. Every system. Proven.
+
+<https://queueproof.vercel.app>
+
+#HydraDB #AIagents #RAG #DeveloperTools #AISafety
+
+## X / Twitter
+
+QueueProof gives agents one defensible next action - with receipts.
+
+HydraDB evidence -> cited claims -> preserved conflicts -> deterministic priority ->
+approval-gated execution.
+
+39/39 router cases. 331 assertions. 274 tests. Public evidence sandbox; external writes
+stay private and approval-gated.
+
+<https://queueproof.vercel.app>
+
+## Demo/video caption
+
+One question across GitHub, Linear, and Slack. Every claim opens to a receipt. The queue
+shows its score math. The public sandbox can propose, but it cannot change credentials or
+execute an external write.
+
+QueueProof - One answer. Every system. Proven.
+
+## Accuracy note
+
+Do not add a current PDF score until the 22-case production suite is rerun under the
+hardened fact-and-citation grader. The retained 21/22 artifact is historical and not
+comparable.

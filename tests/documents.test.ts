@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import {
   MAX_DOCUMENT_BYTES,
+  MAX_DOCUMENT_REQUEST_BYTES,
   contentHash,
   detectFileType,
   pdfPageCount,
@@ -153,5 +154,60 @@ describe("document routes", () => {
     expect(
       (await POST(new Request("https://queueproof.example/api/documents", { method: "POST" }))).status,
     ).toBe(401);
+  });
+
+  it("rejects a declared oversized upload before parsing multipart form data", async () => {
+    const previousLocalIdentity = process.env.QUEUEPROOF_ALLOW_LOCAL_IDENTITY;
+    process.env.QUEUEPROOF_ALLOW_LOCAL_IDENTITY = "true";
+    try {
+      await ensureCoreSchema();
+      const db = requireDb();
+      const userId = "user:local-development";
+      let workspace = await db
+        .prepare(
+          `SELECT w.id FROM workspaces w
+           JOIN workspace_members wm ON wm.workspace_id = w.id
+           WHERE wm.user_id = ? LIMIT 1`,
+        )
+        .bind(userId)
+        .first<{ id: string }>();
+      if (!workspace) {
+        const workspaceId = createId("ws");
+        await db.batch([
+          db.prepare("INSERT OR IGNORE INTO users (id, email, display_name) VALUES (?, ?, ?)")
+            .bind(userId, "local@queueproof.invalid", "Local workspace"),
+          db.prepare("INSERT INTO workspaces (id, slug, name) VALUES (?, ?, ?)")
+            .bind(workspaceId, `upload-preflight-${workspaceId.slice(-6)}`, "Upload preflight"),
+          db.prepare(
+            "INSERT INTO workspace_members (id, workspace_id, user_id, role) VALUES (?, ?, ?, 'owner')",
+          ).bind(createId("member"), workspaceId, userId),
+        ]);
+        workspace = { id: workspaceId };
+      }
+
+      let parsed = false;
+      const request = new Request("https://queueproof.example/api/documents", {
+        method: "POST",
+        headers: {
+          "Content-Type": "multipart/form-data; boundary=queueproof-test",
+          "Content-Length": String(MAX_DOCUMENT_REQUEST_BYTES + 1),
+        },
+      });
+      Object.defineProperty(request, "formData", {
+        value: async () => {
+          parsed = true;
+          throw new Error("formData must not run for a declared oversized request");
+        },
+      });
+
+      const { POST } = await import("../app/api/documents/route");
+      const response = await POST(request);
+      expect(response.status).toBe(413);
+      expect(parsed).toBe(false);
+      expect(workspace.id).toBeTruthy();
+    } finally {
+      if (previousLocalIdentity === undefined) delete process.env.QUEUEPROOF_ALLOW_LOCAL_IDENTITY;
+      else process.env.QUEUEPROOF_ALLOW_LOCAL_IDENTITY = previousLocalIdentity;
+    }
   });
 });

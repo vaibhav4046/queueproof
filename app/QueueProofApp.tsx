@@ -90,7 +90,7 @@ type AskData = {
   routing_reason: string;
   contradictions: Array<{ summary: string; evidenceIds: string[]; providers: string[] }>;
   missingInformation: string[];
-  validation: { status: "grounded" | "abstained"; claimCount: number; citedClaimCount: number; evidenceCount: number; providerCoverage: string[] };
+  validation: { status: "grounded" | "partial" | "abstained"; claimCount: number; citedClaimCount: number; evidenceCount: number; providerCoverage: string[] };
   trace: { runId: string; category: string; mode: string; latencyMs: number; callCount: number; connectorCount: number; calls: Array<Record<string, unknown>>; cost?: { estimatedUnits: number; estimatedUsd: number | null; basis: string } };
 };
 type McpToken = {
@@ -107,7 +107,7 @@ type ActionProposal = {
   id: string; provider: string; actionType: string; payloadJson: string;
   evidenceIdsJson: string; riskClass: string; status: string; createdAt: string;
   decision: string | null; decidedAt: string | null; executionStatus: string | null;
-  providerResponseId: string | null;
+  providerResponseId: string | null; executionError: string | null;
 };
 type IssuePayload = { title?: string; description?: string; teamId?: string; projectId?: string };
 type ActiveTab = "command" | "ask" | "sources" | "lab" | "approvals" | "agent";
@@ -149,7 +149,7 @@ async function api<T>(url: string, init?: RequestInit): Promise<T> {
     });
   } catch (reason) {
     if (reason instanceof DOMException && reason.name === "TimeoutError") {
-      throw new Error("The evidence request exceeded 30 seconds. Nothing was written; try again.");
+      throw new Error("The request exceeded 30 seconds. Its outcome is unknown; refresh the relevant ledger before retrying.");
     }
     throw reason;
   }
@@ -169,6 +169,92 @@ function dateLabel(value?: string | null) {
 
 function band(score: number) {
   return score >= 80 ? "Critical" : score >= 60 ? "High" : score >= 35 ? "Normal" : "Low";
+}
+
+let nextDialogId = 0;
+const openDialogIds: number[] = [];
+
+/**
+ * Shared modal behavior for every product drawer/dialog.
+ *
+ * The stack guard makes Escape close only the top-most dialog (for example, a
+ * citation opened from inside an execution packet). Outside content is inert,
+ * focus is trapped while open, and the invoking control receives focus again
+ * after close.
+ */
+function useDialogBehavior<T extends HTMLElement>(open: boolean, onClose: () => void) {
+  const dialogRef = useRef<T>(null);
+  const closeRef = useRef(onClose);
+  const [dialogId] = useState(() => ++nextDialogId);
+
+  useEffect(() => {
+    closeRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!open) return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    const inerted = new Map<HTMLElement, boolean>();
+    openDialogIds.push(dialogId);
+    document.body.style.overflow = "hidden";
+
+    let branch: HTMLElement | null = dialog;
+    while (branch?.parentElement) {
+      for (const sibling of Array.from(branch.parentElement.children)) {
+        if (sibling === branch || !(sibling instanceof HTMLElement)) continue;
+        inerted.set(sibling, sibling.inert);
+        sibling.inert = true;
+      }
+      branch = branch.parentElement;
+      if (branch === document.body) break;
+    }
+
+    const focusableSelector = [
+      "button:not([disabled])", "a[href]", "input:not([disabled])", "select:not([disabled])",
+      "textarea:not([disabled])", "[tabindex]:not([tabindex='-1'])",
+    ].join(",");
+    const focusable = () => Array.from(dialog.querySelectorAll<HTMLElement>(focusableSelector))
+      .filter((element) => !element.hidden && element.getAttribute("aria-hidden") !== "true");
+
+    const initial = dialog.querySelector<HTMLElement>("[data-dialog-initial]") ?? focusable()[0] ?? dialog;
+    const frame = window.requestAnimationFrame(() => initial.focus({ preventScroll: true }));
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (openDialogIds.at(-1) !== dialogId) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        closeRef.current();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const items = focusable();
+      if (!items.length) { event.preventDefault(); dialog.focus(); return; }
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault(); last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault(); first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.removeEventListener("keydown", onKeyDown);
+      const stackIndex = openDialogIds.lastIndexOf(dialogId);
+      if (stackIndex >= 0) openDialogIds.splice(stackIndex, 1);
+      for (const [element, previous] of inerted) element.inert = previous;
+      document.body.style.overflow = previousOverflow;
+      if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
+    };
+  }, [dialogId, open]);
+
+  return dialogRef;
 }
 
 export default function QueueProofApp({
@@ -201,6 +287,7 @@ export default function QueueProofApp({
     setTab(next);
     const hash = `#${next}`;
     if (window.location.hash !== hash) window.history.pushState({ queueproofTab: next }, "", hash);
+    window.scrollTo({ top: 0, behavior: "auto" });
   }, []);
 
   useEffect(() => {
@@ -273,6 +360,7 @@ export default function QueueProofApp({
   }, [workspaceId]);
 
   const verified = connectors.filter((connector) => connector.state === "data_verified");
+  const publicSandbox = view?.kind === "ready" && view.actor.publicAccess;
 
   async function generateQueue() {
     setBusy("queue"); setError(""); setNotice("");
@@ -301,7 +389,11 @@ export default function QueueProofApp({
   if (view.kind === "sign_in_required") {
     return <SignIn signInConfigured={view.signInConfigured} onSignedIn={reloadWorkspace} />;
   }
-  if (view.kind === "no_workspace") return <WorkspaceSetup onDone={reloadWorkspace} />;
+  if (view.kind === "no_workspace") {
+    return view.actor.publicAccess
+      ? <PublicWorkspaceUnavailable />
+      : <WorkspaceSetup onDone={reloadWorkspace} />;
+  }
 
   return (
     <div className="qp-app">
@@ -319,7 +411,12 @@ export default function QueueProofApp({
         </button>
         <nav aria-label="Primary navigation">
           {nav.map(({ id, label, icon: Icon }) => (
-            <button key={id} className={tab === id ? "active" : ""} onClick={() => navigateTab(id)}>
+            <button key={id} className={tab === id ? "active" : ""} aria-current={tab === id ? "page" : undefined} onClick={() => navigateTab(id)}>
+              <Icon size={14} />{label}
+            </button>
+          ))}
+          {utilityNav.map(({ id, label, icon: Icon }) => (
+            <button key={`mobile-${id}`} className={`mobile-nav-utility${tab === id ? " active" : ""}`} aria-current={tab === id ? "page" : undefined} onClick={() => navigateTab(id)}>
               <Icon size={14} />{label}
             </button>
           ))}
@@ -327,15 +424,17 @@ export default function QueueProofApp({
         <div className="header-status">
           <div className="utility-nav">
             {utilityNav.map(({ id, label, icon: Icon }) => (
-              <button key={id} className={tab === id ? "active" : ""} onClick={() => navigateTab(id)} title={label} aria-label={label}>
+              <button key={id} className={tab === id ? "active" : ""} aria-current={tab === id ? "page" : undefined} onClick={() => navigateTab(id)} title={label} aria-label={label}>
                 <Icon size={15} /><span>{label}</span>
               </button>
             ))}
           </div>
           <button className="command-trigger" onClick={() => setCommandOpen(true)} aria-label="Open command palette"><Search size={14} /><kbd>⌘K</kbd></button>
-          <span className="demo-badge"><span className={verified.length ? "status-orb live" : "status-orb"} />Live demo</span>
+          <span className="demo-badge"><span className={verified.length ? "status-orb live" : "status-orb"} />{publicSandbox ? "Public sandbox" : "Live demo"}</span>
         </div>
       </header>
+
+      {publicSandbox && <div className="sandbox-disclosure" role="note"><ShieldCheck size={13} /><strong>Public sandbox</strong><span>Shared evidence and proposals · credentials and external execution disabled</span></div>}
 
       {view.storageBackend === "ephemeral" && (
         <div className="storage-banner" role="status">
@@ -365,12 +464,12 @@ export default function QueueProofApp({
         {tab === "ask" && <AskScreen verified={verified} connectorsLoaded={connectorsLoaded} onOpenSources={() => navigateTab("sources")} onOpenLab={() => navigateTab("lab")} setError={setError} />}
         {tab === "sources" && <SourcesScreen workspace={view} connectors={connectors}
           reloadWorkspace={reloadWorkspace} reloadConnectors={loadConnectors}
-          setError={setError} setNotice={setNotice} />}
+          setError={setError} setNotice={setNotice} readOnly={publicSandbox} />}
         {tab === "lab" && <LabScreen setError={setError} />}
         {tab === "approvals" && <ApprovalsScreen key={proposalPacket?.packet_id ?? "approvals"}
           seedPacket={proposalPacket} onSeedUsed={() => setProposalPacket(null)}
-          setError={setError} setNotice={setNotice} />}
-        {tab === "agent" && <AgentScreen workspace={view} setError={setError} setNotice={setNotice} />}
+          setError={setError} setNotice={setNotice} readOnly={publicSandbox} />}
+        {tab === "agent" && <AgentScreen workspace={view} setError={setError} setNotice={setNotice} readOnly={publicSandbox} />}
       </main>
       {selectedPacket && <PacketDrawer packet={selectedPacket} onClose={() => setSelectedPacket(null)}
         onPropose={() => { setProposalPacket(selectedPacket); setSelectedPacket(null); navigateTab("approvals"); }} />}
@@ -384,7 +483,8 @@ function CommandPalette({ query, setQuery, onClose, onNavigate }: {
   onNavigate: (tab: ActiveTab) => void;
 }) {
   const entries = [...nav, ...utilityNav].filter((entry) => entry.label.toLowerCase().includes(query.toLowerCase()));
-  return <div className="modal-layer command-layer" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><div className="command-palette" role="dialog" aria-modal="true" aria-label="Navigate QueueProof"><div className="command-search"><Search size={17} /><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Go to a product surface…" aria-label="Search product surfaces" /><kbd>ESC</kbd></div><div className="command-results">{entries.map(({ id, label, icon: Icon }) => <button key={id} onClick={() => onNavigate(id)}><Icon size={16} /><span>{label}</span><ArrowRight size={13} /></button>)}</div></div></div>;
+  const dialogRef = useDialogBehavior<HTMLDivElement>(true, onClose);
+  return <div className="modal-layer command-layer" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><div ref={dialogRef} className="command-palette" role="dialog" aria-modal="true" aria-label="Navigate QueueProof" tabIndex={-1}><div className="command-search"><Search size={17} /><input data-dialog-initial autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Go to a product surface…" aria-label="Search product surfaces" /><kbd>ESC</kbd></div><div className="command-results">{entries.map(({ id, label, icon: Icon }) => <button key={id} onClick={() => onNavigate(id)}><Icon size={16} /><span>{label}</span><ArrowRight size={13} /></button>)}</div></div></div>;
 }
 
 /**
@@ -593,6 +693,21 @@ function WorkspaceSetup({ onDone }: { onDone: () => Promise<WorkspaceView> }) {
   );
 }
 
+function PublicWorkspaceUnavailable() {
+  return (
+    <div className="onboarding-screen">
+      <div className="onboarding-art"><Image src="/queueproof-sentinel.webp" alt="QueueProof sentinel" fill priority /></div>
+      <div className="onboarding-card" role="alert">
+        <span className="step-code">PUBLIC / FAIL CLOSED</span><LockKeyhole size={30} />
+        <h1>The shared workspace is unavailable.</h1>
+        <p>Public access did not resolve to one explicitly selected workspace. QueueProof will not guess a tenant or create durable state for an anonymous visitor.</p>
+        <p className="muted">The deployment owner must set <code>QUEUEPROOF_PUBLIC_WORKSPACE_ID</code> to the intended shared workspace and redeploy.</p>
+        <button className="primary-button" onClick={() => window.location.reload()}><RefreshCw size={14} /> Retry resolution</button>
+      </div>
+    </div>
+  );
+}
+
 function CommandScreen({ queue, verified, busy, onGenerate, onOpenSources, onSelectPacket }: {
   queue: QueueData; verified: Connector[]; busy: boolean; onGenerate: () => void;
   onOpenSources: () => void; onSelectPacket: (packet: Packet) => void;
@@ -678,10 +793,18 @@ function X(props: ComponentProps<typeof LucideX>) {
   return <><LucideX {...props} aria-hidden="true" /><span className="sr-only">Close</span></>;
 }
 
-function CitedAnswer({ text }: { text: string }) {
-  return <>{text.split(/(\[\d+\])/g).map((part, index) => /^\[\d+\]$/.test(part)
-    ? <sup className="citation-chip" key={`${part}-${index}`}>{part.slice(1, -1)}</sup>
-    : <span key={`${part}-${index}`}>{part}</span>)}</>;
+function CitedAnswer({ text, citations, onOpen }: {
+  text: string;
+  citations: Array<Evidence & { id: string }>;
+  onOpen: (evidence: Evidence, index: number) => void;
+}) {
+  return <>{text.split(/(\[\d+\])/g).map((part, index) => {
+    if (!/^\[\d+\]$/.test(part)) return <span key={`${part}-${index}`}>{part}</span>;
+    const citationIndex = Number(part.slice(1, -1)) - 1;
+    const evidence = citations[citationIndex];
+    if (!evidence) return <sup className="citation-chip unavailable" key={`${part}-${index}`} aria-label={`Citation ${citationIndex + 1} unavailable`}>{citationIndex + 1}</sup>;
+    return <sup key={`${part}-${index}`}><button type="button" className="citation-chip" aria-label={`Open citation ${citationIndex + 1}: ${evidence.title}`} onClick={() => onOpen(evidence, citationIndex)}>{citationIndex + 1}</button></sup>;
+  })}</>;
 }
 
 function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setError }: {
@@ -691,9 +814,23 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
   const [mode, setMode] = useState<"auto" | "fast" | "thinking">("auto");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<AskData | null>(null);
-  const [judgePulse, setJudgePulse] = useState<{ passed: number; total: number; p50: number | null; calls: number | null } | null>(null);
+  const [citationPreview, setCitationPreview] = useState<{ evidence: Evidence; index: number } | null>(null);
+  const [judgePulse, setJudgePulse] = useState<{ status: string; passed: number; total: number; p50: number | null; calls: number | null } | null>(null);
+  const runPending = useRef(false);
   const artifactRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
   const verifiedCount = verified.length;
+
+  useEffect(() => {
+    const target = busy ? stageRef.current : result ? resultRef.current : null;
+    if (!target) return;
+    const frame = window.requestAnimationFrame(() => {
+      target.focus({ preventScroll: true });
+      target.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [busy, result]);
 
   useEffect(() => {
     let active = true;
@@ -705,6 +842,7 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
         ? rows.reduce((total, row) => total + (row.callCount ?? 0), 0) / Math.max(rows.length, 1)
         : null;
       setJudgePulse({
+        status: results.live?.status ?? "unavailable",
         passed: measured.filter((row) => row.pass).length,
         total: measured.length,
         p50: results.live?.latencyMs?.p50 ?? null,
@@ -734,13 +872,15 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
   }
 
   async function run(nextQuestion = question) {
+    if (runPending.current) return;
     if (!connectorsLoaded) return;
     if (!verifiedCount) { onOpenSources(); return; }
-    setBusy(true); setError("");
+    runPending.current = true;
+    setBusy(true); setError(""); setCitationPreview(null);
     setResult(null);
     try { setResult(await api<AskData>("/api/ask", { method: "POST", body: JSON.stringify({ question: nextQuestion, mode }) })); }
     catch (reason) { setError(reason instanceof Error ? reason.message : "Evidence retrieval failed."); }
-    finally { setBusy(false); }
+    finally { runPending.current = false; setBusy(false); }
   }
   async function submit(event: FormEvent) { event.preventDefault(); await run(); }
 
@@ -748,6 +888,9 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
   const rankedEvidence = directlyCitedEvidence.length > 0 ? directlyCitedEvidence : result?.evidence.slice(0, 6) ?? [];
   const rankedEvidenceIds = new Set(rankedEvidence.map((item) => item.id ?? item.sourceId));
   const supportingEvidence = result?.evidence.filter((item) => !rankedEvidenceIds.has(item.id ?? item.sourceId)) ?? [];
+  const missingInformation = [...new Set([...(result?.missing_information ?? []), ...(result?.missingInformation ?? [])])];
+  const resultTone = result?.validation.status === "abstained" ? "abstained" : result?.validation.status === "partial" || missingInformation.length ? "partial" : "grounded";
+  const judgeMeasured = judgePulse?.status === "measured";
 
   return (
     <section className="screen ask-screen proof-screen">
@@ -755,16 +898,18 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
         <div className="proof-copy">
           <span className="eyebrow"><Radio size={13} /> Live · HydraDB evidence control plane</span>
           <h1><span>One answer.</span><br /><em>Every system.</em><br /><span className="outline-word">Proven.</span></h1>
-          <p>QueueProof reconstructs commitments across Slack, Linear, GitHub, Gmail, and documents—then turns them into one cited answer with the retrieval calls, latency, policy, and conflicts left visible.</p>
-          <div className="live-source-row">
-            {verified.map((connector) => <span key={connector.id} data-provider={connector.provider}><ProviderIcon provider={connector.provider} />{connector.provider}<i /></span>)}
-            {!connectorsLoaded && <span className="connector-loading"><LoaderCircle className="spin" size={13} /> Resolving source proofs</span>}
-            {connectorsLoaded && !verified.length && <button onClick={onOpenSources}><Plus size={13} /> Connect evidence</button>}
-          </div>
-          <div className="hero-proofline" aria-label="Live product proof">
-            <span><strong>{judgePulse?.total ? `${judgePulse.passed}/${judgePulse.total}` : "LIVE"}</strong><small>EXPECTED ANSWERS</small></span>
-            <span><strong>{judgePulse?.p50 ? `${(judgePulse.p50 / 1000).toFixed(2)}s` : "MEASURED"}</strong><small>P50 RETRIEVAL</small></span>
-            <span><strong>{judgePulse?.calls === null || judgePulse?.calls === undefined ? "TRACED" : judgePulse.calls.toFixed(1)}</strong><small>HYDRADB CALLS / ANSWER</small></span>
+          <div className="proof-details">
+            <p>QueueProof reconstructs commitments across Slack, Linear, GitHub, Gmail, and documents—then turns them into one cited answer with the retrieval calls, latency, policy, and conflicts left visible.</p>
+            <div className="live-source-row">
+              {verified.map((connector) => <span key={connector.id} data-provider={connector.provider}><ProviderIcon provider={connector.provider} />{connector.provider}<i /></span>)}
+              {!connectorsLoaded && <span className="connector-loading"><LoaderCircle className="spin" size={13} /> Resolving source proofs</span>}
+              {connectorsLoaded && !verified.length && <button onClick={onOpenSources}><Plus size={13} /> Connect evidence</button>}
+            </div>
+            <div className="hero-proofline" aria-label="Live product proof">
+              <span><strong>{judgeMeasured ? `${judgePulse?.passed ?? 0}/${judgePulse?.total ?? 0}` : "PENDING"}</strong><small>STRICT SIGNAL CHECKS</small></span>
+              <span><strong>{judgeMeasured && judgePulse?.p50 ? `${(judgePulse.p50 / 1000).toFixed(2)}s` : "—"}</strong><small>P50 RETRIEVAL</small></span>
+              <span><strong>{judgeMeasured && judgePulse?.calls !== null && judgePulse?.calls !== undefined ? judgePulse.calls.toFixed(1) : "—"}</strong><small>HYDRADB CALLS / ANSWER</small></span>
+            </div>
           </div>
         </div>
         <div
@@ -789,10 +934,11 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
         <div className="console-line">
           <span><span className={verifiedCount ? "status-orb live" : connectorsLoaded ? "status-orb" : "status-orb indexing"} />{connectorsLoaded ? `${verifiedCount} verified systems` : "Resolving connector proofs"}</span>
           <div className="mode-control">
-            {(["auto", "fast", "thinking"] as const).map((value) => <button key={value} type="button" className={mode === value ? "mode active" : "mode"} onClick={() => setMode(value)}>{value === "auto" ? "Auto route" : value}</button>)}
+            {(["auto", "fast", "thinking"] as const).map((value) => <button key={value} type="button" className={mode === value ? "mode active" : "mode"} aria-pressed={mode === value} onClick={() => setMode(value)}>{value === "auto" ? "Auto route" : value}</button>)}
           </div>
         </div>
-        <textarea value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); void run(); } }} placeholder="Ask a question that needs more than one system…" required maxLength={4000} />
+        <label className="sr-only" htmlFor="proof-question">Cross-source proof question</label>
+        <textarea id="proof-question" value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); void run(); } }} placeholder="Ask a question that needs more than one system…" required maxLength={4000} />
         <div className="prompt-actions">
           <span>⌘ Enter to run</span>
           <button className="primary-button proof-button" disabled={!connectorsLoaded || busy || !question.trim()}>{busy || !connectorsLoaded ? <LoaderCircle className="spin" size={15} /> : <Play size={15} fill="currentColor" />}{!connectorsLoaded ? "Verifying connectors" : busy ? "Building cited answer" : question === FLAGSHIP_QUESTION ? "Run flagship proof" : "Run proof"}</button>
@@ -800,7 +946,7 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
       </form>
 
       <div className="prompt-shelf" aria-label="Example proof questions">
-        {proofPrompts.map((prompt, index) => <button key={prompt} onClick={() => { setQuestion(prompt); if (index === 0) void run(prompt); }}><span>{String(index + 1).padStart(2, "0")}</span>{prompt}<ArrowRight size={13} /></button>)}
+        {proofPrompts.map((prompt, index) => <button key={prompt} onClick={() => { setQuestion(prompt); void run(prompt); }} aria-label={`Run example ${index + 1}: ${prompt}`}><span>{String(index + 1).padStart(2, "0")}</span>{prompt}<ArrowRight size={13} /></button>)}
       </div>
 
       {verified.length > 0 && <section className="connector-proof-rail" aria-label="Verified connector receipts">
@@ -815,24 +961,26 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
         </div>
       </section>}
 
-      {busy && <div className="retrieval-stage" role="status">
+      {busy && <div ref={stageRef} className="retrieval-stage" role="status" aria-live="polite" tabIndex={-1}>
         <div className="stage-track"><i /><i /><i /><i /></div>
         <div><strong>HydraDB is joining verified context.</strong><span>Deduplicating scopes · matching citations by identity · screening untrusted instructions · synthesising only supported claims</span></div>
       </div>}
 
-      {result && <div className="ask-results premium-results">
+      {result && <div ref={resultRef} className={`ask-results premium-results ${resultTone}`} tabIndex={-1} aria-live="polite">
         <div className="result-telemetry">
-          <span><ShieldCheck size={14} />{result.validation.status}</span>
+          <span>{resultTone === "grounded" ? <ShieldCheck size={14} /> : <CircleAlert size={14} />}{resultTone}</span>
           <span><Network size={14} />{result.validation.providerCoverage.length} providers</span>
           <span><Activity size={14} />{result.trace.callCount} HydraDB call{result.trace.callCount === 1 ? "" : "s"}</span>
           <span><Clock3 size={14} />{(result.trace.latencyMs / 1000).toFixed(2)}s</span>
           <span><Zap size={14} />{result.trace.mode}</span>
         </div>
-        <article className="answer-surface">
-          <div className="answer-kicker"><span>GROUNDED ANSWER</span><button className="copy-id" onClick={() => void navigator.clipboard.writeText(result.retrieval_receipt.query_id)} title="Copy query receipt ID"><code>{result.retrieval_receipt.query_id.slice(-8)}</code><Clipboard size={12} /></button></div>
-          <h2><CitedAnswer text={result.answer} /></h2>
-          <div className="answer-verdict"><CircleCheck size={17} /><span><strong>{result.validation.citedClaimCount}/{result.validation.claimCount} claims cited</strong> · unsupported prose is blocked</span></div>
+        <article className={`answer-surface ${resultTone}`}>
+          <div className="answer-kicker"><span>{resultTone === "abstained" ? "INSUFFICIENT EVIDENCE" : resultTone === "partial" ? "PARTIAL EVIDENCE" : "GROUNDED ANSWER"}</span><button className="copy-id" onClick={() => void navigator.clipboard.writeText(result.retrieval_receipt.query_id)} title="Copy query receipt ID" aria-label="Copy query receipt ID"><code>{result.retrieval_receipt.query_id.slice(-8)}</code><Clipboard size={12} /></button></div>
+          <h2><CitedAnswer text={result.answer} citations={result.citations} onOpen={(evidence, index) => setCitationPreview({ evidence, index })} /></h2>
+          <div className="answer-verdict">{resultTone === "grounded" ? <CircleCheck size={17} /> : <CircleAlert size={17} />}<span><strong>{result.validation.citedClaimCount}/{result.validation.claimCount} claims cited</strong> · {resultTone === "abstained" ? "no unsupported answer was generated" : resultTone === "partial" ? "supported claims are shown, but evidence gaps remain" : "unsupported prose is blocked"}</span></div>
         </article>
+
+        {missingInformation.length > 0 && <section className={`missing-information ${resultTone}`} aria-labelledby="missing-information-title"><CircleAlert size={18} /><div><span>{resultTone === "abstained" ? "ANSWER WITHHELD" : "EVIDENCE GAP"}</span><h3 id="missing-information-title">Evidence still needed</h3><ul>{missingInformation.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ul></div></section>}
 
         <div className="retrieval-receipt" aria-label="Retrieval receipt">
           <span><small>ROUTING</small><strong>{result.routing_reason}</strong></span>
@@ -855,26 +1003,27 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
         {supportingEvidence.length > 0 && <details className="supporting-records"><summary>Show {supportingEvidence.length} additional retrieved record{supportingEvidence.length === 1 ? "" : "s"}</summary><div className="evidence-grid proof-evidence">{supportingEvidence.map((item, index) => <EvidenceCard key={`${item.provider}-${item.id ?? index + rankedEvidence.length}`} evidence={item} index={index + rankedEvidence.length} />)}</div></details>}
         <details className="trace-drawer"><summary><Terminal size={14} /> Reproducible retrieval trace <span>{result.trace.runId}</span></summary><pre>{JSON.stringify(result.trace, null, 2)}</pre></details>
       </div>}
+      {citationPreview && <EvidenceReceiptDialog evidence={citationPreview.evidence} index={citationPreview.index} onClose={() => setCitationPreview(null)} />}
     </section>
   );
 }
 
 function EvidenceCard({ evidence, index }: { evidence: Evidence; index: number }) {
   const [open, setOpen] = useState(false);
-  useEffect(() => {
-    if (!open) return;
-    const close = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
-    window.addEventListener("keydown", close);
-    return () => window.removeEventListener("keydown", close);
-  }, [open]);
-  const browserSafe = evidence.url?.startsWith("https://") || evidence.url?.startsWith("http://");
-  const receiptId = evidence.id ?? evidence.sourceId ?? evidence.externalId ?? "unavailable";
-  return <><article className="evidence-card" data-provider={evidence.provider}><div className="evidence-top"><span className="provider-glyph"><ProviderIcon provider={evidence.provider} size={14} /></span><span>{evidence.provider}</span><small>[{index + 1}]</small></div><h3>{evidence.title}</h3><blockquote>{evidence.excerpt}</blockquote><div className="evidence-footer"><span>{dateLabel(evidence.timestamp)}</span><button onClick={() => setOpen(true)}>Inspect receipt <Eye size={12} /></button></div></article>{open && <div className="drawer-layer" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}><aside className="source-preview" role="dialog" aria-modal="true" aria-label={`Evidence receipt ${index + 1}`}><button className="modal-close" aria-label="Close evidence receipt" onClick={() => setOpen(false)}><X size={16} /></button><span className="eyebrow"><ProviderIcon provider={evidence.provider} /> {evidence.provider} receipt [{index + 1}]</span><h2>{evidence.title}</h2><blockquote>{evidence.excerpt}</blockquote><div className="source-receipt-grid"><span><small>RECEIPT ID</small><code>{receiptId}</code></span><span><small>SOURCE TIME</small><strong>{dateLabel(evidence.timestamp)}</strong></span><span><small>INGESTED</small><strong>{dateLabel(evidence.ingestionTimestamp)}</strong></span><span><small>AUTHORITY</small><strong>{evidence.authority ?? "Indexed source"}</strong></span></div><div className="drawer-actions"><button className="secondary-button" onClick={() => void navigator.clipboard.writeText(String(receiptId))}><Clipboard size={14} /> Copy receipt ID</button>{browserSafe && <a className="primary-button" href={evidence.url!} target="_blank" rel="noreferrer">Open provider source <ExternalLink size={13} /></a>}</div></aside></div>}</>;
+  return <><article className="evidence-card" data-provider={evidence.provider}><div className="evidence-top"><span className="provider-glyph"><ProviderIcon provider={evidence.provider} size={14} /></span><span>{evidence.provider}</span><small>[{index + 1}]</small></div><h3>{evidence.title}</h3><blockquote>{evidence.excerpt}</blockquote><div className="evidence-footer"><span>{dateLabel(evidence.timestamp)}</span><button type="button" onClick={() => setOpen(true)}>Inspect receipt <Eye size={12} /></button></div></article>{open && <EvidenceReceiptDialog evidence={evidence} index={index} onClose={() => setOpen(false)} />}</>;
 }
 
-function SourcesScreen({ workspace, connectors, reloadWorkspace, reloadConnectors, setError, setNotice }: {
+function EvidenceReceiptDialog({ evidence, index, onClose }: { evidence: Evidence; index: number; onClose: () => void }) {
+  const dialogRef = useDialogBehavior<HTMLElement>(true, onClose);
+  const browserSafe = evidence.url?.startsWith("https://") || evidence.url?.startsWith("http://");
+  const receiptId = evidence.id ?? evidence.sourceId ?? evidence.externalId ?? "unavailable";
+  return <div className="drawer-layer" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><aside ref={dialogRef} className="source-preview" role="dialog" aria-modal="true" aria-labelledby={`evidence-receipt-title-${index}`} tabIndex={-1}><button type="button" className="modal-close" data-dialog-initial aria-label="Close evidence receipt" onClick={onClose}><X size={16} /></button><span className="eyebrow"><ProviderIcon provider={evidence.provider} /> {evidence.provider} receipt [{index + 1}]</span><h2 id={`evidence-receipt-title-${index}`}>{evidence.title}</h2><blockquote>{evidence.excerpt}</blockquote><div className="source-receipt-grid"><span><small>RECEIPT ID</small><code>{receiptId}</code></span><span><small>SOURCE TIME</small><strong>{dateLabel(evidence.timestamp)}</strong></span><span><small>INGESTED</small><strong>{dateLabel(evidence.ingestionTimestamp)}</strong></span><span><small>AUTHORITY</small><strong>{evidence.authority ?? "Indexed source"}</strong></span></div><div className="drawer-actions"><button type="button" className="secondary-button" onClick={() => void navigator.clipboard.writeText(String(receiptId))}><Clipboard size={14} /> Copy receipt ID</button>{browserSafe && <a className="primary-button" href={evidence.url!} target="_blank" rel="noreferrer">Open provider source <ExternalLink size={13} /></a>}</div></aside></div>;
+}
+
+function SourcesScreen({ workspace, connectors, reloadWorkspace, reloadConnectors, setError, setNotice, readOnly }: {
   workspace: ReadyView; connectors: Connector[]; reloadWorkspace: () => Promise<WorkspaceView>;
   reloadConnectors: () => Promise<void>; setError: (value: string) => void; setNotice: (value: string) => void;
+  readOnly: boolean;
 }) {
   const [apiKey, setApiKey] = useState("");
   const [busy, setBusy] = useState("");
@@ -910,12 +1059,13 @@ function SourcesScreen({ workspace, connectors, reloadWorkspace, reloadConnector
   }
 
   return <section className="screen sources-screen">
-    <div className="screen-heading"><div><span className="eyebrow"><Database size={13} /> Live evidence boundary</span><h1>Connect once.<br /><em>Prove every read.</em></h1><p>Credentials are encrypted server-side. A source becomes usable only after QueueProof sees cursor evidence and retrieves real provider records.</p></div>{workspace.hydradb.configured && <button className="primary-button" onClick={() => setSetupOpen(true)}><Plus size={15} /> Add source</button>}</div>
-    {!workspace.hydradb.configured ? <form className="hydra-setup" onSubmit={connectHydra}><div className="hydra-symbol"><Database size={29} /></div><div><span className="eyebrow">Step 1 · Evidence engine</span><h2>Attach your HydraDB account.</h2><p>Use a newly generated API key. QueueProof verifies it against the authenticated database endpoint, encrypts it with AES-GCM, and never returns it.</p><label>HydraDB API key<input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder="Paste new key" autoComplete="off" required minLength={12} /></label><button className="primary-button" disabled={busy === "hydra"}>{busy === "hydra" ? <LoaderCircle className="spin" size={15} /> : <KeyRound size={15} />} Verify and encrypt</button></div></form> : <>
+    <div className="screen-heading"><div><span className="eyebrow"><Database size={13} /> Live evidence boundary</span><h1>Connect once.<br /><em>Prove every read.</em></h1><p>Credentials are encrypted server-side. A source becomes usable only after QueueProof sees cursor evidence and retrieves real provider records.</p></div>{workspace.hydradb.configured && !readOnly && <button className="primary-button" onClick={() => setSetupOpen(true)}><Plus size={15} /> Add source</button>}</div>
+    {readOnly && <div className="inline-warning"><LockKeyhole size={14} />Public sandbox: connector credentials and lifecycle mutations are owner-only. Verified proof receipts remain inspectable.</div>}
+    {!workspace.hydradb.configured ? readOnly ? <div className="honest-empty"><LockKeyhole size={24} /><div><strong>Evidence configuration is owner-only.</strong><p>This public sandbox cannot accept credentials.</p></div></div> : <form className="hydra-setup" onSubmit={connectHydra}><div className="hydra-symbol"><Database size={29} /></div><div><span className="eyebrow">Step 1 · Evidence engine</span><h2>Attach your HydraDB account.</h2><p>Use a newly generated API key. QueueProof verifies it against the authenticated database endpoint, encrypts it with AES-GCM, and never returns it.</p><label>HydraDB API key<input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder="Paste new key" autoComplete="off" required minLength={12} /></label><button className="primary-button" disabled={busy === "hydra"}>{busy === "hydra" ? <LoaderCircle className="spin" size={15} /> : <KeyRound size={15} />} Verify and encrypt</button></div></form> : <>
       <div className="source-stats"><div><small>HYDRADB</small><strong><CircleCheck size={14} /> Authenticated</strong><span>{workspace.hydradb.fingerprint ?? "Encrypted"}</span></div><div><small>CONNECTED</small><strong>{connectors.length}</strong><span>workplace sources</span></div><div><small>VERIFIED</small><strong>{connectors.filter((item) => item.state === "data_verified").length}</strong><span>eligible for retrieval</span></div><div><small>POLICY</small><strong>Fail closed</strong><span>no proof · no ranking</span></div></div>
-      {connectors.length ? <div className="connector-list">{connectors.map((connector) => <article className="connector-row" data-provider={connector.provider} key={connector.id}><span className="provider-glyph large"><ProviderIcon provider={connector.provider} size={19} /></span><div className="connector-identity"><strong>{connector.name}</strong><span>{connector.provider} · {connector.database}{connector.collection ? ` / ${connector.collection}` : ""}</span></div><div className="connector-state"><span className={connector.state === "data_verified" ? "status-orb live" : connector.state.includes("sync") ? "status-orb indexing" : "status-orb"} /><strong>{stateCopy[connector.state] ?? connector.state}</strong><small>{connector.state === "data_verified" ? `${connector.canaryResultCount ?? 0} live records proven` : connector.lastError || "Awaiting next lifecycle step"}</small></div><button className="secondary-button" onClick={() => void connectorAction(connector)} disabled={busy === connector.id}>{busy === connector.id ? <LoaderCircle className="spin" size={14} /> : connector.state === "data_verified" ? <Eye size={14} /> : connector.state === "connector_created" || connector.state === "resources_discovered" ? <Search size={14} /> : <RefreshCw size={14} />}{connector.state === "data_verified" ? "View proof" : connector.state === "connector_created" || connector.state === "resources_discovered" ? "Choose scope" : connector.state === "resources_selected" ? "Start sync" : "Check proof"}</button></article>)}</div> : <div className="empty-source"><Unplug size={28} /><div><h2>No workplace source yet.</h2><p>Add Slack, Gmail, Linear, or any provider exposed by your live HydraDB catalogue.</p></div><button className="primary-button" onClick={() => setSetupOpen(true)}><Plus size={15} /> Add first source</button></div>}
+      {connectors.length ? <div className="connector-list">{connectors.map((connector) => <article className="connector-row" data-provider={connector.provider} key={connector.id}><span className="provider-glyph large"><ProviderIcon provider={connector.provider} size={19} /></span><div className="connector-identity"><strong>{connector.name}</strong><span>{connector.provider} · {connector.database}{connector.collection ? ` / ${connector.collection}` : ""}</span></div><div className="connector-state"><span className={connector.state === "data_verified" ? "status-orb live" : connector.state.includes("sync") ? "status-orb indexing" : "status-orb"} /><strong>{stateCopy[connector.state] ?? connector.state}</strong><small>{connector.state === "data_verified" ? `${connector.canaryResultCount ?? 0} live records proven` : connector.lastError || "Awaiting next lifecycle step"}</small></div><button className="secondary-button" onClick={() => void connectorAction(connector)} disabled={busy === connector.id || (readOnly && connector.state !== "data_verified")}>{busy === connector.id ? <LoaderCircle className="spin" size={14} /> : connector.state === "data_verified" ? <Eye size={14} /> : readOnly ? <LockKeyhole size={14} /> : connector.state === "connector_created" || connector.state === "resources_discovered" ? <Search size={14} /> : <RefreshCw size={14} />}{connector.state === "data_verified" ? "View proof" : readOnly ? "Owner action" : connector.state === "connector_created" || connector.state === "resources_discovered" ? "Choose scope" : connector.state === "resources_selected" ? "Start sync" : "Check proof"}</button></article>)}</div> : <div className="empty-source"><Unplug size={28} /><div><h2>No workplace source yet.</h2><p>Add Slack, Gmail, Linear, or any provider exposed by your live HydraDB catalogue.</p></div>{!readOnly && <button className="primary-button" onClick={() => setSetupOpen(true)}><Plus size={15} /> Add first source</button>}</div>}
       <DocumentsPanel databases={[...new Set(connectors.map((item) => item.database).filter(Boolean))]}
-        setError={setError} setNotice={setNotice} />
+        setError={setError} setNotice={setNotice} readOnly={readOnly} />
     </>}
     {setupOpen && <SourceSetup onClose={() => setSetupOpen(false)} onDone={async () => { setSetupOpen(false); await reloadConnectors(); setNotice("Connector created. Choose the exact resources QueueProof may index."); }} setError={setError} />}
     {proof && <ProofModal data={proof} onClose={() => setProof(null)} onConfigured={async () => { setProof(null); await reloadConnectors(); setNotice("Scope saved and initial backfill started. Check proof when indexing completes."); }} setError={setError} />}
@@ -929,8 +1079,9 @@ function prettyBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function DocumentsPanel({ databases, setError, setNotice }: {
+function DocumentsPanel({ databases, setError, setNotice, readOnly }: {
   databases: string[]; setError: (value: string) => void; setNotice: (value: string) => void;
+  readOnly: boolean;
 }) {
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [file, setFile] = useState<File | null>(null);
@@ -956,14 +1107,14 @@ function DocumentsPanel({ databases, setError, setNotice }: {
   const processingDocumentKey = processingDocumentIds.join("|");
 
   useEffect(() => {
-    if (!processingDocumentIds.length) return;
+    if (readOnly || !processingDocumentIds.length) return;
     const timer = window.setInterval(() => {
       void Promise.all(processingDocumentIds.map((id) => api(`/api/documents/${id}/status`)))
         .then(load)
         .catch(() => { /* Manual Check remains available with the surfaced error path. */ });
     }, 10_000);
     return () => window.clearInterval(timer);
-  }, [processingDocumentKey, processingDocumentIds]);
+  }, [processingDocumentKey, processingDocumentIds, readOnly]);
 
   async function upload(event: FormEvent) {
     event.preventDefault();
@@ -982,6 +1133,7 @@ function DocumentsPanel({ databases, setError, setNotice }: {
   }
 
   async function poll(document: DocumentRecord) {
+    if (readOnly) return;
     setBusy(document.id); setError("");
     try {
       const data = await api<{ document: DocumentRecord; terminal?: boolean; indexingStatus?: string | null }>(`/api/documents/${document.id}/status`);
@@ -993,20 +1145,21 @@ function DocumentsPanel({ databases, setError, setNotice }: {
 
   return <section className="document-panel">
     <div className="section-kicker"><span><FileText size={14} /> Document evidence</span><small>PDF · Markdown · text · QueueProof intake cap 25 MB</small></div>
+    {readOnly && <div className="inline-warning"><LockKeyhole size={14} />Uploads are disabled in the public sandbox; the indexed document ledger remains readable.</div>}
     <div className="document-grid">
       <form className="upload-card" onSubmit={upload} onDragOver={(event) => event.preventDefault()}
-        onDrop={(event) => { event.preventDefault(); setFile(event.dataTransfer.files[0] ?? null); }}>
+        onDrop={(event) => { event.preventDefault(); if (!readOnly) setFile(event.dataTransfer.files[0] ?? null); }}>
         <UploadCloud size={30} />
         <h2>Drop knowledge into the evidence graph.</h2>
         <p>QueueProof validates the real file signature, deduplicates by SHA-256, then waits for HydraDB to confirm indexing.</p>
         <label className="file-picker">
           <input key={inputKey} type="file" accept=".pdf,.md,.markdown,.txt,application/pdf,text/markdown,text/plain"
-            onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
-          <span>{file ? file.name : "Choose a document"}</span>
-          <small>{file ? prettyBytes(file.size) : "or drag it here"}</small>
+            onChange={(event) => setFile(event.target.files?.[0] ?? null)} disabled={readOnly} />
+          <span>{readOnly ? "Owner upload only" : file ? file.name : "Choose a document"}</span>
+          <small>{readOnly ? "public intake disabled" : file ? prettyBytes(file.size) : "or drag it here"}</small>
         </label>
-        {databases.length > 0 && <label className="database-choice">Evidence database<select value={database} onChange={(event) => setDatabase(event.target.value)}>{databases.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>}
-        <button className="primary-button" disabled={!file || busy === "upload"}>{busy === "upload" ? <LoaderCircle className="spin" size={14} /> : <UploadCloud size={14} />}{busy === "upload" ? "Validating and sending" : "Ingest document"}</button>
+        {databases.length > 0 && <label className="database-choice">Evidence database<select value={database} onChange={(event) => setDatabase(event.target.value)} disabled={readOnly}>{databases.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>}
+        <button className="primary-button" disabled={readOnly || !file || busy === "upload"}>{busy === "upload" ? <LoaderCircle className="spin" size={14} /> : readOnly ? <LockKeyhole size={14} /> : <UploadCloud size={14} />}{busy === "upload" ? "Validating and sending" : readOnly ? "Upload disabled" : "Ingest document"}</button>
       </form>
       <div className="document-list">
         <div className="list-title"><span><ShieldCheck size={14} /> Ingestion ledger</span><button onClick={() => void load()}><RefreshCw size={12} /> Refresh</button></div>
@@ -1015,7 +1168,7 @@ function DocumentsPanel({ databases, setError, setNotice }: {
           <div><strong>{document.filename}</strong><small>{prettyBytes(document.byteSize)} · {document.pageCount ? `${document.pageCount} pages · ` : ""}{document.mime} · {dateLabel(document.createdAt)}</small><code title={document.contentHash}>SHA-256 {document.contentHash.slice(0, 18)}…</code>{document.hydradbSourceId && <code title={document.hydradbSourceId}>Hydra source {document.hydradbSourceId}</code>}<small>{document.database ? `Database ${document.database}` : "Database pending"}{document.processingDurationMs ? ` · indexed in ${(document.processingDurationMs / 1000).toFixed(1)}s` : ""}</small>{document.error && <em>{document.error}</em>}</div>
           <span className={`stage-chip ${document.stage}`}>{document.stage}</span>
           <button className="receipt-copy" aria-label={`Copy receipt for ${document.filename}`} onClick={() => void navigator.clipboard.writeText(JSON.stringify(document, null, 2))}><Clipboard size={13} /></button>
-          {(document.stage === "processing" || document.stage === "validated" || document.stage === "uploading") && <button className="secondary-button" onClick={() => void poll(document)} disabled={busy === document.id}>{busy === document.id ? <LoaderCircle className="spin" size={13} /> : <RefreshCw size={13} />} Check</button>}
+          {!readOnly && (document.stage === "processing" || document.stage === "validated" || document.stage === "uploading") && <button className="secondary-button" onClick={() => void poll(document)} disabled={busy === document.id}>{busy === document.id ? <LoaderCircle className="spin" size={13} /> : <RefreshCw size={13} />} Check</button>}
         </article>) : <div className="honest-empty"><FileText size={24} /><div><strong>No document evidence yet.</strong><p>The ledger will show validation, hashing, processing, and the real terminal indexing state.</p></div></div>}
       </div>
     </div>
@@ -1032,6 +1185,7 @@ function SourceSetup({ onClose, onDone, setError }: { onClose: () => void; onDon
   const [credentials, setCredentials] = useState<Record<string, string>>({});
   const [newDatabase, setNewDatabase] = useState("");
   const [busy, setBusy] = useState(true);
+  const dialogRef = useDialogBehavior<HTMLFormElement>(true, onClose);
   const selected = providers.find((item) => item.id === providerId);
   useEffect(() => {
     void Promise.all([api<{ providers: Provider[] }>("/api/providers"), api<{ databases: string[] }>("/api/databases")])
@@ -1050,7 +1204,7 @@ function SourceSetup({ onClose, onDone, setError }: { onClose: () => void; onDon
     catch (reason) { setError(reason instanceof Error ? reason.message : "Connector creation failed."); }
     finally { setBusy(false); }
   }
-  return <div className="modal-layer"><form className="modal-card source-modal" onSubmit={submit}><button type="button" className="modal-close" onClick={onClose}><X size={16} /></button><span className="eyebrow"><Plus size={13} /> New evidence source</span><h2>Connect from the live catalogue.</h2><p>QueueProof renders this form from HydraDB’s current provider contract. It never guesses provider credentials.</p>{busy && !providers.length ? <div className="modal-loading"><LoaderCircle className="spin" /> Hydrating provider contracts…</div> : <div className="setup-form"><label>Provider<select value={providerId} onChange={(event) => { setProviderId(event.target.value); setCredentials({}); }} required>{providers.filter((item) => item.available).map((item) => <option key={item.id} value={item.id}>{item.name} · {item.supportClass}</option>)}</select></label><div className="two-cols"><label>HydraDB database<select value={database} onChange={(event) => setDatabase(event.target.value)} required><option value="" disabled>Select database</option>{databases.map((item) => <option key={item} value={item}>{item}</option>)}</select></label><label>Collection <small>optional isolation</small><input value={collection} onChange={(event) => setCollection(event.target.value)} placeholder="team-work" /></label></div>{!databases.length && <div className="database-create"><input value={newDatabase} onChange={(event) => setNewDatabase(event.target.value)} placeholder="Create database name" /><button type="button" className="secondary-button" onClick={() => void createDatabase()}>Create</button></div>}<label>Provider account scope <small>recommended for multi-account safety</small><input value={accountScope} onChange={(event) => setAccountScope(event.target.value)} placeholder="workspace / org / account identifier" /></label><div className="credential-grid">{selected?.credentialFields.map((field) => <label key={field.name}>{field.title || field.name}{field.required && <b> required</b>}{field.enum?.length ? <select value={credentials[field.name] ?? ""} onChange={(event) => setCredentials((current) => ({ ...current, [field.name]: event.target.value }))} required={field.required}><option value="">Select</option>{field.enum.map((value) => <option key={value} value={value}>{value}</option>)}</select> : <input type={field.format === "password" || /token|secret|password|key/i.test(field.name) ? "password" : "text"} value={credentials[field.name] ?? ""} onChange={(event) => setCredentials((current) => ({ ...current, [field.name]: event.target.value }))} required={field.required} autoComplete="off" />}{field.description && <small>{field.description}</small>}</label>)}</div>{selected && !selected.credentialFields.length && <div className="inline-warning"><CircleAlert size={14} />This provider contract exposes no credential fields. QueueProof will submit no credentials only if HydraDB marks that valid.</div>}<button className="primary-button" disabled={busy || !database || !selected}>{busy ? <LoaderCircle className="spin" size={15} /> : <ArrowRight size={15} />} Create connector</button></div>}</form></div>;
+  return <div className="modal-layer" role="presentation"><form ref={dialogRef} className="modal-card source-modal" role="dialog" aria-modal="true" aria-labelledby="source-setup-title" tabIndex={-1} onSubmit={submit}><button type="button" className="modal-close" data-dialog-initial onClick={onClose}><X size={16} /></button><span className="eyebrow"><Plus size={13} /> New evidence source</span><h2 id="source-setup-title">Connect from the live catalogue.</h2><p>QueueProof renders this form from HydraDB’s current provider contract. It never guesses provider credentials.</p>{busy && !providers.length ? <div className="modal-loading" role="status"><LoaderCircle className="spin" /> Hydrating provider contracts…</div> : <div className="setup-form"><label>Provider<select value={providerId} onChange={(event) => { setProviderId(event.target.value); setCredentials({}); }} required>{providers.filter((item) => item.available).map((item) => <option key={item.id} value={item.id}>{item.name} · {item.supportClass}</option>)}</select></label><div className="two-cols"><label>HydraDB database<select value={database} onChange={(event) => setDatabase(event.target.value)} required><option value="" disabled>Select database</option>{databases.map((item) => <option key={item} value={item}>{item}</option>)}</select></label><label>Collection <small>optional isolation</small><input value={collection} onChange={(event) => setCollection(event.target.value)} placeholder="team-work" /></label></div>{!databases.length && <div className="database-create"><input value={newDatabase} onChange={(event) => setNewDatabase(event.target.value)} placeholder="Create database name" aria-label="Create database name" /><button type="button" className="secondary-button" onClick={() => void createDatabase()}>Create</button></div>}<label>Provider account scope <small>recommended for multi-account safety</small><input value={accountScope} onChange={(event) => setAccountScope(event.target.value)} placeholder="workspace / org / account identifier" /></label><div className="credential-grid">{selected?.credentialFields.map((field) => <label key={field.name}>{field.title || field.name}{field.required && <b> required</b>}{field.enum?.length ? <select value={credentials[field.name] ?? ""} onChange={(event) => setCredentials((current) => ({ ...current, [field.name]: event.target.value }))} required={field.required}><option value="">Select</option>{field.enum.map((value) => <option key={value} value={value}>{value}</option>)}</select> : <input type={field.format === "password" || /token|secret|password|key/i.test(field.name) ? "password" : "text"} value={credentials[field.name] ?? ""} onChange={(event) => setCredentials((current) => ({ ...current, [field.name]: event.target.value }))} required={field.required} autoComplete="off" />}{field.description && <small>{field.description}</small>}</label>)}</div>{selected && !selected.credentialFields.length && <div className="inline-warning"><CircleAlert size={14} />This provider contract exposes no credential fields. QueueProof will submit no credentials only if HydraDB marks that valid.</div>}<button className="primary-button" disabled={busy || !database || !selected}>{busy ? <LoaderCircle className="spin" size={15} /> : <ArrowRight size={15} />} Create connector</button></div>}</form></div>;
 }
 
 function ProofModal({ data, onClose, onConfigured, setError }: { data: Record<string, unknown>; onClose: () => void; onConfigured: () => Promise<void>; setError: (value: string) => void }) {
@@ -1059,22 +1213,24 @@ function ProofModal({ data, onClose, onConfigured, setError }: { data: Record<st
   const verification = data.verification as Record<string, unknown> | undefined;
   const [selected, setSelected] = useState<string[]>(resources.filter((item) => item.selected).map((item) => item.id));
   const [busy, setBusy] = useState(false);
+  const dialogRef = useDialogBehavior<HTMLDivElement>(true, onClose);
   async function configure() {
     if (!connector || !selected.length) return; setBusy(true);
     try { await api(`/api/connectors/${connector.id}/configure`, { method: "POST", body: JSON.stringify({ resourceIds: selected, lookbackDays: 30 }) }); await onConfigured(); }
     catch (reason) { setError(reason instanceof Error ? reason.message : "Scope configuration failed."); }
     finally { setBusy(false); }
   }
-  return <div className="modal-layer"><div className="modal-card proof-modal"><button className="modal-close" onClick={onClose}><X size={16} /></button><span className="eyebrow"><ShieldCheck size={13} /> Connection proof</span><h2>{connector?.name ?? "Verified source"}</h2>{verification ? <><div className="proof-seal"><CircleCheck size={28} /><div><strong>{String(verification.stage ?? "Proof available")}</strong><span>{String(verification.canaryResultCount ?? 0)} real provider records · {dateLabel(String(verification.verifiedAt ?? ""))}</span></div></div><div className="proof-grid"><div><small>CURSOR EVIDENCE</small><code>{String(verification.cursorEvidenceHash ?? "Not available").slice(0, 24)}</code></div><div><small>PROVIDER COVERAGE</small><strong>{Array.isArray(verification.providerCoverage) ? verification.providerCoverage.join(", ") : "Not available"}</strong></div><div><small>LAST SYNC</small><strong>{dateLabel(String(verification.lastSuccessfulSync ?? ""))}</strong></div><div><small>FAILURE</small><strong>{String(verification.failureReason ?? "None")}</strong></div></div><details className="trace-drawer"><summary><Terminal size={14} /> Raw proof record</summary><pre>{JSON.stringify(verification, null, 2)}</pre></details></> : <><p>Select the smallest resource scope QueueProof may index. Configure starts HydraDB’s initial backfill automatically.</p><div className="resource-picker">{resources.map((resource) => <label key={resource.id}><input type="checkbox" checked={selected.includes(resource.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, resource.id] : current.filter((id) => id !== resource.id))} /><span><strong>{resource.name}</strong><small>{resource.resourceType} · {resource.id}</small></span><Check size={14} /></label>)}</div><button className="primary-button" disabled={!selected.length || busy} onClick={() => void configure()}>{busy ? <LoaderCircle className="spin" size={15} /> : <Zap size={15} />} Save scope and start sync</button></>}</div></div>;
+  return <div className="modal-layer" role="presentation"><div ref={dialogRef} className="modal-card proof-modal" role="dialog" aria-modal="true" aria-labelledby="connection-proof-title" tabIndex={-1}><button type="button" className="modal-close" data-dialog-initial onClick={onClose}><X size={16} /></button><span className="eyebrow"><ShieldCheck size={13} /> Connection proof</span><h2 id="connection-proof-title">{connector?.name ?? "Verified source"}</h2>{verification ? <><div className="proof-seal"><CircleCheck size={28} /><div><strong>{String(verification.stage ?? "Proof available")}</strong><span>{String(verification.canaryResultCount ?? 0)} real provider records · {dateLabel(String(verification.verifiedAt ?? ""))}</span></div></div><div className="proof-grid"><div><small>CURSOR EVIDENCE</small><code>{String(verification.cursorEvidenceHash ?? "Not available").slice(0, 24)}</code></div><div><small>PROVIDER COVERAGE</small><strong>{Array.isArray(verification.providerCoverage) ? verification.providerCoverage.join(", ") : "Not available"}</strong></div><div><small>LAST SYNC</small><strong>{dateLabel(String(verification.lastSuccessfulSync ?? ""))}</strong></div><div><small>FAILURE</small><strong>{String(verification.failureReason ?? "None")}</strong></div></div><details className="trace-drawer"><summary><Terminal size={14} /> Raw proof record</summary><pre>{JSON.stringify(verification, null, 2)}</pre></details></> : <><p>Select the smallest resource scope QueueProof may index. Configure starts HydraDB’s initial backfill automatically.</p><div className="resource-picker">{resources.map((resource) => <label key={resource.id}><input type="checkbox" checked={selected.includes(resource.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, resource.id] : current.filter((id) => id !== resource.id))} /><span><strong>{resource.name}</strong><small>{resource.resourceType} · {resource.id}</small></span><Check size={14} /></label>)}</div><button type="button" className="primary-button" disabled={!selected.length || busy} onClick={() => void configure()}>{busy ? <LoaderCircle className="spin" size={15} /> : <Zap size={15} />} Save scope and start sync</button></>}</div></div>;
 }
 
 function parseJson<T>(value: string, fallback: T): T {
   try { return JSON.parse(value) as T; } catch { return fallback; }
 }
 
-function ApprovalsScreen({ seedPacket, onSeedUsed, setError, setNotice }: {
+function ApprovalsScreen({ seedPacket, onSeedUsed, setError, setNotice, readOnly }: {
   seedPacket: Packet | null; onSeedUsed: () => void;
   setError: (value: string) => void; setNotice: (value: string) => void;
+  readOnly: boolean;
 }) {
   const seedEvidence = seedPacket?.evidence
     .map((item) => item.sourceId ?? item.id ?? item.externalId)
@@ -1090,6 +1246,8 @@ function ApprovalsScreen({ seedPacket, onSeedUsed, setError, setNotice }: {
   const [teamId, setTeamId] = useState("");
   const [projectId, setProjectId] = useState("");
   const [busy, setBusy] = useState("");
+  const closeComposer = () => { setComposerOpen(false); onSeedUsed(); };
+  const composerDialogRef = useDialogBehavior<HTMLFormElement>(composerOpen, closeComposer);
   async function load() {
     const data = await api<{ proposals: ActionProposal[] }>("/api/actions");
     setProposals(data.proposals);
@@ -1132,7 +1290,11 @@ function ApprovalsScreen({ seedPacket, onSeedUsed, setError, setNotice }: {
       const data = await api<{ executed?: boolean; message?: string }>(`/api/actions/${selected.id}/approve`, { method: "POST" });
       await load(); setSelected(null); setConfirmed(false);
       setNotice(data.message ?? (data.executed ? "Linear confirmed the issue creation." : "Human approval recorded."));
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "Approval failed."); }
+    } catch (reason) {
+      await load().catch(() => { /* The original approval error remains primary. */ });
+      setSelected(null); setConfirmed(false);
+      setError(reason instanceof Error ? reason.message : "Approval failed; the ledger was refreshed before any retry.");
+    }
     finally { setBusy(""); }
   }
 
@@ -1141,6 +1303,7 @@ function ApprovalsScreen({ seedPacket, onSeedUsed, setError, setNotice }: {
 
   return <section className="screen approvals-screen">
     <div className="screen-heading"><div><span className="eyebrow"><ShieldCheck size={13} /> Human control plane</span><h1>Agents propose.<br /><em>Humans commit.</em></h1><p>Review the exact provider payload, its evidence chain, and risk class. Approval is an auditable decision; execution is idempotent and can happen at most once.</p></div><button className="primary-button" onClick={() => setComposerOpen(true)}><Plus size={15} /> New proposal</button></div>
+    {readOnly && <div className="inline-warning"><LockKeyhole size={14} />Public visitors may create evidence-linked proposals for the demo, but only a private workspace owner can approve or execute them.</div>}
     <div className="approval-stats"><div><small>PENDING REVIEW</small><strong>{pending}</strong><span>nothing executes silently</span></div><div><small>EXECUTED ONCE</small><strong>{executed}</strong><span>provider-confirmed writes</span></div><div><small>GUARDRAIL</small><strong>At most once</strong><span>unique execution claim</span></div></div>
     <div className="approval-list">
       <div className="list-title"><span><LockKeyhole size={14} /> Action ledger</span><button onClick={() => void load()}><RefreshCw size={12} /> Refresh</button></div>
@@ -1148,34 +1311,36 @@ function ApprovalsScreen({ seedPacket, onSeedUsed, setError, setNotice }: {
         const payload = parseJson<IssuePayload>(proposal.payloadJson, {});
         const evidence = parseJson<string[]>(proposal.evidenceIdsJson, []);
         const complete = proposal.executionStatus === "succeeded" || proposal.status === "executed";
+        const failed = proposal.executionStatus === "failed";
         return <article className="approval-row" key={proposal.id}>
           <span className={`risk-mark ${proposal.riskClass}`}><ShieldCheck size={17} /></span>
-          <div className="approval-copy"><span><b>{proposal.provider}</b> · {proposal.actionType.replaceAll("_", " ")} · {dateLabel(proposal.createdAt)}</span><strong>{payload.title ?? "Untitled provider action"}</strong><small>{evidence.length} evidence receipt{evidence.length === 1 ? "" : "s"} · risk {proposal.riskClass}</small></div>
-          <span className={`stage-chip ${complete ? "indexed" : proposal.decision ? "validated" : "processing"}`}>{complete ? "executed" : proposal.decision ?? "review"}</span>
-          <button className="secondary-button" onClick={() => { setSelected(proposal); setConfirmed(false); }}>{complete ? <Eye size={13} /> : <ShieldCheck size={13} />}{complete ? "Inspect" : proposal.decision ? "Approved" : "Review"}</button>
+          <div className="approval-copy"><span><b>{proposal.provider}</b> · {proposal.actionType.replaceAll("_", " ")} · {dateLabel(proposal.createdAt)}</span><strong>{payload.title ?? "Untitled provider action"}</strong><small>{evidence.length} evidence receipt{evidence.length === 1 ? "" : "s"} · risk {proposal.riskClass}</small>{failed && <em>{proposal.executionError ?? "The provider attempt failed; inspect the audit ledger before any follow-up."}</em>}</div>
+          <span className={`stage-chip ${complete ? "indexed" : failed ? "failed" : proposal.decision ? "validated" : "processing"}`}>{complete ? "executed" : failed ? "execution failed" : proposal.decision ?? "review"}</span>
+          <button className="secondary-button" onClick={() => { setSelected(proposal); setConfirmed(false); }}>{complete || failed ? <Eye size={13} /> : <ShieldCheck size={13} />}{complete ? "Inspect" : failed ? "Inspect failure" : proposal.decision ? "Approved" : "Review"}</button>
         </article>;
       }) : <div className="honest-empty"><ShieldCheck size={24} /><div><strong>No provider write is waiting.</strong><p>Open an execution packet and send it here, or create a grounded proposal manually.</p></div></div>}
     </div>
 
-    {composerOpen && <div className="modal-layer"><form className="modal-card action-composer" onSubmit={createProposal}><button type="button" className="modal-close" onClick={() => { setComposerOpen(false); onSeedUsed(); }}><X size={16} /></button><span className="eyebrow"><Plus size={13} /> Approval-gated Linear issue</span><h2>Seal the proposed payload.</h2><p>This step records a proposal only. It cannot write to Linear until a human separately reviews and approves the exact result.</p><div className="setup-form"><label>Commitment summary<textarea value={summary} onChange={(event) => setSummary(event.target.value)} required maxLength={4000} /></label><div className="two-cols"><label>Owner <small>optional</small><input value={owner} onChange={(event) => setOwner(event.target.value)} /></label><label>Deadline <small>optional</small><input value={deadline} onChange={(event) => setDeadline(event.target.value)} /></label></div><label>Evidence receipt IDs<textarea value={evidenceIds} onChange={(event) => setEvidenceIds(event.target.value)} placeholder="One source ID per line" required /></label><div className="two-cols"><label>Linear team ID<input value={teamId} onChange={(event) => setTeamId(event.target.value)} placeholder="Required provider team UUID" required /></label><label>Linear project ID <small>optional</small><input value={projectId} onChange={(event) => setProjectId(event.target.value)} /></label></div><button className="primary-button" disabled={busy === "create" || !summary.trim() || !evidenceIds.trim() || !teamId.trim()}>{busy === "create" ? <LoaderCircle className="spin" size={14} /> : <ShieldCheck size={14} />} Create reviewable proposal</button></div></form></div>}
+    {composerOpen && <div className="modal-layer" role="presentation"><form ref={composerDialogRef} className="modal-card action-composer" role="dialog" aria-modal="true" aria-labelledby="proposal-composer-title" tabIndex={-1} onSubmit={createProposal}><button type="button" className="modal-close" data-dialog-initial onClick={closeComposer}><X size={16} /></button><span className="eyebrow"><Plus size={13} /> Approval-gated Linear issue</span><h2 id="proposal-composer-title">Seal the proposed payload.</h2><p>This step records a proposal only. It cannot write to Linear until a human separately reviews and approves the exact result.</p><div className="setup-form"><label>Commitment summary<textarea value={summary} onChange={(event) => setSummary(event.target.value)} required maxLength={4000} /></label><div className="two-cols"><label>Owner <small>optional</small><input value={owner} onChange={(event) => setOwner(event.target.value)} /></label><label>Deadline <small>optional</small><input value={deadline} onChange={(event) => setDeadline(event.target.value)} /></label></div><label>Evidence receipt IDs<textarea value={evidenceIds} onChange={(event) => setEvidenceIds(event.target.value)} placeholder="One source ID per line" required /></label><div className="two-cols"><label>Linear team ID<input value={teamId} onChange={(event) => setTeamId(event.target.value)} placeholder="Required provider team UUID" required /></label><label>Linear project ID <small>optional</small><input value={projectId} onChange={(event) => setProjectId(event.target.value)} /></label></div><button className="primary-button" disabled={busy === "create" || !summary.trim() || !evidenceIds.trim() || !teamId.trim()}>{busy === "create" ? <LoaderCircle className="spin" size={14} /> : <ShieldCheck size={14} />} Create reviewable proposal</button></div></form></div>}
 
     {selected && <ApprovalModal proposal={selected} confirmed={confirmed} setConfirmed={setConfirmed}
-      busy={busy === selected.id} onApprove={approve} onClose={() => { setSelected(null); setConfirmed(false); }} />}
+      busy={busy === selected.id} onApprove={approve} onClose={() => { setSelected(null); setConfirmed(false); }} readOnly={readOnly} />}
   </section>;
 }
 
-function ApprovalModal({ proposal, confirmed, setConfirmed, busy, onApprove, onClose }: {
+function ApprovalModal({ proposal, confirmed, setConfirmed, busy, onApprove, onClose, readOnly }: {
   proposal: ActionProposal; confirmed: boolean; setConfirmed: (value: boolean) => void;
-  busy: boolean; onApprove: () => Promise<void>; onClose: () => void;
+  busy: boolean; onApprove: () => Promise<void>; onClose: () => void; readOnly: boolean;
 }) {
+  const dialogRef = useDialogBehavior<HTMLDivElement>(true, onClose);
   const payload = parseJson<IssuePayload>(proposal.payloadJson, {});
   const evidence = parseJson<string[]>(proposal.evidenceIdsJson, []);
   const complete = proposal.executionStatus === "succeeded" || proposal.status === "executed";
   const decided = Boolean(proposal.decision);
-  return <div className="modal-layer"><div className="modal-card approval-modal"><button className="modal-close" onClick={onClose}><X size={16} /></button><span className="eyebrow"><ShieldCheck size={13} /> Exact provider payload</span><h2>{complete ? "Execution receipt." : decided ? "Approval recorded." : "Review before commit."}</h2><div className="risk-banner"><span className={`risk-mark ${proposal.riskClass}`}><CircleAlert size={16} /></span><div><strong>{proposal.riskClass} risk · Linear create issue</strong><small>Proposal {proposal.id}</small></div></div><div className="payload-grid"><div><small>TITLE</small><strong>{payload.title ?? "Missing title"}</strong></div><div><small>TEAM</small><code>{payload.teamId ?? "Missing team"}</code></div>{payload.projectId && <div><small>PROJECT</small><code>{payload.projectId}</code></div>}<div className="payload-description"><small>DESCRIPTION</small><pre>{payload.description ?? "Missing description"}</pre></div></div><div className="evidence-receipts"><small>EVIDENCE RECEIPTS · {evidence.length}</small>{evidence.map((id) => <code key={id}>{id}</code>)}</div>{complete ? <div className="proof-seal"><CircleCheck size={25} /><div><strong>Provider-confirmed execution</strong><span>Linear response ID {proposal.providerResponseId ?? "recorded"} · duplicate execution is blocked</span></div></div> : decided ? <div className="proof-seal"><CircleCheck size={25} /><div><strong>Human approval recorded</strong><span>{dateLabel(proposal.decidedAt)} · execution unavailable or pending</span></div></div> : <><label className="approval-confirm"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} /><span><strong>I reviewed this exact payload and its evidence.</strong><small>I understand QueueProof will attempt one Linear issue creation if the deployment has execution credentials.</small></span></label><button className="primary-button full" disabled={!confirmed || busy} onClick={() => void onApprove()}>{busy ? <LoaderCircle className="spin" size={14} /> : <Zap size={14} />}{busy ? "Claiming execution slot" : "Approve and execute once"}</button></>}</div></div>;
+  return <div className="modal-layer" role="presentation"><div ref={dialogRef} className="modal-card approval-modal" role="dialog" aria-modal="true" aria-labelledby="approval-modal-title" tabIndex={-1}><button className="modal-close" data-dialog-initial onClick={onClose}><X size={16} /></button><span className="eyebrow"><ShieldCheck size={13} /> Exact provider payload</span><h2 id="approval-modal-title">{complete ? "Execution receipt." : decided ? "Approval recorded." : "Review before commit."}</h2><div className="risk-banner"><span className={`risk-mark ${proposal.riskClass}`}><CircleAlert size={16} /></span><div><strong>{proposal.riskClass} risk · Linear create issue</strong><small>Proposal {proposal.id}</small></div></div><div className="payload-grid"><div><small>TITLE</small><strong>{payload.title ?? "Missing title"}</strong></div><div><small>TEAM</small><code>{payload.teamId ?? "Missing team"}</code></div>{payload.projectId && <div><small>PROJECT</small><code>{payload.projectId}</code></div>}<div className="payload-description"><small>DESCRIPTION</small><pre>{payload.description ?? "Missing description"}</pre></div></div><div className="evidence-receipts"><small>EVIDENCE RECEIPTS · {evidence.length}</small>{evidence.map((id) => <code key={id}>{id}</code>)}</div>{complete ? <div className="proof-seal"><CircleCheck size={25} /><div><strong>Provider-confirmed execution</strong><span>Linear response ID {proposal.providerResponseId ?? "recorded"} · duplicate execution is blocked</span></div></div> : decided ? <div className="proof-seal"><CircleCheck size={25} /><div><strong>Human approval recorded</strong><span>{dateLabel(proposal.decidedAt)} · execution unavailable or pending</span></div></div> : readOnly ? <div className="inline-warning"><LockKeyhole size={14} />Approval and provider execution are disabled in the public sandbox. This exact payload remains inspectable.</div> : <><label className="approval-confirm"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} /><span><strong>I reviewed this exact payload and its evidence.</strong><small>I understand QueueProof will attempt one Linear issue creation if the deployment has execution credentials.</small></span></label><button className="primary-button full" disabled={!confirmed || busy} onClick={() => void onApprove()}>{busy ? <LoaderCircle className="spin" size={14} /> : <Zap size={14} />}{busy ? "Claiming execution slot" : "Approve and execute once"}</button></>}</div></div>;
 }
 
-function AgentScreen({ workspace, setError, setNotice }: { workspace: ReadyView; setError: (value: string) => void; setNotice: (value: string) => void }) {
+function AgentScreen({ workspace, setError, setNotice, readOnly }: { workspace: ReadyView; setError: (value: string) => void; setNotice: (value: string) => void; readOnly: boolean }) {
   const [tokens, setTokens] = useState<McpToken[]>([]);
   const [clientType, setClientType] = useState("codex");
   const [writeScopes, setWriteScopes] = useState(false);
@@ -1195,7 +1360,7 @@ function AgentScreen({ workspace, setError, setNotice }: { workspace: ReadyView;
     catch (reason) { setError(reason instanceof Error ? reason.message : "Token revocation failed."); }
   }
   const config = useMemo(() => ({ mcpServers: { queueproof: { url: endpoint, headers: { Authorization: "Bearer ${QUEUEPROOF_MCP_TOKEN}" } } } }), [endpoint]);
-  return <section className="screen agent-screen"><div className="screen-heading"><div><span className="eyebrow"><Bot size={13} /> Agent dock · MCP</span><h1>Give agents the plan.<br /><em>Keep humans in control.</em></h1><p>Generate a scoped token, connect any modern MCP client, and retrieve the exact execution packet shown in Command. Provider writes remain proposals unless a human approves them.</p></div></div><div className="agent-grid"><div className="token-console"><div className="console-line"><span><Terminal size={14} /> New agent connection</span><span className="secure-chip"><LockKeyhole size={12} /> hashed at rest</span></div><label>Client<select value={clientType} onChange={(event) => setClientType(event.target.value)}><option value="codex">Codex</option><option value="claude">Claude Code</option><option value="kimi">Kimi Code</option><option value="kilo">Kilo Code</option><option value="generic">Generic MCP client</option></select></label><label className="scope-choice"><input type="checkbox" checked={writeScopes} onChange={(event) => setWriteScopes(event.target.checked)} /><span><strong>Allow proposal + sync tools</strong><small>Still cannot execute a provider write without QueueProof approval.</small></span></label><button className="primary-button" onClick={() => void createToken()} disabled={busy}>{busy ? <LoaderCircle className="spin" size={15} /> : <KeyRound size={15} />} Generate 30-day token</button>{freshToken && <div className="token-reveal"><span><CircleAlert size={13} /> Copy once — it cannot be shown again</span><code>{freshToken}</code><button onClick={() => void navigator.clipboard.writeText(freshToken)}><Clipboard size={13} /> Copy token</button></div>}</div><div className="config-card"><div className="list-title"><span><Braces size={14} /> Project configuration</span><button onClick={() => void navigator.clipboard.writeText(JSON.stringify(config, null, 2))}><Clipboard size={13} /> Copy</button></div><pre>{JSON.stringify(config, null, 2)}</pre><div className="endpoint-row"><small>REMOTE MCP ENDPOINT</small><code>{endpoint}</code></div></div></div><div className="token-list"><div className="list-title"><span><ShieldCheck size={14} /> Issued credentials</span><small>{workspace.workspace?.name}</small></div>{tokens.length ? tokens.map((token) => <div className="token-row" key={token.id}><span className={token.revokedAt ? "status-orb" : token.lastHandshakeAt ? "status-orb live" : "status-orb indexing"} /><div><strong>{token.clientType}</strong><small>{token.scopes.join(" · ")} · expires {dateLabel(token.expiresAt)}</small></div><span>{token.revokedAt ? "Revoked" : token.lastHandshakeAt ? `Connected ${dateLabel(token.lastHandshakeAt)}` : "Awaiting handshake"}</span>{!token.revokedAt && <button onClick={() => void revoke(token.id)}>Revoke</button>}</div>) : <div className="honest-empty"><Bot size={24} /><div><strong>No agent credential exists.</strong><p>Create one only when you are ready to connect a client.</p></div></div>}</div></section>;
+  return <section className="screen agent-screen"><div className="screen-heading"><div><span className="eyebrow"><Bot size={13} /> Agent dock · MCP</span><h1>Give agents the plan.<br /><em>Keep humans in control.</em></h1><p>Generate a scoped token, connect any modern MCP client, and retrieve the exact execution packet shown in Command. Provider writes remain proposals unless a human approves them.</p></div></div>{readOnly && <div className="inline-warning"><LockKeyhole size={14} />Token issuance and revocation are disabled in the public sandbox. The integration shape and endpoint remain visible.</div>}<div className="agent-grid"><div className="token-console"><div className="console-line"><span><Terminal size={14} /> New agent connection</span><span className="secure-chip"><LockKeyhole size={12} /> hashed at rest</span></div><label>Client<select value={clientType} onChange={(event) => setClientType(event.target.value)} disabled={readOnly}><option value="codex">Codex</option><option value="claude">Claude Code</option><option value="kimi">Kimi Code</option><option value="kilo">Kilo Code</option><option value="generic">Generic MCP client</option></select></label><label className="scope-choice"><input type="checkbox" checked={writeScopes} onChange={(event) => setWriteScopes(event.target.checked)} disabled={readOnly} /><span><strong>Allow proposal + sync tools</strong><small>Still cannot execute a provider write without QueueProof approval.</small></span></label><button className="primary-button" onClick={() => void createToken()} disabled={readOnly || busy}>{busy ? <LoaderCircle className="spin" size={15} /> : readOnly ? <LockKeyhole size={15} /> : <KeyRound size={15} />}{readOnly ? "Token issuance disabled" : "Generate 30-day token"}</button>{freshToken && <div className="token-reveal"><span><CircleAlert size={13} /> Copy once — it cannot be shown again</span><code>{freshToken}</code><button onClick={() => void navigator.clipboard.writeText(freshToken)}><Clipboard size={13} /> Copy token</button></div>}</div><div className="config-card"><div className="list-title"><span><Braces size={14} /> Project configuration</span><button onClick={() => void navigator.clipboard.writeText(JSON.stringify(config, null, 2))}><Clipboard size={13} /> Copy</button></div><pre>{JSON.stringify(config, null, 2)}</pre><div className="endpoint-row"><small>REMOTE MCP ENDPOINT</small><code>{endpoint}</code></div></div></div><div className="token-list"><div className="list-title"><span><ShieldCheck size={14} /> Issued credentials</span><small>{workspace.workspace?.name}</small></div>{tokens.length ? tokens.map((token) => <div className="token-row" key={token.id}><span className={token.revokedAt ? "status-orb" : token.lastHandshakeAt ? "status-orb live" : "status-orb indexing"} /><div><strong>{token.clientType}</strong><small>{token.scopes.join(" · ")} · expires {dateLabel(token.expiresAt)}</small></div><span>{token.revokedAt ? "Revoked" : token.lastHandshakeAt ? `Connected ${dateLabel(token.lastHandshakeAt)}` : "Awaiting handshake"}</span>{!token.revokedAt && !readOnly && <button onClick={() => void revoke(token.id)}>Revoke</button>}</div>) : <div className="honest-empty"><Bot size={24} /><div><strong>No agent credential exists.</strong><p>Create one only when you are ready to connect a client.</p></div></div>}</div></section>;
 }
 
 type LabResults = {
@@ -1253,6 +1418,10 @@ function LabScreen({ setError }: { setError: (value: string) => void }) {
   const averageCalls = rows.some((row) => typeof row.callCount === "number")
     ? rows.reduce((total, row) => total + (row.callCount ?? 0), 0) / Math.max(rows.length, 1)
     : null;
+  const benchmarkGatesMet = (router?.total ?? 0) >= 30 && graded > 0 && passed === graded
+    && typeof live?.quality?.requiredFactRecall === "number" && live.quality.requiredFactRecall >= .9
+    && typeof live?.quality?.citationCompleteness === "number" && live.quality.citationCompleteness >= .95
+    && typeof live?.quality?.unsupportedClaimRate === "number" && live.quality.unsupportedClaimRate === 0;
 
   return (
     <section className="screen benchmark-screen">
@@ -1266,18 +1435,19 @@ function LabScreen({ setError }: { setError: (value: string) => void }) {
       </div>
 
       {loading && <p className="muted">Loading evaluation results…</p>}
+      {!loading && live?.status !== "measured" && <div className="inline-warning"><CircleAlert size={14} />{live?.note ?? "Strict production benchmark evidence is not available yet."}</div>}
 
       <div className="lab-summary premium-metrics">
-        <div className="lab-metric primary"><small>LIVE CASES</small><strong>{rows.length || live?.cases || "—"}</strong><span>{graded ? `${passed}/${graded} expected answers passed` : "production cross-source runs"}</span></div>
+        <div className="lab-metric primary"><small>LIVE CASES</small><strong>{rows.length || live?.cases || "—"}</strong><span>{graded ? `${passed}/${graded} required-signal checks passed` : "production cross-source runs"}</span></div>
         <div className="lab-metric"><small>P50 LATENCY</small><strong>{live?.latencyMs?.p50 ? `${(live.latencyMs.p50 / 1000).toFixed(2)}s` : "—"}</strong><span>p95 {live?.latencyMs?.p95 ? `${(live.latencyMs.p95 / 1000).toFixed(2)}s` : "not recorded"}</span></div>
         <div className="lab-metric"><small>PROVIDER PROOF</small><strong>{live?.connectors?.length ?? "—"}</strong><span>{live?.connectors?.join(" · ") || "not recorded"}</span></div>
         <div className="lab-metric"><small>CALL EFFICIENCY</small><strong>{averageCalls === null ? "—" : averageCalls.toFixed(1)}</strong><span>average HydraDB calls per answer</span></div>
       </div>
 
       <section className="judge-lens" aria-label="Hackathon judging evidence">
-        <div className="judge-lens-heading"><div><span className="eyebrow"><ShieldCheck size={13} /> Judge lens</span><h2>Every scoring claim has a receipt.</h2></div><span className={graded > 0 && passed === graded ? "readiness-seal ready" : "readiness-seal"}><CircleCheck size={15} /> {graded > 0 && passed === graded ? "DEMO READY" : "MEASURING"}</span></div>
+        <div className="judge-lens-heading"><div><span className="eyebrow"><ShieldCheck size={13} /> Judge lens</span><h2>Every scoring claim has a receipt.</h2></div><span className={benchmarkGatesMet ? "readiness-seal ready" : "readiness-seal"}>{benchmarkGatesMet ? <CircleCheck size={15} /> : <Activity size={15} />} {benchmarkGatesMet ? "BENCHMARK GATES MET" : "EVIDENCE BUILDING"}</span></div>
         <div className="judge-proof-grid">
-          <article><small>01 · CORRECTNESS</small><strong>{typeof live?.quality?.requiredFactRecall === "number" ? `${Math.round(live.quality.requiredFactRecall * 100)}%` : graded ? `${passed}/${graded}` : "—"}</strong><p>{typeof live?.quality?.unsupportedClaimRate === "number" ? `${Math.round((live.quality.citationCompleteness ?? 0) * 100)}% claims cited · ${Math.round(live.quality.unsupportedClaimRate * 100)}% unsupported` : "Expected facts are stored beside observed production answers."}</p></article>
+          <article><small>01 · REQUIRED SIGNALS</small><strong>{typeof live?.quality?.requiredFactRecall === "number" ? `${Math.round(live.quality.requiredFactRecall * 100)}%` : graded ? `${passed}/${graded}` : "—"}</strong><p>{typeof live?.quality?.unsupportedClaimRate === "number" ? `${Math.round((live.quality.citationCompleteness ?? 0) * 100)}% claims cited · ${Math.round(live.quality.unsupportedClaimRate * 100)}% unsupported` : "Required facts are stored beside observed production answers; this is not universal correctness."}</p></article>
           <article><small>02 · CROSS-SOURCE</small><strong>{live?.connectors?.length ?? "—"}</strong><p>Distinct providers appear in the replayable benchmark receipt.</p></article>
           <article><small>03 · LATENCY</small><strong>{live?.latencyMs?.p50 ? `${(live.latencyMs.p50 / 1000).toFixed(2)}s` : "—"}</strong><p>P50 and p95 are measured on the deployed public target.</p></article>
           <article><small>04 · COST</small><strong>{averageCalls === null ? "—" : averageCalls.toFixed(1)}</strong><p>Average HydraDB calls per answer—not a vague efficiency claim.</p></article>
@@ -1286,7 +1456,7 @@ function LabScreen({ setError }: { setError: (value: string) => void }) {
         </div>
       </section>
 
-      {rows.length > 0 && <><div className="benchmark-filter" aria-label="Filter benchmark cases"><span><Search size={13} /> Case explorer</span>{(["all", "fast", "thinking"] as const).map((filter) => <button key={filter} className={modeFilter === filter ? "active" : ""} onClick={() => setModeFilter(filter)}>{filter === "all" ? "All modes" : filter}</button>)}</div><div className="benchmark-cases">
+      {rows.length > 0 && <><div className="benchmark-filter" aria-label="Filter benchmark cases"><span><Search size={13} /> Case explorer</span>{(["all", "fast", "thinking"] as const).map((filter) => <button key={filter} className={modeFilter === filter ? "active" : ""} aria-pressed={modeFilter === filter} onClick={() => setModeFilter(filter)}>{filter === "all" ? "All modes" : filter}</button>)}</div><div className="benchmark-cases">
         {filteredRows.map((row, index) => <article className="benchmark-case" key={`${row.label}-${index}`}>
           <div className="case-index"><span>{String(index + 1).padStart(2, "0")}</span><i className={row.pass === false ? "fail" : "pass"} /></div>
           <div className="case-body"><span className="case-label">{row.label}</span><h3>{row.question}</h3>
@@ -1305,7 +1475,8 @@ function LabScreen({ setError }: { setError: (value: string) => void }) {
 }
 
 function PacketDrawer({ packet, onClose, onPropose }: { packet: Packet; onClose: () => void; onPropose: () => void }) {
-  return <div className="drawer-layer" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><aside className="packet-drawer" role="dialog" aria-modal="true" aria-label="Execution packet"><button className="modal-close" aria-label="Close execution packet" onClick={onClose}><X size={16} /></button><div className="drawer-head"><span className="eyebrow"><FileCheck2 size={13} /> Execution packet</span><code>{packet.packet_id}</code><h2>{packet.task.title}</h2><p>{packet.task.objective}</p></div><div className="drawer-score"><strong>{packet.task.priority_score}</strong><span>{band(packet.task.priority_score)} priority<br />{Math.round(packet.task.confidence * 100)}% confidence</span></div>{packet.score_breakdown && <div className="score-receipt"><div className="list-title"><span><Activity size={14} /> Score receipt</span><small>{packet.policy_version}</small></div>{Object.entries(packet.score_breakdown).map(([label, value]) => <span key={label}><small>{label.replace(/([A-Z])/g, " $1")}</small><i style={{ width: `${Math.min(value * 4, 100)}%` }} /><strong>+{value}</strong></span>)}{Object.entries(packet.penalties ?? {}).filter(([, value]) => value > 0).map(([label, value]) => <span className="penalty" key={label}><small>{label.replace(/([A-Z])/g, " $1")}</small><i style={{ width: `${Math.min(value * 4, 100)}%` }} /><strong>−{value}</strong></span>)}{packet.active_formula && <code>{packet.active_formula}</code>}</div>}<PacketSection title="Why now" items={packet.why_now} /><div className="packet-columns"><PacketSection title="Constraints" items={packet.constraints} empty="None evidenced" /><PacketSection title="Dependencies" items={packet.dependencies} empty="None evidenced" /></div><PacketSection title="Acceptance criteria" items={packet.acceptance_criteria} /><div className="packet-section"><h3>Evidence receipts <span>{packet.evidence.length}</span></h3>{packet.evidence.map((item, index) => <EvidenceCard key={item.sourceId ?? index} evidence={item} index={index} />)}</div><WhyAboveSection why={packet.why_above_next} /><PacketSection title="Missing information" items={packet.missing_information} empty="No missing fields" /><ReceiptHashBlock hash={packet.receipt_hash} /><div className="permission-block"><LockKeyhole size={16} /><div><strong>Agent permissions</strong><span>Read: {packet.permissions.read.join(", ") || "none"} · Write: {packet.permissions.write.join(", ") || "none"} · Approval {packet.permissions.approval_required ? "required" : "not required"}</span></div></div><div className="drawer-actions"><button className="primary-button" onClick={onPropose}><ShieldCheck size={14} /> Send to approval</button><button className="secondary-button" onClick={() => void navigator.clipboard.writeText(JSON.stringify(packet, null, 2))}><Clipboard size={14} /> Copy canonical JSON</button></div></aside></div>;
+  const dialogRef = useDialogBehavior<HTMLElement>(true, onClose);
+  return <div className="drawer-layer" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><aside ref={dialogRef} className="packet-drawer" role="dialog" aria-modal="true" aria-labelledby="execution-packet-title" tabIndex={-1}><button type="button" className="modal-close" data-dialog-initial aria-label="Close execution packet" onClick={onClose}><X size={16} /></button><div className="drawer-head"><span className="eyebrow"><FileCheck2 size={13} /> Execution packet</span><code>{packet.packet_id}</code><h2 id="execution-packet-title">{packet.task.title}</h2><p>{packet.task.objective}</p></div><div className="drawer-score"><strong>{packet.task.priority_score}</strong><span>{band(packet.task.priority_score)} priority<br />{Math.round(packet.task.confidence * 100)}% confidence</span></div>{packet.score_breakdown && <div className="score-receipt"><div className="list-title"><span><Activity size={14} /> Score receipt</span><small>{packet.policy_version}</small></div>{Object.entries(packet.score_breakdown).map(([label, value]) => <span key={label}><small>{label.replace(/([A-Z])/g, " $1")}</small><i style={{ width: `${Math.min(value * 4, 100)}%` }} /><strong>+{value}</strong></span>)}{Object.entries(packet.penalties ?? {}).filter(([, value]) => value > 0).map(([label, value]) => <span className="penalty" key={label}><small>{label.replace(/([A-Z])/g, " $1")}</small><i style={{ width: `${Math.min(value * 4, 100)}%` }} /><strong>−{value}</strong></span>)}{packet.active_formula && <code>{packet.active_formula}</code>}</div>}<PacketSection title="Why now" items={packet.why_now} /><div className="packet-columns"><PacketSection title="Constraints" items={packet.constraints} empty="None evidenced" /><PacketSection title="Dependencies" items={packet.dependencies} empty="None evidenced" /></div><PacketSection title="Acceptance criteria" items={packet.acceptance_criteria} /><div className="packet-section"><h3>Evidence receipts <span>{packet.evidence.length}</span></h3>{packet.evidence.map((item, index) => <EvidenceCard key={item.sourceId ?? index} evidence={item} index={index} />)}</div><WhyAboveSection why={packet.why_above_next} /><PacketSection title="Missing information" items={packet.missing_information} empty="No missing fields" /><ReceiptHashBlock hash={packet.receipt_hash} /><div className="permission-block"><LockKeyhole size={16} /><div><strong>Agent permissions</strong><span>Read: {packet.permissions.read.join(", ") || "none"} · Write: {packet.permissions.write.join(", ") || "none"} · Approval {packet.permissions.approval_required ? "required" : "not required"}</span></div></div><div className="drawer-actions"><button type="button" className="primary-button" onClick={onPropose}><ShieldCheck size={14} /> Send to approval</button><button type="button" className="secondary-button" onClick={() => void navigator.clipboard.writeText(JSON.stringify(packet, null, 2))}><Clipboard size={14} /> Copy canonical JSON</button></div></aside></div>;
 }
 
 /**

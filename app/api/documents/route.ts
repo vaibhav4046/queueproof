@@ -1,10 +1,11 @@
 import { apiError, noStoreJson } from "../../../lib/server/api";
-import { requireRequestActor } from "../../../lib/server/identity";
+import { requirePrivateControlActor, requireRequestActor } from "../../../lib/server/identity";
 import { requireDb } from "../../../lib/server/runtime";
 import { audit, createId, ensureCoreSchema, requireWorkspaceForUser } from "../../../lib/server/store";
 import { hydraAccountForWorkspace, hydraClientForWorkspace } from "../../../lib/server/hydradb-account";
 import {
   MAX_DOCUMENT_BYTES,
+  MAX_DOCUMENT_REQUEST_BYTES,
   contentHash,
   detectFileType,
   pdfPageCount,
@@ -63,9 +64,21 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const actor = await requireRequestActor();
+    requirePrivateControlActor(actor, "Document upload");
     await ensureCoreSchema();
     const workspace = await requireWorkspaceForUser(actor.id);
     const workspaceId = String(workspace.id);
+
+    const declaredLength = Number(request.headers.get("content-length") ?? "0");
+    if (Number.isFinite(declaredLength) && declaredLength > MAX_DOCUMENT_REQUEST_BYTES) {
+      // This must remain before formData(): the parser materialises multipart bodies, so
+      // checking only File.size afterward does not protect memory from declared oversize
+      // requests. The per-file byte check below remains authoritative after parsing.
+      return noStoreJson(
+        { ok: false, error: `Upload request exceeds the ${Math.floor(MAX_DOCUMENT_BYTES / (1024 * 1024))} MB file limit.` },
+        { status: 413 },
+      );
+    }
 
     let form: FormData;
     try {

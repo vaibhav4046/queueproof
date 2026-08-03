@@ -1,5 +1,5 @@
 import { apiError, noStoreJson } from "../../../../../lib/server/api";
-import { requireRequestActor } from "../../../../../lib/server/identity";
+import { requirePrivateControlActor, requireRequestActor } from "../../../../../lib/server/identity";
 import { requireDb } from "../../../../../lib/server/runtime";
 import { createId, ensureCoreSchema, requireWorkspaceForUser } from "../../../../../lib/server/store";
 import { hydraClientForWorkspace } from "../../../../../lib/server/hydradb-account";
@@ -15,6 +15,7 @@ import { hydraClientForWorkspace } from "../../../../../lib/server/hydradb-accou
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const actor = await requireRequestActor();
+    requirePrivateControlActor(actor, "Document indexing refresh");
     await ensureCoreSchema();
     const workspace = await requireWorkspaceForUser(actor.id);
     const workspaceId = String(workspace.id);

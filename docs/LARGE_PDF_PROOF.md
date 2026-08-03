@@ -1,6 +1,6 @@
-# Large-PDF proof
+# Large-PDF proof status
 
-QueueProof generated a deterministic, adversarial operations handbook and sent it through the real production upload flow.
+## Deterministic document
 
 | Property | Value |
 | --- | --- |
@@ -8,21 +8,56 @@ QueueProof generated a deterministic, adversarial operations handbook and sent i
 | Pages | 346 |
 | Bytes | 958,096 |
 | SHA-256 | `c047a3d09c45ecf97e3ed8e2115eda08ea0f6152206237955030f4304fa2ed93` |
-| Planted facts | 22 across 13 retrieval kinds |
+| Labelled questions | 22 |
+| Explicit required-fact groups | 56 |
 | QueueProof document ID | `doc_44fe0aac-ea45-481f-91bf-66b5ba7b4fe9` |
 | HydraDB source ID | `f64d374d1899f3057707528f77703f3f` |
 | Database | `queueproof-live` |
 
-The generation verifier ran 78 checks across the PDF structure, facts, page placement, object references, and xref offsets. Load-bearing facts sit near page 3, page 160, and the ending section; other cases cover tables, aliases, exact IDs, superseded policies, close-name entities, Hindi context, and cross-source joins.
+The generator places load-bearing facts near the beginning, middle, and end, and also
+covers tables, exact IDs, superseded policies, close-name entities, multilingual context,
+distractors, and a document-plus-connector join. Generation checks validate PDF structure,
+fact placement, object references, and xref offsets.
 
-HydraDB accepted the upload at `2026-08-03T06:55:47Z`. The last observed real status was `graph_creation`; QueueProof correctly kept the document at `processing` instead of reporting a false success. Terminal canary results must only be added after HydraDB reports `completed`.
+## Historical production artifact - not a current score
 
-## Reproduce after terminal indexing
+`evals/results/pdf-live-run.json` is retained for provenance. It was generated on
+3 August 2026 and reports 21/22 under `legacy-token-recall-v1`, with its
+cross-source case failing. The old canary summary also used an incorrect end-canary key.
+
+That artifact is **not comparable** with the current strict grader and must not be quoted
+as a fresh release result. It is evidence that the production flow ran, not evidence that
+the hardened release passes 21/22 or 22/22.
+
+## Current strict acceptance contract
+
+The current grader version is `grounded-grader-v2`.
+
+Every one of the 22 cases now declares explicit required facts. A case passes only when:
+
+1. every required fact is present in the answer;
+2. every required provider is backed by a supporting cited claim;
+3. every claim citation ID resolves;
+4. the cited excerpt contains the normalized claim text and matches the claim provider;
+5. citation precision and completeness are both 1.0, with no unsupported claim;
+6. a required contradiction is backed by at least two resolved cited providers; and
+7. document cases carry the expected document evidence.
+
+The canary map now uses `beginning_load_bearing`, `middle_load_bearing`, and
+`end_load_bearing` explicitly.
+
+## Reproduce after release authorization
 
 ```bash
+npm run generate:large-pdf
 npm run benchmark:pdf -- --url https://queueproof.vercel.app
 ```
 
-The runner measures all 22 labelled facts, beginning/middle/end canaries, answer-only fact recall, document citation presence, latency, calls, and one PDF + connector multi-hop question. It exits non-zero on any review result.
+The production command sends 22 labelled synthetic questions and a known synthetic
+document source ID to the live deployment. Run it only with explicit authorization. The
+runner exits non-zero on any required-fact, provider, citation, contradiction, canary, or
+cross-source failure.
 
-HydraDB's public documentation describes asynchronous ingestion and the context-status lifecycle. It does not publish a universal byte-size limit; `25 MB` in the UI is QueueProof's conservative intake cap, not a claimed HydraDB maximum.
+HydraDB ingestion is asynchronous. QueueProof reports `processing` until the status
+endpoint reaches a terminal completed state. The UI's 25 MB intake cap is QueueProof's
+conservative limit, not a claimed HydraDB universal maximum.

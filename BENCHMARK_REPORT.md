@@ -1,6 +1,6 @@
 # QueueProof benchmark report
 
-Generated: 2026-08-03T07:40:59.838Z
+Generated: 2026-08-03T11:44:59.277Z
 Runner: `node scripts/run-evals.mjs`
 Fixtures: `evals/fixtures/cases.json` (39 ground truth cases, fictional company "Helios Robotics")
 
@@ -121,24 +121,12 @@ did not measure.
 - `evals/results/results.json` — full machine readable output, fixture and live kept separate
 - `evals/results/results.csv` — one row per case
 
-## Live connector run (measured, not fixture)
+## Historical live connector artifact (legacy grader; not a release score)
 
-Target https://queueproof.vercel.app. Connectors: document, github, linear, slack. Generated 2026-08-03T07:40:03.004Z.
+Target https://queueproof.vercel.app. Generated 2026-08-03T07:40:03.004Z.
+Artifact grader: `legacy-required-signal-v1`; current grader: `grounded-grader-v2`.
 
-| Case | Mode | Latency | Sources | Providers in evidence |
-| --- | --- | --- | --- | --- |
-| three-provider multi-hop | `thinking` | 6546 ms | 6 | github, linear, slack |
-| deadline conflict | `thinking` | 7200 ms | 2 | linear, slack |
-| untracked commitment | `fast` | 738 ms | 4 | slack, github |
-| stale tracked work | `fast` | 632 ms | 2 | github |
-| actor reconstruction | `thinking` | 5137 ms | 6 | linear, slack, document |
-| exact identifier plus context | `thinking` | 256 ms | 2 | slack |
-
-Latency across 6 live questions: p50 738 ms, p95 7200 ms, min 256 ms, max 7200 ms.
-
-Questions whose evidence spanned all three connected providers: 2/6. Routed thinking/fast: 4/2.
-
-Answer-only required-fact recall: 100.0%. Citation completeness: 100.0%. Unsupported-claim rate: 0.0%.
-
-These are real end-to-end measurements against connected Slack, Linear and GitHub.
-The sample is small and is not presented as a stable distribution.
+This artifact proves that a live connector run occurred, but its cases and quality figures
+are intentionally not presented as current measurements because the legacy grader is not
+comparable with the strict grounded-answer contract. Run `npm run benchmark:live` with
+explicit production authorization to generate a current strict artifact.

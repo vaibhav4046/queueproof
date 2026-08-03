@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { taskClusterKey } from "../lib/server/queue";
+import { clusterTaskEvidence, taskClusterKey } from "../lib/server/queue";
 
 const evidence = (provider: string, externalId: string, title: string, excerpt: string) => ({
   provider, externalId, title, excerpt,
@@ -11,9 +11,30 @@ describe("conservative cross-source task clustering", () => {
       .toBe(taskClusterKey(evidence("linear", "i1", "BUG-123", "Issue remains in progress.")));
   });
 
-  it("joins a distinctive product identity across providers", () => {
-    expect(taskClusterKey(evidence("slack", "m2", "Customer escalation", "AuthShield is blocking sign-in.")))
-      .toBe(taskClusterKey(evidence("github", "p2", "Patch merged", "AuthShield remediation landed.")));
+  it("attaches an ID-less entity record when exactly one exact-ID component matches", () => {
+    const groups = clusterTaskEvidence([
+      evidence("linear", "i1", "AuthShield incident INC-2031", "Customer access is blocked."),
+      evidence("slack", "m2", "Customer escalation", "AuthShield is blocking sign-in."),
+    ]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toHaveLength(2);
+  });
+
+  it("never merges disjoint exact-ID sets through a shared entity name", () => {
+    const groups = clusterTaskEvidence([
+      evidence("linear", "i1", "AuthShield incident INC-2031", "Customer access is blocked."),
+      evidence("github", "p2", "AuthShield issue ENG-456", "Token lifetime work is open."),
+    ]);
+    expect(groups).toHaveLength(2);
+  });
+
+  it("leaves an ID-less entity record separate when its mapping is ambiguous", () => {
+    const groups = clusterTaskEvidence([
+      evidence("linear", "i1", "AuthShield incident INC-2031", "Customer access is blocked."),
+      evidence("github", "p2", "AuthShield issue ENG-456", "Token lifetime work is open."),
+      evidence("slack", "m2", "Customer escalation", "AuthShield needs attention."),
+    ]);
+    expect(groups).toHaveLength(3);
   });
 
   it("keeps generic work separate when identity is ambiguous", () => {

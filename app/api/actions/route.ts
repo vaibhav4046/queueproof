@@ -1,7 +1,7 @@
 import { apiError, noStoreJson, readJson } from "../../../lib/server/api";
 import { requireRequestActor } from "../../../lib/server/identity";
 import { requireDb } from "../../../lib/server/runtime";
-import { audit, createId, ensureCoreSchema, requireWorkspaceForUser } from "../../../lib/server/store";
+import { audit, createId, enforcePublicRateLimit, ensureCoreSchema, requireWorkspaceForUser } from "../../../lib/server/store";
 import {
   buildIssuePayload,
   idempotencyKeyFor,
@@ -26,7 +26,8 @@ export async function GET() {
                 ap.evidence_ids_json AS evidenceIdsJson, ap.risk_class AS riskClass,
                 ap.status, ap.created_at AS createdAt,
                 aa.decision, aa.decided_at AS decidedAt,
-                ax.status AS executionStatus, ax.provider_response_id AS providerResponseId
+                ax.status AS executionStatus, ax.provider_response_id AS providerResponseId,
+                ax.error AS executionError
          FROM action_proposals ap
          LEFT JOIN action_approvals aa ON aa.proposal_id = ap.id
          LEFT JOIN action_executions ax ON ax.proposal_id = ap.id
@@ -56,6 +57,21 @@ export async function POST(request: Request) {
     await ensureCoreSchema();
     const workspace = await requireWorkspaceForUser(actor.id);
     const workspaceId = String(workspace.id);
+    await enforcePublicRateLimit({
+      actorId: actor.id, workspaceId, operation: "action.propose", limit: 8, windowMs: 10 * 60_000,
+    });
+    if (actor.id === "user:public-access") {
+      const pendingPublic = await requireDb()
+        .prepare(`SELECT COUNT(*) AS total FROM action_proposals WHERE workspace_id = ? AND status = 'proposed'`)
+        .bind(workspaceId)
+        .first<{ total: number }>();
+      if (Number(pendingPublic?.total ?? 0) >= 50) {
+        return noStoreJson(
+          { ok: false, error: "The public proposal ledger is full. A workspace owner must review it before more proposals are accepted." },
+          { status: 429 },
+        );
+      }
+    }
 
     const body = await readJson<{
       commitment?: Partial<Commitment>;

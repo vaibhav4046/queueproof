@@ -15,12 +15,22 @@ import liveRun from "../../../evals/results/live-run.json";
 export async function GET() {
   try {
     await requireRequestActor();
+    const strictArtifact = (liveRun as { grader?: string }).grader === "grounded-grader-v2";
     return noStoreJson({
       ok: true,
       results: {
         ...results,
         generatedAt: liveRun.generatedAt,
-        live: { status: "measured", ...liveRun },
+        live: strictArtifact
+          ? { status: "measured", ...liveRun }
+          : {
+              status: "legacy_evidence",
+              note: "A strict grounded-grader-v2 production rerun is pending; legacy live rows are excluded from readiness metrics.",
+              target: liveRun.target,
+              generatedAt: liveRun.generatedAt,
+              cases: 0,
+              rows: [],
+            },
       },
     });
   } catch (error) {

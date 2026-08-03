@@ -1,33 +1,31 @@
-# Deployment verification (SUPERSEDED)
+# Deployment verification
 
-> **Historical record from 2026-07-31, retained for provenance only.** It predates the
-> configured deployment and reports `/api/health/ready` as 503 with no storage bound, plus
-> a 67-test count. Current verified state is in `BENCHMARK_REPORT.md` and
-> `submission/requirements-matrix.md`. Do not quote this file in the submission.
+Canonical target: <https://queueproof.vercel.app>
 
-Status: deployed and smoke-tested on 2026-07-31.
+## Release-candidate gates
 
-Populate only after the production URL responds:
+| Gate | Status |
+| --- | --- |
+| Typecheck | pass |
+| Lint | pass |
+| Production build | pass |
+| E2E shell/product contract | pass |
+| Deployment binding check | pass |
+| Full suite | 274 tests across 29 files |
 
-- Web URL: `https://queueproof-control-plane.vaibhav09908.chatgpt.site` (private Sites access).
-- `/api/health/live`: HTTP 200, `status=live`.
-- `/api/health/ready`: HTTP 200; D1, R2, and encryption checks true.
-- D1 migration: packaged and applied through the Sites version flow.
-- R2 binding: present and reported configured.
-- Unconfigured MCP behavior: `/api/mcp` returns HTTP 503 with an explicit disabled-authentication message.
-- Authenticated MCP handshake: not run; requires a hosted workspace ID and bearer token after owner sign-in.
-- Desktop: local 1280px browser QA passed with zero horizontal overflow and no console warnings/errors.
-- Mobile: local 390px browser QA passed with responsive bottom navigation and zero horizontal overflow.
-- Reduced motion: stylesheet guard present; browser media emulation not run.
-- Cold start: health returned within the 30-second smoke-test budget; no benchmark series recorded.
-- Live connector verification: not run; HydraDB/provider credentials absent.
-- Recorded at: 2026-07-31T09:42Z.
+Responsive QA passed at 360x800, 390x844, 768x1024, 1440x900, 1920x1080,
+2560x1440, and 3840x2160.
 
-## Vercel
+## Last observed production
 
-- Production alias: `https://queueproof.vercel.app`.
-- Root page: HTTP 200.
-- `/api/health/live`: HTTP 200.
-- `/api/workspace`: HTTP 200 with `runtime=vercel` and `storageAvailable=false`.
-- `/api/health/ready`: HTTP 503, intentionally, because D1/R2 are not Vercel services.
-- Native Next.js webpack build, TypeScript, lint, and 67 tests completed successfully before deployment.
+- The root product and readiness endpoint responded successfully.
+- The shared workspace exposed four verified connector receipts.
+- The flagship question returned a grounded GitHub + Linear + Slack result.
+
+These observations prove the existing production service was live. They do not, by
+themselves, prove that a later local commit has been published. Confirm the final release
+commit against the deployment receipt after publishing.
+
+The public deployment is a shared evidence sandbox. Sensitive control-plane mutations
+must return 403 for its actor. `QUEUEPROOF_PUBLIC_WORKSPACE_ID` should name the exact
+shared workspace; ambiguous multi-workspace state without it fails closed.

@@ -1,5 +1,6 @@
 {
   "generatedAt": "2026-08-03T07:40:03.004Z",
+  "grader": "legacy-required-signal-v1",
   "runner": "scripts/run-live-benchmark.mjs",
   "target": "https://queueproof.vercel.app",
   "connectors": [

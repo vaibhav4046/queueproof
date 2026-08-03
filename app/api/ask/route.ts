@@ -1,10 +1,10 @@
 import { apiError, noStoreJson, readJson } from "../../../lib/server/api";
 import { hydraClientForWorkspace } from "../../../lib/server/hydradb-account";
-import { extractQuerySources, matchingChunks, providerFromSource } from "../../../lib/server/hydradb-shapes";
+import { extractQuerySources, matchingChunks, providerFromSource, sourceBelongsToConnector } from "../../../lib/server/hydradb-shapes";
 import { requireRequestActor } from "../../../lib/server/identity";
 import { requireDb } from "../../../lib/server/runtime";
-import { audit, createId, requireWorkspaceForUser } from "../../../lib/server/store";
-import { planRetrieval } from "../../../packages/retrieval/src";
+import { audit, createId, enforcePublicRateLimit, requireWorkspaceForUser } from "../../../lib/server/store";
+import { planRetrieval, retrievalQueryVariants } from "../../../packages/retrieval/src";
 import { isPotentialPromptInjection, redactSecrets } from "../../../packages/security/src";
 import { synthesiseGroundedAnswer } from "../../../lib/server/synthesis";
 import { listQueueForWorkspace } from "../../../lib/server/queue";
@@ -33,6 +33,9 @@ export async function POST(request: Request) {
     const actor = await requireRequestActor();
     const workspace = await requireWorkspaceForUser(actor.id);
     const workspaceId = String(workspace.id);
+    await enforcePublicRateLimit({
+      actorId: actor.id, workspaceId, operation: "ask", limit: 12, windowMs: 60_000,
+    });
     const payload = await readJson<{
       question?: string;
       mode?: "fast" | "thinking" | "auto";
@@ -51,6 +54,16 @@ export async function POST(request: Request) {
     if (!connectors.results.length) {
       return noStoreJson({ ok: false, error: "Verify at least one live source before asking QueueProof." }, { status: 409 });
     }
+    const selectedResources = await requireDb().prepare(
+      `SELECT connector_id, external_resource_id FROM connector_resources
+       WHERE workspace_id = ? AND selected = 1`,
+    ).bind(workspaceId).all<{ connector_id: string; external_resource_id: string }>();
+    const resourceIdsByConnector = selectedResources.results.reduce((map, row) => {
+      const ids = map.get(row.connector_id) ?? new Set<string>();
+      ids.add(row.external_resource_id);
+      map.set(row.connector_id, ids);
+      return map;
+    }, new Map<string, Set<string>>());
     const requestedSourceIds = [...new Set(payload.sourceIds ?? [])];
     if (requestedSourceIds.length > 10 || requestedSourceIds.some((id) => !/^[a-z0-9_-]{12,160}$/i.test(id))) {
       return noStoreJson({ ok: false, error: "Document source scope is invalid." }, { status: 400 });
@@ -99,65 +112,72 @@ export async function POST(request: Request) {
     const scopes: RetrievalScope[] = requestedSourceIds.length
       ? [...documentScopes, ...(payload.includeConnectors ? connectorScopes : [])]
       : connectorScopes;
+    const queryVariants = retrievalQueryVariants(plan);
 
     await Promise.all(scopes.map(async (scope) => {
-      const callStarted = Date.now();
-      const response = await client.query({
-        database: scope.database,
-        ...(scope.collection ? { collections: [scope.collection] } : {}),
-        query: question,
-        type: "knowledge",
-        query_by: plan.queryBy,
-        mode,
-        max_results: 12,
-        ...(scope.sourceIds ? { ids: scope.sourceIds } : {}),
-        query_apps: !scope.sourceIds,
-        graph_context: plan.graphContext,
-        query_forceful_relations: plan.graphContext,
-        recency_bias: plan.recencyBias,
-        ...(payload.metadataFilters && Object.keys(payload.metadataFilters).length > 0
-          ? { metadata_filters: payload.metadataFilters }
-          : {}),
-      });
-      trace.push({ connectorIds: scope.connectors.map((item) => item.id),
-        providers: scope.sourceIds ? ["document"] : scope.connectors.map((item) => item.provider), database: scope.database,
-        collection: scope.collection, ok: response.ok, status: response.status,
-        sourceIds: scope.sourceIds ?? [], requestId: response.requestId,
-        latencyMs: Date.now() - callStarted, error: response.error });
-      if (!response.ok) return;
-      const extracted = extractQuerySources(response.data);
-      extracted.sources.forEach((source, sourceIndex) => {
-        const metadata = record(source.additional_metadata);
-        const sourceKind = textFrom({ ...metadata, ...source }, ["source_type", "type", "mime_type", "filename"]);
-        const isDocumentSource = Boolean(source.filename ?? metadata.filename) || /\b(pdf|document|file)\b/i.test(sourceKind ?? "");
-        const provider = isDocumentSource ? "document" : providerFromSource(source) ?? "unknown";
-        const sourceConnectorId = source.connector_id ?? metadata.connector_id;
-        const providerMatches = scope.connectors.filter((item) => item.provider === provider);
-        const owningConnector = sourceConnectorId
-          ? scope.connectors.find((item) => item.hydradbConnectorId === String(sourceConnectorId))
-          : providerMatches.length === 1 ? providerMatches[0] : undefined;
-        if (!owningConnector && provider !== "document") return;
-        const sourceId = String(source.id ?? source.source_id ?? `document-${sourceIndex}`);
-        const sourceChunks = matchingChunks(source, extracted.chunks);
-        const candidates = sourceChunks.length ? sourceChunks : [source];
-        candidates.forEach((candidate, chunkIndex) => {
-          const chunk = record(candidate);
-          const excerpt = (textFrom(chunk, ["chunk_content", "content", "text", "excerpt"]) ??
-            textFrom(source, ["content", "text", "excerpt", "description"]) ?? "")
-            .replace(/\s+/g, " ").trim().slice(0, 6_000);
-          if (!excerpt || isPotentialPromptInjection(excerpt)) return;
-          const chunkId = textFrom(chunk, ["chunk_id", "chunkId"]);
-          evidence.push({
-            id: chunkId ?? `${sourceId}:chunk:${chunkIndex}`,
-            provider,
-            title: textFrom(source, ["title", "subject", "name", "filename"]) ?? `${provider} source`,
-            excerpt,
-            timestamp: textFrom(source, ["timestamp", "source_timestamp", "updated_at", "created_at"]),
-            url: textFrom(source, ["url", "source_url", "web_url", "permalink"]),
-            connectorId: owningConnector?.id ?? `document:${sourceId}`,
+      await Promise.all(queryVariants.map(async (queryBy) => {
+        const callStarted = Date.now();
+        const response = await client.query({
+          database: scope.database,
+          ...(scope.collection ? { collections: [scope.collection] } : {}),
+          query: question,
+          type: "knowledge",
+          query_by: queryBy,
+          mode,
+          max_results: 12,
+          ...(scope.sourceIds ? { ids: scope.sourceIds } : {}),
+          query_apps: !scope.sourceIds,
+          graph_context: plan.graphContext,
+          query_forceful_relations: plan.graphContext,
+          recency_bias: plan.recencyBias,
+          ...(payload.metadataFilters && Object.keys(payload.metadataFilters).length > 0
+            ? { metadata_filters: payload.metadataFilters }
+            : {}),
+        });
+        trace.push({ connectorIds: scope.connectors.map((item) => item.id),
+          providers: scope.sourceIds ? ["document"] : scope.connectors.map((item) => item.provider), database: scope.database,
+          collection: scope.collection, queryBy, ok: response.ok, status: response.status,
+          sourceIds: scope.sourceIds ?? [], requestId: response.requestId,
+          latencyMs: Date.now() - callStarted, error: response.error });
+        if (!response.ok) return;
+        const extracted = extractQuerySources(response.data);
+        extracted.sources.forEach((source, sourceIndex) => {
+          const metadata = record(source.additional_metadata);
+          const sourceKind = textFrom({ ...metadata, ...source }, ["source_type", "type", "mime_type", "filename"]);
+          const isDocumentSource = Boolean(source.filename ?? metadata.filename) || /\b(pdf|document|file)\b/i.test(sourceKind ?? "");
+          const provider = isDocumentSource ? "document" : providerFromSource(source) ?? "unknown";
+          const sourceId = String(source.id ?? source.source_id ?? source.context_id ?? `document-${sourceIndex}`);
+          const documentOwned = provider === "document" && Boolean(scope.sourceIds?.includes(sourceId));
+          const owningConnector = provider === "document"
+            ? undefined
+            : scope.connectors.find((item) =>
+                item.provider === provider && sourceBelongsToConnector(
+                  source,
+                  item.hydradbConnectorId,
+                  resourceIdsByConnector.get(item.id) ?? new Set<string>(),
+                ));
+          if (!owningConnector && !documentOwned) return;
+          const sourceChunks = matchingChunks(source, extracted.chunks);
+          const candidates = sourceChunks.length ? sourceChunks : [source];
+          candidates.forEach((candidate, chunkIndex) => {
+            const chunk = record(candidate);
+            const excerpt = (textFrom(chunk, ["chunk_content", "content", "text", "excerpt"]) ??
+              textFrom(source, ["content", "text", "excerpt", "description"]) ?? "")
+              .replace(/\s+/g, " ").trim().slice(0, 6_000);
+            if (!excerpt || isPotentialPromptInjection(excerpt)) return;
+            const chunkId = textFrom(chunk, ["chunk_id", "chunkId"]);
+            evidence.push({
+              id: chunkId ?? `${sourceId}:chunk:${chunkIndex}`,
+              provider,
+              title: textFrom(source, ["title", "subject", "name", "filename"]) ?? `${provider} source`,
+              excerpt,
+              timestamp: textFrom(source, ["timestamp", "source_timestamp", "updated_at", "created_at"]),
+              url: textFrom(source, ["url", "source_url", "web_url", "permalink"]),
+              connectorId: owningConnector?.id ?? `document:${sourceId}`,
+            });
           });
         });
-      });
+      }));
     }));
     const deduped = evidence.filter((item, index, all) =>
       all.findIndex((candidate) => `${candidate.provider}:${candidate.id}` === `${item.provider}:${item.id}`) === index,

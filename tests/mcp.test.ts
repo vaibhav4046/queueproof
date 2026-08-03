@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { beforeAll, describe, expect, it } from "vitest";
 import { buildQueueProofServer } from "../packages/mcp/src/server";
 import { requireDb } from "../lib/server/runtime";
@@ -45,6 +46,10 @@ describe("QueueProof MCP", () => {
     }
     expect(registered).toContain("queueproof_list_connectors");
     expect(registered).toContain("queueproof_propose_action");
+    const source = readFileSync(new URL("../packages/mcp/src/server.ts", import.meta.url), "utf8");
+    expect(source).toContain('provider: z.literal("linear")');
+    expect(source).toContain('actionType: z.literal("create_issue")');
+    expect(source).toContain("source_references");
   });
 
   it("rejects an unauthenticated request fail-closed", async () => {
@@ -92,6 +97,19 @@ describe("QueueProof MCP", () => {
     expect(response.status).toBe(401);
   });
 
+  it("rejects a stored token issued for another audience", async () => {
+    const secret = "qp_live_wrong-audience-token-value-0000";
+    await insertToken(secret, { audience: "another-service" });
+    const { POST } = await import("../app/mcp/route");
+    const response = await POST(
+      new Request("https://queueproof.example/mcp", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${secret}` },
+      }),
+    );
+    expect(response.status).toBe(401);
+  });
+
   it("accepts a valid stored token and answers a JSON-RPC request", async () => {
     const secret = "qp_live_valid-token-value-00000000";
     await insertToken(secret);
@@ -121,7 +139,10 @@ describe("QueueProof MCP", () => {
   });
 });
 
-async function insertToken(secret: string, options: { revoked?: boolean; expired?: boolean } = {}) {
+async function insertToken(
+  secret: string,
+  options: { revoked?: boolean; expired?: boolean; audience?: string } = {},
+) {
   const db = requireDb();
   const workspaceId = createId("ws");
   const clientId = createId("mcp_client");
@@ -139,7 +160,7 @@ async function insertToken(secret: string, options: { revoked?: boolean; expired
       workspaceId,
       clientId,
       await sha256(secret),
-      "queueproof",
+      options.audience ?? "queueproof-mcp",
       JSON.stringify(["queueproof:read"]),
       options.expired ? "2000-01-01 00:00:00" : "2999-01-01 00:00:00",
       options.revoked ? "2024-01-01 00:00:00" : null,

@@ -24,6 +24,16 @@ export type RetrievalPlan = {
   reason: string;
 };
 
+/**
+ * Concrete HydraDB lanes for a plan. Exact identifiers need lexical precision,
+ * while the hybrid lane protects against aliases and surrounding semantic context.
+ * Keeping this helper beside the planner prevents `exactParallel` from becoming a
+ * trace-only promise that the route never executes.
+ */
+export function retrievalQueryVariants(plan: RetrievalPlan): Array<"text" | "hybrid"> {
+  return plan.exactParallel ? ["text", "hybrid"] : [plan.queryBy];
+}
+
 const exactId = /\b(?:[A-Z][A-Z0-9]+-\d+|[0-9a-f]{8}-[0-9a-f-]{27,})\b/i;
 
 export function planRetrieval(query: string): RetrievalPlan {

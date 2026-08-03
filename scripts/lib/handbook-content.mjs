@@ -51,7 +51,7 @@ const HINDI_TRANSLITERATION =
 // Ground truth. `evidence` is checked against the rendered page; the other keys are the fixture.
 // ---------------------------------------------------------------------------
 
-export const PLANTED_FACTS = [
+const PLANTED_FACT_DEFINITIONS = [
   {
     id: "fact-begin-stop-work",
     page: 3,
@@ -259,6 +259,122 @@ export const PLANTED_FACTS = [
     evidence: `reserves ${BATTERY_RESERVE} of 2032 capital expenditure for battery replacement`,
   },
 ];
+
+const anyFact = (id, label, ...anyOf) => ({ id, label, anyOf });
+const allFact = (id, label, ...allOf) => ({ id, label, allOf });
+
+/**
+ * Semantic answer requirements live beside the planted source facts so regenerating the PDF
+ * cannot silently replace the strict grader fixture with question/answer prose alone.
+ */
+const REQUIRED_FACTS_BY_ID = {
+  "fact-begin-stop-work": [
+    anyFact("stop-work-authority", "The Duty Operations Lead has sole authority", "Duty Operations Lead"),
+  ],
+  "fact-charter-id": [
+    anyFact("charter", "The governing charter is HR-CHARTER-9", "HR-CHARTER-9"),
+    anyFact("ratified", "The charter was ratified on 12 January 2031", "12 January 2031"),
+  ],
+  "fact-superseded-policy": [
+    anyFact("single-engineer", "A single Tier 2 engineer could perform the flash", "single Tier 2 engineer"),
+    allFact("field-firmware", "The permission covered Rover SDK field firmware flashing", ["Rover SDK"], ["field firmware"], ["flash", "flashing"]),
+    anyFact("without-second-approver", "No second approver was required", "without a second approver", "no second approver"),
+    anyFact("maintenance-stand", "The rover had to be on a maintenance stand", "maintenance stand"),
+    anyFact("no-longer-force", "The permission is no longer in force", "no longer in force", "permission is withdrawn", "permission was withdrawn", "policy was superseded"),
+  ],
+  "fact-superseding-decision": [
+    anyFact("not-in-force", "The single-approver rule is not in force", "not in force", "no longer in force", "withdrawn", "must not be relied on"),
+    anyFact("decision", "ADR-037 is the superseding decision", "ADR-037"),
+    anyFact("decision-date", "ADR-037 is dated 9 September 2031", "9 September 2031"),
+    allFact("supersedes-policy", "ADR-037 supersedes OPS-POL-14", ["supersedes", "superseded"], ["OPS-POL-14"]),
+    anyFact("two-approvers", "Two approvers are required", "two approvers", "two-approver"),
+    anyFact("safety-owner", "One approver must be a Safety Case Owner", "Safety Case Owner"),
+  ],
+  "fact-escalation-sev1": [
+    anyFact("severity", "The row is SEV-1", "SEV-1"),
+    anyFact("ack-target", "The acknowledgement target is 5 minutes", "5 minutes"),
+    anyFact("approver", "The Duty Operations Lead approves it", "Duty Operations Lead"),
+  ],
+  "fact-alias-rover-sdk": [
+    anyFact("alias", "The alias is Rover SDK", "Rover SDK"),
+    anyFact("programme-code", "The programme code is HR-P4", "HR-P4"),
+    anyFact("scope", "The programme is the field autonomy toolkit", "field autonomy toolkit"),
+  ],
+  "fact-atlas-deadline": [
+    anyFact("ga-date", "Atlas Launch general availability was 14 March 2031", "14 March 2031"),
+  ],
+  "fact-eng-456": [
+    anyFact("issue", "The issue is ENG-456", "ENG-456"),
+    allFact("work", "It reduces the AuthShield operator token lifetime", ["AuthShield"], ["operator token lifetime"], ["reduces", "reduced"]),
+    anyFact("lifetime", "The target lifetime is fifteen minutes", "fifteen minutes"),
+    anyFact("due-date", "It is due 30 June 2031", "30 June 2031"),
+  ],
+  "fact-hindi-commitment": [
+    anyFact("issue", "The English issue identifier is ENG-456", "ENG-456"),
+    allFact("commitment", "The commitment concerns the AuthShield operator token lifetime", ["AuthShield"], ["operator token lifetime"]),
+    anyFact("lifetime", "The target lifetime is fifteen minutes in English", "fifteen minutes"),
+    anyFact("date", "The commitment is due 30 June 2031", "30 June 2031"),
+  ],
+  "fact-billing-cutover": [
+    anyFact("cutover-date", "The ledger cutover is scheduled for 1 October 2031", "1 October 2031"),
+  ],
+  "fact-rover-freeze": [
+    anyFact("freeze-date", "The Rover SDK 5.0 code freeze is 15 November 2031", "15 November 2031"),
+  ],
+  "fact-bug-123": [
+    allFact("defect", "BUG-123 records odometry drift after cold boot", ["odometry drift"], ["cold boot"]),
+    anyFact("release", "It was fixed in Rover SDK 4.2.1", "Rover SDK 4.2.1"),
+    anyFact("release-date", "The release date was 21 May 2031", "21 May 2031"),
+  ],
+  "fact-pr-8871": [
+    allFact("change", "PR-8871 changed the Atlas Launch telemetry schema version 3", ["Atlas Launch"], ["telemetry schema version 3"]),
+    anyFact("merge-date", "It merged on 2 July 2031", "2 July 2031"),
+  ],
+  "fact-middle-beacon": [
+    anyFact("beacon-cadence", "The fallback beacon cadence is 90 seconds", "90 seconds"),
+  ],
+  "fact-middle-buffer": [
+    anyFact("buffer-frames", "The ring buffer retains 4096 telemetry frames", "4096"),
+  ],
+  "fact-inc-2031": [
+    allFact("event", "INC-2031 was a Billing Migration double charge event", ["Billing Migration"], ["double charge"]),
+    anyFact("event-date", "It happened on 8 April 2031", "8 April 2031"),
+    allFact("impact", "Customer impact lasted 41 minutes", ["41 minutes", "41 minute", "41 min"], ["customer impact", "customer visible"]),
+  ],
+  "fact-incident-table": [
+    anyFact("severity", "INC-2031 is SEV-2", "SEV-2"),
+    anyFact("impact-window", "The impact window is 41 minutes", "41 minutes", "41 minute", "41 min"),
+  ],
+  "fact-priya-raman": [
+    anyFact("role", "Priya Raman is a Staff Reliability Engineer", "Staff Reliability Engineer"),
+    anyFact("employee", "Her employee identifier is HR-2214", "HR-2214"),
+    allFact("ownership", "She is the engineering owner of AuthShield", ["engineering owner"], ["AuthShield"]),
+  ],
+  "fact-priya-ramanathan": [
+    anyFact("role", "Priya Ramanathan is a Customer Escalation Manager", "Customer Escalation Manager"),
+    anyFact("employee", "Her employee identifier is HR-5871", "HR-5871"),
+    allFact("desk", "She runs the Billing Migration escalation desk", ["Billing Migration"], ["escalation desk"]),
+  ],
+  "fact-oncall-ring0": [
+    anyFact("ring-zero-contact", "The Ring 0 Bengaluru contact is Priya Raman", "Priya Raman"),
+  ],
+  "fact-distractor-draft": [
+    anyFact("not-permitted", "The draft does not permit single-engineer flashing today", "does not permit", "neither the draft nor the superseded policy permits", "not permitted"),
+    anyFact("never-ratified", "DRAFT-OPS-14 was never ratified", "never ratified"),
+    anyFact("no-authority", "The draft has no operational authority", "no operational authority"),
+    anyFact("binding-rule", "ADR-037 is the binding rule", "ADR-037"),
+    anyFact("two-approvers", "The binding rule requires two approvers", "two approvers", "two-approver"),
+  ],
+  "fact-end-battery": [
+    anyFact("battery-share", "Battery replacement receives 18 percent", "18 percent", "18%"),
+  ],
+};
+
+export const PLANTED_FACTS = PLANTED_FACT_DEFINITIONS.map((fact) => {
+  const requiredFacts = REQUIRED_FACTS_BY_ID[fact.id];
+  if (!requiredFacts?.length) throw new Error(`Missing required fact set for ${fact.id}.`);
+  return { ...fact, requiredFacts };
+});
 
 /**
  * Every page on which a planted identifier is allowed to appear. The generator asserts the real

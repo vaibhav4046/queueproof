@@ -1,35 +1,87 @@
 # Evaluation methodology
 
-## Dataset
+QueueProof separates deterministic fixture checks, live connector checks, and large-PDF
+checks. Their results are never merged into one vanity score.
 
-`evals/fixtures/cases.json` contains 39 deterministic, labelled Helios Robotics questions. Dimensions overlap deliberately:
+## 1. Offline router and ranking fixtures
 
-- 16 multi-hop/thread/attribution/priority reasoning cases
-- 7 temporal, update, or conflict cases
-- 6 contradiction, stale-state, or counterfactual cases
-- 5 entity/actor deduplication cases
-- 6 exact-ID or metadata-filter cases
-- at least 5 document/PDF cases
+`evals/fixtures/cases.json` contains 39 labelled Helios Robotics questions across 15
+categories. Dimensions overlap: multi-hop reasoning, temporal updates, contradictions,
+entity resolution, exact identifiers, metadata filters, multilingual prompts, priority,
+and documents.
 
-Each case locks the question, expected fast/thinking mode, routing category, required providers, and—where applicable—expected priority order. The runner invokes the production router, ranking function, and Zod contracts directly. It does not score a copied answer key.
+The fixture runner calls the production `planRetrieval`, ranking function, and Zod
+contracts directly. It verifies mode, category behavior, exact-ID dual-lane intent,
+ranking order where labelled, deterministic output, schema validity, and bounds.
+
+Current verified result: **39/39 router cases and 331 fixture-computable assertions**.
+This proves deterministic planner/ranking behavior only. It proves nothing about a live
+connector, answer quality, latency, or cost.
+
+## 2. Live connector sample
+
+The live runner sends stable questions to a deployment with verified connectors and
+records answer text, claims, citations, provider coverage, mode, request IDs, HydraDB call
+count, and latency. The stored six-question sample in `BENCHMARK_REPORT.md` is historical
+and small; it is not an SLA.
+
+No fixture metric is substituted when a live dependency is unavailable. Missing live
+authorization or source data produces a named skip/failure.
+
+## 3. Strict grounded-answer grader
+
+`evals/lib/grounded-grader.mjs` uses explicit, case-owned required facts rather than loose
+token overlap. It checks:
+
+- all required fact groups;
+- required providers supported by citations;
+- citation-ID resolution;
+- claim text contained by the cited excerpt after normalization;
+- claim/citation provider agreement;
+- citation precision and completeness;
+- unsupported-claim rate;
+- two-provider cited support for required contradictions.
+
+A reported provider that lacks a supporting cited claim is exposed separately. A claim
+with a citation label but no resolved, supporting receipt fails.
+
+The current artifact contract is `grounded-grader-v2`. Earlier live evidence is labelled
+`legacy-required-signal-v1`; the retained PDF evidence is labelled
+`legacy-token-recall-v1`. Legacy artifacts prove that a run occurred, but their quality
+figures are never promoted into current strict results.
+
+## 4. Large-PDF suite
+
+`evals/fixtures/large-pdf-facts.json` defines 22 questions and 56 required-fact groups.
+Beginning, middle, and end canaries are keyed explicitly. The suite includes exact IDs,
+superseded policy, tables, similar people, multilingual evidence, distractors, and a
+document-plus-connectors join.
+
+The retained 21/22 production JSON predates this grader and is not a current score. See
+`docs/LARGE_PDF_PROOF.md`.
 
 ## Metrics
 
-- Router agreement: predicted mode versus human-labelled expected mode.
-- Required-fact recall: expected signals found in answer text only.
-- Citation completeness: claims with at least one receipt divided by all claims.
-- Unsupported-claim rate: uncited claims divided by all claims.
-- Provider coverage, HydraDB call count, routing mode, weighted cost units, p50 and p95 latency.
-- Priority accuracy: observed top item versus labelled top task, with determinism and 0–100 bounds checked.
-
-Fixture and live metrics are never merged. Anything needing live sources is written as `not measured` offline. The showcase runner has six stable production questions; the broader 39-case suite is the reproducible deterministic ground truth.
+| Metric | Definition |
+| --- | --- |
+| Router agreement | Planned mode equals the human-authored expected mode |
+| Required-fact recall | Required fact groups present / required fact groups |
+| Citation precision | Supported claim-citation pairs / all claim-citation pairs |
+| Citation completeness | Claims with at least one supporting citation / all claims |
+| Unsupported-claim rate | Claims without supporting evidence / all claims |
+| Provider coverage | Providers backed by supporting cited claims |
+| Contradiction pass | Required disagreement backed by at least two cited providers |
+| Latency | End-to-end request time for a live query |
+| Calls | Actual HydraDB calls recorded in the receipt |
+| Relative cost | Weighted query units; never presented as invented USD spend |
 
 ## Commands
 
 ```bash
-npm run benchmark
+npm run benchmark:router
 npm run benchmark:live -- --url https://queueproof.vercel.app
 npm run benchmark:pdf -- --url https://queueproof.vercel.app
 ```
 
-Artifacts are JSON, CSV, and Markdown under `evals/results/` and `BENCHMARK_REPORT.md`.
+Release gates are independently verified with typecheck, lint, 274 tests across 29 files,
+13 security tests, 8 MCP tests, production build, E2E, and deployment checks.

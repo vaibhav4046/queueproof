@@ -1,4 +1,4 @@
-import { extractQuerySources, matchingChunk, providerFromSource } from "./hydradb-shapes";
+import { extractQuerySources, matchingChunk, providerFromSource, sourceBelongsToConnector } from "./hydradb-shapes";
 import { hydraClientForWorkspace } from "./hydradb-account";
 import { requireDb } from "./runtime";
 import { audit, createId, ensureCoreSchema } from "./store";
@@ -15,6 +15,7 @@ type RecordValue = Record<string, unknown>;
 
 type VerifiedConnector = {
   id: string;
+  hydradb_connector_id: string;
   provider: string;
   database: string;
   collection: string | null;
@@ -189,13 +190,81 @@ function deadlineFromEvidence(evidence: Evidence) {
  */
 export function taskClusterKey(evidence: Pick<Evidence, "provider" | "externalId" | "title" | "excerpt">) {
   const corpus = `${evidence.title} ${evidence.excerpt}`;
+  const exactIds = [...new Set(corpus.match(/\b[A-Z][A-Z0-9]{1,9}-\d+\b/g) ?? [])].sort();
+  if (exactIds.length) return `id:${exactIds.join("|")}`;
   const productNames = [...new Set(corpus.match(/\b[A-Z][a-z]{2,}[A-Z][A-Za-z0-9]{2,}\b/g) ?? [])]
     .filter((token) => !["QueueProof", "HydraDB"].includes(token))
     .sort();
   if (productNames.length) return `entity:${productNames.join("|")}`;
-  const exactIds = [...new Set(corpus.match(/\b[A-Z][A-Z0-9]{1,9}-\d+\b/g) ?? [])].sort();
-  if (exactIds.length) return `id:${exactIds.join("|")}`;
   return `source:${evidence.provider}:${evidence.externalId}`;
+}
+
+type ClusterableEvidence = Pick<Evidence, "provider" | "externalId" | "title" | "excerpt">;
+
+const exactTaskIds = (evidence: ClusterableEvidence) => new Set(
+  `${evidence.title} ${evidence.excerpt}`.match(/\b[A-Z][A-Z0-9]{1,9}-\d+\b/g) ?? [],
+);
+
+const distinctiveEntities = (evidence: ClusterableEvidence) => new Set(
+  (`${evidence.title} ${evidence.excerpt}`.match(/\b[A-Z][a-z]{2,}[A-Z][A-Za-z0-9]{2,}\b/g) ?? [])
+    .filter((token) => !["QueueProof", "HydraDB"].includes(token)),
+);
+
+const overlaps = (left: ReadonlySet<string>, right: ReadonlySet<string>) =>
+  [...left].some((value) => right.has(value));
+
+/**
+ * Conflict-aware clustering follows identity evidence, not product-name vibes:
+ * records with overlapping exact IDs form components; an ID-less entity record may
+ * join only when exactly one exact-ID component matches it. Two disjoint exact-ID
+ * components are never collapsed merely because they mention the same product.
+ */
+export function clusterTaskEvidence<T extends ClusterableEvidence>(evidences: T[]): T[][] {
+  const records = evidences.map((evidence) => ({
+    evidence,
+    ids: exactTaskIds(evidence),
+    entities: distinctiveEntities(evidence),
+  }));
+  const parent = records.map((_, index) => index);
+  const find = (index: number): number => parent[index] === index ? index : (parent[index] = find(parent[index]!));
+  const union = (left: number, right: number) => {
+    const leftRoot = find(left);
+    const rightRoot = find(right);
+    if (leftRoot !== rightRoot) parent[rightRoot] = leftRoot;
+  };
+
+  for (let left = 0; left < records.length; left += 1) {
+    if (!records[left]!.ids.size) continue;
+    for (let right = left + 1; right < records.length; right += 1) {
+      if (records[right]!.ids.size && overlaps(records[left]!.ids, records[right]!.ids)) union(left, right);
+    }
+  }
+
+  const exactComponents = () => {
+    const components = new Map<number, { member: number; entities: Set<string> }>();
+    records.forEach((record, index) => {
+      if (!record.ids.size) return;
+      const root = find(index);
+      const component = components.get(root) ?? { member: index, entities: new Set<string>() };
+      record.entities.forEach((entity) => component.entities.add(entity));
+      components.set(root, component);
+    });
+    return [...components.values()];
+  };
+
+  records.forEach((record, index) => {
+    if (record.ids.size || !record.entities.size) return;
+    const matches = exactComponents().filter((component) => overlaps(record.entities, component.entities));
+    if (matches.length === 1) union(index, matches[0]!.member);
+  });
+
+  return [...records.reduce((groups, record, index) => {
+    const root = find(index);
+    const group = groups.get(root) ?? [];
+    group.push(record.evidence);
+    groups.set(root, group);
+    return groups;
+  }, new Map<number, T[]>()).values()];
 }
 
 function clusterContradictions(evidences: Evidence[]) {
@@ -298,7 +367,7 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
   const db = requireDb();
   const connectors = await db
     .prepare(
-      `SELECT id, provider, database, collection, account_scope
+      `SELECT id, hydradb_connector_id, provider, database, collection, account_scope
        FROM connectors WHERE workspace_id = ? AND state = 'data_verified'
        ORDER BY provider ASC`,
     )
@@ -307,6 +376,24 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
   if (!connectors.results.length) {
     throw new Response("Verify at least one live connector before generating a queue.", { status: 409 });
   }
+  const selectedResources = await db.prepare(
+    `SELECT connector_id, external_resource_id FROM connector_resources
+     WHERE workspace_id = ? AND selected = 1`,
+  ).bind(workspaceId).all<{ connector_id: string; external_resource_id: string }>();
+  const resourceIdsByConnector = selectedResources.results.reduce((map, row) => {
+    const ids = map.get(row.connector_id) ?? new Set<string>();
+    ids.add(row.external_resource_id);
+    map.set(row.connector_id, ids);
+    return map;
+  }, new Map<string, Set<string>>());
+  const ownedDocuments = await db.prepare(
+    `SELECT id, hydradb_source_id, hydradb_database FROM documents
+     WHERE workspace_id = ? AND stage = 'indexed' AND hydradb_source_id IS NOT NULL`,
+  ).bind(workspaceId).all<{ id: string; hydradb_source_id: string; hydradb_database: string }>();
+  const ownedDocumentByScope = new Map(ownedDocuments.results.map((document) => [
+    `${document.hydradb_database}\u0000${document.hydradb_source_id}`,
+    document,
+  ]));
 
   const client = await hydraClientForWorkspace(workspaceId);
   const query =
@@ -358,9 +445,27 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
       const metadata = sourceMetadata(source);
       const sourceKind = firstText({ ...metadata, ...source }, ["source_type", "type", "mime_type", "filename"]);
       const isDocumentSource = Boolean(source.filename ?? metadata.filename) || /\b(pdf|document|file)\b/i.test(sourceKind ?? "");
+      const sourceId = String(source.id ?? source.source_id ?? source.context_id ?? "");
+      const ownedDocument = isDocumentSource
+        ? ownedDocumentByScope.get(`${scope.database}\u0000${sourceId}`)
+        : undefined;
       const connector = isDocumentSource
-        ? { ...scope.connectors[0]!, id: `document:${String(source.id ?? index)}`, provider: "document", account_scope: null }
-        : scope.connectors.find((item) => item.provider === sourceProvider) ?? scope.connectors[0]!;
+        ? ownedDocument
+          ? {
+              ...scope.connectors[0]!,
+              id: `document:${ownedDocument.id}`,
+              hydradb_connector_id: `document:${ownedDocument.hydradb_source_id}`,
+              provider: "document",
+              account_scope: null,
+            }
+          : undefined
+        : scope.connectors.find((item) => sourceBelongsToConnector(
+            source,
+            item.hydradb_connector_id,
+            resourceIdsByConnector.get(item.id) ?? new Set<string>(),
+          ));
+      // A provider label or first-in-list position is never ownership proof.
+      if (!connector || (!isDocumentSource && connector.provider !== sourceProvider)) return;
       const evidence = evidenceFromHydra(
         connector,
         source,
@@ -391,13 +496,7 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
     );
   }
 
-  const clusters = [...safeEvidence.reduce((map, evidence) => {
-    const key = taskClusterKey(evidence);
-    const group = map.get(key) ?? [];
-    group.push(evidence);
-    map.set(key, group);
-    return map;
-  }, new Map<string, Evidence[]>()).values()];
+  const clusters = clusterTaskEvidence(safeEvidence);
 
   const rankingRunId = createId("ranking");
   const ranked = clusters.map((evidences) => {
