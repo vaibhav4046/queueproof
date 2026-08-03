@@ -57,6 +57,10 @@ function intentBoost(question: string, text: string) {
     [/\b(escalat|who)\w*\b/, /\b(escalat|filed|reported|owner|assigned)\w*\b/, 5],
     [/\b(disagree|conflict|inconsistent|changed|moved)\w*\b/, /\b(disagree|conflict|inconsistent|changed|moved|from|to)\w*\b/, 6],
     [/\b(project|work|working)\b/, /\b(project|working|against|assigned)\b/, 3],
+    [/\b(still in force|single approver|still valid)\b/, /\b(supersed|withdrawn|must not|no longer|two approver)\w*\b/, 12],
+    [/\b(programme code|project alias|alias)\b/, /\b(programme code|HR-P\d+|field autonomy toolkit|alias)\b/i, 10],
+    [/\b(role|programme does|which programme|own)\w*\b/, /\b(staff reliability engineer|customer escalation manager|engineering owner|HR-\d+)\b/i, 9],
+    [/\b(severity|impact window|acknowledgement target|approves)\b/, /\b(SEV-\d|impact|minute|duty operations lead|approver)\w*\b/i, 8],
   ];
   for (const [questionPattern, candidatePattern, boost] of groups) {
     if (questionPattern.test(q) && candidatePattern.test(candidate)) score += boost;

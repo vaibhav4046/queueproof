@@ -144,7 +144,7 @@ export async function POST(request: Request) {
           const chunk = record(candidate);
           const excerpt = (textFrom(chunk, ["chunk_content", "content", "text", "excerpt"]) ??
             textFrom(source, ["content", "text", "excerpt", "description"]) ?? "")
-            .replace(/\s+/g, " ").trim().slice(0, 2_400);
+            .replace(/\s+/g, " ").trim().slice(0, 6_000);
           if (!excerpt || isPotentialPromptInjection(excerpt)) return;
           const chunkId = textFrom(chunk, ["chunk_id", "chunkId"]);
           evidence.push({
