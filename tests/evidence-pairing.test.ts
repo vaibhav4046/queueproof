@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { matchingChunk } from "../lib/server/queue";
+import {
+  extractActionableTaskSpan,
+  hydraChunkIdentity,
+  matchingChunk,
+  queueEvidenceDedupKey,
+} from "../lib/server/queue";
 import { matchingChunks } from "../lib/server/hydradb-shapes";
 
 /**
@@ -49,13 +54,47 @@ describe("matchingChunk", () => {
 
   it("preserves every relevance-ranked chunk belonging to one document", () => {
     const documentChunks = [
-      { id: "doc-1", chunk_id: "doc-1_chunk_0000", chunk_content: "Table of contents" },
-      { id: "doc-1", chunk_id: "doc-1_chunk_0001", chunk_content: "The cited answer" },
-      { id: "doc-2", chunk_id: "doc-2_chunk_0000", chunk_content: "Another document" },
+      { id: "doc-1", chunk_uuid: "doc-1_chunk_0000", chunk_content: "Table of contents" },
+      { id: "doc-1", chunk_uuid: "doc-1_chunk_0001", chunk_content: "Engineering committed to ENG-456 by Friday." },
+      { id: "doc-1", chunk_uuid: "doc-1_chunk_0002", chunk_content: "Support says INC-2031 remains open." },
+      { id: "doc-2", chunk_uuid: "doc-2_chunk_0000", chunk_content: "Another document" },
     ];
-    expect(matchingChunks({ id: "doc-1" }, documentChunks).map((chunk) => chunk.chunk_id)).toEqual([
+    const matches = matchingChunks({ id: "doc-1" }, documentChunks);
+    expect(matches.map((chunk) => chunk.chunk_uuid)).toEqual([
       "doc-1_chunk_0000",
       "doc-1_chunk_0001",
+      "doc-1_chunk_0002",
     ]);
+    expect(matches.map((chunk) => extractActionableTaskSpan(String(chunk.chunk_content))).filter(Boolean))
+      .toHaveLength(2);
+    expect(matches.map(hydraChunkIdentity).sort()).toEqual(
+      [...matches].reverse().map(hydraChunkIdentity).sort(),
+    );
+    const repeatedTitleSpan = {
+      provider: "gmail",
+      externalId: "mail-1#chunk-a",
+      metadata: { source_external_id: "mail-1" },
+      taskSpan: "Review customer renewal",
+    };
+    expect(queueEvidenceDedupKey(repeatedTitleSpan)).toBe(queueEvidenceDedupKey({
+      ...repeatedTitleSpan,
+      externalId: "mail-1#chunk-b",
+    }));
+    expect(queueEvidenceDedupKey(repeatedTitleSpan)).not.toBe(queueEvidenceDedupKey({
+      ...repeatedTitleSpan,
+      externalId: "mail-1#chunk-c",
+      taskSpan: "Send the renewal today",
+    }));
+    const repeatedTitleCandidates = ["Background context only.", "A second context chunk."]
+      .map((chunk, index) => ({
+        ...repeatedTitleSpan,
+        externalId: `mail-1#chunk-${index}`,
+        taskSpan: extractActionableTaskSpan(`Review customer renewal. ${chunk}`)!,
+      }));
+    expect(repeatedTitleCandidates.map((item) => item.taskSpan)).toEqual([
+      "Review customer renewal.",
+      "Review customer renewal.",
+    ]);
+    expect(new Set(repeatedTitleCandidates.map(queueEvidenceDedupKey)).size).toBe(1);
   });
 });

@@ -1,4 +1,4 @@
-import { extractQuerySources, matchingChunk, providerFromSource, sourceBelongsToConnector } from "./hydradb-shapes";
+import { extractQuerySources, matchingChunks, providerFromSource, sourceBelongsToConnector } from "./hydradb-shapes";
 import { hydraClientForWorkspace } from "./hydradb-account";
 import { requireDb } from "./runtime";
 import { audit, createId, ensureCoreSchema } from "./store";
@@ -37,6 +37,10 @@ type Evidence = {
   unsafeInstruction: boolean;
 };
 
+type TaskEvidence = Evidence & {
+  taskSpan: string;
+};
+
 const asRecord = (value: unknown): RecordValue =>
   typeof value === "object" && value !== null ? (value as RecordValue) : {};
 
@@ -51,7 +55,77 @@ const firstText = (record: RecordValue, keys: string[]) => {
 const clean = (value: string, max = 900) =>
   value.replace(/\s+/g, " ").replace(/[\u0000-\u001f]/g, " ").trim().slice(0, max);
 
+const stableTextFingerprint = (value: string) => {
+  let primary = 0x811c9dc5;
+  let secondary = 0x9e3779b9;
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    primary = Math.imul(primary ^ code, 0x01000193);
+    secondary = Math.imul(secondary ^ code, 0x85ebca6b);
+  }
+  return `${(primary >>> 0).toString(16).padStart(8, "0")}${(secondary >>> 0).toString(16).padStart(8, "0")}`;
+};
+
+/** Stable across independently relevance-ordered Hydra query responses. */
+export function hydraChunkIdentity(chunk: RecordValue): string | null {
+  const explicit = firstText(chunk, ["chunk_uuid", "chunk_id", "chunkId"]);
+  if (explicit) return explicit;
+  const content = firstText(chunk, ["chunk_content", "content", "text", "excerpt"]);
+  return content ? `content-${stableTextFingerprint(content)}` : null;
+}
+
+/** Collapse repeated query hits without collapsing distinct tasks from one source. */
+export function queueEvidenceDedupKey(
+  evidence: Pick<Evidence, "provider" | "externalId" | "metadata"> & { taskSpan: string },
+): string {
+  const sourceExternalId = firstText(evidence.metadata, ["source_external_id"]) ?? evidence.externalId;
+  return `${evidence.provider}:${sourceExternalId}:${clean(evidence.taskSpan.toLowerCase(), 360)}`;
+}
+
 const actionable = /\b(will|must|need(?:s)? to|should|please|todo|action|follow[ -]?up|blocked|unblock|due|deadline|urgent|asap|ship|send|review|fix|investigate|resolve|renewal|incident|outage|escalat|deliver|approve)\b/i;
+
+const strongTaskSignals = [
+  /\b(?:i|we|engineering|the team|[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b[^.!?]{0,120}\b(?:will|'ll|must|need(?:s)? to|commit(?:s|ted)?|promis(?:e[sd]?|ed))\b/i,
+  /\b(?:committed|promised|must|need(?:s)? to|please|todo|follow[ -]?up)\b/i,
+  /\b(?:blocked|blocking|overdue|still\s+(?:showing\s+as\s+)?open|remains?\s+open|escalat(?:ed|ion))\b/i,
+  /\bdeadline\b[^.!?]{0,90}\b(?:moved|changed|before|by|on|is|was|to)\b/i,
+  /\b(?:slipped|delayed|postponed|moved)\b[^.!?]{0,90}\b(?:today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{4}-\d{2}-\d{2}|\d{1,2}\s+[A-Z][a-z]+)\b/i,
+  /\b(?:is|are|remains?)\s+(?:being\s+)?(?:fixed|investigated|reviewed|worked|open|blocked|in\s+progress)\b/i,
+  /^(?:action\s*:\s*)?(?:review|fix|send|ship|deliver|approve|resolve|investigate|renew|reply|merge|unblock)\b/i,
+  /\b(?:action|required action)\s*:\s*(?:review|fix|send|ship|deliver|approve|resolve|investigate|renew|reply|merge|unblock)\b/i,
+  /\b(?:[A-Z][A-Z0-9]{1,9}-\d+|task|issue|renewal|follow[ -]?up)\b[^.!?]{0,80}\b(?:is|are)?\s*due\b/i,
+  /\b(?:reported|active|ongoing|unresolved)\b[^.!?]{0,90}\b(?:incident|outage)\b/i,
+  /\b(?:incident|outage)\b[^.!?]{0,90}\b(?:reported|active|ongoing|blocking|unresolved)\b/i,
+];
+
+/**
+ * Extract one local, bounded task claim instead of scoring a whole source record.
+ * Scattered words such as "incident", "review", and "deadline" in a handbook must not
+ * combine into a synthetic task; one sentence/bullet must carry an explicit commitment,
+ * live blocker, escalation, deadline change, or active incident.
+ */
+export function extractActionableTaskSpan(value: string): string | null {
+  const corpus = String(value ?? "")
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, " ")
+    .trim()
+    .slice(0, 7_000);
+  if (!corpus) return null;
+  const candidates = corpus
+    .split(/\r?\n+|(?<=[.!?])\s+|\s+(?=[*-]\s+)/)
+    .map((entry) => clean(entry, 1_200))
+    .filter((entry) => entry.length >= 12 && strongTaskSignals.some((pattern) => pattern.test(entry)));
+  if (!candidates.length) return null;
+  const score = (entry: string) =>
+    (entry.match(/\b[A-Z][A-Z0-9]{1,9}-\d+\b/g)?.length ?? 0) * 4 +
+    (/\b(?:committed|commits?|promised|will|must|need(?:s)? to)\b/i.test(entry) ? 3 : 0) +
+    (/\b(?:customer|enterprise|incident|outage|blocked|deadline|overdue|escalat)\b/i.test(entry) ? 2 : 0) +
+    (/\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December))\b/i.test(entry) ? 1 : 0);
+  const selected = [...candidates].sort((left, right) => score(right) - score(left) || left.length - right.length)[0]!;
+  if (selected.length <= 360) return selected;
+  const signalIndex = Math.max(0, strongTaskSignals.map((pattern) => selected.search(pattern)).filter((index) => index >= 0).sort((a, b) => a - b)[0] ?? 0);
+  const start = Math.max(0, signalIndex - 90);
+  return clean(`${start > 0 ? "..." : ""}${selected.slice(start, start + 352)}${start + 352 < selected.length ? "..." : ""}`, 360);
+}
 
 /**
  * Coerce any provider timestamp to Z-suffixed ISO-8601, or null when unparseable.
@@ -97,6 +171,28 @@ function sourceMetadata(source: RecordValue) {
   };
 }
 
+const DOCUMENT_FILE_EXTENSION = /\.(?:pdf|docx?|md|markdown|txt|rtf|odt|csv|tsv|json|ya?ml|toml|html?|pptx?|xlsx?)$/i;
+
+/**
+ * Identify Hydra document/file results from both the official source shape and the
+ * matched chunk. A file may carry a misleading `app_provider` inherited from the
+ * database that indexed it, so provider labels are intentionally not consulted.
+ */
+export function isHydraDocumentSource(source: RecordValue, chunk: RecordValue = {}): boolean {
+  const metadata = {
+    ...sourceMetadata(source),
+    ...asRecord(chunk.metadata),
+    ...asRecord(chunk.additional_metadata),
+  };
+  const combined = { ...metadata, ...source, ...chunk };
+  const kind = firstText(combined, ["app_kind", "source_type", "type", "kind", "object_type"]);
+  const mime = firstText(combined, ["mime_type", "mimetype", "content_type", "media_type"]);
+  const filename = firstText(combined, ["filename", "file_name", "source_title", "title", "name"]);
+  return /^(?:file|document|uploaded_document|pdf)$/i.test(kind ?? "") ||
+    /^(?:application\/(?:pdf|msword|rtf|vnd\.(?:ms-|openxmlformats-officedocument))|text\/rtf)/i.test(mime ?? "") ||
+    DOCUMENT_FILE_EXTENSION.test(filename ?? "");
+}
+
 /**
  * Pair a source with the chunk it actually came from.
  *
@@ -115,24 +211,34 @@ function evidenceFromHydra(
   connector: VerifiedConnector,
   source: RecordValue,
   chunk: RecordValue,
-  index: number,
 ): Evidence {
-  const metadata = sourceMetadata(source);
-  const externalId = String(
-    source.id ?? source.source_id ?? source.context_id ?? metadata.external_id ?? `result-${index + 1}`,
-  );
+  const metadata = {
+    ...sourceMetadata(source),
+    ...asRecord(chunk.metadata),
+    ...asRecord(chunk.additional_metadata),
+  };
+  const sourceIdentity = source.id ?? source.source_id ?? source.context_id ?? metadata.external_id;
+  const sourceExternalId = sourceIdentity === undefined || sourceIdentity === null || String(sourceIdentity).trim() === ""
+    ? `result-${stableTextFingerprint(JSON.stringify(source))}`
+    : String(sourceIdentity);
+  const chunkExternalId = hydraChunkIdentity(chunk);
+  const externalId = chunkExternalId ? `${sourceExternalId}#${chunkExternalId}` : sourceExternalId;
   const excerpt = clean(
     firstText(chunk, ["chunk_content", "content", "text", "excerpt"]) ??
       firstText(source, ["content", "text", "excerpt", "description"]) ??
       "",
+    2_400,
   );
   const title = clean(
     firstText(source, ["title", "name", "subject", "filename"]) ??
+      firstText(chunk, ["source_title", "title", "name", "filename"]) ??
       excerpt.split(/[.!?]\s/)[0] ??
       `${connector.provider} record`,
     180,
   );
-  const provider = providerFromSource(source) ?? connector.provider.toLowerCase();
+  const provider = connector.provider === "document"
+    ? "document"
+    : providerFromSource(source) ?? connector.provider.toLowerCase();
   return {
     id: createId("source"),
     externalId,
@@ -151,7 +257,7 @@ function evidenceFromHydra(
       firstText(source, ["ingestion_timestamp", "uploaded_at", "indexed_at", "source_upload_time"]),
     ),
     authority: "primary",
-    metadata,
+    metadata: { ...metadata, source_external_id: sourceExternalId },
     unsafeInstruction: isPotentialPromptInjection(excerpt),
   };
 }
@@ -166,11 +272,12 @@ function freshness(timestamp: string | null) {
   return 1;
 }
 
-function taskTitle(evidence: Evidence) {
+function taskTitle(evidence: TaskEvidence) {
   const generic = /^(message|email|thread|record|untitled|slack|gmail|linear)(\s|$)/i;
-  if (evidence.title.length >= 8 && !generic.test(evidence.title)) return evidence.title;
-  const sentence = clean(evidence.excerpt.split(/(?<=[.!?])\s/)[0] ?? evidence.excerpt, 150);
-  return sentence || evidence.title;
+  if (evidence.title.length >= 8 && !generic.test(evidence.title) && !DOCUMENT_FILE_EXTENSION.test(evidence.title)) {
+    return evidence.title;
+  }
+  return clean(evidence.taskSpan, 150) || evidence.title;
 }
 
 function ownerFromEvidence(evidence: Evidence) {
@@ -199,14 +306,19 @@ export function taskClusterKey(evidence: Pick<Evidence, "provider" | "externalId
   return `source:${evidence.provider}:${evidence.externalId}`;
 }
 
-type ClusterableEvidence = Pick<Evidence, "provider" | "externalId" | "title" | "excerpt">;
+type ClusterableEvidence = Pick<Evidence, "provider" | "externalId" | "title" | "excerpt"> & {
+  taskSpan?: string;
+};
+
+const clusteringCorpus = (evidence: ClusterableEvidence) =>
+  `${evidence.title} ${evidence.taskSpan ?? evidence.excerpt}`;
 
 const exactTaskIds = (evidence: ClusterableEvidence) => new Set(
-  `${evidence.title} ${evidence.excerpt}`.match(/\b[A-Z][A-Z0-9]{1,9}-\d+\b/g) ?? [],
+  clusteringCorpus(evidence).match(/\b[A-Z][A-Z0-9]{1,9}-\d+\b/g) ?? [],
 );
 
 const distinctiveEntities = (evidence: ClusterableEvidence) => new Set(
-  (`${evidence.title} ${evidence.excerpt}`.match(/\b[A-Z][a-z]{2,}[A-Z][A-Za-z0-9]{2,}\b/g) ?? [])
+  (clusteringCorpus(evidence).match(/\b[A-Z][a-z]{2,}[A-Z][A-Za-z0-9]{2,}\b/g) ?? [])
     .filter((token) => !["QueueProof", "HydraDB"].includes(token)),
 );
 
@@ -267,10 +379,58 @@ export function clusterTaskEvidence<T extends ClusterableEvidence>(evidences: T[
   }, new Map<number, T[]>()).values()];
 }
 
-function clusterContradictions(evidences: Evidence[]) {
+type QueueClusterEvidence = ClusterableEvidence & {
+  taskSpan: string;
+  timestamp?: string | null;
+};
+
+const localTaskIds = (evidence: QueueClusterEvidence) => new Set(
+  `${evidence.title} ${evidence.taskSpan}`.match(/\b[A-Z][A-Z0-9]{1,9}-\d+\b/g) ?? [],
+);
+
+/** Documents can corroborate an existing workplace task, but never originate one. */
+export function canOriginateQueueTask<T extends Pick<QueueClusterEvidence, "provider">>(evidence: T): boolean {
+  return evidence.provider !== "document";
+}
+
+/**
+ * Attach a document only when its bounded local span maps to exactly one workplace
+ * component. A handbook mentioning ENG-456 and INC-2031 cannot bridge those tasks.
+ */
+export function attachUnambiguousDocumentEvidence<T extends QueueClusterEvidence>(
+  workplaceClusters: T[][],
+  documents: T[],
+): T[][] {
+  const result = workplaceClusters.map((cluster) => [...cluster]);
+  const workplaceIds = workplaceClusters.map((cluster) =>
+    new Set(cluster.flatMap((item) => [...localTaskIds(item)])),
+  );
+  for (const document of documents) {
+    const documentIds = localTaskIds(document);
+    if (!documentIds.size) continue;
+    const matches = workplaceIds.flatMap((clusterIds, index) =>
+      overlaps(documentIds, clusterIds) ? [index] : [],
+    );
+    if (matches.length === 1) result[matches[0]]!.push(document);
+  }
+  return result;
+}
+
+/** Prefer the original workplace record over longer or newer document prose. */
+export function selectPrimaryQueueEvidence<T extends QueueClusterEvidence>(evidences: T[]): T {
+  const selected = [...evidences].sort((left, right) =>
+    Number(right.provider !== "document") - Number(left.provider !== "document") ||
+    Number(Boolean(right.timestamp)) - Number(Boolean(left.timestamp)) ||
+    right.taskSpan.length - left.taskSpan.length,
+  )[0];
+  if (!selected) throw new Error("Cannot select primary evidence from an empty cluster.");
+  return selected;
+}
+
+function clusterContradictions(evidences: TaskEvidence[]) {
   const result: Array<Record<string, unknown>> = [];
-  const completed = evidences.find((item) => /\b(merged|shipped|resolved|closed|completed)\b/i.test(`${item.title} ${item.excerpt}`));
-  const open = evidences.find((item) => /\b(still\s+(?:showing\s+as\s+)?open|remains?\s+open|ticket\s+still\s+open)\b/i.test(`${item.title} ${item.excerpt}`));
+  const completed = evidences.find((item) => /\b(merged|shipped|resolved|closed|completed)\b/i.test(`${item.title} ${item.taskSpan}`));
+  const open = evidences.find((item) => /\b(still\s+(?:showing\s+as\s+)?open|remains?\s+open|ticket\s+still\s+open)\b/i.test(`${item.title} ${item.taskSpan}`));
   if (completed && open) {
     result.push({
       summary: `${completed.provider} reports completion while ${open.provider} still reports open work.`,
@@ -278,8 +438,8 @@ function clusterContradictions(evidences: Evidence[]) {
     });
   }
   const dated = evidences.flatMap((item) =>
-    /\b(deadline|due|ship|before|moved|date)\b/i.test(`${item.title} ${item.excerpt}`)
-      ? (item.excerpt.match(/\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)(?:\s+\d{4})?)\b/gi) ?? [])
+    /\b(deadline|due|ship|before|moved|date)\b/i.test(`${item.title} ${item.taskSpan}`)
+      ? (item.taskSpan.match(/\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)(?:\s+\d{4})?)\b/gi) ?? [])
         .map((date) => ({ item, date }))
       : [],
   );
@@ -296,8 +456,8 @@ function clusterContradictions(evidences: Evidence[]) {
   return result;
 }
 
-function rankingInput(evidence: Evidence, id: string, title: string): RankingInput {
-  const text = `${title} ${evidence.excerpt}`;
+function rankingInput(evidence: TaskEvidence, id: string, title: string): RankingInput {
+  const text = `${title} ${evidence.taskSpan}`;
   const security = matchesSignal(text, /\b(security|vulnerability|breach|incident|outage|sev[ -]?[01])\b/i);
   const customer = matchesSignal(text, /\b(customer|client|enterprise|renewal|revenue|contract|churn)\b/i);
   const urgent = matchesSignal(text, /\b(today|urgent|asap|immediately|blocking|deadline|overdue|before (?:monday|tuesday|wednesday|thursday|friday))\b/i);
@@ -338,7 +498,7 @@ function rankingInput(evidence: Evidence, id: string, title: string): RankingInp
       likelyResolved: /\b(completed|resolved|closed|cancelled)\b/i.test(text) ? 40 : 0,
       duplicate: 0,
       unresolvedDependency: dependency ? 8 : 0,
-      weakEvidence: evidence.excerpt.length < 40 ? 9 : 0,
+      weakEvidence: evidence.taskSpan.length < 40 ? 9 : 0,
       conflictingEvidence: 0,
       staleEvidence: fresh === 1 ? 5 : 0,
       missingOwner: owner ? 0 : 6,
@@ -396,8 +556,16 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
   ]));
 
   const client = await hydraClientForWorkspace(workspaceId);
-  const query =
-    "Find current unresolved commitments, promised work, deadlines, blockers, escalations, incidents, customer risks, and explicit required actions. Return original source records.";
+  const queueQueries = [
+    {
+      kind: "commitments",
+      text: "Find current source records with explicit promised work, owned follow-ups, changed deadlines, due actions, or tracked work still open. Prefer original messages, emails, issues, and threads over handbooks or policies.",
+    },
+    {
+      kind: "risks",
+      text: "Find current unresolved customer escalations, active incidents or outages, security risks, and blockers. Prefer original messages, emails, issues, and threads over handbooks or policies.",
+    },
+  ] as const;
   const diagnostics: Array<Record<string, unknown>> = [];
   const scopes = [...connectors.results.reduce((map, connector) => {
     const key = `${connector.database}\u0000${connector.collection ?? ""}`;
@@ -411,98 +579,110 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
     return map;
   }, new Map<string, { database: string; collection: string | null; connectors: VerifiedConnector[] }>()).values()];
 
-  const scopeResults = await Promise.all(scopes.map(async (scope) => {
-    const scopeEvidence: Evidence[] = [];
-    const started = Date.now();
-    const response = await client.query({
-      database: scope.database,
-      ...(scope.collection ? { collections: [scope.collection] } : {}),
-      query,
-      type: "knowledge",
-      query_by: "hybrid",
-      mode: "thinking",
-      max_results: 20,
-      query_apps: true,
-      graph_context: true,
-      query_forceful_relations: true,
-      recency_bias: 0.3,
-    });
-    diagnostics.push({
-      connectorIds: scope.connectors.map((connector) => connector.id),
-      providers: scope.connectors.map((connector) => connector.provider),
-      database: scope.database,
-      collection: scope.collection,
-      ok: response.ok,
-      status: response.status,
-      requestId: response.requestId,
-      latencyMs: Date.now() - started,
-      error: response.error,
-    });
-    if (!response.ok) return scopeEvidence;
-    const extracted = extractQuerySources(response.data);
-    extracted.sources.forEach((source, index) => {
-      const sourceProvider = providerFromSource(source);
-      const metadata = sourceMetadata(source);
-      const sourceKind = firstText({ ...metadata, ...source }, ["source_type", "type", "mime_type", "filename"]);
-      const isDocumentSource = Boolean(source.filename ?? metadata.filename) || /\b(pdf|document|file)\b/i.test(sourceKind ?? "");
-      const sourceId = String(source.id ?? source.source_id ?? source.context_id ?? "");
-      const ownedDocument = isDocumentSource
-        ? ownedDocumentByScope.get(`${scope.database}\u0000${sourceId}`)
-        : undefined;
-      const connector = isDocumentSource
-        ? ownedDocument
+  const scopeResults: Evidence[][] = [];
+  // Bound expensive thinking-mode fanout to two concurrent calls per database scope.
+  // Workspaces with several scopes are processed serially instead of bursting 2 x N.
+  for (const scope of scopes) {
+    const currentScopeResults = await Promise.all(queueQueries.map(async (query) => {
+      const scopeEvidence: Evidence[] = [];
+      const started = Date.now();
+      const response = await client.query({
+        database: scope.database,
+        ...(scope.collection ? { collections: [scope.collection] } : {}),
+        query: query.text,
+        type: "knowledge",
+        query_by: "hybrid",
+        mode: "thinking",
+        max_results: 20,
+        query_apps: true,
+        graph_context: true,
+        query_forceful_relations: true,
+        recency_bias: 0.3,
+      });
+      diagnostics.push({
+        connectorIds: scope.connectors.map((connector) => connector.id),
+        providers: scope.connectors.map((connector) => connector.provider),
+        database: scope.database,
+        collection: scope.collection,
+        queryKind: query.kind,
+        ok: response.ok,
+        status: response.status,
+        requestId: response.requestId,
+        latencyMs: Date.now() - started,
+        error: response.error,
+      });
+      if (!response.ok) return scopeEvidence;
+      const extracted = extractQuerySources(response.data);
+      extracted.sources.forEach((source) => {
+        const sourceChunks = matchingChunks(source, extracted.chunks);
+        const sourceProvider = providerFromSource(source);
+        const sourceId = String(source.id ?? source.source_id ?? source.context_id ?? "");
+        const ownedDocument = ownedDocumentByScope.get(`${scope.database}\u0000${sourceId}`);
+        const connector = ownedDocument
           ? {
-              ...scope.connectors[0]!,
-              id: `document:${ownedDocument.id}`,
-              hydradb_connector_id: `document:${ownedDocument.hydradb_source_id}`,
-              provider: "document",
-              account_scope: null,
-            }
-          : undefined
-        : scope.connectors.find((item) => sourceBelongsToConnector(
+            ...scope.connectors[0]!,
+            id: `document:${ownedDocument.id}`,
+            hydradb_connector_id: `document:${ownedDocument.hydradb_source_id}`,
+            provider: "document",
+            account_scope: null,
+          }
+          : scope.connectors.find((item) => sourceBelongsToConnector(
             source,
             item.hydradb_connector_id,
             resourceIdsByConnector.get(item.id) ?? new Set<string>(),
-          ));
-      // A provider label or first-in-list position is never ownership proof.
-      if (!connector || (!isDocumentSource && connector.provider !== sourceProvider)) return;
-      const evidence = evidenceFromHydra(
-        connector,
-        source,
-        matchingChunk(source, extracted.chunks),
-        index,
-      );
-      if (evidence.excerpt || evidence.title) scopeEvidence.push(evidence);
-    });
-    return scopeEvidence;
-  }));
+        ));
+        // Exact ledger membership owns uploads. File-shaped connector records still
+        // follow connector lineage and are not silently discarded as pseudo-uploads.
+        if (!connector || (!ownedDocument && sourceProvider !== null && connector.provider !== sourceProvider)) return;
+        const chunks = sourceChunks.length ? sourceChunks : [{}];
+        chunks.forEach((chunk) => {
+          const evidence = evidenceFromHydra(connector, source, chunk);
+          if (evidence.excerpt || evidence.title) scopeEvidence.push(evidence);
+        });
+      });
+      return scopeEvidence;
+    }));
+    scopeResults.push(...currentScopeResults);
+  }
   const retrieved = scopeResults.flat();
 
   const safeEvidence = retrieved
     .filter((item) => !item.unsafeInstruction)
-    .filter((item) => actionable.test(`${item.title} ${item.excerpt}`))
-    .filter((item, index, all) => all.findIndex((other) => `${other.provider}:${other.externalId}` === `${item.provider}:${item.externalId}`) === index);
-  if (!safeEvidence.length) {
+    .map((item) => ({
+      ...item,
+      taskSpan: extractActionableTaskSpan(`${item.title}. ${item.excerpt}`),
+    }))
+    .filter((item): item is TaskEvidence => Boolean(item.taskSpan))
+    .filter((item, index, all) => all.findIndex((other) =>
+      queueEvidenceDedupKey(other) === queueEvidenceDedupKey(item),
+    ) === index);
+  const workplaceEvidence = safeEvidence.filter(canOriginateQueueTask);
+  if (!workplaceEvidence.length) {
     await audit({
       workspaceId,
       actorId,
       operation: "queue.generate",
       outcome: "failure",
-      metadata: { reason: "no_actionable_evidence", diagnostics },
+      metadata: {
+        reason: "no_actionable_workplace_evidence",
+        actionableSourceCount: safeEvidence.length,
+        diagnostics,
+      },
     });
     throw new Response(
-      "Live retrieval completed, but no actionable commitment with safe source evidence was found.",
+      "Live retrieval completed, but no actionable commitment with safe workplace evidence was found.",
       { status: 422 },
     );
   }
 
-  const clusters = clusterTaskEvidence(safeEvidence);
+  const clusters = attachUnambiguousDocumentEvidence(
+    clusterTaskEvidence(workplaceEvidence),
+    safeEvidence.filter((item) => !canOriginateQueueTask(item)),
+  );
 
   const rankingRunId = createId("ranking");
   const ranked = clusters.map((evidences) => {
-    const evidence = [...evidences].sort((a, b) =>
-      Number(Boolean(b.timestamp)) - Number(Boolean(a.timestamp)) || b.excerpt.length - a.excerpt.length,
-    )[0]!;
+    const evidence = selectPrimaryQueueEvidence(evidences);
     const taskId = createId("task");
     const title = taskTitle(evidence);
     const input = rankingInput(evidence, taskId, title);
@@ -549,7 +729,7 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
       policy_version: item.result.policyVersion,
       task: {
         title: item.title,
-        objective: item.evidence.excerpt,
+        objective: item.evidence.taskSpan,
         owner,
         project: firstText(item.evidence.metadata, ["project_name", "project"]),
         deadline,
@@ -616,7 +796,7 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
           `INSERT INTO task_evidence
            (id, workspace_id, task_id, source_id, relation, claim)
            VALUES (?, ?, ?, ?, 'supports', ?)`,
-        ).bind(createId("evidence"), workspaceId, item.taskId, corroborating.id, corroborating.excerpt),
+        ).bind(createId("evidence"), workspaceId, item.taskId, corroborating.id, corroborating.taskSpan),
       );
     }
 
@@ -649,7 +829,7 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
         `INSERT INTO task_evidence
          (id, workspace_id, task_id, source_id, relation, claim)
          VALUES (?, ?, ?, ?, 'supports', ?)`,
-      ).bind(createId("evidence"), workspaceId, item.taskId, item.evidence.id, item.evidence.excerpt),
+      ).bind(createId("evidence"), workspaceId, item.taskId, item.evidence.id, item.evidence.taskSpan),
       db.prepare(
         `INSERT INTO ranking_items
          (id, workspace_id, ranking_run_id, task_id, rank, component_scores_json,
@@ -687,7 +867,13 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
     targetType: "ranking_run",
     targetId: rankingRunId,
     outcome: "success",
-    metadata: { taskCount: ranked.length, sourceCount: safeEvidence.length, diagnostics },
+        metadata: {
+          taskCount: ranked.length,
+          sourceCount: safeEvidence.length,
+          originatingSourceCount: workplaceEvidence.length,
+          corroboratingDocumentCount: safeEvidence.length - workplaceEvidence.length,
+          diagnostics,
+        },
   });
   return listQueueForWorkspace(workspaceId);
 }
