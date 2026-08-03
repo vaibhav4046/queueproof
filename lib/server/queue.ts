@@ -189,6 +189,11 @@ const isNonLiveSourceArtifact = (header: string, corpus: string) =>
       /\b(?:invoice number|date of issue|bill to)\b/i,
       /\b(?:amount due|date due|subtotal|payment address|vat)\b/i,
     )
+  ) ||
+  hasPairedContext(
+    header,
+    /\bcodelabs?\b/i,
+    /\b(?:mcq assessment|certificate eligibility|hackathon phase)\b/i,
   );
 
 const negativeObligation = /\b(?:must|should|need(?:s)? to)\s+not\b/i;

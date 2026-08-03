@@ -429,6 +429,7 @@ describe("conservative cross-source task clustering", () => {
       "Next Steps & Pre-Contract Documentation - Successful Application. Attachment: contract.pdf. Independent Contractor Agreement. Your notice is four weeks. You must continue to deliver and cooperate with the handover.",
       `Next Step with Flywire: Homework. Question 3: provide the subject and body. ${"Background material. ".repeat(40)}Let me know if that does not work; meanwhile I will report the issue with cents to the product dev team.`,
       "Your receipt from Anthropic, PBC #2452-6787-3896. Attachment: Invoice-GP8LA1AM-0028.pdf. Invoice number GP8LA1AM-0028. Date of issue June 24, 2026. Date due June 24, 2026. Bill to Example Ltd. Amount due GBP 18.20.",
+      "48 Hours left to complete your codelabs and MCQ assessment. Mandatory checkpoints are closing soon. Google Cloud Credits Reminder. Participants must configure their own GCP account parameters to execute remaining Codelabs.",
       "Recipients must keep this information confidential.",
       "Students need to submit the assignment by Friday.",
       "We will help your business grow.",
