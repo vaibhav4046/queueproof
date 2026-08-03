@@ -108,12 +108,43 @@ export function rankEvidenceForQuestion<T extends SynthesisEvidence>(question: s
     .map((entry) => entry.item);
 }
 
-function sentences(item: SynthesisEvidence) {
-  const body = clean(item.excerpt || item.title);
-  return body
-    .split(/(?<=[.!?])\s+(?=[A-Z0-9])/)
-    .map(clean)
-    .filter((sentence) => sentence.length >= 22 && sentence.length <= 360);
+function focusedWindows(question: string, body: string) {
+  const exactIdentifiers = question.match(/\b[A-Z][A-Z0-9]+-\d+\b/g) ?? [];
+  const anchors = [...new Set([
+    ...exactIdentifiers.map((value) => value.toLowerCase()),
+    ...tokenise(question).filter((token) => !GENERIC_QUESTION_TOKENS.has(token) && token.length >= 4),
+  ])];
+  const lower = body.toLowerCase();
+  const windows: string[] = [];
+  for (const anchor of anchors) {
+    let offset = 0;
+    for (let occurrence = 0; occurrence < 2; occurrence += 1) {
+      const index = lower.indexOf(anchor, offset);
+      if (index < 0) break;
+      const previousStop = lower.lastIndexOf(". ", index);
+      const start = previousStop >= Math.max(0, index - 170) ? previousStop + 2 : Math.max(0, index - 150);
+      const nextStop = lower.indexOf(". ", index + anchor.length);
+      const end = nextStop > index && nextStop <= index + 330 ? nextStop + 1 : Math.min(body.length, index + 300);
+      windows.push(clean(body.slice(start, end)));
+      offset = index + anchor.length;
+    }
+  }
+  return windows;
+}
+
+function sentences(item: SynthesisEvidence, question: string) {
+  const raw = item.excerpt || item.title;
+  // Markdown headings and horizontal rules often sit between otherwise normal
+  // sentences. Convert those boundaries before splitting so a useful sentence
+  // is not rejected as one multi-kilobyte block. Query-focused windows preserve
+  // compact table rows and exact-ID context that contain no punctuation.
+  const body = clean(raw
+    .replace(/\s+(?:#{1,6}|-{3,}|={2,})\s*/g, ". ")
+    .replace(/\s+[-*]\s+(?=[A-Z0-9])/g, ". "));
+  return [...new Set([
+    ...body.split(/(?<=[.!?])\s+(?=[A-Z0-9])/).map(clean),
+    ...focusedWindows(question, body),
+  ])].filter((sentence) => sentence.length >= 18 && sentence.length <= 420);
 }
 
 function normalisedDate(value: string) {
@@ -159,7 +190,7 @@ function contradictions(question: string, claims: GroundedClaim[], evidenceById:
 export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEvidence[]) {
   const ranked = rankEvidenceForQuestion(question, evidence);
   const candidates = ranked.flatMap((item, evidenceIndex) =>
-    sentences(item).map((text, sentenceIndex) => {
+    sentences(item, question).map((text, sentenceIndex) => {
       const sentenceScore = relevance(question, text);
       const titleScore = relevance(question, item.title);
       return {

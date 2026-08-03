@@ -130,4 +130,33 @@ describe("evidence-constrained synthesis", () => {
     expect(result.answer).toContain("BUG-123");
     expect(result.answer).not.toContain("lawsuit");
   });
+
+  it("extracts an exact-ID fact after markdown headings instead of dropping the long chunk", () => {
+    const result = synthesiseGroundedAnswer(
+      "What work does ENG-456 track and when is it due?",
+      [{
+        id: "handbook-eng-456",
+        provider: "document",
+        title: "helios-operations-handbook.pdf",
+        excerpt: "### Objective AuthShield replaces long lived credentials with short lived tokens. ### Open work ENG-456 reduces the AuthShield operator token lifetime to fifteen minutes. The committed completion date is 30 June 2031. ### Dependencies The broker must be online.",
+      }],
+    );
+
+    expect(result.answer).toContain("ENG-456");
+    expect(result.answer).toMatch(/fifteen minutes|30 June 2031/i);
+  });
+
+  it("keeps a compact query-focused window for punctuation-free table evidence", () => {
+    const result = synthesiseGroundedAnswer(
+      "Who is the Ring 0 on call contact for the Bengaluru depot?",
+      [{
+        id: "handbook-oncall",
+        provider: "document",
+        title: "On call rotation table",
+        excerpt: "| Ring | Depot | Contact | | Ring 0 | Bengaluru | Priya Raman | | Ring 1 | Osaka | Kenji Mori |",
+      }],
+    );
+
+    expect(result.answer).toMatch(/Bengaluru.*Priya Raman/i);
+  });
 });
