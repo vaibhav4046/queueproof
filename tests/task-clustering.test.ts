@@ -42,6 +42,23 @@ describe("conservative cross-source task clustering", () => {
     expect(wordingGroups).toHaveLength(1);
     expect(wordingGroups[0]).toHaveLength(2);
 
+    const wordingBeatsBroadEntityAmbiguityGroups = clusterTaskEvidence([
+      {
+        ...evidence("github", "issue-wording-target", "Post-mortem doc for INC-2031 Northwind outage", "Tracked work."),
+        taskSpan: "Vaibhav promised Northwind a written incident post-mortem by 10 August 2026.",
+      },
+      {
+        ...evidence("linear", "issue-broad-entity", "ENG-456 Northwind access cleanup", "Northwind access remains open."),
+        taskSpan: "ENG-456 remains open and blocks Northwind access.",
+      },
+      {
+        ...evidence("slack", "message-wording-target", "I promised Northwind a written incident post-mortem by 10 August. There is no Linear issue", "Original message."),
+        taskSpan: "I promised Northwind a written incident post-mortem by 10 August.",
+      },
+    ]);
+    expect(wordingBeatsBroadEntityAmbiguityGroups).toHaveLength(2);
+    expect(wordingBeatsBroadEntityAmbiguityGroups.map((group) => group.length).sort()).toEqual([1, 2]);
+
     const differentCustomerGroups = clusterTaskEvidence([
       {
         ...evidence("github", "issue-2031", "Post-mortem doc for INC-2031", "Tracked work."),
@@ -409,6 +426,9 @@ describe("conservative cross-source task clustering", () => {
       "Codelab update. Please complete this by end of day.",
       "Codelab update. Alice will finish by next month.",
       "Codelab update. Please complete this by August 10, 2026.",
+      "Next Steps & Pre-Contract Documentation - Successful Application. Attachment: contract.pdf. Independent Contractor Agreement. Your notice is four weeks. You must continue to deliver and cooperate with the handover.",
+      `Next Step with Flywire: Homework. Question 3: provide the subject and body. ${"Background material. ".repeat(40)}Let me know if that does not work; meanwhile I will report the issue with cents to the product dev team.`,
+      "Your receipt from Anthropic, PBC #2452-6787-3896. Attachment: Invoice-GP8LA1AM-0028.pdf. Invoice number GP8LA1AM-0028. Date of issue June 24, 2026. Date due June 24, 2026. Bill to Example Ltd. Amount due GBP 18.20.",
       "Recipients must keep this information confidential.",
       "Students need to submit the assignment by Friday.",
       "We will help your business grow.",
@@ -430,6 +450,12 @@ describe("conservative cross-source task clustering", () => {
     expect(extractActionableTaskSpan(
       `Successful Application onboarding paperwork. ${"Background material. ".repeat(80)}Engineering will ship ENG-456 by Friday.`,
     )).toContain("ENG-456");
+    expect(extractActionableTaskSpan(
+      "Next Steps & Pre-Contract Documentation - Successful Application. Separately, Engineering must ship ENG-456 by Friday.",
+    )).toContain("ENG-456");
+    expect(extractActionableTaskSpan(
+      "Your receipt from Anthropic. Invoice number GP8LA1AM-0028. Date due June 24, 2026. Bill to Example Ltd. Amount due GBP 18.20. On a separate note, please review the quarterly forecast tomorrow.",
+    )).toContain("quarterly forecast");
     expect(extractActionableTaskSpan(
       "Please review the generic billing note\nEngineering will ship ENG-456 by Friday",
     )).toBe("Engineering will ship ENG-456 by Friday");

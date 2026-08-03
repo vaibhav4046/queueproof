@@ -168,6 +168,29 @@ const isNonLiveCandidateContext = (window: string, candidate: string) =>
 const hasDiscriminativeNonLiveMarker = (candidate: string) =>
   /\b(?:homework|question\s+\d+|academic support|academic writing|student pricing|assignment help|employment agreement|successful application|pre-contract documentation|right to work|photo identification|passport|e-?visa|national insurance|written offer|onboarding|identity documents?|payroll employment|codelabs?|mcq assessment|workshops? completed)\b/i.test(candidate);
 
+const isNonLiveSourceArtifact = (header: string, corpus: string) =>
+  hasPairedContext(
+    header,
+    /\bpre-contract documentation\b/i,
+    /\bsuccessful application\b/i,
+  ) ||
+  (
+    /\bhomework\b/i.test(header) &&
+    hasPairedContext(
+      corpus,
+      /\bhomework\b/i,
+      /\b(?:question\s+\d+|provide (?:the )?subject and body|based on the above findings|section\s+\d+)\b/i,
+    )
+  ) ||
+  (
+    /\b(?:your receipt|receipt from)\b/i.test(header) &&
+    hasPairedContext(
+      corpus,
+      /\b(?:invoice number|date of issue|bill to)\b/i,
+      /\b(?:amount due|date due|subtotal|payment address|vat)\b/i,
+    )
+  );
+
 const negativeObligation = /\b(?:must|should|need(?:s)? to)\s+not\b/i;
 const nonTaskCandidateContext = /\b(?:(?:recipients?|employee|agreement|information).{0,100}(?:confidential|proprietary|jurisdiction|unauthori[sz]ed)|(?:agreement|parties).{0,100}(?:operation of law|automatically|binding|governed|jurisdiction)|students?.{0,100}(?:assignment|coursework|homework|submit)|(?:academic|assignment|coursework|homework|essay|thesis|dissertation).{0,100}(?:submit|complete|deadline)|example (?:issue|task|answer)|question\s+\d+.{0,100}provide|help (?:you|your)|business grow|achieve (?:your|their) goals|special offer|student pricing|for internal use only|must not be shared|all rights reserved)\b/i;
 const exactTaskIdentity = /\b[A-Z][A-Z0-9]{1,9}-\d+\b/;
@@ -180,6 +203,22 @@ const hasConcreteTaskStructure = (entry: string) =>
   operationalTaskAction.test(entry) ||
   liveTaskState.test(entry) ||
   (temporalTaskAnchor.test(entry) && actorCommitmentSignals.some((pattern) => pattern.test(entry)));
+
+const hasLocalActionableTaskIdentity = (entry: string) => {
+  const identityPattern = new RegExp(exactTaskIdentity.source, "g");
+  return [...entry.matchAll(identityPattern)].some((match) => {
+    const index = match.index ?? 0;
+    const before = entry.slice(Math.max(0, index - 70), index);
+    // Invoice numbers and attachment filenames share the lexical shape of issue IDs.
+    if (/\b(?:attachment|file(?:name)?|invoice(?: number)?|receipt)\b[^.!?\n]{0,60}$/i.test(before)) return false;
+    const local = entry.slice(Math.max(0, index - 120), index + match[0].length + 120);
+    return operationalTaskAction.test(local) || liveTaskState.test(local) ||
+      actorCommitmentSignals.some((pattern) => pattern.test(local));
+  });
+};
+
+const isExplicitlyIndependentCandidate = (entry: string) =>
+  /^(?:[-*]\s*)?(?:separately|independently|on a separate note|separate action)\b/i.test(entry);
 
 /**
  * Extract one local, bounded task claim instead of scoring a whole source record.
@@ -198,10 +237,20 @@ export function extractActionableTaskSpan(value: string): string | null {
     .split(/\r?\n+|(?<=[.!?])\s+|\s+(?=[*-]\s+)/)
     .map((entry) => clean(entry, 1_200))
     .filter(Boolean);
-  const sourceHeaderHasTaskIdentity = exactTaskIdentity.test(segments[0] ?? "");
+  // Read the source title before bullet-aware segmentation: titles commonly contain
+  // " - " (for example, pre-contract email subjects), which is not a list boundary.
+  const sourceHeader = clean(corpus.split(/\r?\n+|(?<=[.!?])\s+/)[0] ?? "", 1_200);
+  const sourceHeaderHasTaskIdentity = exactTaskIdentity.test(sourceHeader);
+  const sourceIsNonLiveArtifact = isNonLiveSourceArtifact(sourceHeader, corpus);
   for (let index = 0; index < segments.length; index += 1) {
     const entry = segments[index]!;
     const identityBacked = sourceHeaderHasTaskIdentity || exactTaskIdentity.test(entry);
+    if (
+      sourceIsNonLiveArtifact &&
+      !sourceHeaderHasTaskIdentity &&
+      !hasLocalActionableTaskIdentity(entry) &&
+      !isExplicitlyIndependentCandidate(entry)
+    ) continue;
     if (entry.length < 12 || !strongTaskSignals.some((pattern) => pattern.test(entry))) continue;
     if (!hasConcreteTaskStructure(entry)) continue;
     if (negativeObligation.test(entry) && !identityBacked) continue;
@@ -553,6 +602,7 @@ const GENERIC_NAMED_SCOPES = new Set([
   "enterprise", "followup", "github", "gmail", "important", "incident", "issue", "linear",
   "mortem", "operations", "please", "post", "request", "renewal", "security", "slack",
   "status", "support", "task", "team", "the", "this", "today", "tomorrow", "update",
+  "there",
   ...MONTH_NUMBER.keys(),
   ...WEEKDAY_NUMBER.keys(),
 ]);
@@ -655,16 +705,25 @@ export function clusterTaskEvidence<T extends ClusterableEvidence>(evidences: T[
 
   records.forEach((record, index) => {
     if (record.ids.size) return;
-    const matches = exactComponents().filter((component) =>
+    const components = exactComponents();
+    const wordingMatches = components.filter((component) =>
       component.members.some((member) =>
-        compatibleTaskDates(record.evidence, records[member]!.evidence) && (
-          overlaps(record.entities, records[member]!.entities) ||
-          (record.evidence.provider !== records[member]!.evidence.provider &&
-            sameTaskWording(record.evidence, records[member]!.evidence))
-        ),
+        record.evidence.provider !== records[member]!.evidence.provider &&
+        sameTaskWording(record.evidence, records[member]!.evidence),
       ),
     );
-    if (matches.length === 1) union(index, matches[0]!.member);
+    if (wordingMatches.length === 1) {
+      union(index, wordingMatches[0]!.member);
+      return;
+    }
+    if (wordingMatches.length > 1) return;
+    const entityMatches = components.filter((component) =>
+      component.members.some((member) =>
+        compatibleTaskDates(record.evidence, records[member]!.evidence) &&
+        overlaps(record.entities, records[member]!.entities),
+      ),
+    );
+    if (entityMatches.length === 1) union(index, entityMatches[0]!.member);
   });
 
   return [...records.reduce((groups, record, index) => {
