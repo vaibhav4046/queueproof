@@ -1100,6 +1100,27 @@ input, select { width: 100%; min-height: 42px; border: 1px solid var(--line); pa
 .modal-close { width: 44px; height: 44px; }
 .command-trigger { min-height: 44px; }
 
+@media (max-width: 900px) {
+  .proof-hero {
+    min-height: 0;
+    display: block;
+  }
+
+  .proof-copy h1 {
+    max-width: 720px;
+    font-size: clamp(58px, 12vw, 90px);
+  }
+
+  .proof-copy > p {
+    max-width: 660px;
+  }
+
+  .proof-artifact {
+    width: min(370px, 70vw);
+    margin: 36px auto 24px;
+  }
+}
+
 /* Mobile containment lives last so later premium layers cannot restore a
    desktop intrinsic width. Every proof surface must fit the physical viewport. */
 @media (max-width: 760px) {
