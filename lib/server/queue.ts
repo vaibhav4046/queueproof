@@ -174,6 +174,11 @@ const isNonLiveSourceArtifact = (header: string, corpus: string) =>
     /\bpre-contract documentation\b/i,
     /\bsuccessful application\b/i,
   ) ||
+  hasPairedContext(
+    header,
+    /\bcodelabs?\b/i,
+    /\bmcq assessment\b/i,
+  ) ||
   (
     /\bhomework\b/i.test(header) &&
     hasPairedContext(
@@ -190,10 +195,13 @@ const isNonLiveSourceArtifact = (header: string, corpus: string) =>
       /\b(?:amount due|date due|subtotal|payment address|vat)\b/i,
     )
   ) ||
-  hasPairedContext(
-    header,
-    /\bcodelabs?\b/i,
-    /\b(?:mcq assessment|certificate eligibility|hackathon phase)\b/i,
+  (
+    /\b(?:academy|codelabs?|certificate|complete milestones?|hackathon|mcq assessment|team formation)\b/i.test(header) &&
+    hasPairedContext(
+      corpus,
+      /\b(?:codelabs?|mcq assessment)\b/i,
+      /\b(?:academy|certificate|hackathon|program progression)\b/i,
+    )
   );
 
 const negativeObligation = /\b(?:must|should|need(?:s)? to)\s+not\b/i;
