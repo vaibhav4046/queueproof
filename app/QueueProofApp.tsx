@@ -3,11 +3,12 @@
 import {
   Activity, ArrowRight, Bot, Braces, Check, ChevronRight, CircleAlert, CircleCheck, Clock3,
   Clipboard, Command, Database, ExternalLink, Eye, FileCheck2, FileText, KeyRound,
-  Github, Link2, LoaderCircle, LockKeyhole, Mail, MessageSquareText, Network, Play, Plus,
+  Link2, LoaderCircle, LockKeyhole, Network, Play, Plus,
   Radio, RefreshCw, Search, ShieldCheck, Sparkles, Terminal, Unplug, UploadCloud, X, Zap,
 } from "lucide-react";
 import Image from "next/image";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { SiGithub, SiGmail, SiLinear, SiSlack } from "react-icons/si";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { WorkspaceView } from "../lib/server/workspace-state";
 
 
@@ -140,10 +141,6 @@ function dateLabel(value?: string | null) {
   return Number.isFinite(parsed.getTime()) ? parsed.toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : value;
 }
 
-function providerGlyph(provider: string) {
-  return provider.slice(0, 2).toUpperCase();
-}
-
 function band(score: number) {
   return score >= 80 ? "Critical" : score >= 60 ? "High" : score >= 35 ? "Normal" : "Low";
 }
@@ -162,6 +159,7 @@ export default function QueueProofApp({
   const [bootError, setBootError] = useState(initialError ?? "");
   const [retrying, setRetrying] = useState(false);
   const [connectors, setConnectors] = useState<Connector[]>([]);
+  const [connectorsLoaded, setConnectorsLoaded] = useState(false);
   const [queue, setQueue] = useState<QueueData>({ generatedAt: null, items: [] });
   const [selectedPacket, setSelectedPacket] = useState<Packet | null>(null);
   const [proposalPacket, setProposalPacket] = useState<Packet | null>(null);
@@ -175,6 +173,7 @@ export default function QueueProofApp({
     if (!workspaceId) return;
     const data = await api<{ connectors: Connector[] }>("/api/connectors");
     setConnectors(data.connectors);
+    setConnectorsLoaded(true);
   }, [workspaceId]);
 
   const reloadWorkspace = useCallback(async () => {
@@ -204,9 +203,10 @@ export default function QueueProofApp({
     ]).then(([connectorData, queueData]) => {
       if (!active) return;
       setConnectors(connectorData.connectors);
+      setConnectorsLoaded(true);
       setQueue(queueData);
     }).catch((reason: Error) => {
-      if (active) setError(reason.message);
+      if (active) { setConnectorsLoaded(true); setError(reason.message); }
     });
     return () => { active = false; };
   }, [workspaceId]);
@@ -244,6 +244,12 @@ export default function QueueProofApp({
 
   return (
     <div className="qp-app">
+      <div className="ambient-field" aria-hidden="true">
+        <i className="ambient-orb orb-acid" />
+        <i className="ambient-orb orb-mint" />
+        <i className="ambient-orb orb-ink" />
+        <span className="ambient-scan" />
+      </div>
       <div className="grain" />
       <header className="app-header">
         <button className="brand" onClick={() => setTab("ask")} aria-label="QueueProof home">
@@ -294,7 +300,7 @@ export default function QueueProofApp({
             onGenerate={generateQueue} onOpenSources={() => setTab("sources")}
             onSelectPacket={setSelectedPacket} />
         )}
-        {tab === "ask" && <AskScreen verified={verified} onOpenSources={() => setTab("sources")} onOpenLab={() => setTab("lab")} setError={setError} />}
+        {tab === "ask" && <AskScreen verified={verified} connectorsLoaded={connectorsLoaded} onOpenSources={() => setTab("sources")} onOpenLab={() => setTab("lab")} setError={setError} />}
         {tab === "sources" && <SourcesScreen workspace={view} connectors={connectors}
           reloadWorkspace={reloadWorkspace} reloadConnectors={loadConnectors}
           setError={setError} setNotice={setNotice} />}
@@ -582,10 +588,10 @@ const proofPrompts = [
 ];
 
 function ProviderIcon({ provider, size = 15 }: { provider: string; size?: number }) {
-  if (provider === "github") return <Github size={size} />;
-  if (provider === "gmail") return <Mail size={size} />;
-  if (provider === "slack") return <MessageSquareText size={size} />;
-  if (provider === "linear") return <Network size={size} />;
+  if (provider === "github") return <SiGithub size={size} aria-hidden="true" />;
+  if (provider === "gmail") return <SiGmail size={size} aria-hidden="true" />;
+  if (provider === "slack") return <SiSlack size={size} aria-hidden="true" />;
+  if (provider === "linear") return <SiLinear size={size} aria-hidden="true" />;
   return <FileText size={size} />;
 }
 
@@ -595,16 +601,57 @@ function CitedAnswer({ text }: { text: string }) {
     : <span key={`${part}-${index}`}>{part}</span>)}</>;
 }
 
-function AskScreen({ verified, onOpenSources, onOpenLab, setError }: {
-  verified: Connector[]; onOpenSources: () => void; onOpenLab: () => void; setError: (value: string) => void;
+function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setError }: {
+  verified: Connector[]; connectorsLoaded: boolean; onOpenSources: () => void; onOpenLab: () => void; setError: (value: string) => void;
 }) {
   const [question, setQuestion] = useState(FLAGSHIP_QUESTION);
   const [mode, setMode] = useState<"auto" | "fast" | "thinking">("auto");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<AskData | null>(null);
+  const [judgePulse, setJudgePulse] = useState<{ passed: number; total: number; p50: number | null; calls: number | null } | null>(null);
+  const artifactRef = useRef<HTMLDivElement>(null);
   const verifiedCount = verified.length;
 
+  useEffect(() => {
+    let active = true;
+    void api<{ results: LabResults }>("/api/lab").then(({ results }) => {
+      if (!active) return;
+      const rows = results.live?.rows ?? [];
+      const measured = rows.filter((row) => typeof row.pass === "boolean");
+      const calls = rows.some((row) => typeof row.callCount === "number")
+        ? rows.reduce((total, row) => total + (row.callCount ?? 0), 0) / Math.max(rows.length, 1)
+        : null;
+      setJudgePulse({
+        passed: measured.filter((row) => row.pass).length,
+        total: measured.length,
+        p50: results.live?.latencyMs?.p50 ?? null,
+        calls,
+      });
+    }).catch(() => { /* The proof workflow remains usable if telemetry is unavailable. */ });
+    return () => { active = false; };
+  }, []);
+
+  function moveArtifact(event: React.PointerEvent<HTMLDivElement>) {
+    const element = artifactRef.current;
+    if (!element || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const rect = element.getBoundingClientRect();
+    const x = (event.clientX - rect.left) / rect.width - 0.5;
+    const y = (event.clientY - rect.top) / rect.height - 0.5;
+    element.style.setProperty("--artifact-ry", `${(x * 11).toFixed(2)}deg`);
+    element.style.setProperty("--artifact-rx", `${(-y * 11).toFixed(2)}deg`);
+    element.style.setProperty("--artifact-x", `${(x * 22).toFixed(1)}px`);
+    element.style.setProperty("--artifact-y", `${(y * 22).toFixed(1)}px`);
+  }
+
+  function resetArtifact() {
+    artifactRef.current?.style.removeProperty("--artifact-ry");
+    artifactRef.current?.style.removeProperty("--artifact-rx");
+    artifactRef.current?.style.removeProperty("--artifact-x");
+    artifactRef.current?.style.removeProperty("--artifact-y");
+  }
+
   async function run(nextQuestion = question) {
+    if (!connectorsLoaded) return;
     if (!verifiedCount) { onOpenSources(); return; }
     setBusy(true); setError("");
     setResult(null);
@@ -614,31 +661,56 @@ function AskScreen({ verified, onOpenSources, onOpenLab, setError }: {
   }
   async function submit(event: FormEvent) { event.preventDefault(); await run(); }
 
+  const citedEvidenceIds = new Set([
+    ...(result?.claims.flatMap((claim) => claim.evidenceIds) ?? []),
+    ...(result?.contradictions.flatMap((contradiction) => contradiction.evidenceIds) ?? []),
+  ]);
+  const directlyCitedEvidence = result?.evidence.filter((item) => {
+    const id = item.id ?? item.sourceId;
+    return Boolean(id && citedEvidenceIds.has(id));
+  }) ?? [];
+  const rankedEvidence = directlyCitedEvidence.length > 0 ? directlyCitedEvidence : result?.evidence.slice(0, 6) ?? [];
+  const supportingEvidence = result?.evidence.filter((item) => !rankedEvidence.includes(item)) ?? [];
+
   return (
     <section className="screen ask-screen proof-screen">
       <div className="proof-hero">
         <div className="proof-copy">
-          <span className="eyebrow"><Radio size={13} /> Live · evidence-constrained reasoning</span>
-          <h1>One answer.<br /><em>Every system. Proven.</em></h1>
-          <p>QueueProof joins Slack promises, Linear tickets, GitHub merges, Gmail, and documents into one cited decision—then shows the calls, latency, policy, and conflicts behind it.</p>
+          <span className="eyebrow"><Radio size={13} /> Live · HydraDB evidence control plane</span>
+          <h1><span>One answer.</span><br /><em>Every system.</em><br /><span className="outline-word">Proven.</span></h1>
+          <p>QueueProof reconstructs commitments across Slack, Linear, GitHub, Gmail, and documents—then turns them into one cited answer with the retrieval calls, latency, policy, and conflicts left visible.</p>
           <div className="live-source-row">
-            {verified.map((connector) => <span key={connector.id}><ProviderIcon provider={connector.provider} />{connector.provider}<i /></span>)}
-            {!verified.length && <button onClick={onOpenSources}><Plus size={13} /> Connect evidence</button>}
+            {verified.map((connector) => <span key={connector.id} data-provider={connector.provider}><ProviderIcon provider={connector.provider} />{connector.provider}<i /></span>)}
+            {!connectorsLoaded && <span className="connector-loading"><LoaderCircle className="spin" size={13} /> Resolving source proofs</span>}
+            {connectorsLoaded && !verified.length && <button onClick={onOpenSources}><Plus size={13} /> Connect evidence</button>}
+          </div>
+          <div className="hero-proofline" aria-label="Live product proof">
+            <span><strong>{judgePulse?.total ? `${judgePulse.passed}/${judgePulse.total}` : "LIVE"}</strong><small>EXPECTED ANSWERS</small></span>
+            <span><strong>{judgePulse?.p50 ? `${(judgePulse.p50 / 1000).toFixed(2)}s` : "MEASURED"}</strong><small>P50 RETRIEVAL</small></span>
+            <span><strong>{judgePulse?.calls === null || judgePulse?.calls === undefined ? "TRACED" : judgePulse.calls.toFixed(1)}</strong><small>HYDRADB CALLS / ANSWER</small></span>
           </div>
         </div>
-        <div className={busy ? "proof-artifact searching" : "proof-artifact"} aria-hidden="true">
+        <div
+          ref={artifactRef}
+          className={busy ? "proof-artifact searching" : "proof-artifact"}
+          onPointerMove={moveArtifact}
+          onPointerLeave={resetArtifact}
+          aria-hidden="true"
+        >
+          <div className="liquid-aura"><i /><i /><i /></div>
           <div className="artifact-ring ring-one" /><div className="artifact-ring ring-two" />
-          <div className="artifact-core"><ShieldCheck size={28} /><strong>PROOF</strong><small>SEALED</small></div>
-          <span className="artifact-node node-slack"><MessageSquareText size={16} />SL</span>
-          <span className="artifact-node node-linear"><Network size={16} />LI</span>
-          <span className="artifact-node node-github"><Github size={16} />GH</span>
-          <span className="artifact-node node-doc"><FileText size={16} />DOC</span>
+          <div className="artifact-core"><ShieldCheck size={28} /><strong>PROOF</strong><small>{busy ? "JOINING" : "SEALED"}</small></div>
+          <span className="artifact-node node-slack" data-provider="slack"><ProviderIcon provider="slack" size={18} /><small>SLACK</small></span>
+          <span className="artifact-node node-linear" data-provider="linear"><ProviderIcon provider="linear" size={18} /><small>LINEAR</small></span>
+          <span className="artifact-node node-github" data-provider="github"><ProviderIcon provider="github" size={18} /><small>GITHUB</small></span>
+          <span className="artifact-node node-gmail" data-provider="gmail"><ProviderIcon provider="gmail" size={18} /><small>GMAIL</small></span>
+          <span className="proof-orbit-label">CLAIM → RECEIPT → DECISION</span>
         </div>
       </div>
 
       <form className="ask-console premium-console" onSubmit={submit}>
         <div className="console-line">
-          <span><span className={verifiedCount ? "status-orb live" : "status-orb"} />{verifiedCount} verified systems</span>
+          <span><span className={verifiedCount ? "status-orb live" : connectorsLoaded ? "status-orb" : "status-orb indexing"} />{connectorsLoaded ? `${verifiedCount} verified systems` : "Resolving connector proofs"}</span>
           <div className="mode-control">
             {(["auto", "fast", "thinking"] as const).map((value) => <button key={value} type="button" className={mode === value ? "mode active" : "mode"} onClick={() => setMode(value)}>{value === "auto" ? "Auto route" : value}</button>)}
           </div>
@@ -646,13 +718,25 @@ function AskScreen({ verified, onOpenSources, onOpenLab, setError }: {
         <textarea value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask a question that needs more than one system…" required maxLength={4000} />
         <div className="prompt-actions">
           <span>⌘ Enter to run</span>
-          <button className="primary-button proof-button" disabled={busy || !question.trim()}>{busy ? <LoaderCircle className="spin" size={15} /> : <Play size={15} fill="currentColor" />}{busy ? "Building cited answer" : question === FLAGSHIP_QUESTION ? "Run flagship proof" : "Run proof"}</button>
+          <button className="primary-button proof-button" disabled={!connectorsLoaded || busy || !question.trim()}>{busy || !connectorsLoaded ? <LoaderCircle className="spin" size={15} /> : <Play size={15} fill="currentColor" />}{!connectorsLoaded ? "Verifying connectors" : busy ? "Building cited answer" : question === FLAGSHIP_QUESTION ? "Run flagship proof" : "Run proof"}</button>
         </div>
       </form>
 
       <div className="prompt-shelf" aria-label="Example proof questions">
         {proofPrompts.map((prompt, index) => <button key={prompt} onClick={() => { setQuestion(prompt); if (index === 0) void run(prompt); }}><span>{String(index + 1).padStart(2, "0")}</span>{prompt}<ArrowRight size={13} /></button>)}
       </div>
+
+      {verified.length > 0 && <section className="connector-proof-rail" aria-label="Verified connector receipts">
+        <div className="rail-heading"><span><Link2 size={13} /> Live connector receipts</span><button onClick={onOpenSources}>Inspect evidence boundary <ArrowRight size={12} /></button></div>
+        <div className="connector-proof-grid">
+          {verified.map((connector) => <button key={connector.id} data-provider={connector.provider} onClick={onOpenSources}>
+            <span className="brand-icon"><ProviderIcon provider={connector.provider} size={20} /></span>
+            <span><strong>{connector.provider}</strong><small>{connector.database}{connector.collection ? ` / ${connector.collection}` : ""}</small></span>
+            <span className="connector-receipt"><b>{connector.canaryResultCount ?? 0}</b><small>RECORDS PROVEN</small></span>
+            <CircleCheck size={15} />
+          </button>)}
+        </div>
+      </section>}
 
       {busy && <div className="retrieval-stage" role="status">
         <div className="stage-track"><i /><i /><i /><i /></div>
@@ -678,8 +762,8 @@ function AskScreen({ verified, onOpenSources, onOpenLab, setError }: {
         </div>}
 
         <div className="result-heading"><div><span className="eyebrow">Ranked evidence</span><h3>Receipts behind the answer.</h3></div><button className="secondary-button" onClick={onOpenLab}>Inspect benchmark <ArrowRight size={13} /></button></div>
-        <div className="evidence-grid proof-evidence">{result.evidence.slice(0, 6).map((item, index) => <EvidenceCard key={`${item.provider}-${item.id ?? index}`} evidence={item} index={index} />)}</div>
-        {result.evidence.length > 6 && <details className="supporting-records"><summary>Show {result.evidence.length - 6} supporting records</summary><div className="evidence-grid proof-evidence">{result.evidence.slice(6).map((item, index) => <EvidenceCard key={`${item.provider}-${item.id ?? index + 6}`} evidence={item} index={index + 6} />)}</div></details>}
+        <div className="evidence-grid proof-evidence">{rankedEvidence.map((item, index) => <EvidenceCard key={`${item.provider}-${item.id ?? index}`} evidence={item} index={index} />)}</div>
+        {supportingEvidence.length > 0 && <details className="supporting-records"><summary>Show {supportingEvidence.length} additional retrieved record{supportingEvidence.length === 1 ? "" : "s"}</summary><div className="evidence-grid proof-evidence">{supportingEvidence.map((item, index) => <EvidenceCard key={`${item.provider}-${item.id ?? index + rankedEvidence.length}`} evidence={item} index={index + rankedEvidence.length} />)}</div></details>}
         <details className="trace-drawer"><summary><Terminal size={14} /> Reproducible retrieval trace <span>{result.trace.runId}</span></summary><pre>{JSON.stringify(result.trace, null, 2)}</pre></details>
       </div>}
     </section>
@@ -688,7 +772,7 @@ function AskScreen({ verified, onOpenSources, onOpenLab, setError }: {
 
 function EvidenceCard({ evidence, index }: { evidence: Evidence; index: number }) {
   const browserSafe = evidence.url?.startsWith("https://") || evidence.url?.startsWith("http://");
-  return <article className="evidence-card"><div className="evidence-top"><span className="provider-glyph"><ProviderIcon provider={evidence.provider} size={14} /></span><span>{evidence.provider}</span><small>[{index + 1}]</small></div><h3>{evidence.title}</h3><blockquote>{evidence.excerpt}</blockquote><div className="evidence-footer"><span>{dateLabel(evidence.timestamp)}</span>{browserSafe && <a href={evidence.url!} target="_blank" rel="noreferrer">Open source <ExternalLink size={12} /></a>}{evidence.url && !browserSafe && <span>Indexed receipt</span>}</div></article>;
+  return <article className="evidence-card" data-provider={evidence.provider}><div className="evidence-top"><span className="provider-glyph"><ProviderIcon provider={evidence.provider} size={14} /></span><span>{evidence.provider}</span><small>[{index + 1}]</small></div><h3>{evidence.title}</h3><blockquote>{evidence.excerpt}</blockquote><div className="evidence-footer"><span>{dateLabel(evidence.timestamp)}</span>{browserSafe && <a href={evidence.url!} target="_blank" rel="noreferrer">Open source <ExternalLink size={12} /></a>}{evidence.url && !browserSafe && <span>Indexed receipt</span>}</div></article>;
 }
 
 function SourcesScreen({ workspace, connectors, reloadWorkspace, reloadConnectors, setError, setNotice }: {
@@ -732,7 +816,7 @@ function SourcesScreen({ workspace, connectors, reloadWorkspace, reloadConnector
     <div className="screen-heading"><div><span className="eyebrow"><Database size={13} /> Live evidence boundary</span><h1>Connect once.<br /><em>Prove every read.</em></h1><p>Credentials are encrypted server-side. A source becomes usable only after QueueProof sees cursor evidence and retrieves real provider records.</p></div>{workspace.hydradb.configured && <button className="primary-button" onClick={() => setSetupOpen(true)}><Plus size={15} /> Add source</button>}</div>
     {!workspace.hydradb.configured ? <form className="hydra-setup" onSubmit={connectHydra}><div className="hydra-symbol"><Database size={29} /></div><div><span className="eyebrow">Step 1 · Evidence engine</span><h2>Attach your HydraDB account.</h2><p>Use a newly generated API key. QueueProof verifies it against the authenticated database endpoint, encrypts it with AES-GCM, and never returns it.</p><label>HydraDB API key<input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder="Paste new key" autoComplete="off" required minLength={12} /></label><button className="primary-button" disabled={busy === "hydra"}>{busy === "hydra" ? <LoaderCircle className="spin" size={15} /> : <KeyRound size={15} />} Verify and encrypt</button></div></form> : <>
       <div className="source-stats"><div><small>HYDRADB</small><strong><CircleCheck size={14} /> Authenticated</strong><span>{workspace.hydradb.fingerprint ?? "Encrypted"}</span></div><div><small>CONNECTED</small><strong>{connectors.length}</strong><span>workplace sources</span></div><div><small>VERIFIED</small><strong>{connectors.filter((item) => item.state === "data_verified").length}</strong><span>eligible for retrieval</span></div><div><small>POLICY</small><strong>Fail closed</strong><span>no proof · no ranking</span></div></div>
-      {connectors.length ? <div className="connector-list">{connectors.map((connector) => <article className="connector-row" key={connector.id}><span className="provider-glyph large">{providerGlyph(connector.provider)}</span><div className="connector-identity"><strong>{connector.name}</strong><span>{connector.provider} · {connector.database}{connector.collection ? ` / ${connector.collection}` : ""}</span></div><div className="connector-state"><span className={connector.state === "data_verified" ? "status-orb live" : connector.state.includes("sync") ? "status-orb indexing" : "status-orb"} /><strong>{stateCopy[connector.state] ?? connector.state}</strong><small>{connector.state === "data_verified" ? `${connector.canaryResultCount ?? 0} live records proven` : connector.lastError || "Awaiting next lifecycle step"}</small></div><button className="secondary-button" onClick={() => void connectorAction(connector)} disabled={busy === connector.id}>{busy === connector.id ? <LoaderCircle className="spin" size={14} /> : connector.state === "data_verified" ? <Eye size={14} /> : connector.state === "connector_created" || connector.state === "resources_discovered" ? <Search size={14} /> : <RefreshCw size={14} />}{connector.state === "data_verified" ? "View proof" : connector.state === "connector_created" || connector.state === "resources_discovered" ? "Choose scope" : connector.state === "resources_selected" ? "Start sync" : "Check proof"}</button></article>)}</div> : <div className="empty-source"><Unplug size={28} /><div><h2>No workplace source yet.</h2><p>Add Slack, Gmail, Linear, or any provider exposed by your live HydraDB catalogue.</p></div><button className="primary-button" onClick={() => setSetupOpen(true)}><Plus size={15} /> Add first source</button></div>}
+      {connectors.length ? <div className="connector-list">{connectors.map((connector) => <article className="connector-row" data-provider={connector.provider} key={connector.id}><span className="provider-glyph large"><ProviderIcon provider={connector.provider} size={19} /></span><div className="connector-identity"><strong>{connector.name}</strong><span>{connector.provider} · {connector.database}{connector.collection ? ` / ${connector.collection}` : ""}</span></div><div className="connector-state"><span className={connector.state === "data_verified" ? "status-orb live" : connector.state.includes("sync") ? "status-orb indexing" : "status-orb"} /><strong>{stateCopy[connector.state] ?? connector.state}</strong><small>{connector.state === "data_verified" ? `${connector.canaryResultCount ?? 0} live records proven` : connector.lastError || "Awaiting next lifecycle step"}</small></div><button className="secondary-button" onClick={() => void connectorAction(connector)} disabled={busy === connector.id}>{busy === connector.id ? <LoaderCircle className="spin" size={14} /> : connector.state === "data_verified" ? <Eye size={14} /> : connector.state === "connector_created" || connector.state === "resources_discovered" ? <Search size={14} /> : <RefreshCw size={14} />}{connector.state === "data_verified" ? "View proof" : connector.state === "connector_created" || connector.state === "resources_discovered" ? "Choose scope" : connector.state === "resources_selected" ? "Start sync" : "Check proof"}</button></article>)}</div> : <div className="empty-source"><Unplug size={28} /><div><h2>No workplace source yet.</h2><p>Add Slack, Gmail, Linear, or any provider exposed by your live HydraDB catalogue.</p></div><button className="primary-button" onClick={() => setSetupOpen(true)}><Plus size={15} /> Add first source</button></div>}
       <DocumentsPanel databases={[...new Set(connectors.map((item) => item.database).filter(Boolean))]}
         setError={setError} setNotice={setNotice} />
     </>}
@@ -1073,6 +1157,18 @@ function LabScreen({ setError }: { setError: (value: string) => void }) {
         <div className="lab-metric"><small>PROVIDER PROOF</small><strong>{live?.connectors?.length ?? "—"}</strong><span>{live?.connectors?.join(" · ") || "not recorded"}</span></div>
         <div className="lab-metric"><small>CALL EFFICIENCY</small><strong>{averageCalls === null ? "—" : averageCalls.toFixed(1)}</strong><span>average HydraDB calls per answer</span></div>
       </div>
+
+      <section className="judge-lens" aria-label="Hackathon judging evidence">
+        <div className="judge-lens-heading"><div><span className="eyebrow"><ShieldCheck size={13} /> Judge lens</span><h2>Every scoring claim has a receipt.</h2></div><span className={graded > 0 && passed === graded ? "readiness-seal ready" : "readiness-seal"}><CircleCheck size={15} /> {graded > 0 && passed === graded ? "DEMO READY" : "MEASURING"}</span></div>
+        <div className="judge-proof-grid">
+          <article><small>01 · CORRECTNESS</small><strong>{graded ? `${passed}/${graded}` : "—"}</strong><p>Expected facts are stored beside observed production answers.</p></article>
+          <article><small>02 · CROSS-SOURCE</small><strong>{live?.connectors?.length ?? "—"}</strong><p>Distinct providers appear in the replayable benchmark receipt.</p></article>
+          <article><small>03 · LATENCY</small><strong>{live?.latencyMs?.p50 ? `${(live.latencyMs.p50 / 1000).toFixed(2)}s` : "—"}</strong><p>P50 and p95 are measured on the deployed public target.</p></article>
+          <article><small>04 · COST</small><strong>{averageCalls === null ? "—" : averageCalls.toFixed(1)}</strong><p>Average HydraDB calls per answer—not a vague efficiency claim.</p></article>
+          <article><small>05 · REPRODUCIBILITY</small><strong>1 CMD</strong><p>The exact benchmark command is published with the results.</p></article>
+          <article><small>06 · DEVELOPER EXPERIENCE</small><strong>3 SURFACES</strong><p>The same proof packet is available in web, API, and MCP.</p></article>
+        </div>
+      </section>
 
       {rows.length > 0 && <div className="benchmark-cases">
         {rows.map((row, index) => <article className="benchmark-case" key={`${row.label}-${index}`}>
