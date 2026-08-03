@@ -211,4 +211,96 @@ describe("evidence-constrained synthesis", () => {
 
     expect(result.answer).toMatch(/fifteen minutes/i);
   });
+
+  it("includes the fix release and release date for a defect question", () => {
+    const result = synthesiseGroundedAnswer(
+      "What defect does BUG-123 record and in which release was it fixed?",
+      [{
+        id: "handbook-bug-123",
+        provider: "document",
+        title: "helios-operations-handbook.pdf",
+        excerpt: "Change Log. ## Defect record BUG-123. Symptom BUG-123 records odometry drift after cold boot on Rover SDK 4.2.0. Fix fixed in Rover SDK 4.2.1, released on 21 May 2031.",
+      }],
+    );
+
+    expect(result.answer).toMatch(/Rover SDK 4\.2\.1/i);
+    expect(result.answer).toMatch(/21 May 2031/i);
+  });
+
+  it("extracts the superseding decision and its two-approver replacement rule", () => {
+    const result = synthesiseGroundedAnswer(
+      "Is the single approver firmware flashing rule in OPS-POL-14 still in force?",
+      [{
+        id: "handbook-adr-037",
+        provider: "document",
+        title: "helios-operations-handbook.pdf",
+        excerpt: "ADR-037, dated 9 September 2031, supersedes OPS-POL-14 and requires two approvers, one of whom must be a Safety Case Owner. The single engineer permission in OPS-POL-14 is withdrawn and must not be relied on.",
+      }],
+    );
+
+    expect(result.answer).toMatch(/two approvers/i);
+    expect(result.answer).toMatch(/Safety Case Owner/i);
+    expect(result.answer).toMatch(/withdrawn|must not be relied on/i);
+  });
+
+  it("keeps the no-longer-in-force state for an originally-permitted policy", () => {
+    const result = synthesiseGroundedAnswer(
+      "What did OPS-POL-14 originally permit for Rover SDK field firmware flashing?",
+      [{
+        id: "handbook-ops-pol-14",
+        provider: "document",
+        title: "helios-operations-handbook.pdf",
+        excerpt: "Rule a single Tier 2 engineer could flash Rover SDK field firmware without a second approver while the rover was on a maintenance stand. This permission is no longer in force.",
+      }],
+    );
+
+    expect(result.answer).toMatch(/no longer in force/i);
+  });
+
+  it("extracts the customer impact window for an incident question", () => {
+    const result = synthesiseGroundedAnswer(
+      "What happened in INC-2031 and how long did customer impact last?",
+      [{
+        id: "handbook-inc-2031",
+        provider: "document",
+        title: "helios-operations-handbook.pdf",
+        excerpt: "Incident report INC-2031. Summary INC-2031 was a Billing Migration double charge event on 8 April 2031, with 41 minutes of customer impact.",
+      }],
+    );
+
+    expect(result.answer).toMatch(/41 minutes/i);
+    expect(result.answer).toMatch(/customer impact/i);
+  });
+
+  it("extracts the escalation desk a named employee runs", () => {
+    const result = synthesiseGroundedAnswer(
+      "What is Priya Ramanathan's role at Helios Robotics and which desk does she run?",
+      [{
+        id: "handbook-people",
+        provider: "document",
+        title: "helios-operations-handbook.pdf",
+        excerpt: "Customer operations. Priya Ramanathan, Customer Escalation Manager, employee HR-5871, running the Billing Migration escalation desk.",
+      }],
+    );
+
+    expect(result.answer).toMatch(/Customer Escalation Manager/i);
+    expect(result.answer).toMatch(/Billing Migration/i);
+    expect(result.answer).toMatch(/escalation desk/i);
+  });
+
+  it("extracts the binding rule and two-approver requirement for a draft question", () => {
+    const result = synthesiseGroundedAnswer(
+      "Does DRAFT-OPS-14 permit single engineer firmware flashing today?",
+      [{
+        id: "handbook-draft",
+        provider: "document",
+        title: "helios-operations-handbook.pdf",
+        excerpt: "No. DRAFT-OPS-14 was never ratified and carries no operational authority. The binding rule is ADR-037, which requires two approvers.",
+      }],
+    );
+
+    expect(result.answer).toMatch(/never ratified/i);
+    expect(result.answer).toMatch(/ADR-037/i);
+    expect(result.answer).toMatch(/two approvers/i);
+  });
 });

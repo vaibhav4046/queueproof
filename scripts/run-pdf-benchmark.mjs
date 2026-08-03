@@ -10,28 +10,26 @@ const output = after("--out") ?? "evals/results/pdf-live-run.json";
 const documentSourceId = after("--source-id") ?? "f64d374d1899f3057707528f77703f3f";
 const facts = JSON.parse(await readFile(new URL("../evals/fixtures/large-pdf-facts.json", import.meta.url), "utf8"));
 
-async function ask(payload) {
+/**
+ * The public sandbox rate-limits anonymous ask traffic (12 requests per 60 s).
+ * This benchmark is a batch client, so it paces itself and retries 429 responses
+ * with backoff instead of tripping the sandbox. Grading thresholds are untouched:
+ * a case still passes only when every required fact, citation and provider check
+ * succeeds on the returned answer.
+ */
+const paceMs = Number(after("--pace-ms") ?? process.env.QUEUEPROOF_BENCH_PACE_MS ?? "6000");
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function ask(payload, attempt = 1) {
   const started = Date.now();
+  let response;
   try {
-    const response = await fetch(`${target}/api/ask`, {
+    response = await fetch(`${target}/api/ask`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(45_000),
     });
-    let body = null;
-    try {
-      body = await response.json();
-    } catch {
-      body = null;
-    }
-    return {
-      httpOk: response.ok,
-      status: response.status,
-      body: body && typeof body === "object" ? body : {},
-      measuredLatencyMs: Date.now() - started,
-      error: body?.error ?? (!response.ok ? `HTTP ${response.status}` : body ? null : "Response was not JSON."),
-    };
   } catch (error) {
     return {
       httpOk: false,
@@ -41,6 +39,24 @@ async function ask(payload) {
       error: error instanceof Error ? error.message : "Request failed.",
     };
   }
+  if (response.status === 429 && attempt < 4) {
+    const retryAfterMs = Math.max(Number(response.headers.get("retry-after") ?? "60") * 1000, 60_000);
+    await sleep(retryAfterMs);
+    return ask(payload, attempt + 1);
+  }
+  let body = null;
+  try {
+    body = await response.json();
+  } catch {
+    body = null;
+  }
+  return {
+    httpOk: response.ok,
+    status: response.status,
+    body: body && typeof body === "object" ? body : {},
+    measuredLatencyMs: Date.now() - started,
+    error: body?.error ?? (!response.ok ? `HTTP ${response.status}` : body ? null : "Response was not JSON."),
+  };
 }
 
 function receiptFields(body, measuredLatencyMs) {
@@ -55,7 +71,8 @@ function receiptFields(body, measuredLatencyMs) {
 }
 
 const rows = [];
-for (const fact of facts) {
+for (const [index, fact] of facts.entries()) {
+  if (index > 0) await sleep(paceMs);
   const result = await ask({ question: fact.question, mode: "auto", sourceIds: [documentSourceId] });
   const body = result.body;
   const reportedProviders = body.retrieval_receipt?.provider_coverage ?? body.validation?.providerCoverage ?? [];
@@ -121,6 +138,7 @@ const crossRequiredFacts = [
     allOf: [["AuthShield"], ["operator token lifetime"], ["fifteen minutes"]],
   },
 ];
+await sleep(paceMs);
 const crossResult = await ask({
   question: crossSourceQuestion,
   mode: "thinking",

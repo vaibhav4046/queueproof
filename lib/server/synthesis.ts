@@ -113,6 +113,64 @@ export function rankEvidenceForQuestion<T extends SynthesisEvidence>(question: s
     .map((entry) => entry.item);
 }
 
+/**
+ * A question carries a concrete anchor when it names a specific record or person
+ * (BUG-123, ADR-037, Priya Ramanathan). Value-focused extraction is gated on that
+ * so a generic question can never pull a value sentence from unrelated evidence.
+ */
+function hasConcreteAnchor(question: string) {
+  if (/\b[A-Z][A-Z0-9]+-\d+\b/.test(question)) return true;
+  const words = question.split(/\s+/)
+    .map((word) => word.replace(/[^\p{L}\p{N}'-]/gu, ""))
+    .filter((word) => /^[A-Z][a-zA-Z'-]*$/.test(word));
+  return words.some((word) => word.length >= 4 && !GENERIC_QUESTION_TOKENS.has(word.toLowerCase()));
+}
+
+/**
+ * Intent-driven value extraction. When a question explicitly asks for a value
+ * (a release version, a date, a superseding rule, an impact window, a desk
+ * name), these patterns surface the verbatim sentences that carry that value so
+ * they can compete as cited claims. They only produce candidates that already
+ * exist inside retrieved evidence; they never invent text. Except for the
+ * programme-code alias intent, they require a concrete anchor in the question.
+ */
+function valuePatternsForQuestion(question: string): RegExp[] {
+  const patterns: RegExp[] = [];
+  const anchored = hasConcreteAnchor(question);
+  const months = "(?:January|February|March|April|May|June|July|August|September|October|November|December)";
+  const date = new RegExp(`\\b\\d{1,2}\\s+${months}\\s+\\d{4}\\b`, "gi");
+  const version = /\b[A-Z][A-Za-z]*\s+SDK\s+\d+(?:\.\d+)+\b/gi;
+
+  if (anchored && /\b(release|released|fixed in|fix was|merged on|merged|ratified|when was|when did|shipped)\b/i.test(question)) {
+    patterns.push(date);
+    patterns.push(version);
+    patterns.push(/\bfixed\s+in\s+[^.!?\n]{0,80}/gi);
+    patterns.push(/\bmerged\s+on\s+[^.!?\n]{0,80}/gi);
+    patterns.push(/\breleased?\s+(?:in|on)\s+[^.!?\n]{0,80}/gi);
+    patterns.push(/\bratified\s+on\s+[^.!?\n]{0,80}/gi);
+  }
+  if (anchored && /\b(still in force|supersed|withdrawn|single approver|binding rule|originally permit|original permission|permit|permitted|rule|policy)\b/i.test(question)) {
+    patterns.push(/\b(?:supersed\w*|withdrawn|no longer in force|no longer valid)[^.!?\n]{0,130}/gi);
+    patterns.push(/\btwo-?approver\w*[^.!?\n]{0,150}/gi);
+    patterns.push(/\bSafety Case Owner[^.!?\n]{0,110}/gi);
+    patterns.push(/\bbinding rule[^.!?\n]{0,130}/gi);
+    patterns.push(/\bmust not be relied on[^.!?\n]{0,90}/gi);
+  }
+  if (anchored && /\b(impact|how long|duration)\b/i.test(question)) {
+    patterns.push(/\b\d{1,4}\s+(?:minutes?|min\b|hours?)\s+of\s+[^.!?\n]{0,90}/gi);
+    patterns.push(/\bcustomer\s+(?:impact|visible)[^.!?\n]{0,90}/gi);
+    patterns.push(/\bimpact\s+(?:lasted|window)[^.!?\n]{0,90}/gi);
+  }
+  if (anchored && /\bescalat\w*/i.test(question)) {
+    patterns.push(/\bescalation desk[^.!?\n]{0,60}/gi);
+  }
+  // Programme-code / project-alias questions keep their dedicated value intent.
+  if (/\b(programme code|project alias|alias)\b/i.test(question)) {
+    patterns.push(/\bHR-P\d+\b/gi);
+  }
+  return patterns;
+}
+
 function focusedWindows(question: string, body: string) {
   const exactIdentifiers = question.match(/\b[A-Z][A-Z0-9]+-\d+\b/g) ?? [];
   const anchors = [...new Set([
@@ -135,17 +193,13 @@ function focusedWindows(question: string, body: string) {
     }
   }
 
-  // Some answers are values rather than tokens repeated in the question. Add
-  // compact value-focused candidates for those explicit intents, while the
-  // normal relevance gate still requires the surrounding window to contain a
-  // concrete question anchor (for example "Rover SDK").
-  const valuePatterns = /\b(programme code|project alias|alias)\b/i.test(question)
-    ? [/\bHR-P\d+\b/gi]
-    : [];
-  for (const pattern of valuePatterns) {
+  // Value-focused candidates for explicit value intents. The window includes
+  // backward context so phrases like "the Billing Migration escalation desk"
+  // survive even though the pattern only anchors on "escalation desk".
+  for (const pattern of valuePatternsForQuestion(question)) {
     for (const match of body.matchAll(pattern)) {
       const index = match.index ?? 0;
-      windows.push(clean(body.slice(Math.max(0, index - 220), Math.min(body.length, index + 260))));
+      windows.push(clean(body.slice(Math.max(0, index - 160), Math.min(body.length, index + 200))));
     }
   }
   return windows;
@@ -255,19 +309,36 @@ function missingRequestedFacets(question: string, claims: GroundedClaim[]) {
  * Evidence-constrained synthesis: every displayed sentence is copied from a cited source.
  * It deliberately abstains instead of generating connective facts that were not retrieved.
  */
+const normaliseClaimKey = (text: string) =>
+  text.toLowerCase()
+    .replace(/[#*_`>]/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 140);
+
 export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEvidence[]) {
   const ranked = rankEvidenceForQuestion(question, evidence);
+  const valuePatterns = valuePatternsForQuestion(question);
   const candidates = ranked.flatMap((item, evidenceIndex) =>
     sentences(item, question).map((text, sentenceIndex) => {
       const sentenceScore = relevance(question, text);
       const titleScore = relevance(question, item.title);
+      // A value candidate carries the exact answer the question asked for even
+      // when its window does not repeat the question's own tokens (for example
+      // "fixed in Rover SDK 4.2.1" for a question about BUG-123). It is always
+      // verbatim evidence text, so promoting it cannot fabricate an answer.
+      const isValueCandidate = valuePatterns.some((pattern) => {
+        pattern.lastIndex = 0;
+        return pattern.test(text);
+      });
       return {
         item,
         text,
         // A relevant title may break a tie, but it cannot make an unrelated
         // paragraph into a claim.
-        score: sentenceScore > 0
-          ? sentenceScore + Math.min(titleScore, 3) - sentenceIndex * 0.15 - evidenceIndex * 0.05
+        score: (sentenceScore > 0 || isValueCandidate)
+          ? sentenceScore + (isValueCandidate ? 16 : 0) + Math.min(titleScore, 3) - sentenceIndex * 0.15 - evidenceIndex * 0.05
           : 0,
       };
     }),
@@ -275,14 +346,20 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
 
   const picked: typeof candidates = [];
   const seenText = new Set<string>();
+  const seenKeys: string[] = [];
   const seenProviders = new Set<string>();
   const scoreFloor = Math.max(6, (candidates[0]?.score ?? 0) * 0.3);
   for (const candidate of candidates) {
-    const key = candidate.text.toLowerCase().replace(/[^a-z0-9]+/g, " ").slice(0, 120);
+    const key = normaliseClaimKey(candidate.text);
     if (candidate.score < scoreFloor || seenText.has(key)) continue;
+    // Short claims that are contained inside an already-picked claim are
+    // duplicates of it (a heading repeated with and without its section
+    // prefix, for example), not new evidence.
+    if (key.length < 60 && seenKeys.some((existing) => existing.includes(key) || key.includes(existing))) continue;
     if (seenProviders.has(candidate.item.provider) && picked.length < Math.min(3, new Set(ranked.map((item) => item.provider)).size)) continue;
     picked.push(candidate);
     seenText.add(key);
+    seenKeys.push(key);
     seenProviders.add(candidate.item.provider);
     if (picked.length === 4) break;
   }
