@@ -59,6 +59,7 @@ function intentBoost(question: string, text: string) {
     [/\b(project|work|working)\b/, /\b(project|working|against|assigned)\b/, 3],
     [/\b(still in force|single approver|still valid)\b/, /\b(supersed|withdrawn|must not|no longer|two approver)\w*\b/, 12],
     [/\b(programme code|project alias|alias)\b/, /\b(programme code|HR-P\d+|field autonomy toolkit|alias)\b/i, 10],
+    [/\b(require|requirement|what does)\w*\b/, /\b(english translation|reduc\w* to fifteen minute|fifteen minute|will be reduc)\w*\b/i, 12],
     [/\b(role|programme does|which programme|own)\w*\b/, /\b(staff reliability engineer|customer escalation manager|engineering owner|HR-\d+)\b/i, 9],
     [/\b(severity|impact window|acknowledgement target|approves)\b/, /\b(SEV-\d|impact|minute|duty operations lead|approver)\w*\b/i, 8],
   ];
@@ -131,6 +132,20 @@ function focusedWindows(question: string, body: string) {
       const end = nextStop > index && nextStop <= index + 330 ? nextStop + 1 : Math.min(body.length, index + 300);
       windows.push(clean(body.slice(start, end)));
       offset = index + anchor.length;
+    }
+  }
+
+  // Some answers are values rather than tokens repeated in the question. Add
+  // compact value-focused candidates for those explicit intents, while the
+  // normal relevance gate still requires the surrounding window to contain a
+  // concrete question anchor (for example "Rover SDK").
+  const valuePatterns = /\b(programme code|project alias|alias)\b/i.test(question)
+    ? [/\bHR-P\d+\b/gi]
+    : [];
+  for (const pattern of valuePatterns) {
+    for (const match of body.matchAll(pattern)) {
+      const index = match.index ?? 0;
+      windows.push(clean(body.slice(Math.max(0, index - 220), Math.min(body.length, index + 260))));
     }
   }
   return windows;

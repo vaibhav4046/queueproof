@@ -159,4 +159,32 @@ describe("evidence-constrained synthesis", () => {
 
     expect(result.answer).toMatch(/Bengaluru.*Priya Raman/i);
   });
+
+  it("extracts the programme code paired with an alias from a dense table", () => {
+    const result = synthesiseGroundedAnswer(
+      "Which internal programme code does the project alias Rover SDK refer to?",
+      [{
+        id: "handbook-aliases",
+        provider: "document",
+        title: "Project alias registry",
+        excerpt: "| Alias | Code | Scope | | Atlas Launch | HR-P1 | Depot fleet | | AuthShield | HR-P2 | Identity | | Billing Migration | HR-P3 | Ledger | | Rover SDK | HR-P4 | Field autonomy toolkit |",
+      }],
+    );
+
+    expect(result.answer).toMatch(/Rover SDK.*HR-P4/i);
+  });
+
+  it("prefers the explicit English requirement over a transliterated duplicate", () => {
+    const result = synthesiseGroundedAnswer(
+      "According to the handbook, what does ENG-456 require?",
+      [{
+        id: "handbook-eng-456-languages",
+        provider: "document",
+        title: "AuthShield commitment record",
+        excerpt: "Hindi transliteration: ENG-456 ke tahat token ka jeevankaal pandrah minute hoga. English translation: ENG-456 requires the AuthShield operator token lifetime to be reduced to fifteen minutes by 30 June 2031.",
+      }],
+    );
+
+    expect(result.answer).toMatch(/fifteen minutes/i);
+  });
 });
