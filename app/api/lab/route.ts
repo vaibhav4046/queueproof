@@ -1,6 +1,7 @@
 import { apiError, noStoreJson } from "../../../lib/server/api";
 import { requireRequestActor } from "../../../lib/server/identity";
 import results from "../../../evals/results/results.json";
+import liveRun from "../../../evals/results/live-run.json";
 
 /**
  * Serve the evaluation results produced by `node scripts/run-evals.mjs`.
@@ -14,7 +15,14 @@ import results from "../../../evals/results/results.json";
 export async function GET() {
   try {
     await requireRequestActor();
-    return noStoreJson({ ok: true, results });
+    return noStoreJson({
+      ok: true,
+      results: {
+        ...results,
+        generatedAt: liveRun.generatedAt,
+        live: { status: "measured", ...liveRun },
+      },
+    });
   } catch (error) {
     return apiError(error);
   }

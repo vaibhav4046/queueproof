@@ -29,6 +29,23 @@ export function extractQuerySources(value: unknown) {
   return { root, sources, chunks };
 }
 
+/** Join source metadata to the excerpt with the same HydraDB identity. */
+export function matchingChunk(
+  source: Record<string, unknown>,
+  chunks: Array<Record<string, unknown>>,
+): Record<string, unknown> {
+  const candidateIds = [source.id, source.source_id, source.context_id]
+    .filter(Boolean)
+    .map(String);
+  if (candidateIds.length === 0) return {};
+  return chunks.find((chunk) => {
+    const chunkIds = [chunk.id, chunk.source_id, chunk.context_id]
+      .filter(Boolean)
+      .map(String);
+    return chunkIds.some((id) => candidateIds.includes(id));
+  }) ?? {};
+}
+
 /**
  * Providers HydraDB labels differently on the source than on the connector.
  *
@@ -59,4 +76,3 @@ export function providerFromSource(source: Record<string, unknown>): string | nu
   const nested = metadata.app_provider ?? metadata.provider;
   return nested ? canonicalProvider(String(nested)) : null;
 }
-

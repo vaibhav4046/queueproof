@@ -5,20 +5,14 @@ import { loadWorkspaceView, type WorkspaceView } from "../lib/server/workspace-s
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "QueueProof — Evidence-Ranked Execution",
-  description: "Connect workplace evidence, rank the real work, and hand agents cited execution packets.",
+  title: "QueueProof — One Answer. Every System. Proven.",
+  description: "Cross-source answers with claim-level citations, contradiction tracking, latency, and cost evidence.",
 };
 
 /**
- * Server component: resolve which screen the user needs before any HTML is sent.
- *
- * This page previously rendered the client component directly, so the served HTML always
- * contained the boot screen and the real state was only decided after hydration and a
- * round trip. Anything that could not run that round trip — a crawler, a no-JS client, a
- * stalled request — was left on "Establishing workspace trust boundary…" permanently.
- *
- * A failure here is passed down as a recoverable error rather than thrown, so the user
- * gets a retry instead of a framework error page.
+ * Resolve the shared workspace before any HTML is sent. Crawlers, slow clients,
+ * and no-JS visitors receive the real public state instead of a boot placeholder.
+ * Failures stay recoverable so the client can offer a retry.
  */
 export default async function Home() {
   let initialView: WorkspaceView | null = null;

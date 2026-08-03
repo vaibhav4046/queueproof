@@ -77,6 +77,20 @@ export async function POST(request: Request) {
     if (evidenceIds.length > MAX_EVIDENCE_IDS || evidenceIds.some((id) => id.length > MAX_FIELD)) {
       return noStoreJson({ ok: false, error: "Too many or oversized evidence references." }, { status: 400 });
     }
+    const uniqueEvidenceIds = [...new Set(evidenceIds)];
+    const db = requireDb();
+    const ownedEvidence = await db
+      .prepare(
+        `SELECT id FROM source_references WHERE workspace_id = ? AND id IN (${uniqueEvidenceIds.map(() => "?").join(", ")})`,
+      )
+      .bind(workspaceId, ...uniqueEvidenceIds)
+      .all<{ id: string }>();
+    if (ownedEvidence.results.length !== uniqueEvidenceIds.length) {
+      return noStoreJson(
+        { ok: false, error: "Every action reference must be evidence stored in this workspace." },
+        { status: 400 },
+      );
+    }
     if (typeof commitment.summary !== "string" || !commitment.summary.trim()) {
       return noStoreJson({ ok: false, error: "The commitment summary is required." }, { status: 400 });
     }
@@ -122,8 +136,6 @@ export async function POST(request: Request) {
     const risk = injectionSuspected ? "critical" : riskClass(payload, resolved);
 
     const key = await idempotencyKeyFor(workspaceId, resolved.id, payload);
-    const db = requireDb();
-
     // Replaying the same proposal must collapse onto the existing row. Double-clicking
     // approve must never yield two issues, and that starts here.
     const existing = await db

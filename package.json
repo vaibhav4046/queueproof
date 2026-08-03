@@ -19,6 +19,7 @@
     "test:mcp": "node ./node_modules/vitest/vitest.mjs run --config vitest.config.ts tests/mcp.test.ts",
     "test:security": "node ./node_modules/vitest/vitest.mjs run --config vitest.config.ts tests/security.test.ts",
     "test:live": "node scripts/live-acceptance.mjs",
+    "benchmark:live": "node scripts/run-live-benchmark.mjs",
     "eval": "node scripts/run-evals.mjs",
     "doctor": "node scripts/doctor.mjs",
     "seed:test": "node scripts/seed-test.mjs",

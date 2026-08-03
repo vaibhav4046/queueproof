@@ -1,10 +1,10 @@
 "use client";
 
 import {
-  ArrowRight, Bot, Braces, Check, ChevronRight, CircleAlert, CircleCheck,
+  Activity, ArrowRight, Bot, Braces, Check, ChevronRight, CircleAlert, CircleCheck, Clock3,
   Clipboard, Command, Database, ExternalLink, Eye, FileCheck2, FileText, KeyRound,
-  Link2, LoaderCircle, LockKeyhole, MessageSquareText, Plus, RefreshCw,
-  Search, ShieldCheck, Sparkles, Terminal, Unplug, UploadCloud, X, Zap,
+  Github, Link2, LoaderCircle, LockKeyhole, Mail, MessageSquareText, Network, Play, Plus,
+  Radio, RefreshCw, Search, ShieldCheck, Sparkles, Terminal, Unplug, UploadCloud, X, Zap,
 } from "lucide-react";
 import Image from "next/image";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
@@ -62,7 +62,11 @@ type QueueItem = {
 type QueueData = { generatedAt: string | null; items: QueueItem[] };
 type AskData = {
   answer: string; evidence: Array<Evidence & { connectorId: string }>;
-  trace: { runId: string; category: string; mode: string; latencyMs: number; calls: Array<Record<string, unknown>> };
+  claims: Array<{ text: string; evidenceIds: string[]; providers: string[] }>;
+  contradictions: Array<{ summary: string; evidenceIds: string[]; providers: string[] }>;
+  missingInformation: string[];
+  validation: { status: "grounded" | "abstained"; claimCount: number; citedClaimCount: number; evidenceCount: number; providerCoverage: string[] };
+  trace: { runId: string; category: string; mode: string; latencyMs: number; callCount: number; connectorCount: number; calls: Array<Record<string, unknown>>; cost?: { estimatedUnits: number; estimatedUsd: number | null; basis: string } };
 };
 type McpToken = {
   id: string; clientId: string; clientType: string; scopes: string[]; expiresAt: string;
@@ -85,12 +89,15 @@ type ActiveTab = "command" | "ask" | "sources" | "lab" | "approvals" | "agent";
 type ReadyView = Extract<WorkspaceView, { kind: "ready" }>;
 
 const nav = [
-  { id: "command", label: "Command", icon: Command },
-  { id: "ask", label: "Ask", icon: MessageSquareText },
-  { id: "sources", label: "Sources", icon: Link2 },
-  { id: "lab", label: "Lab", icon: Braces },
+  { id: "ask", label: "Proof", icon: Sparkles },
+  { id: "command", label: "Queue", icon: Command },
+  { id: "sources", label: "Evidence", icon: Link2 },
+  { id: "lab", label: "Benchmarks", icon: Activity },
+] as const;
+
+const utilityNav = [
   { id: "approvals", label: "Approvals", icon: ShieldCheck },
-  { id: "agent", label: "Agents", icon: Bot },
+  { id: "agent", label: "Developer", icon: Bot },
 ] as const;
 
 const stateCopy: Record<string, string> = {
@@ -103,11 +110,22 @@ const stateCopy: Record<string, string> = {
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
   const jsonBody = typeof init?.body === "string";
-  const response = await fetch(url, {
-    ...init,
-    headers: { ...(jsonBody ? { "Content-Type": "application/json" } : {}), ...(init?.headers ?? {}) },
-    cache: "no-store",
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...init,
+      signal: init?.signal
+        ? AbortSignal.any([init.signal, AbortSignal.timeout(30_000)])
+        : AbortSignal.timeout(30_000),
+      headers: { ...(jsonBody ? { "Content-Type": "application/json" } : {}), ...(init?.headers ?? {}) },
+      cache: "no-store",
+    });
+  } catch (reason) {
+    if (reason instanceof DOMException && reason.name === "TimeoutError") {
+      throw new Error("The evidence request exceeded 30 seconds. Nothing was written; try again.");
+    }
+    throw reason;
+  }
   const text = await response.text();
   let data: (T & { error?: string }) | null = null;
   try { data = text ? JSON.parse(text) as T & { error?: string } : null; } catch { /* handled below */ }
@@ -137,7 +155,7 @@ export default function QueueProofApp({
   initialView: WorkspaceView | null;
   initialError: string | null;
 }) {
-  const [tab, setTab] = useState<ActiveTab>("command");
+  const [tab, setTab] = useState<ActiveTab>("ask");
   // Seeded from the server render, so the first paint is already the correct screen.
   // There is no boot state: the HTML that arrives is the answer.
   const [view, setView] = useState<WorkspaceView | null>(initialView);
@@ -224,13 +242,11 @@ export default function QueueProofApp({
   }
   if (view.kind === "no_workspace") return <WorkspaceSetup onDone={reloadWorkspace} />;
 
-  const { actor } = view;
-
   return (
     <div className="qp-app">
       <div className="grain" />
       <header className="app-header">
-        <button className="brand" onClick={() => setTab("command")} aria-label="QueueProof home">
+        <button className="brand" onClick={() => setTab("ask")} aria-label="QueueProof home">
           <span className="brand-mark"><ShieldCheck size={17} /></span>
           <span><strong>QUEUE</strong><em>PROOF</em></span>
         </button>
@@ -242,11 +258,14 @@ export default function QueueProofApp({
           ))}
         </nav>
         <div className="header-status">
-          <span className={verified.length ? "status-orb live" : "status-orb"} />
-          <span>{verified.length ? `${verified.length} source${verified.length === 1 ? "" : "s"} live` : "Setup required"}</span>
-          <span className="avatar" title={actor.displayName}>
-            {actor.displayName.slice(0, 2).toUpperCase()}
-          </span>
+          <div className="utility-nav">
+            {utilityNav.map(({ id, label, icon: Icon }) => (
+              <button key={id} className={tab === id ? "active" : ""} onClick={() => setTab(id)} title={label} aria-label={label}>
+                <Icon size={15} /><span>{label}</span>
+              </button>
+            ))}
+          </div>
+          <span className="demo-badge"><span className={verified.length ? "status-orb live" : "status-orb"} />Live demo</span>
         </div>
       </header>
 
@@ -275,7 +294,7 @@ export default function QueueProofApp({
             onGenerate={generateQueue} onOpenSources={() => setTab("sources")}
             onSelectPacket={setSelectedPacket} />
         )}
-        {tab === "ask" && <AskScreen verifiedCount={verified.length} onOpenSources={() => setTab("sources")} setError={setError} />}
+        {tab === "ask" && <AskScreen verified={verified} onOpenSources={() => setTab("sources")} onOpenLab={() => setTab("lab")} setError={setError} />}
         {tab === "sources" && <SourcesScreen workspace={view} connectors={connectors}
           reloadWorkspace={reloadWorkspace} reloadConnectors={loadConnectors}
           setError={setError} setNotice={setNotice} />}
@@ -554,38 +573,122 @@ function CommandScreen({ queue, verified, busy, onGenerate, onOpenSources, onSel
   );
 }
 
-function AskScreen({ verifiedCount, onOpenSources, setError }: { verifiedCount: number; onOpenSources: () => void; setError: (value: string) => void }) {
-  const [question, setQuestion] = useState("");
-  const [mode, setMode] = useState<"fast" | "thinking">("thinking");
+const FLAGSHIP_QUESTION = "Who escalated the AuthShield outage, what did engineering commit to, and is the fix already merged?";
+const proofPrompts = [
+  FLAGSHIP_QUESTION,
+  "Which sources disagree about the billing migration deadline?",
+  "Which promise to Northwind has no issue tracking it?",
+  "Which open issue appears to be already resolved elsewhere?",
+];
+
+function ProviderIcon({ provider, size = 15 }: { provider: string; size?: number }) {
+  if (provider === "github") return <Github size={size} />;
+  if (provider === "gmail") return <Mail size={size} />;
+  if (provider === "slack") return <MessageSquareText size={size} />;
+  if (provider === "linear") return <Network size={size} />;
+  return <FileText size={size} />;
+}
+
+function CitedAnswer({ text }: { text: string }) {
+  return <>{text.split(/(\[\d+\])/g).map((part, index) => /^\[\d+\]$/.test(part)
+    ? <sup className="citation-chip" key={`${part}-${index}`}>{part.slice(1, -1)}</sup>
+    : <span key={`${part}-${index}`}>{part}</span>)}</>;
+}
+
+function AskScreen({ verified, onOpenSources, onOpenLab, setError }: {
+  verified: Connector[]; onOpenSources: () => void; onOpenLab: () => void; setError: (value: string) => void;
+}) {
+  const [question, setQuestion] = useState(FLAGSHIP_QUESTION);
+  const [mode, setMode] = useState<"auto" | "fast" | "thinking">("auto");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<AskData | null>(null);
-  async function submit(event: FormEvent) {
-    event.preventDefault();
+  const verifiedCount = verified.length;
+
+  async function run(nextQuestion = question) {
     if (!verifiedCount) { onOpenSources(); return; }
     setBusy(true); setError("");
-    try { setResult(await api<AskData>("/api/ask", { method: "POST", body: JSON.stringify({ question, mode }) })); }
+    setResult(null);
+    try { setResult(await api<AskData>("/api/ask", { method: "POST", body: JSON.stringify({ question: nextQuestion, mode }) })); }
     catch (reason) { setError(reason instanceof Error ? reason.message : "Evidence retrieval failed."); }
     finally { setBusy(false); }
   }
+  async function submit(event: FormEvent) { event.preventDefault(); await run(); }
+
   return (
-    <section className="screen ask-screen">
-      <div className="screen-heading"><div><span className="eyebrow"><Search size={13} /> Cross-source evidence retrieval</span><h1>Ask the work,<br /><em>not another chatbot.</em></h1><p>QueueProof fans one question across every verified source boundary and returns excerpts, links, timestamps, and the full retrieval trace. No supporting record means no invented answer.</p></div></div>
-      <form className="ask-console" onSubmit={submit}>
-        <div className="console-line"><span><span className={verifiedCount ? "status-orb live" : "status-orb"} />{verifiedCount} verified source{verifiedCount === 1 ? "" : "s"}</span><div><button type="button" className={mode === "fast" ? "mode active" : "mode"} onClick={() => setMode("fast")}>Fast</button><button type="button" className={mode === "thinking" ? "mode active" : "mode"} onClick={() => setMode("thinking")}>Thinking</button></div></div>
-        <textarea value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="What commitments are blocked, who owns them, and what evidence supports that?" required maxLength={4000} />
-        <button className="primary-button" disabled={busy || !question.trim()}>{busy ? <LoaderCircle className="spin" size={15} /> : <Search size={15} />}{busy ? "Searching verified evidence" : "Retrieve evidence"}</button>
+    <section className="screen ask-screen proof-screen">
+      <div className="proof-hero">
+        <div className="proof-copy">
+          <span className="eyebrow"><Radio size={13} /> Live · evidence-constrained reasoning</span>
+          <h1>One answer.<br /><em>Every system. Proven.</em></h1>
+          <p>QueueProof joins Slack promises, Linear tickets, GitHub merges, Gmail, and documents into one cited decision—then shows the calls, latency, policy, and conflicts behind it.</p>
+          <div className="live-source-row">
+            {verified.map((connector) => <span key={connector.id}><ProviderIcon provider={connector.provider} />{connector.provider}<i /></span>)}
+            {!verified.length && <button onClick={onOpenSources}><Plus size={13} /> Connect evidence</button>}
+          </div>
+        </div>
+        <div className={busy ? "proof-artifact searching" : "proof-artifact"} aria-hidden="true">
+          <div className="artifact-ring ring-one" /><div className="artifact-ring ring-two" />
+          <div className="artifact-core"><ShieldCheck size={28} /><strong>PROOF</strong><small>SEALED</small></div>
+          <span className="artifact-node node-slack"><MessageSquareText size={16} />SL</span>
+          <span className="artifact-node node-linear"><Network size={16} />LI</span>
+          <span className="artifact-node node-github"><Github size={16} />GH</span>
+          <span className="artifact-node node-doc"><FileText size={16} />DOC</span>
+        </div>
+      </div>
+
+      <form className="ask-console premium-console" onSubmit={submit}>
+        <div className="console-line">
+          <span><span className={verifiedCount ? "status-orb live" : "status-orb"} />{verifiedCount} verified systems</span>
+          <div className="mode-control">
+            {(["auto", "fast", "thinking"] as const).map((value) => <button key={value} type="button" className={mode === value ? "mode active" : "mode"} onClick={() => setMode(value)}>{value === "auto" ? "Auto route" : value}</button>)}
+          </div>
+        </div>
+        <textarea value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask a question that needs more than one system…" required maxLength={4000} />
+        <div className="prompt-actions">
+          <span>⌘ Enter to run</span>
+          <button className="primary-button proof-button" disabled={busy || !question.trim()}>{busy ? <LoaderCircle className="spin" size={15} /> : <Play size={15} fill="currentColor" />}{busy ? "Building cited answer" : question === FLAGSHIP_QUESTION ? "Run flagship proof" : "Run proof"}</button>
+        </div>
       </form>
-      {result && <div className="ask-results">
-        <div className="answer-banner"><ShieldCheck size={18} /><div><span className="eyebrow">Grounding contract</span><p>{result.answer}</p></div></div>
-        <div className="evidence-grid">{result.evidence.map((item, index) => <EvidenceCard key={`${item.provider}-${item.id ?? index}`} evidence={item} index={index} />)}</div>
-        <details className="trace-drawer"><summary><Terminal size={14} /> Retrieval trace <span>{result.trace.runId}</span></summary><pre>{JSON.stringify(result.trace, null, 2)}</pre></details>
+
+      <div className="prompt-shelf" aria-label="Example proof questions">
+        {proofPrompts.map((prompt, index) => <button key={prompt} onClick={() => { setQuestion(prompt); if (index === 0) void run(prompt); }}><span>{String(index + 1).padStart(2, "0")}</span>{prompt}<ArrowRight size={13} /></button>)}
+      </div>
+
+      {busy && <div className="retrieval-stage" role="status">
+        <div className="stage-track"><i /><i /><i /><i /></div>
+        <div><strong>HydraDB is joining verified context.</strong><span>Deduplicating scopes · matching citations by identity · screening untrusted instructions · synthesising only supported claims</span></div>
+      </div>}
+
+      {result && <div className="ask-results premium-results">
+        <div className="result-telemetry">
+          <span><ShieldCheck size={14} />{result.validation.status}</span>
+          <span><Network size={14} />{result.validation.providerCoverage.length} providers</span>
+          <span><Activity size={14} />{result.trace.callCount} HydraDB call{result.trace.callCount === 1 ? "" : "s"}</span>
+          <span><Clock3 size={14} />{(result.trace.latencyMs / 1000).toFixed(2)}s</span>
+          <span><Zap size={14} />{result.trace.mode}</span>
+        </div>
+        <article className="answer-surface">
+          <div className="answer-kicker"><span>GROUNDED ANSWER</span><code>{result.trace.runId.slice(-8)}</code></div>
+          <h2><CitedAnswer text={result.answer} /></h2>
+          <div className="answer-verdict"><CircleCheck size={17} /><span><strong>{result.validation.citedClaimCount}/{result.validation.claimCount} claims cited</strong> · unsupported prose is blocked</span></div>
+        </article>
+
+        {result.contradictions.length > 0 && <div className="contradiction-stack">
+          {result.contradictions.map((item, index) => <article key={`${item.summary}-${index}`}><CircleAlert size={18} /><div><span>CONTRADICTION PRESERVED</span><strong>{item.summary}</strong><small>{item.providers.join(" ↔ ")} · receipts {item.evidenceIds.map((id) => id.slice(0, 6)).join(", ")}</small></div></article>)}
+        </div>}
+
+        <div className="result-heading"><div><span className="eyebrow">Ranked evidence</span><h3>Receipts behind the answer.</h3></div><button className="secondary-button" onClick={onOpenLab}>Inspect benchmark <ArrowRight size={13} /></button></div>
+        <div className="evidence-grid proof-evidence">{result.evidence.slice(0, 6).map((item, index) => <EvidenceCard key={`${item.provider}-${item.id ?? index}`} evidence={item} index={index} />)}</div>
+        {result.evidence.length > 6 && <details className="supporting-records"><summary>Show {result.evidence.length - 6} supporting records</summary><div className="evidence-grid proof-evidence">{result.evidence.slice(6).map((item, index) => <EvidenceCard key={`${item.provider}-${item.id ?? index + 6}`} evidence={item} index={index + 6} />)}</div></details>}
+        <details className="trace-drawer"><summary><Terminal size={14} /> Reproducible retrieval trace <span>{result.trace.runId}</span></summary><pre>{JSON.stringify(result.trace, null, 2)}</pre></details>
       </div>}
     </section>
   );
 }
 
 function EvidenceCard({ evidence, index }: { evidence: Evidence; index: number }) {
-  return <article className="evidence-card"><div className="evidence-top"><span className="provider-glyph">{providerGlyph(evidence.provider)}</span><span>{evidence.provider}</span><small>#{String(index + 1).padStart(2, "0")}</small></div><h3>{evidence.title}</h3><blockquote>{evidence.excerpt}</blockquote><div className="evidence-footer"><span>{dateLabel(evidence.timestamp)}</span>{evidence.url && <a href={evidence.url} target="_blank" rel="noreferrer">Open source <ExternalLink size={12} /></a>}</div></article>;
+  const browserSafe = evidence.url?.startsWith("https://") || evidence.url?.startsWith("http://");
+  return <article className="evidence-card"><div className="evidence-top"><span className="provider-glyph"><ProviderIcon provider={evidence.provider} size={14} /></span><span>{evidence.provider}</span><small>[{index + 1}]</small></div><h3>{evidence.title}</h3><blockquote>{evidence.excerpt}</blockquote><div className="evidence-footer"><span>{dateLabel(evidence.timestamp)}</span>{browserSafe && <a href={evidence.url!} target="_blank" rel="noreferrer">Open source <ExternalLink size={12} /></a>}{evidence.url && !browserSafe && <span>Indexed receipt</span>}</div></article>;
 }
 
 function SourcesScreen({ workspace, connectors, reloadWorkspace, reloadConnectors, setError, setNotice }: {
@@ -908,10 +1011,16 @@ type LabResults = {
       router?: { correct: number; total: number; accuracy: number };
       perCategory?: Record<string, { total: number; correct: number; accuracy: number }>;
     };
-    notMeasured?: string[];
+    notMeasured?: Array<string | { metric?: string; reason?: string }>;
     caveat?: string;
   };
-  live?: { status?: string; note?: string };
+  live?: {
+    status?: string; note?: string; target?: string; generatedAt?: string; cases?: number;
+    connectors?: string[]; allThreeProviders?: number; fast?: number; thinking?: number;
+    latencyMs?: { p50?: number; p95?: number; min?: number; max?: number };
+    rows?: Array<{ label: string; question: string; expected?: string; actual?: string; pass?: boolean;
+      mode: string; latencyMs: number; callCount?: number; sources: number; providers: string[]; costUnits?: number }>;
+  };
 };
 
 /**
@@ -937,71 +1046,48 @@ function LabScreen({ setError }: { setError: (value: string) => void }) {
 
   const router = data?.fixture?.metrics?.router;
   const perCategory = Object.entries(data?.fixture?.metrics?.perCategory ?? {});
-  const notMeasured = (data?.fixture?.notMeasured ?? []).filter((entry) => entry && entry.trim());
+  const live = data?.live;
+  const rows = live?.rows ?? [];
+  const passed = rows.filter((row) => row.pass === true).length;
+  const graded = rows.filter((row) => typeof row.pass === "boolean").length;
+  const averageCalls = rows.some((row) => typeof row.callCount === "number")
+    ? rows.reduce((total, row) => total + (row.callCount ?? 0), 0) / Math.max(rows.length, 1)
+    : null;
 
   return (
-    <section className="screen">
-      <div className="screen-heading">
+    <section className="screen benchmark-screen">
+      <div className="screen-heading benchmark-heading">
         <div>
-          <span className="eyebrow"><Braces size={13} /> Evaluation</span>
-          <h1>Measured, not<br /><em>asserted.</em></h1>
-          <p>
-            Every case below is scored by running the real retrieval router and the real
-            ranking policy. Metrics that require connected sources are named as unmeasured
-            rather than shown as zero.
-          </p>
+          <span className="eyebrow"><Activity size={13} /> Production evidence lab</span>
+          <h1>The benchmark is<br /><em>part of the product.</em></h1>
+          <p>Replayable cross-source questions against the deployed system. Expected facts, observed answers, provider coverage, routing mode, latency, calls, and cost units live together in one receipt.</p>
         </div>
+        {live?.target && <a className="secondary-button" href={live.target} target="_blank" rel="noreferrer">Live target <ExternalLink size={13} /></a>}
       </div>
 
       {loading && <p className="muted">Loading evaluation results…</p>}
 
-      {router && (
-        <div className="lab-summary">
-          <div className="lab-metric">
-            <strong>{(router.accuracy * 100).toFixed(1)}%</strong>
-            <span>Router mode accuracy<br />{router.correct} of {router.total} cases</span>
-          </div>
-          <div className="lab-metric">
-            <strong>{data?.fixture?.metrics?.totalCases ?? perCategory.length}</strong>
-            <span>Ground-truth cases<br />across {perCategory.length} categories</span>
-          </div>
-          <div className="lab-metric">
-            <strong>{data?.live?.status === "not_requested" ? "Offline" : String(data?.live?.status ?? "—")}</strong>
-            <span>Live suite<br />requires connected sources</span>
-          </div>
-        </div>
-      )}
+      <div className="lab-summary premium-metrics">
+        <div className="lab-metric primary"><small>LIVE CASES</small><strong>{rows.length || live?.cases || "—"}</strong><span>{graded ? `${passed}/${graded} expected answers passed` : "production cross-source runs"}</span></div>
+        <div className="lab-metric"><small>P50 LATENCY</small><strong>{live?.latencyMs?.p50 ? `${(live.latencyMs.p50 / 1000).toFixed(2)}s` : "—"}</strong><span>p95 {live?.latencyMs?.p95 ? `${(live.latencyMs.p95 / 1000).toFixed(2)}s` : "not recorded"}</span></div>
+        <div className="lab-metric"><small>PROVIDER PROOF</small><strong>{live?.connectors?.length ?? "—"}</strong><span>{live?.connectors?.join(" · ") || "not recorded"}</span></div>
+        <div className="lab-metric"><small>CALL EFFICIENCY</small><strong>{averageCalls === null ? "—" : averageCalls.toFixed(1)}</strong><span>average HydraDB calls per answer</span></div>
+      </div>
 
-      {perCategory.length > 0 && (
-        <div className="lab-table-wrap">
-          <table className="lab-table">
-            <thead>
-              <tr><th>Category</th><th>Correct</th><th>Total</th><th>Accuracy</th></tr>
-            </thead>
-            <tbody>
-              {perCategory.map(([name, entry]) => (
-                <tr key={name} className={entry.accuracy === 1 ? "pass" : entry.accuracy === 0 ? "fail" : ""}>
-                  <td>{name}</td>
-                  <td>{entry.correct}</td>
-                  <td>{entry.total}</td>
-                  <td>{(entry.accuracy * 100).toFixed(0)}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {rows.length > 0 && <div className="benchmark-cases">
+        {rows.map((row, index) => <article className="benchmark-case" key={`${row.label}-${index}`}>
+          <div className="case-index"><span>{String(index + 1).padStart(2, "0")}</span><i className={row.pass === false ? "fail" : "pass"} /></div>
+          <div className="case-body"><span className="case-label">{row.label}</span><h3>{row.question}</h3>
+            {row.expected && <div className="answer-compare"><div><small>EXPECTED</small><p>{row.expected}</p></div><div><small>OBSERVED</small><p>{row.actual || "No answer captured"}</p></div></div>}
+            <div className="case-meta"><span><Zap size={12} />{row.mode}</span><span><Clock3 size={12} />{(row.latencyMs / 1000).toFixed(2)}s</span><span><Activity size={12} />{row.callCount ?? "—"} calls</span><span><FileCheck2 size={12} />{row.sources} receipts</span><span>{row.providers.join(" · ")}</span></div>
+          </div>
+          <span className={row.pass === false ? "case-status fail" : "case-status pass"}>{typeof row.pass === "boolean" ? row.pass ? "PASS" : "REVIEW" : "MEASURED"}</span>
+        </article>)}
+      </div>}
 
-      {notMeasured.length > 0 && (
-        <div className="packet-section">
-          <h3>Not measured<span>{notMeasured.length}</span></h3>
-          <ul>{notMeasured.map((entry) => <li key={entry}>{entry}</li>)}</ul>
-        </div>
-      )}
+      {router && <details className="fixture-diagnostics"><summary><Braces size={14} /> Offline router diagnostics · {(router.accuracy * 100).toFixed(1)}% mode match · {router.total} labelled cases</summary><div className="diagnostic-grid">{perCategory.map(([name, entry]) => <span key={name}><strong>{name}</strong><i>{entry.correct}/{entry.total}</i></span>)}</div><p>{data?.fixture?.caveat}</p></details>}
 
-      {data?.fixture?.caveat && <p className="muted">{data.fixture.caveat}</p>}
-      {data?.live?.note && <p className="muted">{data.live.note}</p>}
-      {data?.generatedAt && <p className="muted">Generated {dateLabel(data.generatedAt)} by <code>scripts/run-evals.mjs</code>.</p>}
+      <div className="reproduce-strip"><Terminal size={18} /><div><strong>Replay the receipt</strong><code>npm run benchmark:live -- --url https://queueproof.vercel.app</code></div><span>{dateLabel(live?.generatedAt ?? data?.generatedAt)}</span></div>
     </section>
   );
 }

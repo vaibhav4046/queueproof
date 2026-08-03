@@ -3,6 +3,7 @@ import { assertSafeExternalUrl, redactSecrets } from "../../security/src";
 export type HydraConfig = {
   apiKey: string;
   baseUrl?: string;
+  timeoutMs?: number;
 };
 
 export type HydraResponse<T> = {
@@ -19,11 +20,13 @@ const DEFAULT_BASE_URL = "https://api.hydradb.com";
 export class HydraDbClient {
   private readonly apiKey: string;
   private readonly baseUrl: URL;
+  private readonly timeoutMs: number;
 
   constructor(config: HydraConfig) {
     if (!config.apiKey.trim()) throw new Error("HydraDB API key is required.");
     this.apiKey = config.apiKey;
     this.baseUrl = assertSafeExternalUrl(config.baseUrl ?? DEFAULT_BASE_URL);
+    this.timeoutMs = config.timeoutMs ?? 20_000;
   }
 
   async request<T>(path: string, init: RequestInit = {}): Promise<HydraResponse<T>> {
@@ -33,6 +36,9 @@ export class HydraDbClient {
     try {
       const response = await fetch(url, {
         ...init,
+        signal: init.signal
+          ? AbortSignal.any([init.signal, AbortSignal.timeout(this.timeoutMs)])
+          : AbortSignal.timeout(this.timeoutMs),
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
           "API-Version": "2",

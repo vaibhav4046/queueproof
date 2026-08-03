@@ -164,10 +164,13 @@ function actorFromPublicAccess(): RequestActor | null {
 }
 
 export async function getRequestActor(): Promise<RequestActor | null> {
+  // Public demo mode is a deployment-wide routing decision. It intentionally wins over
+  // stale cookies so returning judges land in the same shared demo as first-time users.
+  const publicActor = actorFromPublicAccess();
+  if (publicActor) return publicActor;
   return (
     (await actorFromSessionCookie()) ??
     (await actorFromTrustedGateway()) ??
-    actorFromPublicAccess() ??
     actorFromLocalOptIn()
   );
 }

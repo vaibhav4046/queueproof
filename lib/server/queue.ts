@@ -1,4 +1,4 @@
-import { extractQuerySources, providerFromSource } from "./hydradb-shapes";
+import { extractQuerySources, matchingChunk, providerFromSource } from "./hydradb-shapes";
 import { hydraClientForWorkspace } from "./hydradb-account";
 import { requireDb } from "./runtime";
 import { audit, createId, ensureCoreSchema } from "./store";
@@ -6,6 +6,10 @@ import { DEFAULT_POLICY_VERSION, rank } from "../../packages/ranking/src";
 import { isPotentialPromptInjection, sha256 } from "../../packages/security/src";
 import { executionPacketSchema, type RankingInput } from "../../packages/contracts/src";
 import { receiptHash, whyAboveNext } from "./decision-receipt";
+
+// Compatibility export for the evidence-integrity regression test and consumers that
+// historically imported the join helper from the queue module.
+export { matchingChunk } from "./hydradb-shapes";
 
 type RecordValue = Record<string, unknown>;
 
@@ -106,21 +110,6 @@ function sourceMetadata(source: RecordValue) {
  * There is deliberately no positional fallback now. An unmatched source yields no
  * excerpt: a missing citation is honest, a confidently wrong one is not.
  */
-export function matchingChunk(source: RecordValue, chunks: RecordValue[]): RecordValue {
-  const candidateIds = [source.id, source.source_id, source.context_id]
-    .filter(Boolean)
-    .map(String);
-  if (candidateIds.length === 0) return {};
-
-  const exact = chunks.find((chunk) => {
-    const chunkKeys = [chunk.id, chunk.source_id, chunk.context_id]
-      .filter(Boolean)
-      .map(String);
-    return chunkKeys.some((key) => candidateIds.includes(key));
-  });
-  return exact ?? {};
-}
-
 function evidenceFromHydra(
   connector: VerifiedConnector,
   source: RecordValue,
@@ -278,14 +267,25 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
   const client = await hydraClientForWorkspace(workspaceId);
   const query =
     "Find current unresolved commitments, promised work, deadlines, blockers, escalations, incidents, customer risks, and explicit required actions. Return original source records.";
-  const retrieved: Evidence[] = [];
   const diagnostics: Array<Record<string, unknown>> = [];
+  const scopes = [...connectors.results.reduce((map, connector) => {
+    const key = `${connector.database}\u0000${connector.collection ?? ""}`;
+    const current = map.get(key) ?? {
+      database: connector.database,
+      collection: connector.collection,
+      connectors: [] as VerifiedConnector[],
+    };
+    current.connectors.push(connector);
+    map.set(key, current);
+    return map;
+  }, new Map<string, { database: string; collection: string | null; connectors: VerifiedConnector[] }>()).values()];
 
-  await Promise.all(connectors.results.map(async (connector) => {
+  const scopeResults = await Promise.all(scopes.map(async (scope) => {
+    const scopeEvidence: Evidence[] = [];
     const started = Date.now();
     const response = await client.query({
-      database: connector.database,
-      ...(connector.collection ? { collections: [connector.collection] } : {}),
+      database: scope.database,
+      ...(scope.collection ? { collections: [scope.collection] } : {}),
       query,
       type: "knowledge",
       query_by: "hybrid",
@@ -297,32 +297,37 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
       recency_bias: 0.3,
     });
     diagnostics.push({
-      connectorId: connector.id,
-      provider: connector.provider,
+      connectorIds: scope.connectors.map((connector) => connector.id),
+      providers: scope.connectors.map((connector) => connector.provider),
+      database: scope.database,
+      collection: scope.collection,
       ok: response.ok,
       status: response.status,
       requestId: response.requestId,
       latencyMs: Date.now() - started,
       error: response.error,
     });
-    if (!response.ok) return;
+    if (!response.ok) return scopeEvidence;
     const extracted = extractQuerySources(response.data);
     extracted.sources.forEach((source, index) => {
+      const sourceProvider = providerFromSource(source);
+      const connector = scope.connectors.find((item) => item.provider === sourceProvider) ?? scope.connectors[0]!;
       const evidence = evidenceFromHydra(
         connector,
         source,
         matchingChunk(source, extracted.chunks),
         index,
       );
-      if (evidence.excerpt || evidence.title) retrieved.push(evidence);
+      if (evidence.excerpt || evidence.title) scopeEvidence.push(evidence);
     });
+    return scopeEvidence;
   }));
+  const retrieved = scopeResults.flat();
 
   const safeEvidence = retrieved
     .filter((item) => !item.unsafeInstruction)
     .filter((item) => actionable.test(`${item.title} ${item.excerpt}`))
-    .filter((item, index, all) => all.findIndex((other) => `${other.provider}:${other.externalId}` === `${item.provider}:${item.externalId}`) === index)
-    .slice(0, 18);
+    .filter((item, index, all) => all.findIndex((other) => `${other.provider}:${other.externalId}` === `${item.provider}:${item.externalId}`) === index);
   if (!safeEvidence.length) {
     await audit({
       workspaceId,
@@ -343,7 +348,9 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
     const title = taskTitle(evidence);
     const input = rankingInput(evidence, taskId, title);
     return { evidence, taskId, title, input, result: rank(input) };
-  }).sort((a, b) => b.result.finalScore - a.result.finalScore || a.taskId.localeCompare(b.taskId));
+  }).sort((a, b) => b.result.finalScore - a.result.finalScore ||
+    `${a.evidence.provider}:${a.evidence.externalId}`.localeCompare(`${b.evidence.provider}:${b.evidence.externalId}`))
+    .slice(0, 18);
 
   const packetIds: string[] = [];
   const statements = [
