@@ -63,15 +63,12 @@ export type WhyAboveNext = {
 };
 
 const COMPONENT_LABELS: Record<string, string> = {
-  businessImpact: "business impact",
-  urgency: "deadline urgency",
-  dependencyUnlock: "people unblocked",
-  customerRevenue: "customer or revenue consequence",
-  incidentSecurity: "security or incident severity",
-  commitmentStrength: "explicit commitment strength",
-  authorityReliability: "source authority",
-  evidenceFreshness: "evidence freshness",
-  quickWinLeverage: "quick-win leverage",
+  urgencyDeadline: "urgency / deadline",
+  customerOperationalImpact: "customer / operational impact",
+  explicitCommitment: "explicit commitment",
+  dependencyBlocking: "dependency / blocking effect",
+  sourceCorroboration: "source corroboration",
+  recency: "recency",
 };
 
 /**

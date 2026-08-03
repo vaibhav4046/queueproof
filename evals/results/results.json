@@ -1,22 +1,31 @@
 {
-  "generatedAt": "2026-08-02T17:48:26.690Z",
+  "generatedAt": "2026-08-03T07:34:24.396Z",
   "runner": "scripts/run-evals.mjs",
   "requestedMode": "fixture",
   "fixture": {
     "label": "FIXTURE (offline, no credentials, deterministic components only)",
     "caseCount": 39,
+    "coverage": {
+      "total": 39,
+      "multiHop": 16,
+      "temporalUpdate": 7,
+      "contradictionStale": 6,
+      "entityDedup": 5,
+      "exactMetadata": 6,
+      "documentPdf": 9
+    },
     "metrics": {
       "totalCases": 39,
       "router": {
-        "correct": 29,
+        "correct": 39,
         "total": 39,
-        "accuracy": 0.7436
+        "accuracy": 1
       },
       "perCategory": {
         "exact-id": {
           "total": 3,
-          "correct": 2,
-          "accuracy": 0.6667
+          "correct": 3,
+          "accuracy": 1
         },
         "actor": {
           "total": 3,
@@ -35,28 +44,28 @@
         },
         "metadata": {
           "total": 3,
-          "correct": 1,
-          "accuracy": 0.3333
+          "correct": 3,
+          "accuracy": 1
         },
         "entity-dedup": {
           "total": 2,
-          "correct": 0,
-          "accuracy": 0
+          "correct": 2,
+          "accuracy": 1
         },
         "knowledge-update": {
           "total": 2,
-          "correct": 1,
-          "accuracy": 0.5
+          "correct": 2,
+          "accuracy": 1
         },
         "attribution": {
           "total": 3,
-          "correct": 2,
-          "accuracy": 0.6667
+          "correct": 3,
+          "accuracy": 1
         },
         "multilingual": {
           "total": 3,
-          "correct": 2,
-          "accuracy": 0.6667
+          "correct": 3,
+          "accuracy": 1
         },
         "multi-hop": {
           "total": 2,
@@ -70,8 +79,8 @@
         },
         "priority": {
           "total": 3,
-          "correct": 1,
-          "accuracy": 0.3333
+          "correct": 3,
+          "accuracy": 1
         },
         "counterfactual": {
           "total": 2,
@@ -91,8 +100,8 @@
       },
       "modeSplit": {
         "predicted": {
-          "fast": 18,
-          "thinking": 21
+          "fast": 14,
+          "thinking": 25
         },
         "expected": {
           "fast": 14,
@@ -100,9 +109,9 @@
         }
       },
       "escalation": {
-        "predictedThinking": 21,
-        "overEscalated": 3,
-        "underEscalated": 7
+        "predictedThinking": 25,
+        "overEscalated": 0,
+        "underEscalated": 0
       },
       "providerCoverage": {
         "availableProviders": [],
@@ -130,12 +139,12 @@
           "order": [
             {
               "id": "task-atlas-blocker",
-              "finalScore": 82,
+              "finalScore": 89.72,
               "priorityBand": "critical"
             },
             {
               "id": "task-vega-polish",
-              "finalScore": 23,
+              "finalScore": 26.68,
               "priorityBand": "low"
             }
           ]
@@ -151,17 +160,17 @@
           "order": [
             {
               "id": "task-bug123-fix",
-              "finalScore": 73,
-              "priorityBand": "high"
+              "finalScore": 81.67,
+              "priorityBand": "critical"
             },
             {
               "id": "task-nimbus-oncall",
-              "finalScore": 46,
+              "finalScore": 51.18,
               "priorityBand": "normal"
             },
             {
               "id": "task-doc-refresh",
-              "finalScore": 13,
+              "finalScore": 14.81,
               "priorityBand": "low"
             }
           ]
@@ -177,17 +186,17 @@
           "order": [
             {
               "id": "task-northwind-sla",
-              "finalScore": 72,
-              "priorityBand": "high"
+              "finalScore": 84.44,
+              "priorityBand": "critical"
             },
             {
               "id": "task-kestrel-contract",
-              "finalScore": 38,
+              "finalScore": 44.99,
               "priorityBand": "normal"
             },
             {
               "id": "task-internal-tooling",
-              "finalScore": 24,
+              "finalScore": 27.92,
               "priorityBand": "low"
             },
             {
@@ -200,7 +209,7 @@
       ]
     },
     "assertions": {
-      "run": 325,
+      "run": 331,
       "failed": 0,
       "failures": []
     },
@@ -277,13 +286,13 @@
         "linear"
       ],
       "expectedMode": "fast",
-      "predictedMode": "thinking",
-      "modeMatch": false,
+      "predictedMode": "fast",
+      "modeMatch": true,
       "declaredRouterCategory": "exact_identifier",
       "predictedRouterCategory": "exact_identifier",
       "routerCategoryMatch": true,
       "queryBy": "text",
-      "graphContext": true,
+      "graphContext": false,
       "recencyBias": 0
     },
     {
@@ -433,13 +442,13 @@
         "linear"
       ],
       "expectedMode": "fast",
-      "predictedMode": "thinking",
-      "modeMatch": false,
+      "predictedMode": "fast",
+      "modeMatch": true,
       "declaredRouterCategory": "cross_source_fact",
       "predictedRouterCategory": "cross_source_fact",
       "routerCategoryMatch": true,
       "queryBy": "hybrid",
-      "graphContext": true,
+      "graphContext": false,
       "recencyBias": 0.1
     },
     {
@@ -467,13 +476,13 @@
         "linear"
       ],
       "expectedMode": "fast",
-      "predictedMode": "thinking",
-      "modeMatch": false,
+      "predictedMode": "fast",
+      "modeMatch": true,
       "declaredRouterCategory": "cross_source_fact",
       "predictedRouterCategory": "cross_source_fact",
       "routerCategoryMatch": true,
       "queryBy": "hybrid",
-      "graphContext": true,
+      "graphContext": false,
       "recencyBias": 0.1
     },
     {
@@ -486,13 +495,13 @@
         "linear"
       ],
       "expectedMode": "thinking",
-      "predictedMode": "fast",
-      "modeMatch": false,
+      "predictedMode": "thinking",
+      "modeMatch": true,
       "declaredRouterCategory": "single_source_fact",
       "predictedRouterCategory": "single_source_fact",
       "routerCategoryMatch": true,
       "queryBy": "hybrid",
-      "graphContext": false,
+      "graphContext": true,
       "recencyBias": 0.1
     },
     {
@@ -503,13 +512,13 @@
         "linear"
       ],
       "expectedMode": "thinking",
-      "predictedMode": "fast",
-      "modeMatch": false,
+      "predictedMode": "thinking",
+      "modeMatch": true,
       "declaredRouterCategory": "single_source_fact",
       "predictedRouterCategory": "single_source_fact",
       "routerCategoryMatch": true,
       "queryBy": "hybrid",
-      "graphContext": false,
+      "graphContext": true,
       "recencyBias": 0.1
     },
     {
@@ -539,13 +548,13 @@
         "slack"
       ],
       "expectedMode": "thinking",
-      "predictedMode": "fast",
-      "modeMatch": false,
+      "predictedMode": "thinking",
+      "modeMatch": true,
       "declaredRouterCategory": "single_source_fact",
       "predictedRouterCategory": "single_source_fact",
       "routerCategoryMatch": true,
       "queryBy": "hybrid",
-      "graphContext": false,
+      "graphContext": true,
       "recencyBias": 0.1
     },
     {
@@ -591,13 +600,13 @@
         "gmail"
       ],
       "expectedMode": "thinking",
-      "predictedMode": "fast",
-      "modeMatch": false,
+      "predictedMode": "thinking",
+      "modeMatch": true,
       "declaredRouterCategory": "single_source_fact",
       "predictedRouterCategory": "single_source_fact",
       "routerCategoryMatch": true,
       "queryBy": "hybrid",
-      "graphContext": false,
+      "graphContext": true,
       "recencyBias": 0.1
     },
     {
@@ -626,14 +635,14 @@
         "linear"
       ],
       "expectedMode": "thinking",
-      "predictedMode": "fast",
-      "modeMatch": false,
-      "declaredRouterCategory": "single_source_fact",
-      "predictedRouterCategory": "single_source_fact",
+      "predictedMode": "thinking",
+      "modeMatch": true,
+      "declaredRouterCategory": "temporal_reasoning",
+      "predictedRouterCategory": "temporal_reasoning",
       "routerCategoryMatch": true,
       "queryBy": "hybrid",
-      "graphContext": false,
-      "recencyBias": 0.1
+      "graphContext": true,
+      "recencyBias": 0.3
     },
     {
       "id": "lang-03",
@@ -753,14 +762,14 @@
         "gmail"
       ],
       "expectedMode": "thinking",
-      "predictedMode": "fast",
-      "modeMatch": false,
-      "declaredRouterCategory": "single_source_fact",
-      "predictedRouterCategory": "single_source_fact",
+      "predictedMode": "thinking",
+      "modeMatch": true,
+      "declaredRouterCategory": "temporal_reasoning",
+      "predictedRouterCategory": "temporal_reasoning",
       "routerCategoryMatch": true,
       "queryBy": "hybrid",
-      "graphContext": false,
-      "recencyBias": 0.1
+      "graphContext": true,
+      "recencyBias": 0.3
     },
     {
       "id": "prio-03",
@@ -772,13 +781,13 @@
         "document"
       ],
       "expectedMode": "thinking",
-      "predictedMode": "fast",
-      "modeMatch": false,
+      "predictedMode": "thinking",
+      "modeMatch": true,
       "declaredRouterCategory": "single_source_fact",
       "predictedRouterCategory": "single_source_fact",
       "routerCategoryMatch": true,
       "queryBy": "hybrid",
-      "graphContext": false,
+      "graphContext": true,
       "recencyBias": 0.1
     },
     {

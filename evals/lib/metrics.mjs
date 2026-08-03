@@ -27,7 +27,7 @@ export const EVAL_CATEGORIES = Object.freeze([
 ]);
 
 /** Providers a case is allowed to require. */
-export const EVAL_PROVIDERS = Object.freeze(["slack", "gmail", "linear", "document"]);
+export const EVAL_PROVIDERS = Object.freeze(["slack", "gmail", "linear", "github", "document"]);
 
 /**
  * Metrics that a live connector run measures and a fixture run cannot. Kept here so the

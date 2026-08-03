@@ -2,7 +2,7 @@ import { extractQuerySources, matchingChunk, providerFromSource } from "./hydrad
 import { hydraClientForWorkspace } from "./hydradb-account";
 import { requireDb } from "./runtime";
 import { audit, createId, ensureCoreSchema } from "./store";
-import { DEFAULT_POLICY_VERSION, rank } from "../../packages/ranking/src";
+import { ACTIVE_FORMULA, DEFAULT_POLICY_VERSION, rank } from "../../packages/ranking/src";
 import { isPotentialPromptInjection, sha256 } from "../../packages/security/src";
 import { executionPacketSchema, type RankingInput } from "../../packages/contracts/src";
 import { receiptHash, whyAboveNext } from "./decision-receipt";
@@ -183,6 +183,50 @@ function deadlineFromEvidence(evidence: Evidence) {
   return Number.isFinite(parsed.getTime()) ? parsed.toISOString() : null;
 }
 
+/**
+ * Conservative task identity: exact work IDs and distinctive CamelCase product names
+ * may join records; generic keywords never do. Ambiguous records stay separate.
+ */
+export function taskClusterKey(evidence: Pick<Evidence, "provider" | "externalId" | "title" | "excerpt">) {
+  const corpus = `${evidence.title} ${evidence.excerpt}`;
+  const productNames = [...new Set(corpus.match(/\b[A-Z][a-z]{2,}[A-Z][A-Za-z0-9]{2,}\b/g) ?? [])]
+    .filter((token) => !["QueueProof", "HydraDB"].includes(token))
+    .sort();
+  if (productNames.length) return `entity:${productNames.join("|")}`;
+  const exactIds = [...new Set(corpus.match(/\b[A-Z][A-Z0-9]{1,9}-\d+\b/g) ?? [])].sort();
+  if (exactIds.length) return `id:${exactIds.join("|")}`;
+  return `source:${evidence.provider}:${evidence.externalId}`;
+}
+
+function clusterContradictions(evidences: Evidence[]) {
+  const result: Array<Record<string, unknown>> = [];
+  const completed = evidences.find((item) => /\b(merged|shipped|resolved|closed|completed)\b/i.test(`${item.title} ${item.excerpt}`));
+  const open = evidences.find((item) => /\b(still\s+(?:showing\s+as\s+)?open|remains?\s+open|ticket\s+still\s+open)\b/i.test(`${item.title} ${item.excerpt}`));
+  if (completed && open) {
+    result.push({
+      summary: `${completed.provider} reports completion while ${open.provider} still reports open work.`,
+      evidenceIds: [completed.id, open.id], providers: [completed.provider, open.provider],
+    });
+  }
+  const dated = evidences.flatMap((item) =>
+    /\b(deadline|due|ship|before|moved|date)\b/i.test(`${item.title} ${item.excerpt}`)
+      ? (item.excerpt.match(/\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)(?:\s+\d{4})?)\b/gi) ?? [])
+        .map((date) => ({ item, date }))
+      : [],
+  );
+  const distinct = dated.filter((entry, index, all) =>
+    all.findIndex((candidate) => candidate.date.toLowerCase() === entry.date.toLowerCase()) === index,
+  );
+  if (distinct.length > 1) {
+    result.push({
+      summary: `Cited records contain different dates: ${distinct.slice(0, 3).map(({ item, date }) => `${item.provider} says ${date}`).join("; ")}.`,
+      evidenceIds: distinct.slice(0, 3).map(({ item }) => item.id),
+      providers: [...new Set(distinct.slice(0, 3).map(({ item }) => item.provider))],
+    });
+  }
+  return result;
+}
+
 function rankingInput(evidence: Evidence, id: string, title: string): RankingInput {
   const text = `${title} ${evidence.excerpt}`;
   const security = matchesSignal(text, /\b(security|vulnerability|breach|incident|outage|sev[ -]?[01])\b/i);
@@ -311,7 +355,12 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
     const extracted = extractQuerySources(response.data);
     extracted.sources.forEach((source, index) => {
       const sourceProvider = providerFromSource(source);
-      const connector = scope.connectors.find((item) => item.provider === sourceProvider) ?? scope.connectors[0]!;
+      const metadata = sourceMetadata(source);
+      const sourceKind = firstText({ ...metadata, ...source }, ["source_type", "type", "mime_type", "filename"]);
+      const isDocumentSource = Boolean(source.filename ?? metadata.filename) || /\b(pdf|document|file)\b/i.test(sourceKind ?? "");
+      const connector = isDocumentSource
+        ? { ...scope.connectors[0]!, id: `document:${String(source.id ?? index)}`, provider: "document", account_scope: null }
+        : scope.connectors.find((item) => item.provider === sourceProvider) ?? scope.connectors[0]!;
       const evidence = evidenceFromHydra(
         connector,
         source,
@@ -342,12 +391,31 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
     );
   }
 
+  const clusters = [...safeEvidence.reduce((map, evidence) => {
+    const key = taskClusterKey(evidence);
+    const group = map.get(key) ?? [];
+    group.push(evidence);
+    map.set(key, group);
+    return map;
+  }, new Map<string, Evidence[]>()).values()];
+
   const rankingRunId = createId("ranking");
-  const ranked = safeEvidence.map((evidence) => {
+  const ranked = clusters.map((evidences) => {
+    const evidence = [...evidences].sort((a, b) =>
+      Number(Boolean(b.timestamp)) - Number(Boolean(a.timestamp)) || b.excerpt.length - a.excerpt.length,
+    )[0]!;
     const taskId = createId("task");
     const title = taskTitle(evidence);
     const input = rankingInput(evidence, taskId, title);
-    return { evidence, taskId, title, input, result: rank(input) };
+    const providers = [...new Set(evidences.map((item) => item.provider))];
+    input.authorityReliability = Math.min(6, 4 + providers.length);
+    input.evidence = evidences.map((item) => ({
+      sourceId: item.id, provider: item.provider, externalId: item.externalId,
+      title: item.title, excerpt: item.excerpt, timestamp: item.timestamp,
+      ingestionTimestamp: item.ingestionTimestamp, url: item.url,
+      authority: item.authority, metadata: item.metadata,
+    }));
+    return { evidence, evidences, providers, taskId, title, input, result: rank(input) };
   }).sort((a, b) => b.result.finalScore - a.result.finalScore ||
     `${a.evidence.provider}:${a.evidence.externalId}`.localeCompare(`${b.evidence.provider}:${b.evidence.externalId}`))
     .slice(0, 18);
@@ -374,6 +442,7 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
     packetIds.push(packetId);
     const owner = ownerFromEvidence(item.evidence);
     const deadline = deadlineFromEvidence(item.evidence);
+    const disagreements = clusterContradictions(item.evidences);
     const packet = executionPacketSchema.parse({
       packet_id: packetId,
       workspace_id: workspaceId,
@@ -388,26 +457,31 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
         priority_score: item.result.finalScore,
         confidence: item.result.confidence,
       },
-      why_now: item.result.explanation,
+      why_now: [
+        ...item.result.explanation,
+        ...(item.providers.length > 1 ? [`Corroborated across ${item.providers.join(", ")}.`] : []),
+        ...(disagreements.length ? [`${disagreements.length} disagreement${disagreements.length === 1 ? "" : "s"} preserved for review.`] : []),
+      ],
       constraints: item.input.status === "blocked" ? ["The source indicates an unresolved dependency."] : [],
       dependencies: item.input.status === "blocked" ? ["Resolve the evidenced blocker before direct execution."] : [],
-      acceptance_criteria: ["Confirm completion against the cited source record."],
-      evidence: [{
-        sourceId: item.evidence.id,
-        provider: item.evidence.provider,
-        externalId: item.evidence.externalId,
-        title: item.evidence.title,
-        timestamp: item.evidence.timestamp,
-        ingestionTimestamp: item.evidence.ingestionTimestamp,
-        url: item.evidence.url,
-        excerpt: item.evidence.excerpt,
-        authority: item.evidence.authority,
-        metadata: item.evidence.metadata,
-      }],
-      contradictions: [],
+      acceptance_criteria: [
+        "Confirm completion against every cited source receipt.",
+        ...(disagreements.length ? ["Resolve or explicitly accept each preserved disagreement before execution."] : []),
+      ],
+      evidence: item.input.evidence,
+      contradictions: disagreements,
       missing_information: [!owner ? "Owner is not explicit in source metadata." : null, !deadline ? "Deadline is not explicit in source metadata." : null].filter(Boolean),
+      score_breakdown: item.result.componentScores,
+      penalties: item.result.penalties,
+      active_formula: ACTIVE_FORMULA,
+      recommended_safe_action: item.input.status === "blocked"
+        ? "Clarify the evidenced dependency before proposing any external write."
+        : "Review the cited receipt, then send the exact provider write through QueueProof approval.",
+      provider_coverage: item.providers,
+      deduplicated_tasks: item.evidences.slice(1).map((evidence) => `${evidence.provider}:${evidence.externalId}`),
+      status: item.input.status,
       recommended_agent: "human",
-      permissions: { read: [item.evidence.provider], write: [], approval_required: true },
+      permissions: { read: item.providers, write: [], approval_required: true },
       completion_callback: { type: "mcp_tool", tool: "queueproof_report_execution_result" },
     });
 
@@ -424,6 +498,28 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
       why_above_next: whyAbove,
       receipt_hash: await receiptHash({ ...packet, why_above_next: whyAbove }),
     };
+
+    for (const corroborating of item.evidences.slice(1)) {
+      statements.push(
+        db.prepare(
+          `INSERT INTO source_references
+           (id, workspace_id, provider, connector_id, external_id, title, excerpt, source_url,
+            source_timestamp, ingestion_timestamp, authority, content_hash, metadata_json)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ).bind(
+          corroborating.id, workspaceId, corroborating.provider, corroborating.connectorId,
+          corroborating.externalId, corroborating.title, corroborating.excerpt, corroborating.url,
+          corroborating.timestamp, corroborating.ingestionTimestamp, corroborating.authority,
+          await sha256(`${corroborating.provider}:${corroborating.externalId}:${corroborating.excerpt}`),
+          JSON.stringify(corroborating.metadata),
+        ),
+        db.prepare(
+          `INSERT INTO task_evidence
+           (id, workspace_id, task_id, source_id, relation, claim)
+           VALUES (?, ?, ?, ?, 'supports', ?)`,
+        ).bind(createId("evidence"), workspaceId, item.taskId, corroborating.id, corroborating.excerpt),
+      );
+    }
 
     statements.push(
       db.prepare(

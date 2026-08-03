@@ -1,9 +1,14 @@
 const SECRET_PATTERNS = [
   /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/g,
   /\bgh[pousr]_[A-Za-z0-9_]{20,}\b/g,
+  /\blin_api_[A-Za-z0-9_-]{12,}\b/g,
+  /\bqp_(?:live|test)_[A-Za-z0-9_-]{12,}\b/g,
+  /\battio_[A-Za-z0-9_-]{12,}\b/gi,
   /\bAIza[0-9A-Za-z_-]{20,}\b/g,
   /\bBearer\s+[A-Za-z0-9._~+/-]+=*\b/gi,
-  /\b(?:api[_-]?key|token|secret|password)\s*[:=]\s*["']?[^"',\s]{8,}/gi,
+  /\b(?:api[_-]?key|api[_-]?token|auth[_-]?token|access[_-]?token|token|secret|password)\s*[:=]\s*["']?[^"',\s&]{8,}/gi,
+  /\b(?:https?|libsql):\/\/[^\s/@:]+:[^\s/@]+@[^\s]+/gi,
+  /([?&](?:api[_-]?key|access[_-]?token|auth[_-]?token|token|secret)=)[^&#\s]+/gi,
 ];
 
 export function redactSecrets(value: string): string {
@@ -64,4 +69,3 @@ export async function sha256(value: string | ArrayBuffer): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", data);
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
-

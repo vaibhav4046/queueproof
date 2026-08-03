@@ -7,8 +7,10 @@ import { audit, createId, requireWorkspaceForUser } from "../../../lib/server/st
 import { planRetrieval } from "../../../packages/retrieval/src";
 import { isPotentialPromptInjection, redactSecrets } from "../../../packages/security/src";
 import { synthesiseGroundedAnswer } from "../../../lib/server/synthesis";
+import { listQueueForWorkspace } from "../../../lib/server/queue";
+import { groundedAnswerContractSchema } from "../../../packages/contracts/src";
 
-type Connector = { id: string; provider: string; database: string; collection: string | null };
+type Connector = { id: string; hydradbConnectorId: string; provider: string; database: string; collection: string | null };
 type Row = Record<string, unknown>;
 const record = (value: unknown): Row => typeof value === "object" && value !== null ? value as Row : {};
 
@@ -25,13 +27,17 @@ export async function POST(request: Request) {
     const actor = await requireRequestActor();
     const workspace = await requireWorkspaceForUser(actor.id);
     const workspaceId = String(workspace.id);
-    const payload = await readJson<{ question?: string; mode?: "fast" | "thinking" | "auto" }>(request);
+    const payload = await readJson<{
+      question?: string;
+      mode?: "fast" | "thinking" | "auto";
+      metadataFilters?: Record<string, unknown>;
+    }>(request);
     const question = payload.question?.trim() ?? "";
     if (!question || question.length > 4_000) {
       return noStoreJson({ ok: false, error: "Ask a question between 1 and 4,000 characters." }, { status: 400 });
     }
     const connectors = await requireDb().prepare(
-      `SELECT id, provider, database, collection FROM connectors
+      `SELECT id, hydradb_connector_id AS hydradbConnectorId, provider, database, collection FROM connectors
        WHERE workspace_id = ? AND state = 'data_verified' ORDER BY provider ASC`,
     ).bind(workspaceId).all<Connector>();
     if (!connectors.results.length) {
@@ -72,6 +78,9 @@ export async function POST(request: Request) {
         graph_context: plan.graphContext,
         query_forceful_relations: plan.graphContext,
         recency_bias: plan.recencyBias,
+        ...(payload.metadataFilters && Object.keys(payload.metadataFilters).length > 0
+          ? { metadata_filters: payload.metadataFilters }
+          : {}),
       });
       trace.push({ connectorIds: scope.connectors.map((item) => item.id),
         providers: scope.connectors.map((item) => item.provider), database: scope.database,
@@ -84,16 +93,25 @@ export async function POST(request: Request) {
         const excerpt = (textFrom(chunk, ["chunk_content", "content", "text", "excerpt"]) ??
           textFrom(source, ["content", "text", "excerpt", "description"]) ?? "").replace(/\s+/g, " ").trim().slice(0, 1_200);
         if (!excerpt || isPotentialPromptInjection(excerpt)) return;
-        const provider = providerFromSource(source) ?? scope.connectors[0]?.provider ?? "unknown";
-        const owningConnector = scope.connectors.find((item) => item.provider === provider) ?? scope.connectors[0];
+        const metadata = record(source.additional_metadata);
+        const sourceKind = textFrom({ ...metadata, ...source }, ["source_type", "type", "mime_type", "filename"]);
+        const isDocumentSource = Boolean(source.filename ?? metadata.filename) || /\b(pdf|document|file)\b/i.test(sourceKind ?? "");
+        const provider = isDocumentSource ? "document" : providerFromSource(source) ?? "unknown";
+        const sourceConnectorId = source.connector_id ?? metadata.connector_id;
+        const providerMatches = scope.connectors.filter((item) => item.provider === provider);
+        const owningConnector = sourceConnectorId
+          ? scope.connectors.find((item) => item.hydradbConnectorId === String(sourceConnectorId))
+          : providerMatches.length === 1 ? providerMatches[0] : undefined;
+        if (!owningConnector && provider !== "document") return;
+        const sourceId = String(source.id ?? source.source_id ?? `document-${index}`);
         evidence.push({
-          id: String(source.id ?? source.source_id ?? `${owningConnector.id}-${index}`),
+          id: sourceId,
           provider,
           title: textFrom(source, ["title", "subject", "name", "filename"]) ?? `${provider} source`,
           excerpt,
           timestamp: textFrom(source, ["timestamp", "source_timestamp", "updated_at", "created_at"]),
           url: textFrom(source, ["url", "source_url", "web_url", "permalink"]),
-          connectorId: owningConnector.id,
+          connectorId: owningConnector?.id ?? `document:${sourceId}`,
         });
       });
     }));
@@ -102,6 +120,97 @@ export async function POST(request: Request) {
     );
     const synthesis = synthesiseGroundedAnswer(question, deduped);
     const runId = createId("query");
+    const citedIds = new Set([
+      ...synthesis.claims.flatMap((claim) => claim.evidenceIds),
+      ...synthesis.contradictions.flatMap((contradiction) => contradiction.evidenceIds),
+    ]);
+    const citations = [...citedIds]
+      .map((id) => synthesis.evidence.find((item) => item.id === id))
+      .filter((item): item is NonNullable<typeof item> => Boolean(item))
+      .map((item) => ({
+        id: item.id,
+        provider: item.provider,
+        title: item.title,
+        excerpt: item.excerpt,
+        timestamp: item.timestamp,
+        url: item.url,
+      }));
+    const queryTerms = new Set(question.toLowerCase().match(/[a-z0-9-]{4,}/g) ?? []);
+    const queue = await listQueueForWorkspace(workspaceId);
+    type PriorityQueueItem = {
+      taskId?: unknown; title?: unknown; project?: unknown; customer?: unknown;
+      owner?: unknown; deadline?: unknown; status?: unknown; finalScore?: unknown;
+      confidence?: unknown; componentScores?: unknown; penalties?: unknown;
+      packet: {
+        task?: { objective?: string; confidence?: number };
+        why_now?: string[]; contradictions?: unknown[];
+        recommended_safe_action?: string; provider_coverage?: string[];
+        deduplicated_tasks?: string[];
+        evidence?: Array<{ sourceId?: string; id?: string; provider?: string }>;
+      };
+    };
+    const relatedPriority = (queue.items as unknown as PriorityQueueItem[])
+      .map((item) => {
+        const packet = item.packet;
+        const corpus = `${String(item.title ?? "")} ${String(packet.task?.objective ?? "")}`.toLowerCase();
+        const overlap = [...queryTerms].filter((term) => corpus.includes(term)).length;
+        return { item, packet, overlap };
+      })
+      .filter((entry) => entry.overlap >= 1)
+      .sort((a, b) => b.overlap - a.overlap || Number(b.item.finalScore) - Number(a.item.finalScore))
+      .slice(0, 1)
+      .map(({ item, packet }) => ({
+        id: String(item.taskId),
+        title: String(item.title),
+        normalized_entity: String(item.project ?? item.customer ?? item.title),
+        owner: item.owner ? String(item.owner) : null,
+        due_date: item.deadline ? String(item.deadline) : null,
+        status: String(item.status),
+        score: Number(item.finalScore),
+        score_breakdown: item.componentScores as Record<string, number>,
+        penalties: item.penalties as Record<string, number>,
+        why_now: packet.why_now ?? [],
+        recommended_next_safe_action: packet.recommended_safe_action ??
+          "Review the cited receipt, then route any external write through QueueProof approval.",
+        evidence_ids: (item.packet.evidence ?? []).map((entry) =>
+          String(entry.sourceId ?? entry.id ?? ""),
+        ).filter(Boolean),
+        disagreements: packet.contradictions ?? [],
+        confidence: Number(packet.task?.confidence ?? Number(item.confidence) / 100),
+        provider_coverage: packet.provider_coverage ?? [
+          ...new Set((item.packet.evidence ?? []).map((entry) => String(entry.provider ?? "unknown"))),
+        ],
+        deduplicated_tasks: packet.deduplicated_tasks ?? [],
+        approval_required: true,
+      }));
+    const totalLatencyMs = Date.now() - started;
+    const costUnits = trace.length * (mode === "thinking" ? 3 : 1);
+    const groundedContract = groundedAnswerContractSchema.parse({
+      answer: synthesis.answer,
+      claims: synthesis.claims.map((claim) => ({
+        text: claim.text,
+        citation_ids: claim.evidenceIds,
+        providers: claim.providers,
+      })),
+      citations,
+      priority_items: relatedPriority,
+      contradictions: synthesis.contradictions,
+      missing_information: synthesis.missingInformation,
+      retrieval_receipt: {
+        query_id: runId,
+        hydradb_mode: mode,
+        routing_reason: plan.reason,
+        hydradb_call_count: trace.length,
+        total_latency_ms: totalLatencyMs,
+        provider_coverage: synthesis.validation.providerCoverage,
+        receipt_count: citations.length,
+        metadata_filters: payload.metadataFilters ?? {},
+        graph_usage: plan.graphContext,
+        estimated_cost_units: costUnits,
+        timestamp: new Date().toISOString(),
+      },
+      routing_reason: plan.reason,
+    });
     await requireDb().prepare(
       `INSERT INTO query_runs
        (id, workspace_id, actor_id, category, sanitised_query, mode, plan_json,
@@ -109,7 +218,7 @@ export async function POST(request: Request) {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).bind(runId, workspaceId, actor.id, plan.category, redactSecrets(question), mode,
       JSON.stringify(plan), JSON.stringify(synthesis.validation.providerCoverage),
-      synthesis.evidence.length, trace.length, Date.now() - started, synthesis.evidence.length ? "completed" : "failed",
+      synthesis.evidence.length, trace.length, totalLatencyMs, synthesis.evidence.length ? "completed" : "failed",
       synthesis.evidence.length ? null : "no_safe_evidence").run();
     await audit({ workspaceId, actorId: actor.id, operation: "ask.run", targetType: "query_run",
       targetId: runId, outcome: synthesis.evidence.length ? "success" : "failure",
@@ -117,10 +226,8 @@ export async function POST(request: Request) {
         callCount: trace.length, validation: synthesis.validation, trace } });
     return noStoreJson({
       ok: true,
-      answer: synthesis.answer,
+      ...groundedContract,
       evidence: synthesis.evidence,
-      claims: synthesis.claims,
-      contradictions: synthesis.contradictions,
       missingInformation: synthesis.missingInformation,
       validation: synthesis.validation,
       trace: {
@@ -130,10 +237,13 @@ export async function POST(request: Request) {
         calls: trace,
         callCount: trace.length,
         connectorCount: connectors.results.length,
-        latencyMs: Date.now() - started,
+        latencyMs: totalLatencyMs,
+        routingReason: plan.reason,
+        metadataFilters: payload.metadataFilters ?? {},
+        graphUsage: plan.graphContext,
         cost: {
           unit: "HydraDB query",
-          estimatedUnits: trace.length * (mode === "thinking" ? 3 : 1),
+          estimatedUnits: costUnits,
           estimatedUsd: null,
           basis: "Call-weight estimate; no public per-query HydraDB price is assumed.",
         },

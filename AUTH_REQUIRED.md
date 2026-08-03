@@ -65,7 +65,7 @@ For the scripted live-acceptance run only, it may instead be provided as an envi
 variable in your own shell:
 
 ```bash
-vercel env add HYDRADB_API_KEY production
+vercel env add HYDRA_DB_API_KEY production
 ```
 
 ---

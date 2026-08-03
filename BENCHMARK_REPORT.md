@@ -1,6 +1,6 @@
 # QueueProof benchmark report
 
-Generated: 2026-08-02T17:48:26.690Z
+Generated: 2026-08-03T07:34:24.396Z
 Runner: `node scripts/run-evals.mjs`
 Fixtures: `evals/fixtures/cases.json` (39 ground truth cases, fictional company "Helios Robotics")
 
@@ -18,7 +18,9 @@ depends on real retrieved content is measured there or not at all.
 
 ## Fixture results (offline, deterministic layer only)
 
-Router mode accuracy: **29/39 = 74.4%**
+Router mode accuracy: **39/39 = 100.0%**
+
+Labelled coverage (overlapping dimensions): **16 multi-hop**, **7 temporal/update**, **6 contradiction/stale**, **5 entity-dedup**, **6 exact/metadata**, **9 document/PDF**.
 
 This compares `planRetrieval(question).mode` against the hand-labelled `expected.mode` for each
 case. The label was written from the question, not copied from the router, so a mismatch is a real
@@ -26,41 +28,41 @@ routing disagreement rather than a tautology.
 
 | Category | Cases | Router mode correct | Accuracy |
 | --- | ---: | ---: | ---: |
-| exact-id | 3 | 2 | 66.7% |
+| exact-id | 3 | 3 | 100.0% |
 | actor | 3 | 3 | 100.0% |
 | thread | 2 | 2 | 100.0% |
 | temporal | 3 | 3 | 100.0% |
-| metadata | 3 | 1 | 33.3% |
-| entity-dedup | 2 | 0 | 0.0% |
-| knowledge-update | 2 | 1 | 50.0% |
-| attribution | 3 | 2 | 66.7% |
-| multilingual | 3 | 2 | 66.7% |
+| metadata | 3 | 3 | 100.0% |
+| entity-dedup | 2 | 2 | 100.0% |
+| knowledge-update | 2 | 2 | 100.0% |
+| attribution | 3 | 3 | 100.0% |
+| multilingual | 3 | 3 | 100.0% |
 | multi-hop | 2 | 2 | 100.0% |
 | conflict | 2 | 2 | 100.0% |
-| priority | 3 | 1 | 33.3% |
+| priority | 3 | 3 | 100.0% |
 | counterfactual | 2 | 2 | 100.0% |
 | adversarial | 3 | 3 | 100.0% |
 | large-pdf | 3 | 3 | 100.0% |
-| **all** | **39** | **29** | **74.4%** |
+| **all** | **39** | **39** | **100.0%** |
 
 ### Routing behaviour
 
 | Measure | Value |
 | --- | ---: |
-| Predicted fast / thinking | 18 / 21 |
+| Predicted fast / thinking | 14 / 25 |
 | Expected fast / thinking | 14 / 25 |
-| Escalations to thinking | 21 |
-| Over escalated (expected fast, got thinking) | 3 |
-| Under escalated (expected thinking, got fast) | 7 |
+| Escalations to thinking | 25 |
+| Over escalated (expected fast, got thinking) | 0 |
+| Under escalated (expected thinking, got fast) | 0 |
 
 ### Ranking
 
 3 case(s) declare an expected top task. Each builds real `RankingInput`
 objects, validates them against `rankingInputSchema`, and calls the real `rank()`.
 
-- `prio-01`: expected `task-atlas-blocker`, got `task-atlas-blocker` — PASS (order: task-atlas-blocker=82, task-vega-polish=23)
-- `prio-02`: expected `task-bug123-fix`, got `task-bug123-fix` — PASS (order: task-bug123-fix=73, task-nimbus-oncall=46, task-doc-refresh=13)
-- `prio-03`: expected `task-northwind-sla`, got `task-northwind-sla` — PASS (order: task-northwind-sla=72, task-kestrel-contract=38, task-internal-tooling=24, task-vega-shipped=0)
+- `prio-01`: expected `task-atlas-blocker`, got `task-atlas-blocker` — PASS (order: task-atlas-blocker=89.72, task-vega-polish=26.68)
+- `prio-02`: expected `task-bug123-fix`, got `task-bug123-fix` — PASS (order: task-bug123-fix=81.67, task-nimbus-oncall=51.18, task-doc-refresh=14.81)
+- `prio-03`: expected `task-northwind-sla`, got `task-northwind-sla` — PASS (order: task-northwind-sla=84.44, task-kestrel-contract=44.99, task-internal-tooling=27.92, task-vega-shipped=0)
 
 ### Provider availability
 
@@ -78,7 +80,7 @@ explicitly the available set is empty and every case counts as unserviceable.
 
 ### Fixture assertions
 
-All 325 fixture-computable assertions passed.
+All 331 fixture-computable assertions passed.
 
 
 ## Live results
@@ -121,20 +123,20 @@ did not measure.
 
 ## Live connector run (measured, not fixture)
 
-Target https://queueproof.vercel.app. Connectors: linear, slack, github. Generated 2026-08-02T17:46:17.278Z.
+Target https://queueproof.vercel.app. Connectors: github, linear, slack. Generated 2026-08-03T00:23:59.865Z.
 
 | Case | Mode | Latency | Sources | Providers in evidence |
 | --- | --- | --- | --- | --- |
-| three-provider multi-hop | `thinking` | 6347 ms | 12 | github, linear, slack |
-| exact identifier | `thinking` | 1454 ms | 12 | github, linear, slack |
-| conflict | `thinking` | 5423 ms | 13 | github, linear, slack |
-| untracked commitment | `fast` | 1123 ms | 12 | github, linear, slack |
-| stale work | `fast` | 990 ms | 12 | github, linear, slack |
-| actor + thread | `thinking` | 4401 ms | 12 | github, linear, slack |
+| three-provider multi-hop | `thinking` | 5013 ms | 7 | github, linear, slack |
+| deadline conflict | `thinking` | 6369 ms | 3 | linear, slack |
+| untracked commitment | `fast` | 661 ms | 4 | slack, github |
+| stale tracked work | `fast` | 613 ms | 2 | github |
+| actor reconstruction | `thinking` | 4267 ms | 7 | linear, slack |
+| exact identifier plus context | `thinking` | 398 ms | 1 | slack |
 
-Latency across 6 live questions: p50 4401 ms, p95 6347 ms, min 990 ms, max 6347 ms.
+Latency across 6 live questions: p50 661 ms, p95 6369 ms, min 398 ms, max 6369 ms.
 
-Questions whose evidence spanned all three connected providers: 6/6. Routed thinking/fast: 4/2.
+Questions whose evidence spanned all three connected providers: 1/6. Routed thinking/fast: 4/2.
 
 These are real end-to-end measurements against connected Slack, Linear and GitHub.
 The sample is small and is not presented as a stable distribution.

@@ -156,6 +156,7 @@ const schemaStatements = [
     -- fails, which is exactly what happened before this column existed.
     hydradb_database TEXT,
     hydradb_source_id TEXT, stage TEXT NOT NULL DEFAULT 'received', error TEXT,
+    page_count INTEGER, indexed_at TEXT, processing_duration_ms INTEGER,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(workspace_id, content_hash)
@@ -212,6 +213,9 @@ const schemaStatements = [
  */
 const columnMigrations = [
   `ALTER TABLE documents ADD COLUMN hydradb_database TEXT`,
+  `ALTER TABLE documents ADD COLUMN page_count INTEGER`,
+  `ALTER TABLE documents ADD COLUMN indexed_at TEXT`,
+  `ALTER TABLE documents ADD COLUMN processing_duration_ms INTEGER`,
 ];
 
 export async function ensureCoreSchema(): Promise<void> {

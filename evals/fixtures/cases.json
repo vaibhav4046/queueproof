@@ -342,7 +342,7 @@
     "question": "¿Qué ha cambiado en el plan de Vega desde el lunes?",
     "query": "¿Qué ha cambiado en el plan de Vega desde el lunes?",
     "requiredProviders": ["slack", "linear"],
-    "expectedCategory": "single_source_fact",
+    "expectedCategory": "temporal_reasoning",
     "expected": {
       "mode": "thinking",
       "entities": ["Vega"],
@@ -500,7 +500,7 @@
     "question": "What should Priya Raman work on first this week?",
     "query": "What should Priya Raman work on first this week?",
     "requiredProviders": ["linear", "slack", "gmail"],
-    "expectedCategory": "single_source_fact",
+    "expectedCategory": "temporal_reasoning",
     "expected": {
       "mode": "thinking",
       "owner": "Priya Raman",

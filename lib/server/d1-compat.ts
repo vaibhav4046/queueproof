@@ -213,6 +213,7 @@ class LibsqlExecutor implements Executor {
 
     const response = await fetch(this.endpoint, {
       method: "POST",
+      signal: AbortSignal.timeout(20_000),
       headers: {
         Authorization: `Bearer ${this.authToken}`,
         "Content-Type": "application/json",
@@ -238,6 +239,7 @@ class LibsqlExecutor implements Executor {
         // Best-effort rollback so the connection is not left mid-transaction.
         await fetch(this.endpoint, {
           method: "POST",
+          signal: AbortSignal.timeout(10_000),
           headers: { Authorization: `Bearer ${this.authToken}`, "Content-Type": "application/json" },
           body: JSON.stringify({ requests: [{ type: "execute", stmt: { sql: "ROLLBACK" } }, { type: "close" }] }),
         }).catch(() => undefined);

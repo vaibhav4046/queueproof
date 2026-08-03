@@ -5,6 +5,7 @@ import {
   extractResources,
   canonicalProvider,
   providerFromSource,
+  sourceBelongsToConnector,
   unwrapHydra,
 } from "../../../../../lib/server/hydradb-shapes";
 import { requireRequestActor } from "../../../../../lib/server/identity";
@@ -104,10 +105,8 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
         const extracted = extractQuerySources(query.data);
         const matching = extracted.sources.filter((source) => {
           if (providerFromSource(source) !== canonicalProvider(connector.provider)) return false;
-          const metadata = typeof source.additional_metadata === "object" && source.additional_metadata
-            ? source.additional_metadata as Record<string, unknown> : {};
-          const sourceConnector = source.connector_id ?? metadata.connector_id;
-          return !sourceConnector || String(sourceConnector) === connector.hydradb_connector_id;
+          // Provider identity alone is not connector proof in a shared database.
+          return sourceBelongsToConnector(source, connector.hydradb_connector_id, selectedSet);
         });
         canaryCount = matching.length;
         sourceIds = matching.map((source) => String(source.id ?? "")).filter(Boolean);

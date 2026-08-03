@@ -3,6 +3,7 @@ import {
   MAX_DOCUMENT_BYTES,
   contentHash,
   detectFileType,
+  pdfPageCount,
 } from "../lib/server/documents";
 import { requireDb } from "../lib/server/runtime";
 import { createId, ensureCoreSchema } from "../lib/server/store";
@@ -64,6 +65,11 @@ describe("file type detection (magic bytes, not extension)", () => {
     const result = detectFileType(oversized, "application/pdf", "big.pdf");
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toMatch(/exceeds/);
+  });
+
+  it("extracts receipt page count when the PDF page tree is inspectable", () => {
+    expect(pdfPageCount(pdfBytes("1 0 obj << /Type /Pages /Count 346 >> endobj\n"))).toBe(346);
+    expect(pdfPageCount(new TextEncoder().encode("plain text"))).toBeNull();
   });
 });
 

@@ -3,9 +3,14 @@ import { assertSafeExternalUrl, isPotentialPromptInjection, redactSecrets, sanit
 
 describe("security boundaries", () => {
   it("redacts bearer and provider secrets", () => {
-    const redacted = redactSecrets("Authorization: Bearer abc.def.ghi api_key=super-secret-value");
+    const redacted = redactSecrets("Authorization: Bearer abc.def.ghi api_key=super-secret-value lin_api_abcdefghijklmnop qp_live_abcdefghijklmnop attio_abcdefghijklmnop https://user:password@example.com/path?token=visible-token");
     expect(redacted).not.toContain("abc.def.ghi");
     expect(redacted).not.toContain("super-secret-value");
+    expect(redacted).not.toContain("lin_api_");
+    expect(redacted).not.toContain("qp_live_");
+    expect(redacted).not.toContain("attio_");
+    expect(redacted).not.toContain("password@example.com");
+    expect(redacted).not.toContain("visible-token");
     expect(redacted).toContain("[REDACTED]");
   });
   it.each(["=HYPERLINK(\"bad\")", "+cmd", "-2+3", "@SUM(A1)"])("neutralises spreadsheet formula %s", (value) => {

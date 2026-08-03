@@ -98,3 +98,17 @@ export async function contentHash(bytes: Uint8Array): Promise<string> {
   new Uint8Array(buffer).set(bytes);
   return sha256(buffer);
 }
+
+/**
+ * Read the largest page-tree /Count from a PDF without pretending to be a full parser.
+ * This is receipt metadata only; HydraDB remains the source of truth for indexing.
+ * Returning null is honest for compressed/encrypted page trees we cannot inspect.
+ */
+export function pdfPageCount(bytes: Uint8Array): number | null {
+  if (!startsWith(bytes, PDF_MAGIC)) return null;
+  const source = new TextDecoder("latin1").decode(bytes);
+  const counts = [...source.matchAll(/\/Type\s*\/Pages\b[\s\S]{0,512}?\/Count\s+(\d+)/g)]
+    .map((match) => Number(match[1]))
+    .filter((count) => Number.isSafeInteger(count) && count > 0);
+  return counts.length ? Math.max(...counts) : null;
+}

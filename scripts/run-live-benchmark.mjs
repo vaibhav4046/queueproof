@@ -59,8 +59,12 @@ for (const benchmark of cases) {
   });
   const body = await response.json();
   if (!response.ok || !body.ok) throw new Error(`${benchmark.label}: ${body.error ?? `HTTP ${response.status}`}`);
-  const observedCorpus = `${body.answer ?? ""} ${(body.evidence ?? []).map((item) => item.excerpt).join(" ")}`.toLowerCase();
+  // Ground-truth signals must appear in the answer, not merely somewhere in retrieved
+  // evidence. Counting evidence would let an unsupported answer pass by association.
+  const observedCorpus = String(body.answer ?? "").toLowerCase();
   const matchedSignals = benchmark.signals.filter((signal) => observedCorpus.includes(signal));
+  const claims = Array.isArray(body.claims) ? body.claims : [];
+  const citedClaims = claims.filter((claim) => Array.isArray(claim.citation_ids) && claim.citation_ids.length > 0);
   rows.push({
     label: benchmark.label,
     question: benchmark.question,
@@ -69,6 +73,9 @@ for (const benchmark of cases) {
     pass: matchedSignals.length === benchmark.signals.length,
     expectedSignals: benchmark.signals,
     matchedSignals,
+    requiredFactRecall: benchmark.signals.length ? matchedSignals.length / benchmark.signals.length : null,
+    citationCompleteness: claims.length ? citedClaims.length / claims.length : null,
+    unsupportedClaimRate: claims.length ? (claims.length - citedClaims.length) / claims.length : null,
     mode: body.trace?.mode ?? "unknown",
     latencyMs: body.trace?.latencyMs ?? Date.now() - started,
     callCount: body.trace?.callCount ?? body.trace?.calls?.length ?? 0,
@@ -98,6 +105,12 @@ const artifact = {
     p95: percentile(.95),
     min: sortedLatency[0],
     max: sortedLatency.at(-1),
+  },
+  quality: {
+    requiredFactRecall: rows.reduce((sum, row) => sum + (row.requiredFactRecall ?? 0), 0) / Math.max(rows.length, 1),
+    citationCompleteness: rows.reduce((sum, row) => sum + (row.citationCompleteness ?? 0), 0) / Math.max(rows.length, 1),
+    unsupportedClaimRate: rows.reduce((sum, row) => sum + (row.unsupportedClaimRate ?? 0), 0) / Math.max(rows.length, 1),
+    note: "Required facts are matched against answer text only; cited-claim metrics use the grounded answer contract.",
   },
   costModel: {
     unit: "weighted HydraDB query",

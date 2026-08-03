@@ -28,20 +28,20 @@ const base: RankingInput = {
 describe("deterministic ranking", () => {
   it("is deterministic and bounded", () => {
     expect(rank(base)).toEqual(rank(structuredClone(base)));
-    expect(rank(base).finalScore).toBe(77);
-    expect(rank(base).priorityBand).toBe("high");
+    expect(rank(base).finalScore).toBe(87.43);
+    expect(rank(base).priorityBand).toBe("critical");
   });
   it("removes completed and cancelled work from actionability", () => {
     expect(rank({ ...base, status: "completed" }).finalScore).toBe(0);
     expect(rank({ ...base, status: "cancelled" }).finalScore).toBe(0);
   });
   it("applies penalties without producing a negative score", () => {
-    const result = rank({ ...base, penalties: { ...base.penalties, likelyResolved: 40, duplicate: 30, staleEvidence: 12 } });
+    const result = rank({ ...base, penalties: { ...base.penalties, likelyResolved: 40, duplicate: 30, staleEvidence: 12, weakEvidence: 12 } });
     expect(result.finalScore).toBe(0);
   });
   it("explains comparisons and counterfactuals", () => {
     const weaker = { ...base, id: "work-2", urgency: 4 };
-    expect(compare(base, weaker).delta).toBe(12);
-    expect(counterfactual(base, { urgency: 18 }).delta).toBe(2);
+    expect(compare(base, weaker).delta).toBe(16.67);
+    expect(counterfactual(base, { urgency: 18 }).delta).toBeCloseTo(2.78, 8);
   });
 });

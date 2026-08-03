@@ -4,11 +4,11 @@ import {
   Activity, ArrowRight, Bot, Braces, Check, ChevronRight, CircleAlert, CircleCheck, Clock3,
   Clipboard, Command, Database, ExternalLink, Eye, FileCheck2, FileText, KeyRound,
   Link2, LoaderCircle, LockKeyhole, Network, Play, Plus,
-  Radio, RefreshCw, Search, ShieldCheck, Sparkles, Terminal, Unplug, UploadCloud, X, Zap,
+  Radio, RefreshCw, Search, ShieldCheck, Sparkles, Terminal, Unplug, UploadCloud, X as LucideX, Zap,
 } from "lucide-react";
 import Image from "next/image";
 import { SiGithub, SiGmail, SiLinear, SiSlack } from "react-icons/si";
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ComponentProps, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { WorkspaceView } from "../lib/server/workspace-state";
 
 
@@ -52,6 +52,13 @@ type Packet = {
   // one the API and MCP return — parity is read, not recomputed.
   receipt_hash?: string;
   why_above_next?: WhyAboveNext | null;
+  score_breakdown?: Record<string, number>;
+  penalties?: Record<string, number>;
+  active_formula?: string;
+  recommended_safe_action?: string;
+  provider_coverage?: string[];
+  deduplicated_tasks?: string[];
+  status?: string;
   permissions: { read: string[]; write: string[]; approval_required: boolean };
 };
 type QueueItem = {
@@ -63,7 +70,24 @@ type QueueItem = {
 type QueueData = { generatedAt: string | null; items: QueueItem[] };
 type AskData = {
   answer: string; evidence: Array<Evidence & { connectorId: string }>;
-  claims: Array<{ text: string; evidenceIds: string[]; providers: string[] }>;
+  claims: Array<{ text: string; citation_ids: string[]; providers: string[] }>;
+  citations: Array<Evidence & { id: string }>;
+  priority_items: Array<{
+    id: string; title: string; normalized_entity: string; owner: string | null;
+    due_date: string | null; status: string; score: number;
+    score_breakdown: Record<string, number>; penalties: Record<string, number>;
+    why_now: string[]; recommended_next_safe_action: string; evidence_ids: string[];
+    disagreements: unknown[]; confidence: number; provider_coverage: string[];
+    deduplicated_tasks: string[]; approval_required: boolean;
+  }>;
+  missing_information: string[];
+  retrieval_receipt: {
+    query_id: string; hydradb_mode: string; routing_reason: string;
+    hydradb_call_count: number; total_latency_ms: number; provider_coverage: string[];
+    receipt_count: number; metadata_filters: Record<string, unknown>;
+    graph_usage: boolean; estimated_cost_units: number; timestamp: string;
+  };
+  routing_reason: string;
   contradictions: Array<{ summary: string; evidenceIds: string[]; providers: string[] }>;
   missingInformation: string[];
   validation: { status: "grounded" | "abstained"; claimCount: number; citedClaimCount: number; evidenceCount: number; providerCoverage: string[] };
@@ -75,7 +99,9 @@ type McpToken = {
 };
 type DocumentRecord = {
   id: string; filename: string; mime: string; byteSize: number; contentHash: string;
-  hydradbSourceId: string | null; stage: string; error: string | null; createdAt: string;
+  database: string | null; hydradbSourceId: string | null; pageCount: number | null;
+  indexedAt: string | null; processingDurationMs: number | null;
+  stage: string; error: string | null; createdAt: string;
 };
 type ActionProposal = {
   id: string; provider: string; actionType: string; payloadJson: string;
@@ -153,6 +179,8 @@ export default function QueueProofApp({
   initialError: string | null;
 }) {
   const [tab, setTab] = useState<ActiveTab>("ask");
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [commandQuery, setCommandQuery] = useState("");
   // Seeded from the server render, so the first paint is already the correct screen.
   // There is no boot state: the HTML that arrives is the answer.
   const [view, setView] = useState<WorkspaceView | null>(initialView);
@@ -168,6 +196,39 @@ export default function QueueProofApp({
   const [busy, setBusy] = useState("");
 
   const workspaceId = view?.kind === "ready" ? view.workspace.id : null;
+
+  const navigateTab = useCallback((next: ActiveTab) => {
+    setTab(next);
+    const hash = `#${next}`;
+    if (window.location.hash !== hash) window.history.pushState({ queueproofTab: next }, "", hash);
+  }, []);
+
+  useEffect(() => {
+    const restore = () => {
+      const candidate = window.location.hash.slice(1) as ActiveTab;
+      if ([...nav, ...utilityNav].some((item) => item.id === candidate)) setTab(candidate);
+    };
+    restore();
+    window.addEventListener("popstate", restore);
+    window.addEventListener("hashchange", restore);
+    return () => {
+      window.removeEventListener("popstate", restore);
+      window.removeEventListener("hashchange", restore);
+    };
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault(); setCommandOpen((open) => !open); setCommandQuery("");
+      }
+      if (event.key === "Escape") {
+        setCommandOpen(false); setSelectedPacket(null);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const loadConnectors = useCallback(async () => {
     if (!workspaceId) return;
@@ -252,13 +313,13 @@ export default function QueueProofApp({
       </div>
       <div className="grain" />
       <header className="app-header">
-        <button className="brand" onClick={() => setTab("ask")} aria-label="QueueProof home">
+        <button className="brand" onClick={() => navigateTab("ask")} aria-label="QueueProof home">
           <span className="brand-mark"><ShieldCheck size={17} /></span>
           <span><strong>QUEUE</strong><em>PROOF</em></span>
         </button>
         <nav aria-label="Primary navigation">
           {nav.map(({ id, label, icon: Icon }) => (
-            <button key={id} className={tab === id ? "active" : ""} onClick={() => setTab(id)}>
+            <button key={id} className={tab === id ? "active" : ""} onClick={() => navigateTab(id)}>
               <Icon size={14} />{label}
             </button>
           ))}
@@ -266,11 +327,12 @@ export default function QueueProofApp({
         <div className="header-status">
           <div className="utility-nav">
             {utilityNav.map(({ id, label, icon: Icon }) => (
-              <button key={id} className={tab === id ? "active" : ""} onClick={() => setTab(id)} title={label} aria-label={label}>
+              <button key={id} className={tab === id ? "active" : ""} onClick={() => navigateTab(id)} title={label} aria-label={label}>
                 <Icon size={15} /><span>{label}</span>
               </button>
             ))}
           </div>
+          <button className="command-trigger" onClick={() => setCommandOpen(true)} aria-label="Open command palette"><Search size={14} /><kbd>⌘K</kbd></button>
           <span className="demo-badge"><span className={verified.length ? "status-orb live" : "status-orb"} />Live demo</span>
         </div>
       </header>
@@ -297,10 +359,10 @@ export default function QueueProofApp({
       <main>
         {tab === "command" && (
           <CommandScreen queue={queue} verified={verified} busy={busy === "queue"}
-            onGenerate={generateQueue} onOpenSources={() => setTab("sources")}
+            onGenerate={generateQueue} onOpenSources={() => navigateTab("sources")}
             onSelectPacket={setSelectedPacket} />
         )}
-        {tab === "ask" && <AskScreen verified={verified} connectorsLoaded={connectorsLoaded} onOpenSources={() => setTab("sources")} onOpenLab={() => setTab("lab")} setError={setError} />}
+        {tab === "ask" && <AskScreen verified={verified} connectorsLoaded={connectorsLoaded} onOpenSources={() => navigateTab("sources")} onOpenLab={() => navigateTab("lab")} setError={setError} />}
         {tab === "sources" && <SourcesScreen workspace={view} connectors={connectors}
           reloadWorkspace={reloadWorkspace} reloadConnectors={loadConnectors}
           setError={setError} setNotice={setNotice} />}
@@ -311,9 +373,18 @@ export default function QueueProofApp({
         {tab === "agent" && <AgentScreen workspace={view} setError={setError} setNotice={setNotice} />}
       </main>
       {selectedPacket && <PacketDrawer packet={selectedPacket} onClose={() => setSelectedPacket(null)}
-        onPropose={() => { setProposalPacket(selectedPacket); setSelectedPacket(null); setTab("approvals"); }} />}
+        onPropose={() => { setProposalPacket(selectedPacket); setSelectedPacket(null); navigateTab("approvals"); }} />}
+      {commandOpen && <CommandPalette query={commandQuery} setQuery={setCommandQuery} onClose={() => setCommandOpen(false)} onNavigate={(next) => { navigateTab(next); setCommandOpen(false); }} />}
     </div>
   );
+}
+
+function CommandPalette({ query, setQuery, onClose, onNavigate }: {
+  query: string; setQuery: (value: string) => void; onClose: () => void;
+  onNavigate: (tab: ActiveTab) => void;
+}) {
+  const entries = [...nav, ...utilityNav].filter((entry) => entry.label.toLowerCase().includes(query.toLowerCase()));
+  return <div className="modal-layer command-layer" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><div className="command-palette" role="dialog" aria-modal="true" aria-label="Navigate QueueProof"><div className="command-search"><Search size={17} /><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Go to a product surface…" aria-label="Search product surfaces" /><kbd>ESC</kbd></div><div className="command-results">{entries.map(({ id, label, icon: Icon }) => <button key={id} onClick={() => onNavigate(id)}><Icon size={16} /><span>{label}</span><ArrowRight size={13} /></button>)}</div></div></div>;
 }
 
 /**
@@ -526,7 +597,14 @@ function CommandScreen({ queue, verified, busy, onGenerate, onOpenSources, onSel
   queue: QueueData; verified: Connector[]; busy: boolean; onGenerate: () => void;
   onOpenSources: () => void; onSelectPacket: (packet: Packet) => void;
 }) {
-  const first = queue.items[0];
+  const [sortBy, setSortBy] = useState<"score" | "confidence" | "deadline" | "newest">("score");
+  const sortedItems = useMemo(() => [...queue.items].sort((a, b) => {
+    if (sortBy === "confidence") return b.confidence - a.confidence;
+    if (sortBy === "deadline") return (Date.parse(a.deadline ?? "9999-12-31") || Infinity) - (Date.parse(b.deadline ?? "9999-12-31") || Infinity);
+    if (sortBy === "newest") return Date.parse(b.packet.created_at) - Date.parse(a.packet.created_at);
+    return b.finalScore - a.finalScore;
+  }), [queue.items, sortBy]);
+  const first = sortedItems[0];
   return (
     <section className="screen command-screen">
       <div className="screen-heading command-heading">
@@ -563,10 +641,10 @@ function CommandScreen({ queue, verified, busy, onGenerate, onOpenSources, onSel
             <span className="open-proof">Open complete proof packet <ArrowRight size={14} /></span>
           </button>
           <div className="queue-list">
-            <div className="list-title"><span><Command size={14} /> Ranked actions</span><small>{dateLabel(queue.generatedAt)}</small></div>
-            {queue.items.map((item) => (
+            <div className="list-title queue-toolbar"><span><Command size={14} /> Ranked actions</span><label>Sort<select value={sortBy} onChange={(event) => setSortBy(event.target.value as typeof sortBy)} aria-label="Sort priority queue"><option value="score">Priority score</option><option value="confidence">Confidence</option><option value="deadline">Deadline</option><option value="newest">Newest receipt</option></select></label></div>
+            {sortedItems.map((item, index) => (
               <button key={item.packetId} className={item.packetId === first.packetId ? "queue-item active" : "queue-item"} onClick={() => onSelectPacket(item.packet)}>
-                <span className="rank-number">{String(item.rank).padStart(2, "0")}</span>
+                <span className="rank-number">{String(index + 1).padStart(2, "0")}</span>
                 <span className="queue-copy"><strong>{item.title}</strong><small>{item.packet.evidence[0]?.provider ?? "source"} · {item.owner || "owner missing"}</small></span>
                 <span className="queue-value">{item.finalScore}</span><ChevronRight size={14} />
               </button>
@@ -593,6 +671,11 @@ function ProviderIcon({ provider, size = 15 }: { provider: string; size?: number
   if (provider === "slack") return <SiSlack size={size} aria-hidden="true" />;
   if (provider === "linear") return <SiLinear size={size} aria-hidden="true" />;
   return <FileText size={size} />;
+}
+
+/** Every icon-only close control receives an accessible name, including nested modals. */
+function X(props: ComponentProps<typeof LucideX>) {
+  return <><LucideX {...props} aria-hidden="true" /><span className="sr-only">Close</span></>;
 }
 
 function CitedAnswer({ text }: { text: string }) {
@@ -661,16 +744,10 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
   }
   async function submit(event: FormEvent) { event.preventDefault(); await run(); }
 
-  const citedEvidenceIds = new Set([
-    ...(result?.claims.flatMap((claim) => claim.evidenceIds) ?? []),
-    ...(result?.contradictions.flatMap((contradiction) => contradiction.evidenceIds) ?? []),
-  ]);
-  const directlyCitedEvidence = result?.evidence.filter((item) => {
-    const id = item.id ?? item.sourceId;
-    return Boolean(id && citedEvidenceIds.has(id));
-  }) ?? [];
+  const directlyCitedEvidence = result?.citations ?? [];
   const rankedEvidence = directlyCitedEvidence.length > 0 ? directlyCitedEvidence : result?.evidence.slice(0, 6) ?? [];
-  const supportingEvidence = result?.evidence.filter((item) => !rankedEvidence.includes(item)) ?? [];
+  const rankedEvidenceIds = new Set(rankedEvidence.map((item) => item.id ?? item.sourceId));
+  const supportingEvidence = result?.evidence.filter((item) => !rankedEvidenceIds.has(item.id ?? item.sourceId)) ?? [];
 
   return (
     <section className="screen ask-screen proof-screen">
@@ -715,7 +792,7 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
             {(["auto", "fast", "thinking"] as const).map((value) => <button key={value} type="button" className={mode === value ? "mode active" : "mode"} onClick={() => setMode(value)}>{value === "auto" ? "Auto route" : value}</button>)}
           </div>
         </div>
-        <textarea value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask a question that needs more than one system…" required maxLength={4000} />
+        <textarea value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); void run(); } }} placeholder="Ask a question that needs more than one system…" required maxLength={4000} />
         <div className="prompt-actions">
           <span>⌘ Enter to run</span>
           <button className="primary-button proof-button" disabled={!connectorsLoaded || busy || !question.trim()}>{busy || !connectorsLoaded ? <LoaderCircle className="spin" size={15} /> : <Play size={15} fill="currentColor" />}{!connectorsLoaded ? "Verifying connectors" : busy ? "Building cited answer" : question === FLAGSHIP_QUESTION ? "Run flagship proof" : "Run proof"}</button>
@@ -752,10 +829,22 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
           <span><Zap size={14} />{result.trace.mode}</span>
         </div>
         <article className="answer-surface">
-          <div className="answer-kicker"><span>GROUNDED ANSWER</span><code>{result.trace.runId.slice(-8)}</code></div>
+          <div className="answer-kicker"><span>GROUNDED ANSWER</span><button className="copy-id" onClick={() => void navigator.clipboard.writeText(result.retrieval_receipt.query_id)} title="Copy query receipt ID"><code>{result.retrieval_receipt.query_id.slice(-8)}</code><Clipboard size={12} /></button></div>
           <h2><CitedAnswer text={result.answer} /></h2>
           <div className="answer-verdict"><CircleCheck size={17} /><span><strong>{result.validation.citedClaimCount}/{result.validation.claimCount} claims cited</strong> · unsupported prose is blocked</span></div>
         </article>
+
+        <div className="retrieval-receipt" aria-label="Retrieval receipt">
+          <span><small>ROUTING</small><strong>{result.routing_reason}</strong></span>
+          <span><small>GRAPH</small><strong>{result.retrieval_receipt.graph_usage ? "Enabled" : "Not required"}</strong></span>
+          <span><small>RECEIPTS</small><strong>{result.retrieval_receipt.receipt_count}</strong></span>
+          <span><small>COST UNITS</small><strong>{result.retrieval_receipt.estimated_cost_units}</strong></span>
+        </div>
+
+        {result.priority_items[0] && <article className="priority-result">
+          <div className="priority-score"><small>NEXT SAFE ACTION</small><strong>{result.priority_items[0].score}</strong><span>/100</span></div>
+          <div><span className="eyebrow"><Command size={12} /> Evidence-ranked priority</span><h3>{result.priority_items[0].title}</h3><p>{result.priority_items[0].recommended_next_safe_action}</p><div className="priority-meta"><span>{result.priority_items[0].provider_coverage.join(" · ")}</span><span>{Math.round(result.priority_items[0].confidence * 100)}% evidence completeness</span><span>{result.priority_items[0].approval_required ? "Approval gated" : "Read only"}</span></div></div>
+        </article>}
 
         {result.contradictions.length > 0 && <div className="contradiction-stack">
           {result.contradictions.map((item, index) => <article key={`${item.summary}-${index}`}><CircleAlert size={18} /><div><span>CONTRADICTION PRESERVED</span><strong>{item.summary}</strong><small>{item.providers.join(" ↔ ")} · receipts {item.evidenceIds.map((id) => id.slice(0, 6)).join(", ")}</small></div></article>)}
@@ -771,8 +860,16 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
 }
 
 function EvidenceCard({ evidence, index }: { evidence: Evidence; index: number }) {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [open]);
   const browserSafe = evidence.url?.startsWith("https://") || evidence.url?.startsWith("http://");
-  return <article className="evidence-card" data-provider={evidence.provider}><div className="evidence-top"><span className="provider-glyph"><ProviderIcon provider={evidence.provider} size={14} /></span><span>{evidence.provider}</span><small>[{index + 1}]</small></div><h3>{evidence.title}</h3><blockquote>{evidence.excerpt}</blockquote><div className="evidence-footer"><span>{dateLabel(evidence.timestamp)}</span>{browserSafe && <a href={evidence.url!} target="_blank" rel="noreferrer">Open source <ExternalLink size={12} /></a>}{evidence.url && !browserSafe && <span>Indexed receipt</span>}</div></article>;
+  const receiptId = evidence.id ?? evidence.sourceId ?? evidence.externalId ?? "unavailable";
+  return <><article className="evidence-card" data-provider={evidence.provider}><div className="evidence-top"><span className="provider-glyph"><ProviderIcon provider={evidence.provider} size={14} /></span><span>{evidence.provider}</span><small>[{index + 1}]</small></div><h3>{evidence.title}</h3><blockquote>{evidence.excerpt}</blockquote><div className="evidence-footer"><span>{dateLabel(evidence.timestamp)}</span><button onClick={() => setOpen(true)}>Inspect receipt <Eye size={12} /></button></div></article>{open && <div className="drawer-layer" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}><aside className="source-preview" role="dialog" aria-modal="true" aria-label={`Evidence receipt ${index + 1}`}><button className="modal-close" aria-label="Close evidence receipt" onClick={() => setOpen(false)}><X size={16} /></button><span className="eyebrow"><ProviderIcon provider={evidence.provider} /> {evidence.provider} receipt [{index + 1}]</span><h2>{evidence.title}</h2><blockquote>{evidence.excerpt}</blockquote><div className="source-receipt-grid"><span><small>RECEIPT ID</small><code>{receiptId}</code></span><span><small>SOURCE TIME</small><strong>{dateLabel(evidence.timestamp)}</strong></span><span><small>INGESTED</small><strong>{dateLabel(evidence.ingestionTimestamp)}</strong></span><span><small>AUTHORITY</small><strong>{evidence.authority ?? "Indexed source"}</strong></span></div><div className="drawer-actions"><button className="secondary-button" onClick={() => void navigator.clipboard.writeText(String(receiptId))}><Clipboard size={14} /> Copy receipt ID</button>{browserSafe && <a className="primary-button" href={evidence.url!} target="_blank" rel="noreferrer">Open provider source <ExternalLink size={13} /></a>}</div></aside></div>}</>;
 }
 
 function SourcesScreen({ workspace, connectors, reloadWorkspace, reloadConnectors, setError, setNotice }: {
@@ -853,6 +950,21 @@ function DocumentsPanel({ databases, setError, setNotice }: {
     return () => { active = false; };
   }, [setError]);
 
+  const processingDocumentIds = useMemo(() => documents
+    .filter((document) => ["processing", "uploading"].includes(document.stage) && document.hydradbSourceId)
+    .map((document) => document.id), [documents]);
+  const processingDocumentKey = processingDocumentIds.join("|");
+
+  useEffect(() => {
+    if (!processingDocumentIds.length) return;
+    const timer = window.setInterval(() => {
+      void Promise.all(processingDocumentIds.map((id) => api(`/api/documents/${id}/status`)))
+        .then(load)
+        .catch(() => { /* Manual Check remains available with the surfaced error path. */ });
+    }, 10_000);
+    return () => window.clearInterval(timer);
+  }, [processingDocumentKey, processingDocumentIds]);
+
   async function upload(event: FormEvent) {
     event.preventDefault();
     if (!file) return;
@@ -880,7 +992,7 @@ function DocumentsPanel({ databases, setError, setNotice }: {
   }
 
   return <section className="document-panel">
-    <div className="section-kicker"><span><FileText size={14} /> Document evidence</span><small>PDF · Markdown · text · 25 MB max</small></div>
+    <div className="section-kicker"><span><FileText size={14} /> Document evidence</span><small>PDF · Markdown · text · QueueProof intake cap 25 MB</small></div>
     <div className="document-grid">
       <form className="upload-card" onSubmit={upload} onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => { event.preventDefault(); setFile(event.dataTransfer.files[0] ?? null); }}>
@@ -900,8 +1012,9 @@ function DocumentsPanel({ databases, setError, setNotice }: {
         <div className="list-title"><span><ShieldCheck size={14} /> Ingestion ledger</span><button onClick={() => void load()}><RefreshCw size={12} /> Refresh</button></div>
         {documents.length ? documents.map((document) => <article className="document-row" key={document.id}>
           <span className={`document-stage ${document.stage}`}><FileText size={15} /></span>
-          <div><strong>{document.filename}</strong><small>{prettyBytes(document.byteSize)} · {document.mime} · {dateLabel(document.createdAt)}</small><code>{document.contentHash.slice(0, 18)}…</code>{document.error && <em>{document.error}</em>}</div>
+          <div><strong>{document.filename}</strong><small>{prettyBytes(document.byteSize)} · {document.pageCount ? `${document.pageCount} pages · ` : ""}{document.mime} · {dateLabel(document.createdAt)}</small><code title={document.contentHash}>SHA-256 {document.contentHash.slice(0, 18)}…</code>{document.hydradbSourceId && <code title={document.hydradbSourceId}>Hydra source {document.hydradbSourceId}</code>}<small>{document.database ? `Database ${document.database}` : "Database pending"}{document.processingDurationMs ? ` · indexed in ${(document.processingDurationMs / 1000).toFixed(1)}s` : ""}</small>{document.error && <em>{document.error}</em>}</div>
           <span className={`stage-chip ${document.stage}`}>{document.stage}</span>
+          <button className="receipt-copy" aria-label={`Copy receipt for ${document.filename}`} onClick={() => void navigator.clipboard.writeText(JSON.stringify(document, null, 2))}><Clipboard size={13} /></button>
           {(document.stage === "processing" || document.stage === "validated" || document.stage === "uploading") && <button className="secondary-button" onClick={() => void poll(document)} disabled={busy === document.id}>{busy === document.id ? <LoaderCircle className="spin" size={13} /> : <RefreshCw size={13} />} Check</button>}
         </article>) : <div className="honest-empty"><FileText size={24} /><div><strong>No document evidence yet.</strong><p>The ledger will show validation, hashing, processing, and the real terminal indexing state.</p></div></div>}
       </div>
@@ -1118,6 +1231,7 @@ type LabResults = {
 function LabScreen({ setError }: { setError: (value: string) => void }) {
   const [data, setData] = useState<LabResults | null>(null);
   const [loading, setLoading] = useState(true);
+  const [modeFilter, setModeFilter] = useState<"all" | "fast" | "thinking">("all");
 
   useEffect(() => {
     let active = true;
@@ -1132,6 +1246,7 @@ function LabScreen({ setError }: { setError: (value: string) => void }) {
   const perCategory = Object.entries(data?.fixture?.metrics?.perCategory ?? {});
   const live = data?.live;
   const rows = live?.rows ?? [];
+  const filteredRows = modeFilter === "all" ? rows : rows.filter((row) => row.mode === modeFilter);
   const passed = rows.filter((row) => row.pass === true).length;
   const graded = rows.filter((row) => typeof row.pass === "boolean").length;
   const averageCalls = rows.some((row) => typeof row.callCount === "number")
@@ -1170,8 +1285,8 @@ function LabScreen({ setError }: { setError: (value: string) => void }) {
         </div>
       </section>
 
-      {rows.length > 0 && <div className="benchmark-cases">
-        {rows.map((row, index) => <article className="benchmark-case" key={`${row.label}-${index}`}>
+      {rows.length > 0 && <><div className="benchmark-filter" aria-label="Filter benchmark cases"><span><Search size={13} /> Case explorer</span>{(["all", "fast", "thinking"] as const).map((filter) => <button key={filter} className={modeFilter === filter ? "active" : ""} onClick={() => setModeFilter(filter)}>{filter === "all" ? "All modes" : filter}</button>)}</div><div className="benchmark-cases">
+        {filteredRows.map((row, index) => <article className="benchmark-case" key={`${row.label}-${index}`}>
           <div className="case-index"><span>{String(index + 1).padStart(2, "0")}</span><i className={row.pass === false ? "fail" : "pass"} /></div>
           <div className="case-body"><span className="case-label">{row.label}</span><h3>{row.question}</h3>
             {row.expected && <div className="answer-compare"><div><small>EXPECTED</small><p>{row.expected}</p></div><div><small>OBSERVED</small><p>{row.actual || "No answer captured"}</p></div></div>}
@@ -1179,7 +1294,7 @@ function LabScreen({ setError }: { setError: (value: string) => void }) {
           </div>
           <span className={row.pass === false ? "case-status fail" : "case-status pass"}>{typeof row.pass === "boolean" ? row.pass ? "PASS" : "REVIEW" : "MEASURED"}</span>
         </article>)}
-      </div>}
+      </div></>}
 
       {router && <details className="fixture-diagnostics"><summary><Braces size={14} /> Offline router diagnostics · {(router.accuracy * 100).toFixed(1)}% mode match · {router.total} labelled cases</summary><div className="diagnostic-grid">{perCategory.map(([name, entry]) => <span key={name}><strong>{name}</strong><i>{entry.correct}/{entry.total}</i></span>)}</div><p>{data?.fixture?.caveat}</p></details>}
 
@@ -1189,7 +1304,7 @@ function LabScreen({ setError }: { setError: (value: string) => void }) {
 }
 
 function PacketDrawer({ packet, onClose, onPropose }: { packet: Packet; onClose: () => void; onPropose: () => void }) {
-  return <div className="drawer-layer" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><aside className="packet-drawer"><button className="modal-close" onClick={onClose}><X size={16} /></button><div className="drawer-head"><span className="eyebrow"><FileCheck2 size={13} /> Execution packet</span><code>{packet.packet_id}</code><h2>{packet.task.title}</h2><p>{packet.task.objective}</p></div><div className="drawer-score"><strong>{packet.task.priority_score}</strong><span>{band(packet.task.priority_score)} priority<br />{Math.round(packet.task.confidence * 100)}% confidence</span></div><PacketSection title="Why now" items={packet.why_now} /><div className="packet-columns"><PacketSection title="Constraints" items={packet.constraints} empty="None evidenced" /><PacketSection title="Dependencies" items={packet.dependencies} empty="None evidenced" /></div><PacketSection title="Acceptance criteria" items={packet.acceptance_criteria} /><div className="packet-section"><h3>Evidence receipts <span>{packet.evidence.length}</span></h3>{packet.evidence.map((item, index) => <EvidenceCard key={item.sourceId ?? index} evidence={item} index={index} />)}</div><WhyAboveSection why={packet.why_above_next} /><PacketSection title="Missing information" items={packet.missing_information} empty="No missing fields" /><ReceiptHashBlock hash={packet.receipt_hash} /><div className="permission-block"><LockKeyhole size={16} /><div><strong>Agent permissions</strong><span>Read: {packet.permissions.read.join(", ") || "none"} · Write: {packet.permissions.write.join(", ") || "none"} · Approval {packet.permissions.approval_required ? "required" : "not required"}</span></div></div><div className="drawer-actions"><button className="primary-button" onClick={onPropose}><ShieldCheck size={14} /> Send to approval</button><button className="secondary-button" onClick={() => void navigator.clipboard.writeText(JSON.stringify(packet, null, 2))}><Clipboard size={14} /> Copy canonical JSON</button></div></aside></div>;
+  return <div className="drawer-layer" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><aside className="packet-drawer" role="dialog" aria-modal="true" aria-label="Execution packet"><button className="modal-close" aria-label="Close execution packet" onClick={onClose}><X size={16} /></button><div className="drawer-head"><span className="eyebrow"><FileCheck2 size={13} /> Execution packet</span><code>{packet.packet_id}</code><h2>{packet.task.title}</h2><p>{packet.task.objective}</p></div><div className="drawer-score"><strong>{packet.task.priority_score}</strong><span>{band(packet.task.priority_score)} priority<br />{Math.round(packet.task.confidence * 100)}% confidence</span></div>{packet.score_breakdown && <div className="score-receipt"><div className="list-title"><span><Activity size={14} /> Score receipt</span><small>{packet.policy_version}</small></div>{Object.entries(packet.score_breakdown).map(([label, value]) => <span key={label}><small>{label.replace(/([A-Z])/g, " $1")}</small><i style={{ width: `${Math.min(value * 4, 100)}%` }} /><strong>+{value}</strong></span>)}{Object.entries(packet.penalties ?? {}).filter(([, value]) => value > 0).map(([label, value]) => <span className="penalty" key={label}><small>{label.replace(/([A-Z])/g, " $1")}</small><i style={{ width: `${Math.min(value * 4, 100)}%` }} /><strong>−{value}</strong></span>)}{packet.active_formula && <code>{packet.active_formula}</code>}</div>}<PacketSection title="Why now" items={packet.why_now} /><div className="packet-columns"><PacketSection title="Constraints" items={packet.constraints} empty="None evidenced" /><PacketSection title="Dependencies" items={packet.dependencies} empty="None evidenced" /></div><PacketSection title="Acceptance criteria" items={packet.acceptance_criteria} /><div className="packet-section"><h3>Evidence receipts <span>{packet.evidence.length}</span></h3>{packet.evidence.map((item, index) => <EvidenceCard key={item.sourceId ?? index} evidence={item} index={index} />)}</div><WhyAboveSection why={packet.why_above_next} /><PacketSection title="Missing information" items={packet.missing_information} empty="No missing fields" /><ReceiptHashBlock hash={packet.receipt_hash} /><div className="permission-block"><LockKeyhole size={16} /><div><strong>Agent permissions</strong><span>Read: {packet.permissions.read.join(", ") || "none"} · Write: {packet.permissions.write.join(", ") || "none"} · Approval {packet.permissions.approval_required ? "required" : "not required"}</span></div></div><div className="drawer-actions"><button className="primary-button" onClick={onPropose}><ShieldCheck size={14} /> Send to approval</button><button className="secondary-button" onClick={() => void navigator.clipboard.writeText(JSON.stringify(packet, null, 2))}><Clipboard size={14} /> Copy canonical JSON</button></div></aside></div>;
 }
 
 /**

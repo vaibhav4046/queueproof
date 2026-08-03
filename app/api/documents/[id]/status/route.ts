@@ -23,11 +23,16 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 
     const document = await db
       .prepare(
-        `SELECT id, filename, stage, hydradb_source_id AS sourceId, hydradb_database AS database
+        `SELECT id, filename, stage, hydradb_source_id AS sourceId, hydradb_database AS database,
+                page_count AS pageCount, created_at AS createdAt, indexed_at AS indexedAt,
+                processing_duration_ms AS processingDurationMs
          FROM documents WHERE workspace_id = ? AND id = ? LIMIT 1`,
       )
       .bind(workspaceId, id)
-      .first<{ id: string; filename: string; stage: string; sourceId: string | null; database: string | null }>();
+      .first<{
+        id: string; filename: string; stage: string; sourceId: string | null; database: string | null;
+        pageCount: number | null; createdAt: string; indexedAt: string | null; processingDurationMs: number | null;
+      }>();
 
     if (!document) {
       return noStoreJson({ ok: false, error: "Document not found in this workspace." }, { status: 404 });
@@ -64,9 +69,16 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
           : "processing";
 
     if (stage !== document.stage) {
+      const indexedAt = stage === "indexed" ? new Date().toISOString() : document.indexedAt;
+      const durationMs = stage === "indexed"
+        ? Math.max(0, Date.parse(indexedAt ?? "") - Date.parse(document.createdAt))
+        : document.processingDurationMs;
       await db
-        .prepare(`UPDATE documents SET stage = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
-        .bind(stage, document.id)
+        .prepare(
+          `UPDATE documents SET stage = ?, indexed_at = ?, processing_duration_ms = ?,
+           updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        )
+        .bind(stage, indexedAt, durationMs, document.id)
         .run();
       await db
         .prepare(
@@ -75,6 +87,8 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
         )
         .bind(createId("ingest"), workspaceId, document.id, stage, indexingStatus ?? "unknown")
         .run();
+      document.indexedAt = indexedAt;
+      document.processingDurationMs = durationMs;
     }
 
     return noStoreJson({

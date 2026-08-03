@@ -9,6 +9,6 @@ Date: 2026-07-31
 
 Status: **not run — external authorisation required**.
 
-`scripts/live-acceptance.mjs` refuses to run unless `QUEUEPROOF_LIVE_TEST=true`, `QUEUEPROOF_URL`, and `HYDRADB_API_KEY` are set. No HydraDB credential or scoped Slack/Gmail/Linear authorisation was supplied, so there is no connector, resource, sync, query, MCP-client, or provider-action result to report.
+`scripts/live-acceptance.mjs` refuses to run unless `QUEUEPROOF_LIVE_TEST=true`, `QUEUEPROOF_URL`, and `HYDRA_DB_API_KEY` are set. The web product keeps its HydraDB credential encrypted per workspace; this script-only variable is not required for ordinary product use.
 
 Deployment-only smoke proof is recorded separately in `deployment-verification.md`; it is not substituted for live connector acceptance.

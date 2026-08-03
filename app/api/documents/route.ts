@@ -7,6 +7,7 @@ import {
   MAX_DOCUMENT_BYTES,
   contentHash,
   detectFileType,
+  pdfPageCount,
   type IngestionStage,
 } from "../../../lib/server/documents";
 
@@ -34,7 +35,10 @@ export async function GET() {
     const rows = await requireDb()
       .prepare(
         `SELECT id, filename, mime, byte_size AS byteSize, content_hash AS contentHash,
-                hydradb_source_id AS hydradbSourceId, stage, error, created_at AS createdAt
+                hydradb_database AS database, hydradb_source_id AS hydradbSourceId,
+                page_count AS pageCount, indexed_at AS indexedAt,
+                processing_duration_ms AS processingDurationMs,
+                stage, error, created_at AS createdAt
          FROM documents WHERE workspace_id = ? ORDER BY created_at DESC LIMIT 100`,
       )
       .bind(String(workspace.id))
@@ -78,7 +82,8 @@ export async function POST(request: Request) {
       return noStoreJson({ ok: false, error: "No file field was provided." }, { status: 400 });
     }
     if (file.size > MAX_DOCUMENT_BYTES) {
-      // Checked before reading the body into memory.
+      // Checked before the explicit ArrayBuffer copy below. The framework has already
+      // parsed multipart metadata at this boundary, so this is not claimed as streaming.
       return noStoreJson(
         { ok: false, error: `File exceeds the ${Math.floor(MAX_DOCUMENT_BYTES / (1024 * 1024))} MB limit.` },
         { status: 413 },
@@ -100,17 +105,28 @@ export async function POST(request: Request) {
     }
 
     const hash = await contentHash(bytes);
+    const pageCount = detected.kind === "pdf" ? pdfPageCount(bytes) : null;
     const db = requireDb();
 
     const existing = await db
       .prepare(
-        `SELECT id, filename, stage, hydradb_source_id AS hydradbSourceId
+        `SELECT id, filename, stage, hydradb_database AS database,
+                hydradb_source_id AS hydradbSourceId, page_count AS pageCount,
+                indexed_at AS indexedAt, processing_duration_ms AS processingDurationMs
          FROM documents WHERE workspace_id = ? AND content_hash = ? LIMIT 1`,
       )
       .bind(workspaceId, hash)
-      .first<{ id: string; filename: string; stage: string; hydradbSourceId: string | null }>();
+      .first<{
+        id: string; filename: string; stage: string; database: string | null;
+        hydradbSourceId: string | null; pageCount: number | null;
+        indexedAt: string | null; processingDurationMs: number | null;
+      }>();
 
     if (existing) {
+      if (pageCount && !existing.pageCount) {
+        await db.prepare(`UPDATE documents SET page_count = ? WHERE id = ?`).bind(pageCount, existing.id).run();
+        existing.pageCount = pageCount;
+      }
       await recordStage(workspaceId, existing.id, "duplicate", `Re-upload of ${file.name}.`);
       return noStoreJson({
         ok: true,
@@ -126,10 +142,10 @@ export async function POST(request: Request) {
 
     await db
       .prepare(
-        `INSERT INTO documents (id, workspace_id, filename, mime, byte_size, content_hash, stage)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO documents (id, workspace_id, filename, mime, byte_size, content_hash, page_count, stage)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .bind(documentId, workspaceId, file.name || "upload", detected.mime, bytes.byteLength, hash, stage)
+      .bind(documentId, workspaceId, file.name || "upload", detected.mime, bytes.byteLength, hash, pageCount, stage)
       .run();
 
     await recordStage(workspaceId, documentId, "received", `${bytes.byteLength} bytes.`);
@@ -152,7 +168,7 @@ export async function POST(request: Request) {
         {
           ok: true,
           hydradbConfigured: false,
-          document: { id: documentId, filename: file.name, mime: detected.mime, stage, contentHash: hash },
+          document: { id: documentId, filename: file.name, mime: detected.mime, stage, contentHash: hash, pageCount },
           message:
             "Document stored and validated. Indexing is pending: configure a HydraDB credential for this workspace to make it retrievable.",
         },
@@ -232,6 +248,7 @@ export async function POST(request: Request) {
           contentHash: hash,
           hydradbSourceId: sourceId,
           database,
+          pageCount,
         },
         message:
           "Accepted by HydraDB and queued for indexing. Poll this document until its stage reaches indexed before querying it.",

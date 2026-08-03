@@ -92,7 +92,7 @@ describe("why above #2", () => {
     // Ordered by magnitude, so the dominant reason is first.
     const magnitudes = result.components.map((entry) => Math.abs(entry.delta));
     expect([...magnitudes].sort((a, b) => b - a)).toEqual(magnitudes);
-    expect(result.components[0].label).toMatch(/people unblocked|customer or revenue/);
+    expect(result.components[0].label).toMatch(/dependency \/ blocking|customer \/ operational/);
   });
 
   it("reports no decisive component when two items score identically", () => {
@@ -114,7 +114,7 @@ describe("counterfactual", () => {
     );
     // Every other component must be untouched, or the counterfactual would misattribute.
     for (const key of Object.keys(outcome.before.componentScores)) {
-      if (key === "urgency") continue;
+      if (key === "urgencyDeadline") continue;
       expect(outcome.after.componentScores[key]).toBe(outcome.before.componentScores[key]);
     }
   });
@@ -140,7 +140,7 @@ describe("counterfactual", () => {
 
   it("clamps an out-of-range assumption to the policy maximum", () => {
     const outcome = applyAssumption(input(), { kind: "deadline_urgency", value: 9999 });
-    expect(outcome.after.componentScores.urgency).toBe(18);
+    expect(outcome.after.componentScores.urgencyDeadline).toBe(25);
   });
 });
 

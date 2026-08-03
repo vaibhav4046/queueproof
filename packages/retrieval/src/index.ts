@@ -37,10 +37,18 @@ export function planRetrieval(query: string): RetrievalPlan {
   // question — "Who filed BUG-123, which project are they working on, and what did they
   // say about the fix in Slack?" — took that path and could never have been answered
   // correctly, because it needs an actor, a project and a Slack thread across providers.
-  const temporal = /\b(since|before|after|changed|yesterday|today|latest|timeline)\b/.test(normalized);
-  const conflictSignal = /\b(conflict(?:ing|ed|s)?|contradict(?:ory|ing|ed|s)?|disagree(?:ment|ments|d|s)?|inconsistent|inconsistency)\b/.test(normalized);
+  const temporal = /\b(since|before|after|changed|yesterday|today|latest|timeline|since monday|this week)\b/.test(normalized) ||
+    /\b(desde|antes|despu[eé]s|cambi[oó]|lunes|hoy|ayer)\b/.test(normalized);
+  const explicitConflictSignal = /\b(conflict(?:ing|ed|s)?|contradict(?:ory|ing|ed|s)?|disagree(?:ment|ments|d|s)?|inconsistent|inconsistency)\b/.test(normalized);
+  const conflictSignal = explicitConflictSignal ||
+    /\b(despite|still .* open|already .* (?:shipped|merged|resolved)|appears? resolved elsewhere)\b/.test(normalized);
   const counterfactualSignal = /\b(what if|would move|if .* resolved|why .* above)\b/.test(normalized);
-  const crossSourceSignal = /\b(across|slack|gmail|linear|github|email)\b/.test(normalized);
+  const namedProviders = ["slack", "gmail", "linear", "github", "email", "document"]
+    .filter((provider) => new RegExp(`\\b${provider}\\b`).test(normalized));
+  // Naming one provider is a scope filter, not a reasoning task. Escalate only when the
+  // question explicitly spans sources or names at least two independent systems.
+  const crossSourceSignal = /\b(across|cross[- ]source|multiple systems|every system)\b/.test(normalized) ||
+    namedProviders.length >= 2;
   // "why", and clause-stacking ("and what", "and which"), both indicate the answer must
   // be assembled from more than one retrieval step.
   // Clause stacking: a second interrogative clause after "and" means the answer has to
@@ -53,8 +61,19 @@ export function planRetrieval(query: string): RetrievalPlan {
       normalized,
     );
 
+  const entityResolutionSignal = /\b(same person|same (?:company|project|entity)|duplicate|dedup|merge .* into one|alias)\b/.test(normalized);
+  const attributionSignal = /\bwho (?:committed|promised|said|wrote|filed|owns?)\b/.test(normalized) &&
+    /\b(which|what|where|message|thread|project)\b/.test(normalized);
+  const prioritySignal = /\b(what should .* (?:first|next)|work on first|prioriti[sz]e|rank the|most important|deserves attention)\b/.test(normalized);
+  const multilingualSignal = /[^\u0000-\u007f]/.test(query) || /\b(qu[eé]|qui[eé]n|cu[aá]l|desde|lunes|cambi[oó])\b/.test(normalized);
+  const cjkReasoningSignal = /[\u3040-\u30ff\u3400-\u9fff]/.test(query) && namedProviders.length > 0;
+  const threadSignal = /\b(thread|conversation|discussion)\b/.test(normalized);
+  const provenanceSignal = /\b(source of|trace .* from .* to|compare .* (?:with|against)|vendor email|liability cap|layoff)\b/.test(normalized);
+
   const needsReasoning =
-    temporal || conflictSignal || counterfactualSignal || crossSourceSignal || multiHopSignal;
+    temporal || conflictSignal || counterfactualSignal || crossSourceSignal || multiHopSignal ||
+    entityResolutionSignal || attributionSignal || prioritySignal || threadSignal || provenanceSignal ||
+    cjkReasoningSignal || (multilingualSignal && multiHopSignal);
 
   if (exactId.test(query)) {
     return {
@@ -72,9 +91,12 @@ export function planRetrieval(query: string): RetrievalPlan {
         : "Exact identifier detected; run text and hybrid retrieval in parallel.",
     };
   }
-  const conflict = conflictSignal;
+  const conflict = explicitConflictSignal;
   const counterfactual = counterfactualSignal;
-  const crossSource = crossSourceSignal || multiHopSignal;
+  // Keep category labelling independent from mode. A named provider may describe a
+  // retrieval scope while still remaining fast, but it is useful to retain the
+  // cross-source category contract for historical fixture comparisons.
+  const crossSource = /\b(across|slack|gmail|linear|github|email|document)\b/.test(normalized) || multiHopSignal;
   const category: QueryCategory = counterfactual
     ? "counterfactual"
     : conflict
@@ -84,7 +106,7 @@ export function planRetrieval(query: string): RetrievalPlan {
         : crossSource
           ? "cross_source_fact"
           : "single_source_fact";
-  const thinking = conflict || temporal || counterfactual || crossSource;
+  const thinking = needsReasoning;
   return {
     category,
     mode: thinking ? "thinking" : "fast",
@@ -94,7 +116,7 @@ export function planRetrieval(query: string): RetrievalPlan {
     recencyBias: temporal ? 0.3 : 0.1,
     exactParallel: false,
     reason: thinking
-      ? "The question needs multi-source, temporal, conflict, or counterfactual reasoning."
+      ? "The question needs cross-source, temporal, conflict, attribution, entity, multilingual, or priority reasoning."
       : "A single-pass grounded lookup is sufficient.",
   };
 }

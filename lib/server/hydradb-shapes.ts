@@ -76,3 +76,17 @@ export function providerFromSource(source: Record<string, unknown>): string | nu
   const nested = metadata.app_provider ?? metadata.provider;
   return nested ? canonicalProvider(String(nested)) : null;
 }
+
+/** Strong connector lineage: provider equality alone is never sufficient. */
+export function sourceBelongsToConnector(
+  source: Record<string, unknown>,
+  connectorId: string,
+  selectedResourceIds: ReadonlySet<string>,
+): boolean {
+  const metadata = record(source.additional_metadata);
+  const sourceConnector = source.connector_id ?? metadata.connector_id;
+  const sourceResource = source.resource_id ?? source.resourceId ?? metadata.resource_id ?? metadata.resourceId;
+  if (sourceConnector) return String(sourceConnector) === connectorId;
+  if (sourceResource) return selectedResourceIds.has(String(sourceResource));
+  return false;
+}

@@ -193,6 +193,28 @@ const declaredProviders = (process.env.QUEUEPROOF_AVAILABLE_PROVIDERS ?? "")
 
 const fixtureMetrics = computeMetrics(evaluations, declaredProviders);
 
+// Coverage dimensions overlap by design: a temporal multi-hop conflict counts in every
+// relevant bucket. The mapping is declared here rather than implied by marketing copy.
+const coverageRules = {
+  multiHop: new Set(["multi-hop", "entity-dedup", "knowledge-update", "attribution", "thread", "conflict", "priority"]),
+  temporalUpdate: new Set(["temporal", "knowledge-update", "conflict"]),
+  contradictionStale: new Set(["conflict", "knowledge-update", "counterfactual"]),
+  entityDedup: new Set(["entity-dedup", "actor"]),
+  exactMetadata: new Set(["exact-id", "metadata"]),
+};
+const coverage = {
+  total: cases.length,
+  multiHop: cases.filter((item) => coverageRules.multiHop.has(item.category)).length,
+  temporalUpdate: cases.filter((item) => coverageRules.temporalUpdate.has(item.category)).length,
+  contradictionStale: cases.filter((item) => coverageRules.contradictionStale.has(item.category)).length,
+  entityDedup: cases.filter((item) => coverageRules.entityDedup.has(item.category)).length,
+  exactMetadata: cases.filter((item) => coverageRules.exactMetadata.has(item.category)).length,
+  documentPdf: cases.filter((item) => item.category === "large-pdf" || item.requiredProviders.includes("document")).length,
+};
+for (const [dimension, minimum] of Object.entries({ multiHop: 10, temporalUpdate: 5, contradictionStale: 5, entityDedup: 5, exactMetadata: 5, documentPdf: 5 })) {
+  assert(coverage[dimension] >= minimum, `Coverage ${dimension} requires at least ${minimum} cases, found ${coverage[dimension]}.`);
+}
+
 // ---------------------------------------------------------------------------
 // Live phase: real deployment or an explicit skip
 // ---------------------------------------------------------------------------
@@ -351,6 +373,7 @@ const results = {
   fixture: {
     label: "FIXTURE (offline, no credentials, deterministic components only)",
     caseCount: cases.length,
+    coverage,
     metrics: fixtureMetrics,
     ranking: {
       casesWithExpectedTopTask: rankingResults.length,
@@ -443,6 +466,8 @@ depends on real retrieved content is measured there or not at all.
 ## Fixture results (offline, deterministic layer only)
 
 Router mode accuracy: **${fixtureMetrics.router.correct}/${fixtureMetrics.router.total} = ${percent(fixtureMetrics.router.accuracy)}**
+
+Labelled coverage (overlapping dimensions): **${coverage.multiHop} multi-hop**, **${coverage.temporalUpdate} temporal/update**, **${coverage.contradictionStale} contradiction/stale**, **${coverage.entityDedup} entity-dedup**, **${coverage.exactMetadata} exact/metadata**, **${coverage.documentPdf} document/PDF**.
 
 This compares \`planRetrieval(question).mode\` against the hand-labelled \`expected.mode\` for each
 case. The label was written from the question, not copied from the router, so a mismatch is a real

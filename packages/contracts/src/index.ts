@@ -84,6 +84,13 @@ export const executionPacketSchema = z.object({
   evidence: z.array(sourceReferenceSchema).min(1),
   contradictions: z.array(z.unknown()),
   missing_information: z.array(z.string()),
+  score_breakdown: z.record(z.string(), z.number()).default({}),
+  penalties: z.record(z.string(), z.number()).default({}),
+  active_formula: z.string().default(""),
+  recommended_safe_action: z.string().default("Review the cited evidence before taking action."),
+  provider_coverage: z.array(z.string()).default([]),
+  deduplicated_tasks: z.array(z.string()).default([]),
+  status: z.string().default("open"),
   recommended_agent: z.enum(["human", "codex", "claude", "kimi", "kilo", "generic"]),
   permissions: z.object({
     read: z.array(z.string()),
@@ -104,6 +111,66 @@ export const queryRequestSchema = z.object({
   collections: z.array(z.string()).min(1).max(100).optional(),
   mode: z.enum(["fast", "thinking", "auto"]).default("auto"),
   providerFilters: z.array(z.string()).default([]),
+});
+
+export const groundedCitationSchema = z.object({
+  id: z.string().min(1),
+  provider: z.string().min(1),
+  title: z.string().min(1),
+  excerpt: z.string(),
+  timestamp: z.string().nullable(),
+  url: z.string().nullable(),
+});
+
+export const groundedClaimSchema = z.object({
+  text: z.string().min(1),
+  citation_ids: z.array(z.string().min(1)).min(1),
+  providers: z.array(z.string().min(1)).min(1),
+});
+
+export const groundedPriorityItemSchema = z.object({
+  id: z.string().min(1),
+  title: z.string().min(1),
+  normalized_entity: z.string().min(1),
+  owner: z.string().nullable(),
+  due_date: z.string().nullable(),
+  status: z.string().min(1),
+  score: z.number().min(0).max(100),
+  score_breakdown: z.record(z.string(), z.number()),
+  penalties: z.record(z.string(), z.number()),
+  why_now: z.array(z.string()),
+  recommended_next_safe_action: z.string().min(1),
+  evidence_ids: z.array(z.string().min(1)).min(1),
+  disagreements: z.array(z.unknown()),
+  confidence: z.number().min(0).max(1),
+  provider_coverage: z.array(z.string().min(1)).min(1),
+  deduplicated_tasks: z.array(z.string()),
+  approval_required: z.boolean(),
+});
+
+export const retrievalReceiptSchema = z.object({
+  query_id: z.string().min(1),
+  hydradb_mode: z.enum(["fast", "thinking"]),
+  routing_reason: z.string().min(1),
+  hydradb_call_count: z.number().int().min(0),
+  total_latency_ms: z.number().int().min(0),
+  provider_coverage: z.array(z.string()),
+  receipt_count: z.number().int().min(0),
+  metadata_filters: z.record(z.string(), z.unknown()),
+  graph_usage: z.boolean(),
+  estimated_cost_units: z.number().min(0),
+  timestamp: z.string().datetime(),
+});
+
+export const groundedAnswerContractSchema = z.object({
+  answer: z.string().min(1),
+  claims: z.array(groundedClaimSchema),
+  citations: z.array(groundedCitationSchema),
+  priority_items: z.array(groundedPriorityItemSchema),
+  contradictions: z.array(z.unknown()),
+  missing_information: z.array(z.string()),
+  retrieval_receipt: retrievalReceiptSchema,
+  routing_reason: z.string().min(1),
 });
 
 export const actionProposalSchema = z.object({

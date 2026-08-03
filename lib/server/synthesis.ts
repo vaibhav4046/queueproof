@@ -200,7 +200,8 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
     evidenceIds: [candidate.item.id],
     providers: [candidate.item.provider],
   }));
-  const evidenceIndex = new Map(ranked.map((item, index) => [item.id, index + 1]));
+  const citedOrder = [...new Set(claims.flatMap((claim) => claim.evidenceIds))];
+  const evidenceIndex = new Map(citedOrder.map((id, index) => [id, index + 1]));
   const answer = claims.length
     ? claims.map((claim) => `${claim.text} [${evidenceIndex.get(claim.evidenceIds[0])}]`).join(" ")
     : "No safe supporting evidence was returned. QueueProof will not invent an answer.";

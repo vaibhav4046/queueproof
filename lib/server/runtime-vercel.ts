@@ -10,6 +10,13 @@
  * database backed by hosted libSQL (production) or node:sqlite (local development).
  */
 import { resolveStorage } from "./d1-compat";
+import { assertRuntimeConfig } from "./runtime-config";
+
+// Build previews can intentionally be unconfigured; an actual Vercel production
+// runtime must fail closed before any route can accept traffic.
+if (process.env.VERCEL_ENV === "production") {
+  assertRuntimeConfig(process.env as unknown as Record<string, unknown>, { production: true });
+}
 
 const storage = resolveStorage(process.env as unknown as Record<string, unknown>);
 
