@@ -202,6 +202,14 @@ const isNonLiveSourceArtifact = (header: string, corpus: string) =>
       /\b(?:codelabs?|mcq assessment)\b/i,
       /\b(?:academy|certificate|hackathon|program progression)\b/i,
     )
+  ) ||
+  (
+    /^vol\.\s*\d+\b/i.test(header) &&
+    hasPairedContext(
+      corpus,
+      /\b(?:advertising channel|come into the community|newsletter|subscribe)\b/i,
+      /(?:#[a-z][a-z0-9]+|\bprimary source for this issue\b|\bsources\b)/i,
+    )
   );
 
 const negativeObligation = /\b(?:must|should|need(?:s)? to)\s+not\b/i;
