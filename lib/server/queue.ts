@@ -82,6 +82,9 @@ export function queueEvidenceDedupKey(
   return `${evidence.provider}:${sourceExternalId}:${clean(evidence.taskSpan.toLowerCase(), 360)}`;
 }
 
+/** Queue packets must represent positively ranked, actionable work. */
+export const canEmitQueueScore = (score: number) => Number.isFinite(score) && score > 0;
+
 const actionable = /\b(will|must|need(?:s)? to|should|please|todo|action|follow[ -]?up|blocked|unblock|due|deadline|urgent|asap|ship|send|review|fix|investigate|resolve|renewal|incident|outage|escalat|deliver|approve)\b/i;
 
 const actorCommitmentSignals = [
@@ -107,14 +110,66 @@ const strongTaskSignals = [
   /\b(?:incident|outage)\b[^.!?]{0,90}\b(?:reported|active|ongoing|blocking|unresolved)\b/i,
 ];
 
-const nonLiveSourceContext = [
-  /\bhomework\b[\s\S]{0,1200}\b(?:question\s+\d+|provide (?:the )?subject and body|based on the above findings|section\s+\d+)\b/i,
-  /\b(?:academic support|academic writing)\b[\s\S]{0,1200}\b(?:student pricing|assignment help|thesis|dissertation|our services?)\b/i,
-  /\b(?:employment agreement|successful application)\b[\s\S]{0,1200}\b(?:exclusive jurisdiction|confidential and proprietary|for internal use only)\b/i,
-];
+const hasPairedContext = (value: string, left: RegExp, right: RegExp) =>
+  left.test(value) && right.test(value);
+
+const hasCandidatePairedContext = (window: string, candidate: string, left: RegExp, right: RegExp) =>
+  hasPairedContext(window, left, right) && (left.test(candidate) || right.test(candidate));
+
+const isObjectlessCompletionCandidate = (candidate: string) => {
+  const match = candidate.match(
+    /^(?:(?:action\s*:\s*)?(?:please\s+)?(?:complete|finish)|(?:can|could|would)\s+you\s+(?:please\s+)?(?:complete|finish)|(?:must|need to|should)\s+(?:complete|finish)|(?:i|we|you|engineering|the team|support|security|operations|[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:will|must|should|need(?:s)? to)\s+(?:complete|finish))(?:\s+(?:it|this|them))?\s*(.*?)[.!?]?$/i,
+  );
+  if (!match) return false;
+  const suffix = match[1]!.trim();
+  if (!suffix) return true;
+  return /^(?:(?:by|on)\s+)?(?:today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|(?:this|next)\s+(?:week|month|quarter)|end\s+of\s+(?:day|week|month|quarter)|eod|cob|close\s+of\s+business|\d{4}-\d{2}-\d{2}(?:t\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?z?)?|\d{1,2}(?:st|nd|rd|th)?\s+(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)(?:,?\s+\d{4})?|(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+\d{4})?|\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?)$/i.test(suffix);
+};
+
+const isTrainingCandidateContext = (window: string, candidate: string) =>
+  hasPairedContext(
+    window,
+    /\b(?:codelabs?|mcq assessment|workshops? completed)\b/i,
+    /\b(?:submission deadline|complete|finish|assessment|workshops?)\b/i,
+  ) && (
+    /\b(?:codelabs?|mcq assessment|workshops?|assessment)\b/i.test(candidate) ||
+    isObjectlessCompletionCandidate(candidate)
+  );
+
+/** Reject non-work candidate windows without discarding unrelated tasks in one source. */
+const isNonLiveCandidateContext = (window: string, candidate: string) =>
+  hasCandidatePairedContext(
+    window,
+    candidate,
+    /\bhomework\b/i,
+    /\b(?:question\s+\d+|provide (?:the )?subject and body|based on the above findings|section\s+\d+)\b/i,
+  ) ||
+  hasCandidatePairedContext(
+    window,
+    candidate,
+    /\b(?:academic support|academic writing)\b/i,
+    /\b(?:student pricing|assignment help|thesis|dissertation|our services?)\b/i,
+  ) ||
+  hasCandidatePairedContext(
+    window,
+    candidate,
+    /\b(?:employment agreement|successful application)\b/i,
+    /\b(?:exclusive jurisdiction|confidential and proprietary|for internal use only)\b/i,
+  ) ||
+  hasCandidatePairedContext(
+    window,
+    candidate,
+    /\b(?:successful application|pre-contract documentation|right to work|photo identification|passport|e-?visa|national insurance)\b/i,
+    /\b(?:written offer|onboarding|identity documents?|payroll employment)\b/i,
+  ) ||
+  /\bno payment(?: of any kind)?\b[\s\S]{0,180}\b(?:equipment|training|software|onboarding)\b/i.test(candidate) ||
+  isTrainingCandidateContext(window, candidate);
+
+const hasDiscriminativeNonLiveMarker = (candidate: string) =>
+  /\b(?:homework|question\s+\d+|academic support|academic writing|student pricing|assignment help|employment agreement|successful application|pre-contract documentation|right to work|photo identification|passport|e-?visa|national insurance|written offer|onboarding|identity documents?|payroll employment|codelabs?|mcq assessment|workshops? completed)\b/i.test(candidate);
 
 const negativeObligation = /\b(?:must|should|need(?:s)? to)\s+not\b/i;
-const nonTaskCandidateContext = /\b(?:(?:recipients?|employee|agreement|information).{0,100}(?:confidential|proprietary|jurisdiction|unauthori[sz]ed)|(?:agreement|parties).{0,100}(?:operation of law|automatically|binding|governed|jurisdiction)|students?.{0,100}(?:assignment|coursework|homework|submit)|(?:academic|assignment|coursework|homework|essay|thesis|dissertation).{0,100}(?:submit|complete|deadline)|help (?:you|your)|business grow|achieve (?:your|their) goals|special offer|student pricing|for internal use only|must not be shared|all rights reserved)\b/i;
+const nonTaskCandidateContext = /\b(?:(?:recipients?|employee|agreement|information).{0,100}(?:confidential|proprietary|jurisdiction|unauthori[sz]ed)|(?:agreement|parties).{0,100}(?:operation of law|automatically|binding|governed|jurisdiction)|students?.{0,100}(?:assignment|coursework|homework|submit)|(?:academic|assignment|coursework|homework|essay|thesis|dissertation).{0,100}(?:submit|complete|deadline)|example (?:issue|task|answer)|question\s+\d+.{0,100}provide|help (?:you|your)|business grow|achieve (?:your|their) goals|special offer|student pricing|for internal use only|must not be shared|all rights reserved)\b/i;
 const exactTaskIdentity = /\b[A-Z][A-Z0-9]{1,9}-\d+\b/;
 const operationalTaskAction = /\b(?:review|fix|send|ship|deliver|deploy|launch|approve|resolve|investigate|renew|reply|respond|response|merge|unblock|report|raise|schedule|confirm|complete|finish|provide|update|write|prepare|submit|rotate|book|call|refund|own|unsubscribe)\b/i;
 const liveTaskState = /\b(?:blocked|blocking|overdue|due|still\s+(?:showing\s+as\s+)?open|remains?\s+open|(?:is|are)\s+open|(?:is|are|remains?)\s+being\s+(?:fixed|investigated|reviewed|worked)|in\s+progress|escalat(?:ed|ion)|incident|outage|deadline|slipped|delayed|postponed|moved)\b/i;
@@ -138,14 +193,33 @@ export function extractActionableTaskSpan(value: string): string | null {
     .trim()
     .slice(0, 7_000);
   if (!corpus) return null;
-  if (nonLiveSourceContext.some((pattern) => pattern.test(corpus))) return null;
-  const candidates = corpus
+  const candidates: string[] = [];
+  const segments = corpus
     .split(/\r?\n+|(?<=[.!?])\s+|\s+(?=[*-]\s+)/)
     .map((entry) => clean(entry, 1_200))
-    .filter((entry) => entry.length >= 12 && strongTaskSignals.some((pattern) => pattern.test(entry)))
-    .filter(hasConcreteTaskStructure)
-    .filter((entry) => !negativeObligation.test(entry) || /\b[A-Z][A-Z0-9]{1,9}-\d+\b/.test(entry))
-    .filter((entry) => !nonTaskCandidateContext.test(entry) || /\b[A-Z][A-Z0-9]{1,9}-\d+\b/.test(entry));
+    .filter(Boolean);
+  const sourceHeaderHasTaskIdentity = exactTaskIdentity.test(segments[0] ?? "");
+  for (let index = 0; index < segments.length; index += 1) {
+    const entry = segments[index]!;
+    const identityBacked = sourceHeaderHasTaskIdentity || exactTaskIdentity.test(entry);
+    if (entry.length < 12 || !strongTaskSignals.some((pattern) => pattern.test(entry))) continue;
+    if (!hasConcreteTaskStructure(entry)) continue;
+    if (negativeObligation.test(entry) && !identityBacked) continue;
+    if (nonTaskCandidateContext.test(entry) && !identityBacked) continue;
+    const nextSegment = segments[index + 1];
+    const linkedForwardContext = /^(?:this|that|it|these|those)\s+(?:is|are|was|were|means?|follows?|relates?|refers?|concerns?|covers?)\b/i.test(nextSegment ?? "") &&
+      !/\b(?:separate|unrelated|independent|different|not\s+related)\b/i.test(nextSegment ?? "");
+    const includeNext = hasDiscriminativeNonLiveMarker(entry) || (
+      isObjectlessCompletionCandidate(entry) && linkedForwardContext
+    );
+    const localWindow = [
+      segments[index - 1],
+      entry,
+      ...(includeNext ? [nextSegment] : []),
+    ].filter(Boolean).join(" ");
+    if (isNonLiveCandidateContext(localWindow, entry) && !identityBacked) continue;
+    candidates.push(entry);
+  }
   if (!candidates.length) return null;
   const score = (entry: string) =>
     (entry.match(/\b[A-Z][A-Z0-9]{1,9}-\d+\b/g)?.length ?? 0) * 4 +
@@ -340,6 +414,7 @@ export function taskClusterKey(evidence: Pick<Evidence, "provider" | "externalId
 
 type ClusterableEvidence = Pick<Evidence, "provider" | "externalId" | "title" | "excerpt"> & {
   taskSpan?: string;
+  timestamp?: string | null;
 };
 
 const clusteringCorpus = (evidence: ClusterableEvidence) =>
@@ -354,8 +429,189 @@ const distinctiveEntities = (evidence: ClusterableEvidence) => new Set(
     .filter((token) => !["QueueProof", "HydraDB"].includes(token)),
 );
 
+const TASK_WORDING_STOPWORDS = new Set([
+  "about", "after", "against", "before", "being", "between", "could", "from", "have",
+  "into", "must", "need", "needs", "please", "should", "someone", "that", "their", "there",
+  "these", "this", "those", "through", "under", "until", "very", "what", "when", "where",
+  "which", "while", "will", "with", "would", "your",
+]);
+
+const taskWordingTokens = (evidence: ClusterableEvidence) => new Set(
+  clean(evidence.taskSpan ?? evidence.excerpt, 360)
+    .toLowerCase()
+    .match(/[a-z0-9]+/g)
+    ?.filter((token) => token.length >= 3 && !TASK_WORDING_STOPWORDS.has(token)) ?? [],
+);
+
 const overlaps = (left: ReadonlySet<string>, right: ReadonlySet<string>) =>
   [...left].some((value) => right.has(value));
+
+const MONTH_NUMBER = new Map([
+  ["jan", "01"], ["january", "01"], ["feb", "02"], ["february", "02"],
+  ["mar", "03"], ["march", "03"], ["apr", "04"], ["april", "04"],
+  ["may", "05"], ["jun", "06"], ["june", "06"], ["jul", "07"], ["july", "07"],
+  ["aug", "08"], ["august", "08"], ["sep", "09"], ["sept", "09"], ["september", "09"],
+  ["oct", "10"], ["october", "10"], ["nov", "11"], ["november", "11"],
+  ["dec", "12"], ["december", "12"],
+]);
+const WEEKDAY_NUMBER = new Map([
+  ["sunday", 0], ["monday", 1], ["tuesday", 2], ["wednesday", 3],
+  ["thursday", 4], ["friday", 5], ["saturday", 6],
+]);
+const MONTH_PATTERN = "jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?";
+
+const absoluteDateAnchor = (year: string, month: string, day: string) =>
+  `absolute:${year}:${month}-${day.padStart(2, "0")}`;
+
+const utcDateAnchor = (date: Date) => absoluteDateAnchor(
+  String(date.getUTCFullYear()),
+  String(date.getUTCMonth() + 1).padStart(2, "0"),
+  String(date.getUTCDate()),
+);
+
+const taskDateAnchors = (evidence: ClusterableEvidence) => {
+  const text = clean(evidence.taskSpan ?? evidence.excerpt, 360).toLowerCase();
+  const anchors = new Set<string>();
+  const timestamp = evidence.timestamp ? new Date(evidence.timestamp) : null;
+  const base = timestamp && Number.isFinite(timestamp.getTime()) ? timestamp : null;
+  let unresolvedRelative = false;
+
+  const withoutIsoDates = text.replace(/(?<!\d)\d{4}-\d{2}-\d{2}(?!\d)/g, " ");
+  if (/\b(?:next\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)|(?:this|next)\s+(?:week|month|quarter)|end\s+of\s+(?:day|week|month|quarter)|eod|cob|close\s+of\s+business|\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?)\b/i.test(withoutIsoDates)) {
+    unresolvedRelative = true;
+  }
+
+  for (const match of text.matchAll(/(?<!\d)(\d{4})-(\d{2})-(\d{2})(?!\d)/g)) {
+    anchors.add(absoluteDateAnchor(match[1]!, match[2]!, match[3]!));
+  }
+  const dayFirst = new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(${MONTH_PATTERN})\\.?(?:,?\\s+(\\d{4}))?\\b`, "g");
+  for (const match of text.matchAll(dayFirst)) {
+    anchors.add(absoluteDateAnchor(match[3] ?? (base ? String(base.getUTCFullYear()) : "*"), MONTH_NUMBER.get(match[2]!)!, match[1]!));
+  }
+  const monthFirst = new RegExp(`\\b(${MONTH_PATTERN})\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s+(\\d{4}))?\\b`, "g");
+  for (const match of text.matchAll(monthFirst)) {
+    anchors.add(absoluteDateAnchor(match[3] ?? (base ? String(base.getUTCFullYear()) : "*"), MONTH_NUMBER.get(match[1]!)!, match[2]!));
+  }
+
+  for (const relativeMatch of text.matchAll(/\b(?:(next)\s+)?(today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/g)) {
+    if (relativeMatch[1]) continue;
+    const relative = relativeMatch[2]!;
+    if (!base) {
+      unresolvedRelative = true;
+      continue;
+    }
+    const resolved = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate()));
+    if (relative === "tomorrow") resolved.setUTCDate(resolved.getUTCDate() + 1);
+    else if (relative !== "today") {
+      const target = WEEKDAY_NUMBER.get(relative)!;
+      resolved.setUTCDate(resolved.getUTCDate() + ((target - resolved.getUTCDay() + 7) % 7));
+    }
+    anchors.add(utcDateAnchor(resolved));
+  }
+  return { anchors, unresolvedRelative };
+};
+
+const compatibleDateAnchors = (left: string, right: string) => {
+  if (!left.startsWith("absolute:") || !right.startsWith("absolute:")) return left === right;
+  const [, leftYear, leftMonthDay] = left.split(":");
+  const [, rightYear, rightMonthDay] = right.split(":");
+  return leftMonthDay === rightMonthDay && (leftYear === "*" || rightYear === "*" || leftYear === rightYear);
+};
+
+const compatibleTaskDates = (left: ClusterableEvidence, right: ClusterableEvidence) => {
+  const leftDates = taskDateAnchors(left);
+  const rightDates = taskDateAnchors(right);
+  if (leftDates.unresolvedRelative || rightDates.unresolvedRelative) return false;
+  if (!leftDates.anchors.size || !rightDates.anchors.size) return true;
+  return [...leftDates.anchors].some((leftDate) =>
+    [...rightDates.anchors].some((rightDate) => compatibleDateAnchors(leftDate, rightDate)));
+};
+
+const TASK_ACTION_SIGNAL = /\b(?:approve|call|commit(?:ted)?|complete|confirm|deliver|finish|fix|investigate|launch|need(?:s)? to|prepare|promis(?:e[sd]?|ed)|raise|report|resolve|review|send|ship|should|update|will|write)\b/i;
+
+const taskActorTokens = (evidence: ClusterableEvidence) => {
+  const text = clean(evidence.taskSpan ?? evidence.excerpt, 360);
+  const actionAt = text.search(TASK_ACTION_SIGNAL);
+  if (actionAt <= 0) return new Set<string>();
+  const prefix = text.slice(0, actionAt).trim().replace(/[,:-]+$/g, "").trim();
+  if (/\b(?:and|&)\b|,/.test(prefix)) return new Set<string>();
+  const knownRole = /^(?:i|we|you|engineering|the team|support|security|operations)$/i.test(prefix);
+  const properName = /^[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?$/.test(prefix);
+  if (!knownRole && !properName) {
+    return new Set<string>();
+  }
+  return new Set(prefix.toLowerCase().match(/[a-z0-9]+/g)?.filter((token) => token.length >= 3) ?? []);
+};
+
+const taskProductTokens = (evidence: ClusterableEvidence) => new Set(
+  (clean(evidence.taskSpan ?? evidence.excerpt, 360).match(/\b[A-Z][a-z]+[A-Z][A-Za-z0-9]*\b/g) ?? [])
+    .map((token) => token.toLowerCase()),
+);
+
+const GENERIC_NAMED_SCOPES = new Set([
+  "action", "access", "billing", "customer", "client", "document", "email", "engineering",
+  "enterprise", "followup", "github", "gmail", "important", "incident", "issue", "linear",
+  "mortem", "operations", "please", "post", "request", "renewal", "security", "slack",
+  "status", "support", "task", "team", "the", "this", "today", "tomorrow", "update",
+  ...MONTH_NUMBER.keys(),
+  ...WEEKDAY_NUMBER.keys(),
+]);
+
+const taskNamedScopes = (evidence: ClusterableEvidence) => {
+  const actors = taskActorTokens(evidence);
+  const products = taskProductTokens(evidence);
+  return new Set(
+    (`${evidence.title} ${evidence.taskSpan ?? evidence.excerpt}`.match(/\b[A-Z][A-Za-z0-9]{2,}\b/g) ?? [])
+      .filter((token) => !/^[A-Z0-9]+$/.test(token))
+      .map((token) => token.toLowerCase())
+      .filter((token) => !GENERIC_NAMED_SCOPES.has(token) && !actors.has(token) && !products.has(token)),
+  );
+};
+
+const explicitTaskDateYears = (evidence: ClusterableEvidence) => {
+  const text = clean(evidence.taskSpan ?? evidence.excerpt, 360).toLowerCase();
+  const years = new Set<string>();
+  for (const match of text.matchAll(/(?<!\d)(\d{4})-\d{2}-\d{2}(?!\d)/g)) years.add(match[1]!);
+  const dayFirst = new RegExp(`\\b\\d{1,2}(?:st|nd|rd|th)?\\s+(?:${MONTH_PATTERN})\\.?(?:,?\\s+(\\d{4}))\\b`, "g");
+  for (const match of text.matchAll(dayFirst)) years.add(match[1]!);
+  const monthFirst = new RegExp(`\\b(?:${MONTH_PATTERN})\\.?\\s+\\d{1,2}(?:st|nd|rd|th)?(?:,?\\s+(\\d{4}))\\b`, "g");
+  for (const match of text.matchAll(monthFirst)) years.add(match[1]!);
+  return years;
+};
+
+const controlledTaskWordingDifferences = (
+  left: ClusterableEvidence,
+  right: ClusterableEvidence,
+  leftTokens: ReadonlySet<string>,
+  rightTokens: ReadonlySet<string>,
+) => {
+  const leftOnly = [...leftTokens].filter((token) => !rightTokens.has(token));
+  const rightOnly = [...rightTokens].filter((token) => !leftTokens.has(token));
+  const allowed = (token: string, evidence: ClusterableEvidence) =>
+    explicitTaskDateYears(evidence).has(token) || taskActorTokens(evidence).has(token) || taskProductTokens(evidence).has(token);
+  if (leftOnly.some((token) => !allowed(token, left)) || rightOnly.some((token) => !allowed(token, right))) return false;
+  const leftDateYears = explicitTaskDateYears(left);
+  const rightDateYears = explicitTaskDateYears(right);
+  const leftSemanticExtras = leftOnly.filter((token) => !leftDateYears.has(token));
+  const rightSemanticExtras = rightOnly.filter((token) => !rightDateYears.has(token));
+  return !leftSemanticExtras.length || !rightSemanticExtras.length;
+};
+
+/** High-overlap local wording can identify the same task without an explicit work ID. */
+const sameTaskWording = (left: ClusterableEvidence, right: ClusterableEvidence) => {
+  if (!compatibleTaskDates(left, right)) return false;
+  const leftScopes = taskNamedScopes(left);
+  const rightScopes = taskNamedScopes(right);
+  if (leftScopes.size !== rightScopes.size || [...leftScopes].some((scope) => !rightScopes.has(scope))) return false;
+  const leftTokens = taskWordingTokens(left);
+  const rightTokens = taskWordingTokens(right);
+  if (!controlledTaskWordingDifferences(left, right, leftTokens, rightTokens)) return false;
+  const shared = [...leftTokens].filter((token) => rightTokens.has(token)).length;
+  if (shared < 5) return false;
+  const smallerCoverage = shared / Math.min(leftTokens.size, rightTokens.size);
+  const jaccard = shared / new Set([...leftTokens, ...rightTokens]).size;
+  return smallerCoverage >= 0.8 && jaccard >= 0.65;
+};
 
 /**
  * Conflict-aware clustering follows identity evidence, not product-name vibes:
@@ -385,11 +641,12 @@ export function clusterTaskEvidence<T extends ClusterableEvidence>(evidences: T[
   }
 
   const exactComponents = () => {
-    const components = new Map<number, { member: number; entities: Set<string> }>();
+    const components = new Map<number, { member: number; members: number[]; entities: Set<string> }>();
     records.forEach((record, index) => {
       if (!record.ids.size) return;
       const root = find(index);
-      const component = components.get(root) ?? { member: index, entities: new Set<string>() };
+      const component = components.get(root) ?? { member: index, members: [], entities: new Set<string>() };
+      component.members.push(index);
       record.entities.forEach((entity) => component.entities.add(entity));
       components.set(root, component);
     });
@@ -397,8 +654,16 @@ export function clusterTaskEvidence<T extends ClusterableEvidence>(evidences: T[
   };
 
   records.forEach((record, index) => {
-    if (record.ids.size || !record.entities.size) return;
-    const matches = exactComponents().filter((component) => overlaps(record.entities, component.entities));
+    if (record.ids.size) return;
+    const matches = exactComponents().filter((component) =>
+      component.members.some((member) =>
+        compatibleTaskDates(record.evidence, records[member]!.evidence) && (
+          overlaps(record.entities, records[member]!.entities) ||
+          (record.evidence.provider !== records[member]!.evidence.provider &&
+            sameTaskWording(record.evidence, records[member]!.evidence))
+        ),
+      ),
+    );
     if (matches.length === 1) union(index, matches[0]!.member);
   });
 
@@ -733,7 +998,8 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
       authority: item.authority, metadata: item.metadata,
     }));
     return { evidence, evidences, supportingEvidences, providers, taskId, title, input, result: rank(input) };
-  }).sort((a, b) => b.result.finalScore - a.result.finalScore ||
+  }).filter((item) => canEmitQueueScore(item.result.finalScore))
+    .sort((a, b) => b.result.finalScore - a.result.finalScore ||
     `${a.evidence.provider}:${a.evidence.externalId}`.localeCompare(`${b.evidence.provider}:${b.evidence.externalId}`))
     .slice(0, 18);
 
@@ -876,7 +1142,7 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
       ).bind(
         createId("ranked"), workspaceId, rankingRunId, item.taskId, index + 1,
         JSON.stringify(item.result.componentScores), JSON.stringify(item.result.penalties),
-        Math.round(item.result.finalScore), Math.round(item.result.confidence * 100),
+        item.result.finalScore, Math.round(item.result.confidence * 100),
         // Persist the exact RankingInput that produced this row. It was previously
         // written as {}, which made the ranking unreplayable: a counterfactual could not
         // re-score the item, and explain_priority's promised sensitivity was always
@@ -936,7 +1202,7 @@ export async function listQueueForWorkspace(workspaceId: string) {
        FROM ranking_items ri
        JOIN task_candidates tc ON tc.id = ri.task_id
        JOIN execution_packets ep ON ep.task_id = tc.id AND ep.workspace_id = tc.workspace_id
-       WHERE ri.workspace_id = ? AND ri.ranking_run_id = ?
+       WHERE ri.workspace_id = ? AND ri.ranking_run_id = ? AND ri.final_score > 0
        ORDER BY ri.rank ASC`,
     )
     .bind(workspaceId, latest.id)

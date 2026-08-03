@@ -248,9 +248,15 @@ export function buildQueueProofServer(
         .prepare(
           `SELECT ri.*, tc.title, tc.recommended_action, tc.owner, tc.deadline
            FROM ranking_items ri JOIN task_candidates tc ON tc.id = ri.task_id
-           WHERE ri.workspace_id = ? ORDER BY ri.rank ASC LIMIT ?`,
+           WHERE ri.workspace_id = ? AND ri.final_score > 0
+             AND ri.ranking_run_id = (
+               SELECT id FROM ranking_runs
+               WHERE workspace_id = ?
+               ORDER BY completed_at DESC, created_at DESC LIMIT 1
+             )
+           ORDER BY ri.rank ASC LIMIT ?`,
         )
-        .bind(workspaceId, limit)
+        .bind(workspaceId, workspaceId, limit)
         .all();
       return text({ items: result.results });
     },

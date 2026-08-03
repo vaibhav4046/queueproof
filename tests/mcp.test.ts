@@ -50,6 +50,8 @@ describe("QueueProof MCP", () => {
     expect(source).toContain('provider: z.literal("linear")');
     expect(source).toContain('actionType: z.literal("create_issue")');
     expect(source).toContain("source_references");
+    expect(source).toContain("ri.final_score > 0");
+    expect(source).toContain("ri.ranking_run_id = (");
   });
 
   it("rejects an unauthenticated request fail-closed", async () => {
