@@ -10,6 +10,7 @@ import Image from "next/image";
 import { SiGithub, SiGmail, SiLinear, SiSlack } from "react-icons/si";
 import { ComponentProps, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { WorkspaceView } from "../lib/server/workspace-state";
+import EvidenceOrbit, { type OrbitStage } from "./components/EvidenceOrbit";
 
 
 type CredentialField = {
@@ -817,10 +818,25 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
   const [citationPreview, setCitationPreview] = useState<{ evidence: Evidence; index: number } | null>(null);
   const [judgePulse, setJudgePulse] = useState<{ status: string; passed: number; total: number; p50: number | null; calls: number | null } | null>(null);
   const runPending = useRef(false);
-  const artifactRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
   const verifiedCount = verified.length;
+
+  // Evidence Orbit stage machine — every transition is driven by a real event:
+  // query accepted → routing; HydraDB calls in flight → retrieving; entity
+  // linking → linking; contradiction detected → contradiction; validation done
+  // → verified or insufficient. No cinematic event runs disconnected from state.
+  const [orbitStage, setOrbitStage] = useState<OrbitStage>("idle");
+  const orbitTimers = useRef<number[]>([]);
+  const clearOrbitTimers = useCallback(() => {
+    orbitTimers.current.forEach((id) => window.clearTimeout(id));
+    orbitTimers.current = [];
+  }, []);
+  const scheduleOrbit = useCallback((next: OrbitStage, afterMs: number) => {
+    const id = window.setTimeout(() => setOrbitStage(next), afterMs);
+    orbitTimers.current.push(id);
+  }, []);
+  useEffect(() => clearOrbitTimers, [clearOrbitTimers]);
 
   useEffect(() => {
     const target = busy ? stageRef.current : result ? resultRef.current : null;
@@ -852,35 +868,32 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
     return () => { active = false; };
   }, []);
 
-  function moveArtifact(event: React.PointerEvent<HTMLDivElement>) {
-    const element = artifactRef.current;
-    if (!element || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const rect = element.getBoundingClientRect();
-    const x = (event.clientX - rect.left) / rect.width - 0.5;
-    const y = (event.clientY - rect.top) / rect.height - 0.5;
-    element.style.setProperty("--artifact-ry", `${(x * 11).toFixed(2)}deg`);
-    element.style.setProperty("--artifact-rx", `${(-y * 11).toFixed(2)}deg`);
-    element.style.setProperty("--artifact-x", `${(x * 22).toFixed(1)}px`);
-    element.style.setProperty("--artifact-y", `${(y * 22).toFixed(1)}px`);
-  }
-
-  function resetArtifact() {
-    artifactRef.current?.style.removeProperty("--artifact-ry");
-    artifactRef.current?.style.removeProperty("--artifact-rx");
-    artifactRef.current?.style.removeProperty("--artifact-x");
-    artifactRef.current?.style.removeProperty("--artifact-y");
-  }
-
   async function run(nextQuestion = question) {
     if (runPending.current) return;
     if (!connectorsLoaded) return;
     if (!verifiedCount) { onOpenSources(); return; }
     runPending.current = true;
+    clearOrbitTimers();
     setBusy(true); setError(""); setCitationPreview(null);
     setResult(null);
-    try { setResult(await api<AskData>("/api/ask", { method: "POST", body: JSON.stringify({ question: nextQuestion, mode }) })); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : "Evidence retrieval failed."); }
-    finally { runPending.current = false; setBusy(false); }
+    // Query accepted → the route-decision ring appears, then the real HydraDB
+    // traversal activates the provider routes.
+    setOrbitStage("routing");
+    scheduleOrbit("retrieving", 750);
+    try {
+      const data = await api<AskData>("/api/ask", { method: "POST", body: JSON.stringify({ question: nextQuestion, mode }) });
+      setResult(data);
+      if (data.contradictions.length > 0) {
+        scheduleOrbit("linking", 0);
+        scheduleOrbit("contradiction", 550);
+        scheduleOrbit(data.validation.status === "abstained" ? "insufficient" : "verified", 1650);
+      } else {
+        scheduleOrbit(data.validation.status === "abstained" ? "insufficient" : "verified", 950);
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Evidence retrieval failed.");
+      setOrbitStage("idle");
+    } finally { runPending.current = false; setBusy(false); }
   }
   async function submit(event: FormEvent) { event.preventDefault(); await run(); }
 
@@ -912,23 +925,28 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
             </div>
           </div>
         </div>
-        <div
-          ref={artifactRef}
-          className={busy ? "proof-artifact searching" : "proof-artifact"}
-          onPointerMove={moveArtifact}
-          onPointerLeave={resetArtifact}
-          aria-hidden="true"
-        >
-          <div className="liquid-aura"><i /><i /><i /></div>
-          <div className="artifact-ring ring-one" /><div className="artifact-ring ring-two" />
-          <div className="artifact-core"><ShieldCheck size={28} /><strong>PROOF</strong><small>{busy ? "JOINING" : "SEALED"}</small></div>
-          <span className="artifact-node node-slack" data-provider="slack"><ProviderIcon provider="slack" size={18} /><small>SLACK</small></span>
-          <span className="artifact-node node-linear" data-provider="linear"><ProviderIcon provider="linear" size={18} /><small>LINEAR</small></span>
-          <span className="artifact-node node-github" data-provider="github"><ProviderIcon provider="github" size={18} /><small>GITHUB</small></span>
-          <span className="artifact-node node-gmail" data-provider="gmail"><ProviderIcon provider="gmail" size={18} /><small>GMAIL</small></span>
-          <span className="proof-orbit-label">CLAIM → RECEIPT → DECISION</span>
-        </div>
       </div>
+      <EvidenceOrbit
+        stage={orbitStage}
+        modeLabel={busy
+          ? (mode === "auto" ? "AUTO ROUTE" : mode.toUpperCase())
+          : result ? result.trace.mode.toUpperCase() : "AUTO ROUTE"}
+        receiptCount={result?.retrieval_receipt.receipt_count ?? 0}
+        providerCoverage={busy
+          ? verified.map((connector) => connector.provider)
+          : result?.retrieval_receipt.provider_coverage ?? verified.map((connector) => connector.provider)}
+        contradictionCount={result?.contradictions.length ?? 0}
+        action={result?.priority_items[0]
+          ? {
+            score: result.priority_items[0].score,
+            title: result.priority_items[0].title,
+            safeAction: result.priority_items[0].recommended_next_safe_action,
+            approvalRequired: result.priority_items[0].approval_required,
+            coverage: result.priority_items[0].provider_coverage,
+          }
+          : null}
+        connectors={verified}
+      />
 
       <form className="ask-console premium-console" onSubmit={submit}>
         <div className="console-line">
