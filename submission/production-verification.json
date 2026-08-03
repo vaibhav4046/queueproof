@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-03T23:57:39.329Z",
+  "repo": {
+    "path": "D:Codex d;queueproof",
+    "branch": "main",
+    "headCommit": "d574e9bb65a7c688f55f73c2e5eddfb3f2ee248e",
+    "aheadOfGithubRemote": 15,
+    "aheadOfSitesRemote": 22,
+    "remotes": {
+      "github": "https://github.com/vaibhav4046/queueproof.git",
+      "sites": "private sites repo"
+    }
+  },
+  "production": {
+    "url": "https://queueproof.vercel.app",
+    "vercelProject": "prj_l08OsSMRo7rTEYakg5s8q6K1lp3X (queueproof, linked; no replacement)",
+    "appReleaseCommitAtSessionStart": "855e61a",
+    "handoffCommitAtSessionStart": "9c20e37",
+    "lastObservedQueuePacketSuffix": "AE1EB62B",
+    "lastObservedTopScore": 72.58,
+    "lastObservedQueueItems": 1,
+    "observedConnectors": [
+      {
+        "provider": "github",
+        "state": "data_verified",
+        "canaryResultCount": 1
+      },
+      {
+        "provider": "gmail",
+        "state": "data_verified",
+        "canaryResultCount": 4
+      },
+      {
+        "provider": "linear",
+        "state": "data_verified"
+      },
+      {
+        "provider": "slack",
+        "state": "data_verified"
+      }
+    ]
+  },
+  "gates": {
+    "test": {
+      "files": 29,
+      "testsPassed": 280,
+      "measuredAt": "2026-08-04"
+    },
+    "lint": "pass",
+    "typecheck": "pass",
+    "build": "pass",
+    "deployCheck": "pass",
+    "benchmarkRouter": {
+      "fixtureCases": 39,
+      "generatedAt": "2026-08-03T23:25:25.300Z",
+      "note": "331 assertions PASS"
+    },
+    "benchmarkPdf": {
+      "grader": "grounded-grader-v2",
+      "generatedAt": "2026-08-03T23:32:51.891Z",
+      "passed": 16,
+      "cases": 22,
+      "totalRequiredFactsMatched": 47,
+      "totalRequiredFacts": 56,
+      "crossSourcePass": true,
+      "rateLimitFixed": true,
+      "note": "synthesis fix local-only at this artifact; 22/22 target pending post-deploy re-measure"
+    },
+    "testLive": "skipped (HYDRA_DB_API_KEY not present in this environment)",
+    "benchmarkLive": "skipped (HYDRA_DB_API_KEY not present)"
+  },
+  "document": {
+    "filename": "helios-operations-handbook.pdf",
+    "label": "synthetic evaluation fixture",
+    "pages": 346,
+    "bytes": 958096,
+    "sha256": "c047a3d09c45ecf97e3ed8e2115eda08ea0f6152206237955030f4304fa2ed93",
+    "queueproofDocId": "doc_44fe0aac-ea45-481f-91bf-66b5ba7b4fe9",
+    "hydradbSourceId": "f64d374d1899f3057707528f77703f3f",
+    "database": "queueproof-live",
+    "observedIndexedAt": "2026-08-03T08:31:03.028Z",
+    "observedProcessingDurationMs": 5716028
+  },
+  "screenshots": [
+    {
+      "file": "qp-1440x900.png",
+      "bytes": 449303
+    },
+    {
+      "file": "qp-1920x1080.png",
+      "bytes": 458824
+    },
+    {
+      "file": "qp-2560x1440.png",
+      "bytes": 470209
+    },
+    {
+      "file": "qp-360x800.png",
+      "bytes": 223756
+    },
+    {
+      "file": "qp-3840x2160.png",
+      "bytes": 4067606
+    },
+    {
+      "file": "qp-390x844.png",
+      "bytes": 239539
+    },
+    {
+      "file": "qp-768x1024.png",
+      "bytes": 429727
+    }
+  ],
+  "assets": [
+    "submission/assets/queueproof-og-1200x630.png",
+    "submission/assets/queueproof-4k-still-3840x2160.png"
+  ],
+  "authzBoundary": {
+    "githubPush": "blocked until user approval",
+    "publicSitesDeploy": "blocked until user approval",
+    "vercelProdDeploy": "pending explicit user confirmation"
+  },
+  "secretsScan": "re-run required before any visibility change (no values printed this session)"
+}
