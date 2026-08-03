@@ -56,6 +56,10 @@ the bounded `/api/ask` workflow remains available to judges.
 | MCP suite | 8 tests |
 | Offline router benchmark | 39/39 cases; 331 assertions |
 
+Application release `855e61abb85cfaf414db70fa04ed5f01c1f96b01` is live at the
+canonical URL. Its immutable Vercel deployment is
+<https://queueproof-9dosezsup-vaibhav4046s-projects.vercel.app>.
+
 Responsive browser QA covers 360x800, 390x844, 768x1024, 1440x900, 1920x1080,
 2560x1440, and 3840x2160. The mobile shell retains all six destinations; dialogs manage
 focus; citations are interactive; and grounded, partial, and abstained answers have
@@ -65,6 +69,13 @@ The last observed production workspace showed four `data_verified` connectors: G
 Gmail, Linear, and Slack. The flagship question returned cited GitHub, Linear, and Slack
 evidence in one thinking query. This is connector evidence, not a universal availability
 or latency promise. See [docs/CONNECTOR_PROOF.md](docs/CONNECTOR_PROOF.md).
+
+Final queue acceptance used a cache-busted, user-triggered evidence refresh. It created
+new packet `AE1EB62B` and returned one actionable Northwind `INC-2031` post-mortem at
+`72.58`, corroborated by GitHub and Slack. Recruiting/contract, homework, training,
+invoice, newsletter, and zero-score records were absent from that run. HydraDB retrieval
+is relevance-ranked, so this documents an observed acceptance receipt rather than a
+fixed future ordering.
 
 The stored large-PDF artifact is a historical pre-hardening run: 21/22 under the old
 grader. It is not comparable with the current strict grader and is not claimed as a fresh

@@ -3,8 +3,10 @@
 ## Scope
 
 - Current release worktree.
-- Complete pre-release Git history: 68 commits. The worktree scan covers the contents
-  that become the release commit, so the combined scope is the full release state.
+- Complete application-release Git history: 77 commits reachable across all refs through
+  application release `855e61a`. The worktree scan covers the final verification
+  documentation that becomes the release handoff commit, so the combined scope is the
+  full handoff state.
 - Pattern families: AWS access keys, GitHub tokens, OpenAI keys, Slack tokens, Linear
   tokens, and PEM/private-key headers.
 
@@ -18,7 +20,7 @@ never printed into the terminal transcript or this report.
 | Surface | Matching files |
 | --- | ---: |
 | Worktree | 0 |
-| Pre-release Git history (68 commits) | 0 |
+| Application-release Git history (77 commits) | 0 |
 
 No matching file required quarantine or removal. Synthetic credential-like values used by
 unit tests were either outside the real-token patterns or handled as fixtures; no real
