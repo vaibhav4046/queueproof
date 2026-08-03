@@ -1,6 +1,6 @@
 # QueueProof benchmark report
 
-Generated: 2026-08-03T11:44:59.277Z
+Generated: 2026-08-03T23:25:25.300Z
 Runner: `node scripts/run-evals.mjs`
 Fixtures: `evals/fixtures/cases.json` (39 ground truth cases, fictional company "Helios Robotics")
 
