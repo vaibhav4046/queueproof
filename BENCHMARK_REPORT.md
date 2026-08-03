@@ -1,6 +1,6 @@
 # QueueProof benchmark report
 
-Generated: 2026-08-03T07:34:24.396Z
+Generated: 2026-08-03T07:40:59.838Z
 Runner: `node scripts/run-evals.mjs`
 Fixtures: `evals/fixtures/cases.json` (39 ground truth cases, fictional company "Helios Robotics")
 
@@ -123,20 +123,22 @@ did not measure.
 
 ## Live connector run (measured, not fixture)
 
-Target https://queueproof.vercel.app. Connectors: github, linear, slack. Generated 2026-08-03T00:23:59.865Z.
+Target https://queueproof.vercel.app. Connectors: document, github, linear, slack. Generated 2026-08-03T07:40:03.004Z.
 
 | Case | Mode | Latency | Sources | Providers in evidence |
 | --- | --- | --- | --- | --- |
-| three-provider multi-hop | `thinking` | 5013 ms | 7 | github, linear, slack |
-| deadline conflict | `thinking` | 6369 ms | 3 | linear, slack |
-| untracked commitment | `fast` | 661 ms | 4 | slack, github |
-| stale tracked work | `fast` | 613 ms | 2 | github |
-| actor reconstruction | `thinking` | 4267 ms | 7 | linear, slack |
-| exact identifier plus context | `thinking` | 398 ms | 1 | slack |
+| three-provider multi-hop | `thinking` | 6546 ms | 6 | github, linear, slack |
+| deadline conflict | `thinking` | 7200 ms | 2 | linear, slack |
+| untracked commitment | `fast` | 738 ms | 4 | slack, github |
+| stale tracked work | `fast` | 632 ms | 2 | github |
+| actor reconstruction | `thinking` | 5137 ms | 6 | linear, slack, document |
+| exact identifier plus context | `thinking` | 256 ms | 2 | slack |
 
-Latency across 6 live questions: p50 661 ms, p95 6369 ms, min 398 ms, max 6369 ms.
+Latency across 6 live questions: p50 738 ms, p95 7200 ms, min 256 ms, max 7200 ms.
 
-Questions whose evidence spanned all three connected providers: 1/6. Routed thinking/fast: 4/2.
+Questions whose evidence spanned all three connected providers: 2/6. Routed thinking/fast: 4/2.
+
+Answer-only required-fact recall: 100.0%. Citation completeness: 100.0%. Unsupported-claim rate: 0.0%.
 
 These are real end-to-end measurements against connected Slack, Linear and GitHub.
 The sample is small and is not presented as a stable distribution.

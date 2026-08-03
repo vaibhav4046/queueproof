@@ -584,6 +584,10 @@ try {
       live.allThreeProviders + "/" + live.cases + ". Routed thinking/fast: " +
       live.thinking + "/" + live.fast + ".",
     "",
+    "Answer-only required-fact recall: " + ((live.quality?.requiredFactRecall ?? 0) * 100).toFixed(1) +
+      "%. Citation completeness: " + ((live.quality?.citationCompleteness ?? 0) * 100).toFixed(1) +
+      "%. Unsupported-claim rate: " + ((live.quality?.unsupportedClaimRate ?? 0) * 100).toFixed(1) + "%.",
+    "",
     "These are real end-to-end measurements against connected Slack, Linear and GitHub.",
     "The sample is small and is not presented as a stable distribution.",
     "",

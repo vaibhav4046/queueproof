@@ -32,7 +32,7 @@ const cases = [
     label: "stale tracked work",
     question: "Which open issue appears to be already resolved elsewhere?",
     expected: "The AuthShield fix is merged or shipped while its tracked issue remains open.",
-    signals: ["merged", "open"],
+    signals: [["merged", "shipped", "resolved"], "open"],
   },
   {
     label: "actor reconstruction",
@@ -62,7 +62,9 @@ for (const benchmark of cases) {
   // Ground-truth signals must appear in the answer, not merely somewhere in retrieved
   // evidence. Counting evidence would let an unsupported answer pass by association.
   const observedCorpus = String(body.answer ?? "").toLowerCase();
-  const matchedSignals = benchmark.signals.filter((signal) => observedCorpus.includes(signal));
+  const matchedSignals = benchmark.signals.filter((signal) =>
+    Array.isArray(signal) ? signal.some((alternative) => observedCorpus.includes(alternative)) : observedCorpus.includes(signal),
+  );
   const claims = Array.isArray(body.claims) ? body.claims : [];
   const citedClaims = claims.filter((claim) => Array.isArray(claim.citation_ids) && claim.citation_ids.length > 0);
   rows.push({

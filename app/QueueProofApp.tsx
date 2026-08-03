@@ -1215,6 +1215,7 @@ type LabResults = {
     status?: string; note?: string; target?: string; generatedAt?: string; cases?: number;
     connectors?: string[]; allThreeProviders?: number; fast?: number; thinking?: number;
     latencyMs?: { p50?: number; p95?: number; min?: number; max?: number };
+    quality?: { requiredFactRecall?: number; citationCompleteness?: number; unsupportedClaimRate?: number; note?: string };
     rows?: Array<{ label: string; question: string; expected?: string; actual?: string; pass?: boolean;
       mode: string; latencyMs: number; callCount?: number; sources: number; providers: string[]; costUnits?: number }>;
   };
@@ -1276,7 +1277,7 @@ function LabScreen({ setError }: { setError: (value: string) => void }) {
       <section className="judge-lens" aria-label="Hackathon judging evidence">
         <div className="judge-lens-heading"><div><span className="eyebrow"><ShieldCheck size={13} /> Judge lens</span><h2>Every scoring claim has a receipt.</h2></div><span className={graded > 0 && passed === graded ? "readiness-seal ready" : "readiness-seal"}><CircleCheck size={15} /> {graded > 0 && passed === graded ? "DEMO READY" : "MEASURING"}</span></div>
         <div className="judge-proof-grid">
-          <article><small>01 · CORRECTNESS</small><strong>{graded ? `${passed}/${graded}` : "—"}</strong><p>Expected facts are stored beside observed production answers.</p></article>
+          <article><small>01 · CORRECTNESS</small><strong>{typeof live?.quality?.requiredFactRecall === "number" ? `${Math.round(live.quality.requiredFactRecall * 100)}%` : graded ? `${passed}/${graded}` : "—"}</strong><p>{typeof live?.quality?.unsupportedClaimRate === "number" ? `${Math.round((live.quality.citationCompleteness ?? 0) * 100)}% claims cited · ${Math.round(live.quality.unsupportedClaimRate * 100)}% unsupported` : "Expected facts are stored beside observed production answers."}</p></article>
           <article><small>02 · CROSS-SOURCE</small><strong>{live?.connectors?.length ?? "—"}</strong><p>Distinct providers appear in the replayable benchmark receipt.</p></article>
           <article><small>03 · LATENCY</small><strong>{live?.latencyMs?.p50 ? `${(live.latencyMs.p50 / 1000).toFixed(2)}s` : "—"}</strong><p>P50 and p95 are measured on the deployed public target.</p></article>
           <article><small>04 · COST</small><strong>{averageCalls === null ? "—" : averageCalls.toFixed(1)}</strong><p>Average HydraDB calls per answer—not a vague efficiency claim.</p></article>
