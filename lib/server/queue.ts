@@ -427,6 +427,11 @@ export function selectPrimaryQueueEvidence<T extends QueueClusterEvidence>(evide
   return selected;
 }
 
+/** Supporting evidence is every cluster member except the selected primary, by ID. */
+export function queueSupportingEvidence<T extends { id: string }>(evidences: T[], primary: T): T[] {
+  return evidences.filter((evidence) => evidence.id !== primary.id);
+}
+
 function clusterContradictions(evidences: TaskEvidence[]) {
   const result: Array<Record<string, unknown>> = [];
   const completed = evidences.find((item) => /\b(merged|shipped|resolved|closed|completed)\b/i.test(`${item.title} ${item.taskSpan}`));
@@ -683,6 +688,7 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
   const rankingRunId = createId("ranking");
   const ranked = clusters.map((evidences) => {
     const evidence = selectPrimaryQueueEvidence(evidences);
+    const supportingEvidences = queueSupportingEvidence(evidences, evidence);
     const taskId = createId("task");
     const title = taskTitle(evidence);
     const input = rankingInput(evidence, taskId, title);
@@ -694,7 +700,7 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
       ingestionTimestamp: item.ingestionTimestamp, url: item.url,
       authority: item.authority, metadata: item.metadata,
     }));
-    return { evidence, evidences, providers, taskId, title, input, result: rank(input) };
+    return { evidence, evidences, supportingEvidences, providers, taskId, title, input, result: rank(input) };
   }).sort((a, b) => b.result.finalScore - a.result.finalScore ||
     `${a.evidence.provider}:${a.evidence.externalId}`.localeCompare(`${b.evidence.provider}:${b.evidence.externalId}`))
     .slice(0, 18);
@@ -757,7 +763,7 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
         ? "Clarify the evidenced dependency before proposing any external write."
         : "Review the cited receipt, then send the exact provider write through QueueProof approval.",
       provider_coverage: item.providers,
-      deduplicated_tasks: item.evidences.slice(1).map((evidence) => `${evidence.provider}:${evidence.externalId}`),
+      deduplicated_tasks: item.supportingEvidences.map((evidence) => `${evidence.provider}:${evidence.externalId}`),
       status: item.input.status,
       recommended_agent: "human",
       permissions: { read: item.providers, write: [], approval_required: true },
@@ -778,7 +784,7 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
       receipt_hash: await receiptHash({ ...packet, why_above_next: whyAbove }),
     };
 
-    for (const corroborating of item.evidences.slice(1)) {
+    for (const corroborating of item.supportingEvidences) {
       statements.push(
         db.prepare(
           `INSERT INTO source_references

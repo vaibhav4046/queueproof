@@ -5,6 +5,7 @@ import {
   clusterTaskEvidence,
   extractActionableTaskSpan,
   isHydraDocumentSource,
+  queueSupportingEvidence,
   selectPrimaryQueueEvidence,
   taskClusterKey,
 } from "../lib/server/queue";
@@ -86,11 +87,13 @@ describe("conservative cross-source task clustering", () => {
       ),
       taskSpan: "Engineering committed to ENG-456 before 7 August 2026.",
       timestamp: "2026-08-03T10:00:00.000Z",
+      id: "document-source",
     };
     const workplace = {
       ...evidence("github", "issue-456", "ENG-456 token lifetime", "Engineering will finish ENG-456."),
       taskSpan: "Engineering will finish ENG-456 before 7 August 2026.",
       timestamp: null,
+      id: "workplace-source",
     };
     expect(isHydraDocumentSource(
       { title: "helios-operations-handbook.pdf", app_kind: "file", app_provider: "github" },
@@ -107,7 +110,10 @@ describe("conservative cross-source task clustering", () => {
       taskSpan: "Review ENG-456 by Friday.",
     })).toBe(true);
     expect(canOriginateQueueTask(document)).toBe(false);
-    expect(selectPrimaryQueueEvidence([document, workplace]).provider).toBe("github");
+    const selectedPrimary = selectPrimaryQueueEvidence([document, workplace]);
+    expect(selectedPrimary.provider).toBe("github");
+    expect(queueSupportingEvidence([document, workplace], selectedPrimary).map((item) => item.id))
+      .toEqual(["document-source"]);
     const span = extractActionableTaskSpan(
       "Reference material only. Engineering committed to ENG-456 before 7 August 2026. Appendix follows.",
     );
