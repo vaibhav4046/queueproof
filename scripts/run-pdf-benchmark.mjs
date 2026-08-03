@@ -6,6 +6,7 @@ const args = process.argv.slice(2);
 const after = (flag) => { const index = args.indexOf(flag); return index >= 0 ? args[index + 1] : undefined; };
 const target = (after("--url") ?? process.env.QUEUEPROOF_URL ?? "https://queueproof.vercel.app").replace(/\/$/, "");
 const output = after("--out") ?? "evals/results/pdf-live-run.json";
+const documentSourceId = after("--source-id") ?? "f64d374d1899f3057707528f77703f3f";
 const facts = JSON.parse(await readFile(new URL("../evals/fixtures/large-pdf-facts.json", import.meta.url), "utf8"));
 const stop = new Set(["about", "after", "against", "could", "dated", "does", "from", "into", "still", "their", "there", "which", "while", "would"]);
 const tokens = (value) => [...new Set(String(value).toLowerCase().match(/[a-z0-9-]{4,}/g) ?? [])]
@@ -17,7 +18,7 @@ for (const fact of facts) {
   const response = await fetch(`${target}/api/ask`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
-    body: JSON.stringify({ question: fact.question, mode: "auto" }),
+    body: JSON.stringify({ question: fact.question, mode: "auto", sourceIds: [documentSourceId] }),
     signal: AbortSignal.timeout(45_000),
   });
   const body = await response.json();
@@ -51,7 +52,7 @@ for (const fact of facts) {
 const crossSourceQuestion = "According to the Helios operations handbook, what does ENG-456 require, and do Slack, Linear, or GitHub show related AuthShield work?";
 const crossResponse = await fetch(`${target}/api/ask`, {
   method: "POST", headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
-  body: JSON.stringify({ question: crossSourceQuestion, mode: "thinking" }), signal: AbortSignal.timeout(45_000),
+  body: JSON.stringify({ question: crossSourceQuestion, mode: "thinking", sourceIds: [documentSourceId], includeConnectors: true }), signal: AbortSignal.timeout(45_000),
 });
 const crossBody = await crossResponse.json();
 const crossCorpus = String(crossBody.answer ?? "").toLowerCase();

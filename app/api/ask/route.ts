@@ -11,6 +11,12 @@ import { listQueueForWorkspace } from "../../../lib/server/queue";
 import { groundedAnswerContractSchema } from "../../../packages/contracts/src";
 
 type Connector = { id: string; hydradbConnectorId: string; provider: string; database: string; collection: string | null };
+type RetrievalScope = {
+  database: string;
+  collection: string | null;
+  connectors: Connector[];
+  sourceIds?: string[];
+};
 type Row = Record<string, unknown>;
 const record = (value: unknown): Row => typeof value === "object" && value !== null ? value as Row : {};
 
@@ -31,6 +37,8 @@ export async function POST(request: Request) {
       question?: string;
       mode?: "fast" | "thinking" | "auto";
       metadataFilters?: Record<string, unknown>;
+      sourceIds?: string[];
+      includeConnectors?: boolean;
     }>(request);
     const question = payload.question?.trim() ?? "";
     if (!question || question.length > 4_000) {
@@ -43,6 +51,31 @@ export async function POST(request: Request) {
     if (!connectors.results.length) {
       return noStoreJson({ ok: false, error: "Verify at least one live source before asking QueueProof." }, { status: 409 });
     }
+    const requestedSourceIds = [...new Set(payload.sourceIds ?? [])];
+    if (requestedSourceIds.length > 10 || requestedSourceIds.some((id) => !/^[a-z0-9_-]{12,160}$/i.test(id))) {
+      return noStoreJson({ ok: false, error: "Document source scope is invalid." }, { status: 400 });
+    }
+    const documentScopes: RetrievalScope[] = [];
+    if (requestedSourceIds.length) {
+      const placeholders = requestedSourceIds.map(() => "?").join(",");
+      const documents = await requireDb().prepare(
+        `SELECT hydradb_source_id AS sourceId, hydradb_database AS database
+         FROM documents WHERE workspace_id = ? AND stage = 'indexed'
+         AND hydradb_source_id IN (${placeholders})`,
+      ).bind(workspaceId, ...requestedSourceIds).all<{ sourceId: string; database: string }>();
+      if (documents.results.length !== requestedSourceIds.length) {
+        return noStoreJson({ ok: false, error: "Every scoped document must be indexed in this workspace." }, { status: 400 });
+      }
+      const byDatabase = documents.results.reduce((map, document) => {
+        const current = map.get(document.database) ?? [];
+        current.push(document.sourceId);
+        map.set(document.database, current);
+        return map;
+      }, new Map<string, string[]>());
+      for (const [database, sourceIds] of byDatabase) {
+        documentScopes.push({ database, collection: null, connectors: [], sourceIds });
+      }
+    }
     const plan = planRetrieval(question);
     const mode = payload.mode && payload.mode !== "auto" ? payload.mode : plan.mode;
     const client = await hydraClientForWorkspace(workspaceId);
@@ -52,7 +85,7 @@ export async function POST(request: Request) {
       timestamp: string | null; url: string | null; connectorId: string;
     }> = [];
     const trace: Array<Record<string, unknown>> = [];
-    const scopes = [...connectors.results.reduce((map, connector) => {
+    const connectorScopes = [...connectors.results.reduce((map, connector) => {
       const key = `${connector.database}\u0000${connector.collection ?? ""}`;
       const current = map.get(key) ?? {
         database: connector.database,
@@ -62,7 +95,10 @@ export async function POST(request: Request) {
       current.connectors.push(connector);
       map.set(key, current);
       return map;
-    }, new Map<string, { database: string; collection: string | null; connectors: Connector[] }>()).values()];
+    }, new Map<string, RetrievalScope>()).values()];
+    const scopes: RetrievalScope[] = requestedSourceIds.length
+      ? [...documentScopes, ...(payload.includeConnectors ? connectorScopes : [])]
+      : connectorScopes;
 
     await Promise.all(scopes.map(async (scope) => {
       const callStarted = Date.now();
@@ -74,7 +110,8 @@ export async function POST(request: Request) {
         query_by: plan.queryBy,
         mode,
         max_results: 12,
-        query_apps: true,
+        ...(scope.sourceIds ? { ids: scope.sourceIds } : {}),
+        query_apps: !scope.sourceIds,
         graph_context: plan.graphContext,
         query_forceful_relations: plan.graphContext,
         recency_bias: plan.recencyBias,
@@ -83,9 +120,10 @@ export async function POST(request: Request) {
           : {}),
       });
       trace.push({ connectorIds: scope.connectors.map((item) => item.id),
-        providers: scope.connectors.map((item) => item.provider), database: scope.database,
+        providers: scope.sourceIds ? ["document"] : scope.connectors.map((item) => item.provider), database: scope.database,
         collection: scope.collection, ok: response.ok, status: response.status,
-        requestId: response.requestId, latencyMs: Date.now() - callStarted, error: response.error });
+        sourceIds: scope.sourceIds ?? [], requestId: response.requestId,
+        latencyMs: Date.now() - callStarted, error: response.error });
       if (!response.ok) return;
       const extracted = extractQuerySources(response.data);
       extracted.sources.forEach((source, sourceIndex) => {
