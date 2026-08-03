@@ -1,6 +1,6 @@
 import { apiError, noStoreJson, readJson } from "../../../lib/server/api";
 import { hydraClientForWorkspace } from "../../../lib/server/hydradb-account";
-import { extractQuerySources, matchingChunk, providerFromSource } from "../../../lib/server/hydradb-shapes";
+import { extractQuerySources, matchingChunks, providerFromSource } from "../../../lib/server/hydradb-shapes";
 import { requireRequestActor } from "../../../lib/server/identity";
 import { requireDb } from "../../../lib/server/runtime";
 import { audit, createId, requireWorkspaceForUser } from "../../../lib/server/store";
@@ -88,11 +88,7 @@ export async function POST(request: Request) {
         requestId: response.requestId, latencyMs: Date.now() - callStarted, error: response.error });
       if (!response.ok) return;
       const extracted = extractQuerySources(response.data);
-      extracted.sources.forEach((source, index) => {
-        const chunk = record(matchingChunk(source, extracted.chunks));
-        const excerpt = (textFrom(chunk, ["chunk_content", "content", "text", "excerpt"]) ??
-          textFrom(source, ["content", "text", "excerpt", "description"]) ?? "").replace(/\s+/g, " ").trim().slice(0, 1_200);
-        if (!excerpt || isPotentialPromptInjection(excerpt)) return;
+      extracted.sources.forEach((source, sourceIndex) => {
         const metadata = record(source.additional_metadata);
         const sourceKind = textFrom({ ...metadata, ...source }, ["source_type", "type", "mime_type", "filename"]);
         const isDocumentSource = Boolean(source.filename ?? metadata.filename) || /\b(pdf|document|file)\b/i.test(sourceKind ?? "");
@@ -103,15 +99,25 @@ export async function POST(request: Request) {
           ? scope.connectors.find((item) => item.hydradbConnectorId === String(sourceConnectorId))
           : providerMatches.length === 1 ? providerMatches[0] : undefined;
         if (!owningConnector && provider !== "document") return;
-        const sourceId = String(source.id ?? source.source_id ?? `document-${index}`);
-        evidence.push({
-          id: sourceId,
-          provider,
-          title: textFrom(source, ["title", "subject", "name", "filename"]) ?? `${provider} source`,
-          excerpt,
-          timestamp: textFrom(source, ["timestamp", "source_timestamp", "updated_at", "created_at"]),
-          url: textFrom(source, ["url", "source_url", "web_url", "permalink"]),
-          connectorId: owningConnector?.id ?? `document:${sourceId}`,
+        const sourceId = String(source.id ?? source.source_id ?? `document-${sourceIndex}`);
+        const sourceChunks = matchingChunks(source, extracted.chunks);
+        const candidates = sourceChunks.length ? sourceChunks : [source];
+        candidates.forEach((candidate, chunkIndex) => {
+          const chunk = record(candidate);
+          const excerpt = (textFrom(chunk, ["chunk_content", "content", "text", "excerpt"]) ??
+            textFrom(source, ["content", "text", "excerpt", "description"]) ?? "")
+            .replace(/\s+/g, " ").trim().slice(0, 2_400);
+          if (!excerpt || isPotentialPromptInjection(excerpt)) return;
+          const chunkId = textFrom(chunk, ["chunk_id", "chunkId"]);
+          evidence.push({
+            id: chunkId ?? `${sourceId}:chunk:${chunkIndex}`,
+            provider,
+            title: textFrom(source, ["title", "subject", "name", "filename"]) ?? `${provider} source`,
+            excerpt,
+            timestamp: textFrom(source, ["timestamp", "source_timestamp", "updated_at", "created_at"]),
+            url: textFrom(source, ["url", "source_url", "web_url", "permalink"]),
+            connectorId: owningConnector?.id ?? `document:${sourceId}`,
+          });
         });
       });
     }));

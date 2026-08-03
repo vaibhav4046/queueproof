@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { matchingChunk } from "../lib/server/queue";
+import { matchingChunks } from "../lib/server/hydradb-shapes";
 
 /**
  * Regression tests for evidence misattribution.
@@ -44,5 +45,17 @@ describe("matchingChunk", () => {
 
   it("handles an empty chunk list without inventing evidence", () => {
     expect(matchingChunk({ id: "src-a" }, [])).toEqual({});
+  });
+
+  it("preserves every relevance-ranked chunk belonging to one document", () => {
+    const documentChunks = [
+      { id: "doc-1", chunk_id: "doc-1_chunk_0000", chunk_content: "Table of contents" },
+      { id: "doc-1", chunk_id: "doc-1_chunk_0001", chunk_content: "The cited answer" },
+      { id: "doc-2", chunk_id: "doc-2_chunk_0000", chunk_content: "Another document" },
+    ];
+    expect(matchingChunks({ id: "doc-1" }, documentChunks).map((chunk) => chunk.chunk_id)).toEqual([
+      "doc-1_chunk_0000",
+      "doc-1_chunk_0001",
+    ]);
   });
 });

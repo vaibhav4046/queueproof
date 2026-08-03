@@ -47,6 +47,28 @@ export function matchingChunk(
 }
 
 /**
+ * HydraDB can return several relevance-ranked chunks for one document source.
+ * Keep the full one-to-many relationship: selecting only the first matching
+ * chunk discards the actual answer whenever a handbook section ranks behind
+ * its table of contents or front matter.
+ */
+export function matchingChunks(
+  source: Record<string, unknown>,
+  chunks: Array<Record<string, unknown>>,
+): Array<Record<string, unknown>> {
+  const candidateIds = [source.id, source.source_id, source.context_id]
+    .filter(Boolean)
+    .map(String);
+  if (candidateIds.length === 0) return [];
+  return chunks.filter((chunk) => {
+    const chunkIds = [chunk.id, chunk.source_id, chunk.context_id]
+      .filter(Boolean)
+      .map(String);
+    return chunkIds.some((id) => candidateIds.includes(id));
+  });
+}
+
+/**
  * Providers HydraDB labels differently on the source than on the connector.
  *
  * A Gmail connector is created as `gmail`, but every source it indexes comes back tagged
