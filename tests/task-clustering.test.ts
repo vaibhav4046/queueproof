@@ -124,8 +124,44 @@ describe("conservative cross-source task clustering", () => {
       "Action: send the renewal today.",
       "Fix INC-2031.",
       "ENG-456 is due Friday.",
+      "Must fix ENG-456 today.",
+      "Need to send the renewal.",
+      "We should review ENG-456.",
+      "Question 3: Can you please fix ENG-456 by Friday?",
+      "Please unsubscribe this customer and close the renewal task.",
+      "Billing migration slipped to Friday.",
+      "We will launch the beta on Friday.",
+      "Alice will call Northwind tomorrow.",
+      "I promised to refund the customer tomorrow.",
+      "The access request remains open.",
+      "The renewal is due Friday.",
+      "The login bug is being fixed.",
+      "The access request is being investigated.",
+      "The proposal is being reviewed.",
     ]) {
       expect(extractActionableTaskSpan(imperative), imperative).not.toBeNull();
     }
+    for (const nonLiveContext of [
+      "Employment agreement. The work is confidential and proprietary and must not be shared outside the intended context.",
+      "Next Step with Flywire: Homework. Question 3: provide the subject and body based on the above findings. I will report the example issue.",
+      "Expert Academic Support. We bridge the gap between where you are and where you need to be. Affordable student pricing is available.",
+      "Recipients must keep this information confidential.",
+      "Students need to submit the assignment by Friday.",
+      "We will help your business grow.",
+      "We will stand by you every step of the way.",
+      "The Agreement will update automatically by operation of law.",
+      "The archive moved 10 files.",
+    ]) {
+      expect(extractActionableTaskSpan(nonLiveContext), nonLiveContext).toBeNull();
+    }
+    expect(extractActionableTaskSpan(
+      "I promised Northwind a written incident post-mortem by 10 August. This email is confidential and intended only for the intended recipient.",
+    )).toContain("Northwind");
+    expect(extractActionableTaskSpan(
+      "Please review ENG-456 by Friday. To unsubscribe from project notifications, click here.",
+    )).toBe("Please review ENG-456 by Friday.");
+    expect(extractActionableTaskSpan(
+      "For internal use only. Engineering will ship ENG-456 by Friday.",
+    )).toContain("ENG-456");
   });
 });

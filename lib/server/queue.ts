@@ -84,19 +84,47 @@ export function queueEvidenceDedupKey(
 
 const actionable = /\b(will|must|need(?:s)? to|should|please|todo|action|follow[ -]?up|blocked|unblock|due|deadline|urgent|asap|ship|send|review|fix|investigate|resolve|renewal|incident|outage|escalat|deliver|approve)\b/i;
 
+const actorCommitmentSignals = [
+  /\b(?:i|we|engineering|the team|support|security|operations)\s+(?:will|'ll|must|should|need(?:s)? to|commit(?:s|ted)?|promis(?:e[sd]?|ed))\b/i,
+  /\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\s+(?:will|must|should|needs? to|commits?|committed|promises?|promised)\b/,
+];
+
 const strongTaskSignals = [
-  /\b(?:i|we|engineering|the team|[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b[^.!?]{0,120}\b(?:will|'ll|must|need(?:s)? to|commit(?:s|ted)?|promis(?:e[sd]?|ed))\b/i,
-  /\b(?:committed|promised|must|need(?:s)? to|please|todo|follow[ -]?up)\b/i,
+  ...actorCommitmentSignals,
+  /\b(?:committed|promised)\b/i,
   /\b(?:blocked|blocking|overdue|still\s+(?:showing\s+as\s+)?open|remains?\s+open|escalat(?:ed|ion))\b/i,
   /\bdeadline\b[^.!?]{0,90}\b(?:moved|changed|before|by|on|is|was|to)\b/i,
-  /\b(?:slipped|delayed|postponed|moved)\b[^.!?]{0,90}\b(?:today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{4}-\d{2}-\d{2}|\d{1,2}\s+[A-Z][a-z]+)\b/i,
-  /\b(?:is|are|remains?)\s+(?:being\s+)?(?:fixed|investigated|reviewed|worked|open|blocked|in\s+progress)\b/i,
-  /^(?:action\s*:\s*)?(?:review|fix|send|ship|deliver|approve|resolve|investigate|renew|reply|merge|unblock)\b/i,
-  /\b(?:action|required action)\s*:\s*(?:review|fix|send|ship|deliver|approve|resolve|investigate|renew|reply|merge|unblock)\b/i,
+  /\b(?:slipped|delayed|postponed|moved)\b[^.!?]{0,90}\b(?:today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{4}-\d{2}-\d{2}|\d{1,2}\s+(?:january|february|march|april|may|june|july|august|september|october|november|december))\b/i,
+  /\b(?:is|are|remains?)\s+(?:(?:being\s+)(?:fixed|investigated|reviewed|worked)|open|blocked|in\s+progress)\b/i,
+  /^(?:action\s*:\s*)?(?:please\s+)?(?:review|fix|send|ship|deliver|approve|resolve|investigate|renew|reply|merge|unblock|report|raise|schedule|confirm|complete|provide|update|unsubscribe)\b/i,
+  /^(?:must|need to|should)\s+(?:review|fix|send|ship|deliver|approve|resolve|investigate|renew|reply|merge|unblock|report|raise|schedule|confirm|complete|provide|update|unsubscribe)\b/i,
+  /\b(?:can|could|would)\s+you\s+(?:please\s+)?(?:review|fix|send|ship|deliver|approve|resolve|investigate|renew|reply|merge|unblock|report|raise|schedule|confirm|complete|provide|update|unsubscribe)\b/i,
+  /\bplease\s+(?:review|fix|send|ship|deliver|approve|resolve|investigate|renew|reply|merge|unblock|report|raise|schedule|confirm|complete|provide|update|unsubscribe)\b/i,
+  /\b(?:action|required action)\s*:\s*(?:review|fix|send|ship|deliver|approve|resolve|investigate|renew|reply|merge|unblock|report|raise|schedule|confirm|complete|provide|update|unsubscribe)\b/i,
+  /\b[A-Z][A-Z0-9]{1,9}-\d+\b[^.!?]{0,80}\b(?:will|must|need(?:s)? to|is\s+due|remains?\s+open|is\s+blocked)\b/i,
   /\b(?:[A-Z][A-Z0-9]{1,9}-\d+|task|issue|renewal|follow[ -]?up)\b[^.!?]{0,80}\b(?:is|are)?\s*due\b/i,
   /\b(?:reported|active|ongoing|unresolved)\b[^.!?]{0,90}\b(?:incident|outage)\b/i,
   /\b(?:incident|outage)\b[^.!?]{0,90}\b(?:reported|active|ongoing|blocking|unresolved)\b/i,
 ];
+
+const nonLiveSourceContext = [
+  /\bhomework\b[\s\S]{0,1200}\b(?:question\s+\d+|provide (?:the )?subject and body|based on the above findings|section\s+\d+)\b/i,
+  /\b(?:academic support|academic writing)\b[\s\S]{0,1200}\b(?:student pricing|assignment help|thesis|dissertation|our services?)\b/i,
+  /\b(?:employment agreement|successful application)\b[\s\S]{0,1200}\b(?:exclusive jurisdiction|confidential and proprietary|for internal use only)\b/i,
+];
+
+const negativeObligation = /\b(?:must|should|need(?:s)? to)\s+not\b/i;
+const nonTaskCandidateContext = /\b(?:(?:recipients?|employee|agreement|information).{0,100}(?:confidential|proprietary|jurisdiction|unauthori[sz]ed)|(?:agreement|parties).{0,100}(?:operation of law|automatically|binding|governed|jurisdiction)|students?.{0,100}(?:assignment|coursework|homework|submit)|(?:academic|assignment|coursework|homework|essay|thesis|dissertation).{0,100}(?:submit|complete|deadline)|help (?:you|your)|business grow|achieve (?:your|their) goals|special offer|student pricing|for internal use only|must not be shared|all rights reserved)\b/i;
+const exactTaskIdentity = /\b[A-Z][A-Z0-9]{1,9}-\d+\b/;
+const operationalTaskAction = /\b(?:review|fix|send|ship|deliver|deploy|launch|approve|resolve|investigate|renew|reply|respond|response|merge|unblock|report|raise|schedule|confirm|complete|finish|provide|update|write|prepare|submit|rotate|book|call|refund|own|unsubscribe)\b/i;
+const liveTaskState = /\b(?:blocked|blocking|overdue|due|still\s+(?:showing\s+as\s+)?open|remains?\s+open|(?:is|are)\s+open|(?:is|are|remains?)\s+being\s+(?:fixed|investigated|reviewed|worked)|in\s+progress|escalat(?:ed|ion)|incident|outage|deadline|slipped|delayed|postponed|moved)\b/i;
+const temporalTaskAnchor = /\b(?:today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|this\s+(?:week|month|quarter)|next\s+(?:week|month|quarter)|end\s+of\s+(?:day|week|month|quarter)|eod|cob|close\s+of\s+business|\d{4}-\d{2}-\d{2}|\d{1,2}\s+(?:january|february|march|april|may|june|july|august|september|october|november|december))\b/i;
+
+const hasConcreteTaskStructure = (entry: string) =>
+  exactTaskIdentity.test(entry) ||
+  operationalTaskAction.test(entry) ||
+  liveTaskState.test(entry) ||
+  (temporalTaskAnchor.test(entry) && actorCommitmentSignals.some((pattern) => pattern.test(entry)));
 
 /**
  * Extract one local, bounded task claim instead of scoring a whole source record.
@@ -110,10 +138,14 @@ export function extractActionableTaskSpan(value: string): string | null {
     .trim()
     .slice(0, 7_000);
   if (!corpus) return null;
+  if (nonLiveSourceContext.some((pattern) => pattern.test(corpus))) return null;
   const candidates = corpus
     .split(/\r?\n+|(?<=[.!?])\s+|\s+(?=[*-]\s+)/)
     .map((entry) => clean(entry, 1_200))
-    .filter((entry) => entry.length >= 12 && strongTaskSignals.some((pattern) => pattern.test(entry)));
+    .filter((entry) => entry.length >= 12 && strongTaskSignals.some((pattern) => pattern.test(entry)))
+    .filter(hasConcreteTaskStructure)
+    .filter((entry) => !negativeObligation.test(entry) || /\b[A-Z][A-Z0-9]{1,9}-\d+\b/.test(entry))
+    .filter((entry) => !nonTaskCandidateContext.test(entry) || /\b[A-Z][A-Z0-9]{1,9}-\d+\b/.test(entry));
   if (!candidates.length) return null;
   const score = (entry: string) =>
     (entry.match(/\b[A-Z][A-Z0-9]{1,9}-\d+\b/g)?.length ?? 0) * 4 +
@@ -564,11 +596,11 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
   const queueQueries = [
     {
       kind: "commitments",
-      text: "Find current source records with explicit promised work, owned follow-ups, changed deadlines, due actions, or tracked work still open. Prefer original messages, emails, issues, and threads over handbooks or policies.",
+      text: "Find current company work with explicit promised actions, owned follow-ups, changed deadlines, due actions, or tracked work still open. Return original workplace messages, emails, issues, and threads with concrete task identity. Exclude examples, homework, recruitment, marketing, newsletters, contract boilerplate, policies, and attachment prose.",
     },
     {
       kind: "risks",
-      text: "Find current unresolved customer escalations, active incidents or outages, security risks, and blockers. Prefer original messages, emails, issues, and threads over handbooks or policies.",
+      text: "Find current unresolved company customer escalations, active incidents or outages, security risks, and blockers. Return original workplace messages, emails, issues, and threads with concrete task identity. Exclude examples, homework, recruitment, marketing, newsletters, contract boilerplate, policies, and attachment prose.",
     },
   ] as const;
   const diagnostics: Array<Record<string, unknown>> = [];
