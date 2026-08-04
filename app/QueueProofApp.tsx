@@ -10,7 +10,9 @@ import Image from "next/image";
 import { SiGithub, SiGmail, SiLinear, SiSlack } from "react-icons/si";
 import { ComponentProps, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { WorkspaceView } from "../lib/server/workspace-state";
+import type { EvidenceGraph as EvidenceGraphData } from "../packages/graph/src";
 import EvidenceOrbit, { type OrbitStage } from "./components/EvidenceOrbit";
+import EvidenceGraphView from "./components/EvidenceGraph";
 
 
 type CredentialField = {
@@ -1085,6 +1087,7 @@ function SourcesScreen({ workspace, connectors, reloadWorkspace, reloadConnector
       {connectors.length ? <div className="connector-list">{connectors.map((connector) => <article className="connector-row" data-provider={connector.provider} key={connector.id}><span className="provider-glyph large"><ProviderIcon provider={connector.provider} size={19} /></span><div className="connector-identity"><strong>{connector.name}</strong><span>{connector.provider} · {connector.database}{connector.collection ? ` / ${connector.collection}` : ""}</span></div><div className="connector-state"><span className={connector.state === "data_verified" ? "status-orb live" : connector.state.includes("sync") ? "status-orb indexing" : "status-orb"} /><strong>{stateCopy[connector.state] ?? connector.state}</strong><small>{connector.state === "data_verified" ? `${connector.canaryResultCount ?? 0} live records proven` : connector.lastError || "Awaiting next lifecycle step"}</small></div><button className="secondary-button" onClick={() => void connectorAction(connector)} disabled={busy === connector.id || (readOnly && connector.state !== "data_verified")}>{busy === connector.id ? <LoaderCircle className="spin" size={14} /> : connector.state === "data_verified" ? <Eye size={14} /> : readOnly ? <LockKeyhole size={14} /> : connector.state === "connector_created" || connector.state === "resources_discovered" ? <Search size={14} /> : <RefreshCw size={14} />}{connector.state === "data_verified" ? "View proof" : readOnly ? "Owner action" : connector.state === "connector_created" || connector.state === "resources_discovered" ? "Choose scope" : connector.state === "resources_selected" ? "Start sync" : "Check proof"}</button></article>)}</div> : <div className="empty-source"><Unplug size={28} /><div><h2>No workplace source yet.</h2><p>Add Slack, Gmail, Linear, or any provider exposed by your live HydraDB catalogue.</p></div>{!readOnly && <button className="primary-button" onClick={() => setSetupOpen(true)}><Plus size={15} /> Add first source</button>}</div>}
       <DocumentsPanel databases={[...new Set(connectors.map((item) => item.database).filter(Boolean))]}
         setError={setError} setNotice={setNotice} readOnly={readOnly} />
+      <EvidenceGraphPanel setError={setError} />
     </>}
     {setupOpen && <SourceSetup onClose={() => setSetupOpen(false)} onDone={async () => { setSetupOpen(false); await reloadConnectors(); setNotice("Connector created. Choose the exact resources QueueProof may index."); }} setError={setError} />}
     {proof && <ProofModal data={proof} onClose={() => setProof(null)} onConfigured={async () => { setProof(null); await reloadConnectors(); setNotice("Scope saved and initial backfill started. Check proof when indexing completes."); }} setError={setError} />}
@@ -1191,6 +1194,35 @@ function DocumentsPanel({ databases, setError, setNotice, readOnly }: {
         </article>) : <div className="honest-empty"><FileText size={24} /><div><strong>No document evidence yet.</strong><p>The ledger will show validation, hashing, processing, and the real terminal indexing state.</p></div></div>}
       </div>
     </div>
+  </section>;
+}
+
+/**
+ * Fetches /api/graph and renders it. Loading/empty conventions match
+ * DocumentsPanel above: a single active-flag effect, api<T>() for the fetch,
+ * setError for failures, .modal-loading for the spinner, .honest-empty for
+ * the no-data state.
+ */
+function EvidenceGraphPanel({ setError }: { setError: (value: string) => void }) {
+  const [graph, setGraph] = useState<EvidenceGraphData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    void api<{ graph: EvidenceGraphData }>("/api/graph")
+      .then((data) => { if (active) setGraph(data.graph); })
+      .catch((reason: Error) => { if (active) setError(reason.message); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [setError]);
+
+  return <section className="document-panel">
+    <div className="section-kicker"><span><Network size={14} /> Evidence graph</span><small>Sources · claims · contradictions · tasks</small></div>
+    {loading
+      ? <div className="modal-loading" role="status"><LoaderCircle className="spin" /> Deriving evidence graph…</div>
+      : graph
+        ? <EvidenceGraphView graph={graph} />
+        : <div className="honest-empty"><Network size={24} /><div><strong>Evidence graph unavailable.</strong><p>Generate a queue first, then check back here.</p></div></div>}
   </section>;
 }
 

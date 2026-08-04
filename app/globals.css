@@ -1686,3 +1686,39 @@ button.citation-chip::before { content: ""; position: absolute; inset: -8px; }
   .hero-proofline { margin-top: 18px; }
   .proof-artifact { width: min(250px, calc(100vw - 78px)); }
 }
+
+/* Evidence Graph — deterministic column layout for packages/graph output. */
+.evidence-graph { margin-top: 24px; }
+.evidence-graph-canvas { position: relative; width: 100%; border: 1px solid var(--line); background: radial-gradient(circle at 12% 0, rgba(207,255,66,.05), transparent 40%), var(--panel); }
+.evidence-graph-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.evidence-graph-edge { stroke: rgba(240,242,232,.22); stroke-width: 1.3; stroke-linecap: round; }
+.evidence-graph-edge.edge-supports { stroke: rgba(112,241,164,.4); }
+.evidence-graph-edge.edge-refutes { stroke: rgba(255,199,99,.55); stroke-dasharray: 2 4; }
+.evidence-graph-edge.edge-resolves { stroke: rgba(207,255,66,.5); }
+.evidence-graph:not(.reduced-motion) .evidence-graph-edge { stroke-dasharray: 2 5; animation: evidence-graph-flow 2.6s linear infinite; }
+.evidence-graph:not(.reduced-motion) .evidence-graph-edge.edge-refutes { animation-duration: 1.7s; }
+.evidence-graph-column-label { position: absolute; top: 12px; transform: translateX(-50%); color: var(--faint); font: 650 8px var(--mono); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; }
+.evidence-graph-node { position: absolute; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 7px; max-width: 168px; padding: 8px 11px; border: 1px solid var(--line-strong); border-radius: 10px; color: #c8cec2; background: linear-gradient(160deg, rgba(18,24,18,.92), rgba(8,12,8,.96)); cursor: pointer; transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
+.evidence-graph-node:hover, .evidence-graph-node:focus-visible { border-color: rgba(215,255,72,.55); box-shadow: 0 0 0 1px rgba(215,255,72,.18), 0 10px 24px rgba(0,0,0,.4); transform: translate(-50%, -50%) scale(1.04); outline: none; }
+.evidence-graph-node-icon { flex: 0 0 auto; display: grid; place-items: center; color: var(--acid); }
+.evidence-graph-node-label { overflow: hidden; font-size: 9px; line-height: 1.35; white-space: nowrap; text-overflow: ellipsis; }
+.evidence-graph-node.node-source .evidence-graph-node-icon { color: var(--mint); }
+.evidence-graph-node.node-claim .evidence-graph-node-icon { color: #8fb0ff; }
+.evidence-graph-node.node-contradiction { border-color: rgba(255,199,99,.4); }
+.evidence-graph-node.node-contradiction .evidence-graph-node-icon { color: var(--amber); }
+.evidence-graph-node.node-task .evidence-graph-node-icon { color: var(--acid); }
+.evidence-graph-node.node-action { border-color: rgba(207,255,66,.4); background: linear-gradient(160deg, rgba(24,28,14,.92), rgba(8,12,8,.96)); }
+.evidence-graph-status { display: flex; align-items: center; gap: 14px; margin-top: 10px; color: var(--faint); font: 620 9px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+.evidence-graph-contradiction-flag { display: inline-flex; align-items: center; gap: 5px; color: var(--amber); }
+.evidence-graph.reduced-motion .evidence-graph-edge { animation: none !important; stroke-dasharray: none; }
+
+@keyframes evidence-graph-flow {
+  from { stroke-dashoffset: 14; }
+  to { stroke-dashoffset: 0; }
+}
+
+@media (max-width: 760px) {
+  .evidence-graph-column-label { font-size: 6.5px; }
+  .evidence-graph-node { max-width: 128px; padding: 6px 8px; }
+  .evidence-graph-node-label { font-size: 8px; }
+}
