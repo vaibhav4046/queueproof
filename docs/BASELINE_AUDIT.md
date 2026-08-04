@@ -48,7 +48,7 @@ They must not be combined with these numbers.
 
 The current release candidate addresses those findings with:
 
-- proof-first responsive layout and six-destination navigation;
+- proof-first responsive layout and seven-destination navigation;
 - grounded/partial/abstained result states and accessible receipt dialogs;
 - concurrent text + hybrid exact-ID retrieval;
 - conflict-aware task clustering and fail-closed connector/resource lineage;
@@ -56,6 +56,6 @@ The current release candidate addresses those findings with:
 - versioned session claims, MCP audience enforcement, and an action integrity migration;
 - a strict fact, citation, provider, and contradiction grader.
 
-Current verified gates are 324 tests across 32 files, 13 security tests, 8 MCP tests,
+Current verified gates are 327 tests across 35 files, 13 security tests, 8 MCP tests,
 39/39 router cases with 331 fixture assertions, plus passing typecheck, lint, build, E2E,
 and deployment checks.
