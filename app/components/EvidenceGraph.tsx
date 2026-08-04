@@ -34,12 +34,12 @@ export type EvidenceGraphProps = { graph: EvidenceGraphData };
 // to ship. Add them here once the route actually derives them.
 const COLUMN_ORDER: GraphNodeType[] = ["connector", "source", "claim", "contradiction", "task", "action"];
 const COLUMN_LABEL: Record<GraphNodeType, string> = {
-  source: "Sources",
-  claim: "Claims",
-  contradiction: "Contradictions",
-  task: "Tasks",
-  action: "Actions",
-  connector: "Connectors",
+  source: "Receipts",
+  claim: "Facts",
+  contradiction: "Conflicts",
+  task: "Work",
+  action: "Next steps",
+  connector: "Connected apps",
   approval: "Approvals",
   receipt: "Receipts",
 };
@@ -111,8 +111,8 @@ export default function EvidenceGraphView({ graph }: EvidenceGraphProps) {
         <div className="honest-empty">
           <Link2 size={24} />
           <div>
-            <strong>No evidence graph yet.</strong>
-            <p>Generate a queue with at least one grounded task to see sources, claims, and contradictions linked together.</p>
+            <strong>No source map yet.</strong>
+            <p>Build a queue to see which receipts support each fact, task, and next step.</p>
           </div>
         </div>
       ) : (
@@ -122,7 +122,7 @@ export default function EvidenceGraphView({ graph }: EvidenceGraphProps) {
             viewBox={`0 0 ${VIEW_WIDTH} ${viewHeight}`}
             preserveAspectRatio="xMidYMid meet"
             role="img"
-            aria-label="Evidence graph: sources supporting claims and tasks, with contradictions flagged where evidence disagrees"
+            aria-label="Source map: receipts support facts, work, and next steps; conflicts stay visible"
           >
             {graph.edges.map((edge) => {
               const from = positionById.get(edge.source);
@@ -155,7 +155,7 @@ export default function EvidenceGraphView({ graph }: EvidenceGraphProps) {
               type="button"
               className={`evidence-graph-node node-${node.type}`}
               style={{ left: `${(node.x / VIEW_WIDTH) * 100}%`, top: `${(node.y / viewHeight) * 100}%` } as CSSProperties}
-              aria-label={`${node.type}: ${node.label}`}
+              aria-label={`${COLUMN_LABEL[node.type]}: ${node.label}`}
               title={node.label}
             >
               <span className="evidence-graph-node-icon">{nodeIcon(node.type)}</span>
@@ -166,13 +166,13 @@ export default function EvidenceGraphView({ graph }: EvidenceGraphProps) {
       )}
 
       <div className="evidence-graph-status" role="status" aria-live="polite">
-        <span>{graph.nodes.length} NODE{graph.nodes.length === 1 ? "" : "S"}</span>
-        <span>{graph.edges.length} EDGE{graph.edges.length === 1 ? "" : "S"}</span>
+        <span>{graph.nodes.length} item{graph.nodes.length === 1 ? "" : "s"}</span>
+        <span>{graph.edges.length} link{graph.edges.length === 1 ? "" : "s"}</span>
         {graph.nodes.some((node) => node.type === "contradiction") && (
           <span className="evidence-graph-contradiction-flag">
             <AlertTriangle size={12} />
-            {graph.nodes.filter((node) => node.type === "contradiction").length} CONTRADICTION
-            {graph.nodes.filter((node) => node.type === "contradiction").length === 1 ? "" : "S"}
+            {graph.nodes.filter((node) => node.type === "contradiction").length} conflict
+            {graph.nodes.filter((node) => node.type === "contradiction").length === 1 ? "" : "s"}
           </span>
         )}
       </div>

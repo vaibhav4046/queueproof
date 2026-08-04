@@ -1,125 +1,72 @@
 {
-  "schemaVersion": 1,
-  "generatedAt": "2026-08-03T23:57:39.329Z",
-  "repo": {
-    "path": "D:Codex d;queueproof",
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-04T05:57:22.5803523+01:00",
+  "releaseCandidate": {
+    "path": "D:\\Codex d;\\queueproof",
     "branch": "main",
-    "headCommit": "d574e9bb65a7c688f55f73c2e5eddfb3f2ee248e",
-    "aheadOfGithubRemote": 15,
-    "aheadOfSitesRemote": 22,
-    "remotes": {
-      "github": "https://github.com/vaibhav4046/queueproof.git",
-      "sites": "private sites repo"
-    }
+    "baseCommitBeforeCandidate": "5fd42da",
+    "releaseCommitMessage": "feat: ship premium evidence-first QueueProof release",
+    "candidateIsCommitted": true,
+    "publicationState": "local-only; explicit owner approval required"
   },
   "production": {
     "url": "https://queueproof.vercel.app",
-    "vercelProject": "prj_l08OsSMRo7rTEYakg5s8q6K1lp3X (queueproof, linked; no replacement)",
-    "appReleaseCommitAtSessionStart": "855e61a",
-    "handoffCommitAtSessionStart": "9c20e37",
-    "lastObservedQueuePacketSuffix": "AE1EB62B",
-    "lastObservedTopScore": 72.58,
-    "lastObservedQueueItems": 1,
-    "observedConnectors": [
-      {
-        "provider": "github",
-        "state": "data_verified",
-        "canaryResultCount": 1
-      },
-      {
-        "provider": "gmail",
-        "state": "data_verified",
-        "canaryResultCount": 4
-      },
-      {
-        "provider": "linear",
-        "state": "data_verified"
-      },
-      {
-        "provider": "slack",
-        "state": "data_verified"
-      }
-    ]
+    "lastObservedConnectors": ["github", "gmail", "linear", "slack"],
+    "connectorState": "data_verified",
+    "note": "Production observations predate the redesigned local release candidate."
   },
   "gates": {
-    "test": {
-      "files": 29,
-      "testsPassed": 280,
-      "measuredAt": "2026-08-04"
-    },
+    "tests": { "files": 32, "passed": 324 },
     "lint": "pass",
     "typecheck": "pass",
     "build": "pass",
+    "e2e": "pass",
     "deployCheck": "pass",
-    "benchmarkRouter": {
-      "fixtureCases": 39,
-      "generatedAt": "2026-08-03T23:25:25.300Z",
-      "note": "331 assertions PASS"
-    },
-    "benchmarkPdf": {
+    "routerFixture": { "casesPassed": 39, "cases": 39, "assertions": 331 },
+    "strictPdfPublicBaseline": {
+      "artifact": "audit/pdf-live-final.json",
       "grader": "grounded-grader-v2",
-      "generatedAt": "2026-08-03T23:32:51.891Z",
-      "passed": 16,
+      "pages": 346,
+      "bytes": 958096,
+      "casesPassed": 20,
       "cases": 22,
-      "totalRequiredFactsMatched": 47,
-      "totalRequiredFacts": 56,
-      "crossSourcePass": true,
-      "rateLimitFixed": true,
-      "note": "synthesis fix local-only at this artifact; 22/22 target pending post-deploy re-measure"
+      "factsMatched": 53,
+      "facts": 56,
+      "citationPrecision": 1,
+      "citationCompleteness": 1,
+      "unsupportedClaimRate": 0,
+      "p50Ms": 554,
+      "p95Ms": 5898,
+      "canaries": { "beginning": "pass", "middle": "pass", "end": "pass" },
+      "releaseRelation": "pre-release production baseline; rerun required"
     },
-    "testLive": "skipped (HYDRA_DB_API_KEY not present in this environment)",
-    "benchmarkLive": "skipped (HYDRA_DB_API_KEY not present)"
-  },
-  "document": {
-    "filename": "helios-operations-handbook.pdf",
-    "label": "synthetic evaluation fixture",
-    "pages": 346,
-    "bytes": 958096,
-    "sha256": "c047a3d09c45ecf97e3ed8e2115eda08ea0f6152206237955030f4304fa2ed93",
-    "queueproofDocId": "doc_44fe0aac-ea45-481f-91bf-66b5ba7b4fe9",
-    "hydradbSourceId": "f64d374d1899f3057707528f77703f3f",
-    "database": "queueproof-live",
-    "observedIndexedAt": "2026-08-03T08:31:03.028Z",
-    "observedProcessingDurationMs": 5716028
-  },
-  "screenshots": [
-    {
-      "file": "qp-1440x900.png",
-      "bytes": 449303
-    },
-    {
-      "file": "qp-1920x1080.png",
-      "bytes": 458824
-    },
-    {
-      "file": "qp-2560x1440.png",
-      "bytes": 470209
-    },
-    {
-      "file": "qp-360x800.png",
-      "bytes": 223756
-    },
-    {
-      "file": "qp-3840x2160.png",
-      "bytes": 4067606
-    },
-    {
-      "file": "qp-390x844.png",
-      "bytes": 239539
-    },
-    {
-      "file": "qp-768x1024.png",
-      "bytes": 429727
+    "liveSixQueryPublicBaseline": {
+      "artifact": "audit/live-run-final.json",
+      "completeCasesPassed": 1,
+      "cases": 6,
+      "factsMatched": 15,
+      "facts": 19,
+      "citationPrecision": 1,
+      "citationCompleteness": 1,
+      "unsupportedClaimRate": 0,
+      "providersObserved": ["github", "linear", "slack"],
+      "releaseRelation": "pre-release production diagnostic; not an SLA"
     }
-  ],
-  "assets": [
-    "submission/assets/queueproof-og-1200x630.png",
-    "submission/assets/queueproof-4k-still-3840x2160.png"
-  ],
-  "authzBoundary": {
-    "githubPush": "blocked until user approval",
-    "publicSitesDeploy": "blocked until user approval",
-    "vercelProdDeploy": "pending explicit user confirmation"
   },
-  "secretsScan": "re-run required before any visibility change (no values printed this session)"
+  "visualQa": {
+    "report": "audit/UI_QA_2026-08-04.md",
+    "screenshots": [
+      "audit/screenshots/premium-cdp-1440x900-final.png",
+      "audit/screenshots/premium-cdp-390x844-final2.png",
+      "audit/screenshots/premium-cdp-390x844-reduced.png",
+      "audit/screenshots/premium-cdp-orbit-1440x900.png"
+    ]
+  },
+  "authorizationBoundary": {
+    "githubPush": "not authorized",
+    "repositoryVisibilityChange": "not authorized",
+    "productionDeploy": "not authorized",
+    "postDeployRerun": "pending publication"
+  },
+  "secretsScan": "pass: zero high-risk literal credential patterns in tracked and untracked source files; generated and binary directories excluded"
 }

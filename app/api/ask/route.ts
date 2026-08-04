@@ -4,7 +4,7 @@ import { extractQuerySources, matchingChunks, providerFromSource, sourceBelongsT
 import { requireRequestActor } from "../../../lib/server/identity";
 import { requireDb } from "../../../lib/server/runtime";
 import { audit, createId, enforcePublicRateLimit, requireWorkspaceForUser } from "../../../lib/server/store";
-import { planRetrieval, retrievalQueryVariants } from "../../../packages/retrieval/src";
+import { evidenceFollowUpTerms, planRetrieval, retrievalQueryVariants } from "../../../packages/retrieval/src";
 import { isPotentialPromptInjection, redactSecrets } from "../../../packages/security/src";
 import { synthesiseGroundedAnswer } from "../../../lib/server/synthesis";
 import { listQueueForWorkspace } from "../../../lib/server/queue";
@@ -18,6 +18,15 @@ type RetrievalScope = {
   sourceIds?: string[];
 };
 type Row = Record<string, unknown>;
+type RetrievedEvidence = {
+  id: string;
+  provider: string;
+  title: string;
+  excerpt: string;
+  timestamp: string | null;
+  url: string | null;
+  connectorId: string;
+};
 const record = (value: unknown): Row => typeof value === "object" && value !== null ? value as Row : {};
 
 function textFrom(row: Row, keys: string[]) {
@@ -99,10 +108,7 @@ export async function POST(request: Request) {
     const retrievalQuery = identifiers.length ? `${identifiers.join(" ")} ${question}` : question;
     const client = await hydraClientForWorkspace(workspaceId);
     const started = Date.now();
-    const evidence: Array<{
-      id: string; provider: string; title: string; excerpt: string;
-      timestamp: string | null; url: string | null; connectorId: string;
-    }> = [];
+    const evidence: RetrievedEvidence[] = [];
     const trace: Array<Record<string, unknown>> = [];
     const connectorScopes = [...connectors.results.reduce((map, connector) => {
       const key = `${connector.database}\u0000${connector.collection ?? ""}`;
@@ -118,15 +124,18 @@ export async function POST(request: Request) {
     const scopes: RetrievalScope[] = requestedSourceIds.length
       ? [...documentScopes, ...(payload.includeConnectors ? connectorScopes : [])]
       : connectorScopes;
-    const queryVariants = retrievalQueryVariants(plan);
-
-    await Promise.all(scopes.map(async (scope) => {
-      await Promise.all(queryVariants.map(async (queryBy) => {
+    const runQueryBatch = async (
+      queryText: string,
+      queryVariants: Array<"text" | "hybrid">,
+      phase: "primary" | "follow_up",
+    ) => {
+      await Promise.all(scopes.map(async (scope) => {
+        await Promise.all(queryVariants.map(async (queryBy) => {
         const callStarted = Date.now();
         const response = await client.query({
           database: scope.database,
           ...(scope.collection ? { collections: [scope.collection] } : {}),
-          query: retrievalQuery,
+          query: queryText,
           type: "knowledge",
           query_by: queryBy,
           mode,
@@ -143,10 +152,11 @@ export async function POST(request: Request) {
             ? { metadata_filters: payload.metadataFilters }
             : {}),
         });
-        trace.push({ connectorIds: scope.connectors.map((item) => item.id),
+        trace.push({ phase, connectorIds: scope.connectors.map((item) => item.id),
           providers: scope.sourceIds ? ["document"] : scope.connectors.map((item) => item.provider), database: scope.database,
           collection: scope.collection, queryBy, ok: response.ok, status: response.status,
           sourceIds: scope.sourceIds ?? [], requestId: response.requestId,
+          queryTermCount: queryText.split(/\s+/).filter(Boolean).length,
           latencyMs: Date.now() - callStarted, error: response.error });
         if (!response.ok) return;
         const extracted = extractQuerySources(response.data);
@@ -186,8 +196,20 @@ export async function POST(request: Request) {
             });
           });
         });
+        }));
       }));
-    }));
+    };
+
+    await runQueryBatch(retrievalQuery, retrievalQueryVariants(plan), "primary");
+    if (mode === "thinking") {
+      const followUpTerms = evidenceFollowUpTerms(
+        question,
+        evidence.map((item) => `${item.title}. ${item.excerpt}`),
+      );
+      if (followUpTerms.length) {
+        await runQueryBatch(`${retrievalQuery} ${followUpTerms.join(" ")}`, ["hybrid"], "follow_up");
+      }
+    }
     const deduped = evidence.filter((item, index, all) =>
       all.findIndex((candidate) => `${candidate.provider}:${candidate.id}` === `${item.provider}:${item.id}`) === index,
     );

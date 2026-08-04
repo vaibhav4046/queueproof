@@ -1,6 +1,8 @@
 # QueueProof submission form answers
 
-Paste-ready as of 3 August 2026. Replace the bracketed video field before submission.
+Prepared from measurements taken on 4 August 2026. Do not submit until the final commit
+is published, the strict live/PDF checks are rerun on that commit, the repository is made
+judge-accessible, and the bracketed video field is replaced.
 
 ## Product name
 
@@ -19,7 +21,8 @@ deterministic next-action packet, while keeping external writes behind human app
 
 <https://github.com/vaibhav4046/queueproof>
 
-Confirm that judges have repository access before submitting.
+The repository was verified as **private** on 4 August 2026. Make it public or invite the
+judges before submitting.
 
 ## Video URL
 
@@ -42,8 +45,11 @@ mode, and ingests documents. A connector is not eligible until returned source I
 attributable to its connector or selected resources.
 
 Exact identifiers use HydraDB twice in parallel: a lexical text lane for precision and a
-hybrid lane for aliases and surrounding semantic context. QueueProof merges and
-deduplicates the results and records both calls in the receipt.
+hybrid lane for aliases and surrounding semantic context. Thinking mode can then perform
+one bounded hybrid follow-up using only identifiers and named entities discovered in the
+first-hop evidence. QueueProof merges and deduplicates every result and records the phase,
+lane, request ID, call count, latency, and relative cost in the receipt. Fast mode remains
+a single hybrid call for ordinary questions.
 
 The last observed production workspace had four `data_verified` connectors: GitHub,
 Gmail, Linear, and Slack. The flagship question returned cited GitHub, Linear, and Slack
@@ -71,13 +77,12 @@ explicit, and a unique execution row is claimed before provider I/O.
 ## What is verified?
 
 - Typecheck, lint, production build, E2E, and deployment check pass.
-- 274 tests across 29 files pass.
+- 324 tests across 32 files pass.
 - Security suite: 13 tests. MCP suite: 8 tests.
 - Offline router benchmark: 39/39 labelled cases and 331 assertions.
 - Responsive QA: 360x800, 390x844, 768x1024, 1440x900, 1920x1080,
   2560x1440, and 3840x2160.
-- Secret scan: zero matching files across the final worktree and complete pre-release history for AWS,
-  GitHub, OpenAI, Slack, Linear, and private-key patterns.
+- Tracked-release secret scan: zero literal credential matches for the final candidate.
 - Four last-observed production connectors at `data_verified`; flagship cited evidence
   from GitHub, Linear, and Slack.
 
@@ -102,14 +107,41 @@ Fixture, live, and PDF evaluation remain separate. The deterministic router suit
 checks claim text/provider against the excerpt, and requires two cited providers for a
 labelled contradiction.
 
-The deterministic 346-page PDF contains 22 questions and 56 required-fact groups. Its
-stored production artifact is 21/22 under the old grader and is not comparable with the
-current strict grader. QueueProof does not claim a fresh strict production PDF result.
+The deterministic 346-page PDF contains 22 questions and 56 required-fact groups. A fresh
+`grounded-grader-v2` run against the public deployment on 4 August recovered 53/56 facts
+and passed 20/22 cases, with 100% citation precision/completeness and zero unsupported
+claims. Beginning, middle, and end canaries all passed. The document-plus-connectors case
+found document and GitHub evidence but missed the required second connector, so it remains
+REVIEW. This is a pre-release production baseline and must be rerun after publication.
 
 ## Honest limitations
 
-- The six-query stored live sample is small and not an SLA.
-- No fresh production PDF score is claimed after grader hardening.
+- The fresh six-query production sample passed 1/6 complete cases and 15/19 required facts.
+  Citation precision/completeness were 100% with zero unsupported claims; this small sample
+  is a diagnostic baseline, not an SLA or a general accuracy claim.
+- The fresh strict PDF baseline is 20/22, not 22/22, and predates the unpublished final
+  retrieval changes.
 - Relative query units are shown; no HydraDB dollar cost is invented.
 - A provider write is not described as executed without a stored provider response ID.
-- Repository access and the final video URL must be confirmed before submission.
+- Final publication, repository access, post-deploy reruns, and the video URL remain gates.
+
+## Hackathon form quick answers
+
+**Did you try ingesting huge PDFs?** Yes. QueueProof indexed a deterministic 346-page,
+958,096-byte PDF and ran 22 strict questions spanning beginning, middle, and end facts.
+Fresh public-production baseline: 20/22 cases and 53/56 required facts; 100% citation
+precision/completeness; zero unsupported claims. Two cases and the connector join remain
+REVIEW pending post-release rerun.
+
+**Did you use at least three connectors?** Yes. The last observed production workspace had
+four `data_verified` connectors: GitHub, Gmail, Linear, and Slack. The flagship live answer
+contained supporting citations from GitHub, Linear, and Slack.
+
+**Video demo:** `[ADD FINAL VIDEO URL]`
+
+**GitHub submission:** <https://github.com/vaibhav4046/queueproof> — currently private;
+make judge-accessible before submission.
+
+**LinkedIn:** use [docs/SOCIAL_POSTS.md](../docs/SOCIAL_POSTS.md), then add the post URL.
+
+**Twitter/X:** use [docs/SOCIAL_POSTS.md](../docs/SOCIAL_POSTS.md), then add the post URL.

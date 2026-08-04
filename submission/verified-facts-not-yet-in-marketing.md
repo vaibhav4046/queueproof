@@ -1,27 +1,26 @@
-# QueueProof — facts that must NOT appear in marketing until independently verified
+# QueueProof — claims that are not release evidence
 
-These claims are NOT currently backed by a fresh production measurement. Do not
-put them in the README, social posts, form answers, or the demo without first
-verifying each one.
+Do not put these claims in the README, social posts, form answers, or demo unless a new
+artifact independently verifies them against the published commit.
 
-1. **"22/22 PDF facts"** — the strict grader measured 16/22 (rate-limit fixed).
-   The synthesis fix is implemented and locally tested; 22/22 is a TARGET until
-   the fix is deployed and `npm run benchmark:pdf` passes on production.
-2. **"21/22 PDF facts"** — that number came from the legacy token-recall grader
-   and predates `grounded-grader-v2`; it is historical, not current.
-3. **"PDF canary recall ≥90%"** — the last strict run had beginning/middle pass
-   and end REVIEW (rate-limited rows); not a clean ≥90% measurement.
-4. **"Fast-mode p95 ≤1.5 s"** — external-condition-dependent; strict-run p95 was
-   4007 ms (includes first-run cold latency). Report measured latency only.
-5. **"6-question accuracy"** — the six-question live set is a small historical
-   sample and passes only permissive checks; it is not universal accuracy.
-6. **Router accuracy** — `benchmark:router` is 39/39 on the fixed labelled set
-   (deterministic layer). Do not phrase this as general retrieval accuracy.
-7. **"274 tests"** — the current suite is 280 tests across 29 files; recompute
-   before quoting any test count.
-8. **Any "not indexed" / "unverified Gmail" phrasing** — stale docs claim
-   Gmail unverified; production shows 4 `data_verified` connectors (Gmail canary 4).
-9. **"Production-ready" / "winner" / "perfect"** — never claim without
-   independently reproducible evidence from the shipped production commit.
-10. **Public GitHub link in the demo** — only after the repository visibility
-    change is approved and a clean secret scan is recorded.
+1. **“22/22 PDF cases.”** The fresh strict public-production baseline is 20/22 cases and
+   53/56 required facts. It predates the final unpublished retrieval change.
+2. **“Fast-mode p95 ≤1.5 seconds.”** Latency depends on external services. Report the
+   measured sample and its scope, never an invented SLA.
+3. **“Perfect live accuracy.”** The fresh six-question production diagnostic passed 1/6
+   complete cases and 15/19 facts. Citations were complete and supported, but coverage
+   was not perfect.
+4. **General retrieval accuracy from the router suite.** The 39/39 result measures the
+   deterministic route decision on one fixed labelled fixture set.
+5. **HydraDB dollar cost.** QueueProof records relative query units because no verified
+   billing conversion is available.
+6. **“Production-ready,” “winner,” or “perfect.”** The release candidate is strongly
+   tested; those words still overstate the evidence.
+7. **A public GitHub submission.** The repository was last verified as private. Make it
+   judge-accessible only with the owner’s explicit approval.
+8. **A final deployed result.** The redesigned local release has not been published or
+   remeasured in production yet.
+
+Current measured release gates: 324 tests across 32 files; 39/39 router cases with 331
+fixture assertions; passing lint, typecheck, production build, E2E shell contract, and
+Sites binding check.

@@ -34,6 +34,47 @@ export function retrievalQueryVariants(plan: RetrievalPlan): Array<"text" | "hyb
   return plan.exactParallel ? ["text", "hybrid"] : [plan.queryBy];
 }
 
+const FOLLOW_UP_STOP_WORDS = new Set([
+  "a", "an", "and", "april", "august", "document", "february", "friday", "github",
+  "gmail", "heads up", "i", "january", "july", "june", "linear", "march", "may",
+  "monday", "november", "october", "saturday", "september",
+  "slack", "sunday", "the", "this", "thursday", "tuesday", "wednesday", "we",
+]);
+
+/**
+ * Build a bounded second-hop expansion only from entities present in the first
+ * retrieval result. This is deliberately generic: it extracts record IDs and
+ * proper-name phrases, never fixture-specific aliases or facts. The result is
+ * appended to the original question for one hybrid follow-up query in thinking
+ * mode, making multi-hop execution real while leaving fast mode at one call.
+ */
+export function evidenceFollowUpTerms(question: string, passages: string[]): string[] {
+  const questionLower = question.toLowerCase();
+  const scores = new Map<string, number>();
+  const add = (raw: string, weight: number) => {
+    const phrase = raw.replace(/\s+/g, " ").trim()
+      .replace(/^(?:The|A|An)\s+/, "")
+      .replace(/[.,:;!?]+$/g, "");
+    const lower = phrase.toLowerCase();
+    if (phrase.length < 4 || phrase.length > 64 || FOLLOW_UP_STOP_WORDS.has(lower)) return;
+    if (questionLower.includes(lower)) return;
+    scores.set(phrase, (scores.get(phrase) ?? 0) + weight);
+  };
+
+  for (const passage of passages.slice(0, 16)) {
+    for (const id of passage.match(/\b[A-Z][A-Z0-9]+-\d+\b/g) ?? []) add(id, 20);
+    for (const phrase of passage.match(/\b[A-Z][A-Za-z0-9]+(?:\s+[A-Z][A-Za-z0-9]+){0,2}\b/g) ?? []) {
+      const internalCapital = /[a-z][A-Z]/.test(phrase);
+      add(phrase, internalCapital ? 9 : phrase.includes(" ") ? 6 : 3);
+    }
+  }
+
+  return [...scores.entries()]
+    .sort((a, b) => b[1] - a[1] || b[0].length - a[0].length || a[0].localeCompare(b[0]))
+    .slice(0, 6)
+    .map(([phrase]) => phrase);
+}
+
 const exactId = /\b(?:[A-Z][A-Z0-9]+-\d+|[0-9a-f]{8}-[0-9a-f-]{27,})\b/i;
 
 export function planRetrieval(query: string): RetrievalPlan {
@@ -51,7 +92,9 @@ export function planRetrieval(query: string): RetrievalPlan {
     /\b(desde|antes|despu[eé]s|cambi[oó]|lunes|hoy|ayer)\b/.test(normalized);
   const explicitConflictSignal = /\b(conflict(?:ing|ed|s)?|contradict(?:ory|ing|ed|s)?|disagree(?:ment|ments|d|s)?|inconsistent|inconsistency)\b/.test(normalized);
   const conflictSignal = explicitConflictSignal ||
-    /\b(despite|still .* open|already .* (?:shipped|merged|resolved)|appears? resolved elsewhere)\b/.test(normalized);
+    /\b(despite|still .* open|already .* (?:shipped|merged|resolved)|appears?(?:\s+\w+){0,4}\s+resolved elsewhere)\b/.test(normalized);
+  const absenceSignal = /\b(?:no|without|missing|lacks?)\b[^?]{0,50}\b(?:issue|ticket|track(?:ed|ing)?)\b/.test(normalized) ||
+    /\b(?:issue|ticket)\b[^?]{0,35}\b(?:missing|absent|not tracked)\b/.test(normalized);
   const counterfactualSignal = /\b(what if|would move|if .* resolved|why .* above)\b/.test(normalized);
   const namedProviders = ["slack", "gmail", "linear", "github", "email", "document"]
     .filter((provider) => new RegExp(`\\b${provider}\\b`).test(normalized));
@@ -81,7 +124,7 @@ export function planRetrieval(query: string): RetrievalPlan {
   const provenanceSignal = /\b(source of|trace .* from .* to|compare .* (?:with|against)|vendor email|liability cap|layoff)\b/.test(normalized);
 
   const needsReasoning =
-    temporal || conflictSignal || counterfactualSignal || crossSourceSignal || multiHopSignal ||
+    temporal || conflictSignal || absenceSignal || counterfactualSignal || crossSourceSignal || multiHopSignal ||
     entityResolutionSignal || attributionSignal || prioritySignal || threadSignal || provenanceSignal ||
     cjkReasoningSignal || (multilingualSignal && multiHopSignal);
 

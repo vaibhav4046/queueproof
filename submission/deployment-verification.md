@@ -2,13 +2,16 @@
 
 Canonical target: <https://queueproof.vercel.app>
 
-Application release commit: `855e61abb85cfaf414db70fa04ed5f01c1f96b01`
+Historical application release commit: `855e61abb85cfaf414db70fa04ed5f01c1f96b01`
 
 Immutable Vercel deployment: <https://queueproof-9dosezsup-vaibhav4046s-projects.vercel.app>
 
 Vercel receipt: <https://vercel.com/vaibhav4046s-projects/queueproof/HeScQwHp4GohxVCjni8LifKABPFf>
 
-## Release-candidate gates
+## Final local release-candidate gates
+
+These gates were rerun on 4 August 2026. The candidate is not yet bound to the historical
+deployment receipt above; publication and post-deploy acceptance remain pending.
 
 | Gate | Status |
 | --- | --- |
@@ -17,7 +20,7 @@ Vercel receipt: <https://vercel.com/vaibhav4046s-projects/queueproof/HeScQwHp4Go
 | Production build | pass |
 | E2E shell/product contract | pass |
 | Deployment binding check | pass |
-| Full suite | 274 tests across 29 files |
+| Full suite | 324 tests across 32 files |
 
 Responsive QA passed at 360x800, 390x844, 768x1024, 1440x900, 1920x1080,
 2560x1440, and 3840x2160.

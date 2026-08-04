@@ -250,20 +250,38 @@ function sentences(item: SynthesisEvidence, question: string) {
   ])].filter((sentence) => sentence.length >= 18 && sentence.length <= 420);
 }
 
-function normalisedDate(value: string) {
-  const parsed = new Date(value);
-  return Number.isFinite(parsed.getTime()) ? parsed.toISOString().slice(0, 10) : value.toLowerCase();
+function dateParts(value: string) {
+  const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return { dayMonth: `${iso[2]}-${iso[3]}`, year: iso[1] };
+  const natural = value.match(/^(\d{1,2})\s+([A-Za-z]+)(?:\s+(\d{4}))?$/);
+  if (!natural) return { dayMonth: value.toLowerCase(), year: null };
+  return {
+    dayMonth: `${natural[2].toLowerCase()}-${natural[1].padStart(2, "0")}`,
+    year: natural[3] ?? null,
+  };
 }
 
-function contradictions(question: string, claims: GroundedClaim[], evidenceById: Map<string, SynthesisEvidence>) {
+function contradictions(question: string, relevantEvidence: SynthesisEvidence[]) {
   const result: GroundedContradiction[] = [];
-  const selected = claims.flatMap((claim) => claim.evidenceIds.map((id) => evidenceById.get(id))).filter(Boolean) as SynthesisEvidence[];
-  const dated = selected.flatMap((item) => {
+  const selected = [...new Map(relevantEvidence.map((item) => [item.id, item])).values()];
+  const datedRaw = selected.flatMap((item) => {
     const text = `${item.title}. ${item.excerpt}`;
-    if (!/\b(deadline|due|ship|before|moved|date)\b/i.test(text)) return [];
-    const dates = text.match(/\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})\b/gi) ?? [];
-    return dates.map((date) => ({ item, date, normalised: normalisedDate(date) }));
+    const dates = text.match(/\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)(?:\s+\d{4})?)\b/gi) ?? [];
+    // A record that says a deadline "moved from X to Y" is asserting Y as
+    // its current deadline. Comparing both dates from that one record would
+    // manufacture a contradiction before another source is considered.
+    const assertedDates = /\bmoved\s+from\b/i.test(text) && dates.length > 1
+      ? dates.slice(-1)
+      : dates;
+    return assertedDates.map((date) => ({ item, date, parts: dateParts(date) }));
   });
+  const years = new Set(datedRaw.map((entry) => entry.parts.year).filter(Boolean));
+  const dated = datedRaw.map((entry) => ({
+    ...entry,
+    normalised: years.size > 1 && entry.parts.year
+      ? `${entry.parts.dayMonth}-${entry.parts.year}`
+      : entry.parts.dayMonth,
+  }));
   const distinctDates = [...new Set(dated.map((entry) => entry.normalised))];
   if (/\b(disagree|conflict|inconsistent|changed|moved|deadline)\w*\b/i.test(question) && distinctDates.length > 1) {
     const conflicts = dated.filter((entry, index, all) => all.findIndex((candidate) => candidate.normalised === entry.normalised) === index).slice(0, 3);
@@ -440,8 +458,7 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
   const answer = claims.length
     ? claims.map((claim) => `${claim.text} [${evidenceIndex.get(claim.evidenceIds[0])}]`).join(" ")
     : "Insufficient evidence. QueueProof will not invent an answer.";
-  const evidenceById = new Map(ranked.map((item) => [item.id, item]));
-  const detectedContradictions = contradictions(question, claims, evidenceById);
+  const detectedContradictions = contradictions(question, ranked);
   const providerCoverage = [...new Set(claims.flatMap((claim) => claim.providers))];
   const missingInformation = claims.length
     ? missingRequestedFacets(question, claims)

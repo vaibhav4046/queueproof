@@ -21,13 +21,13 @@
  * it renders everywhere (no WebGL failure mode, no SSR risk, vector-sharp at
  * 4K), and it honours prefers-reduced-motion with a static high-quality
  * composition. It never intercepts scrolling and requires no interaction to
- * complete any task. Receipt pulses are driven by a single requestAnimationFrame
- * loop that stops when the tab is hidden, motion is paused, or reduced motion
- * is requested.
+ * complete any task. The JavaScript-driven receipt pulses share one
+ * requestAnimationFrame loop that stops when the tab is hidden, motion is
+ * paused, or reduced motion is requested.
  */
 import { SiGithub, SiGmail, SiLinear, SiSlack } from "react-icons/si";
 import { FileText, Pause, Play, ShieldCheck } from "lucide-react";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePrefersReducedMotion } from "./use-prefers-reduced-motion";
 
 export type OrbitStage =
@@ -74,6 +74,16 @@ const PROVIDER_NODES: Array<{ provider: string; x: number; y: number }> = [
 
 const CORE = { x: 720, y: 222 };
 
+const STAGE_LABEL: Record<OrbitStage, string> = {
+  idle: "Ready",
+  routing: "Choosing the best search",
+  retrieving: "Checking sources",
+  linking: "Matching the facts",
+  contradiction: "Checking a conflict",
+  verified: "Answer ready",
+  insufficient: "More proof needed",
+};
+
 const PROVIDER_COLOR: Record<string, string> = {
   slack: "#7f9bff",
   linear: "#b38cff",
@@ -109,12 +119,10 @@ export default function EvidenceOrbit({
   connectors,
   replay = false,
 }: OrbitProps) {
-  const sceneRef = useRef<HTMLDivElement>(null);
   const routeRefs = useRef<Map<string, SVGPathElement>>(new Map());
   const pulseRefs = useRef<Map<string, SVGCircleElement>>(new Map());
   const [paused, setPaused] = useState(false);
   const [hidden, setHidden] = useState(false);
-  const [parallax, setParallax] = useState({ rx: 0, ry: 0 });
 
   const reducedMotion = usePrefersReducedMotion();
 
@@ -141,7 +149,7 @@ export default function EvidenceOrbit({
         if (!path || !circle) continue;
         const length = path.getTotalLength();
         const offset = PROVIDER_NODES.findIndex((item) => item.provider === node.provider) * 0.2;
-        const t = ((elapsed / 2600) + offset) % 1;
+        const t = ((elapsed / 5200) + offset) % 1;
         const point = path.getPointAtLength(Math.max(0, Math.min(1, t)) * length);
         circle.setAttribute("cx", String(point.x));
         circle.setAttribute("cy", String(point.y));
@@ -161,35 +169,14 @@ export default function EvidenceOrbit({
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, []);
 
-  // Limited cinematic parallax: roughly 4-6 degrees of rotation, never
-  // free-flight. Disabled under reduced motion or while paused.
-  useEffect(() => {
-    const element = sceneRef.current;
-    if (!element || reducedMotion || paused) return;
-    const onMove = (event: PointerEvent) => {
-      const rect = element.getBoundingClientRect();
-      const nx = (event.clientX - rect.left) / rect.width - 0.5;
-      const ny = (event.clientY - rect.top) / rect.height - 0.5;
-      setParallax({ rx: ny * -5, ry: nx * 6 });
-    };
-    const onLeave = () => setParallax({ rx: 0, ry: 0 });
-    element.addEventListener("pointermove", onMove);
-    element.addEventListener("pointerleave", onLeave);
-    return () => {
-      element.removeEventListener("pointermove", onMove);
-      element.removeEventListener("pointerleave", onLeave);
-    };
-  }, [reducedMotion, paused]);
-
-  const receiptLabel = replay ? "REPLAYING VERIFIED RECEIPT" : "RECEIPTS ARRIVING";
+  const receiptLabel = replay ? "Replaying a saved answer" : "Checking source receipts";
 
   return (
     <div
-      ref={sceneRef}
       className={`evidence-orbit stage-${stage}${paused ? " paused" : ""}${reducedMotion ? " reduced-motion" : ""}${replay ? " replay" : ""}`}
-      style={{ "--orbit-rx": `${parallax.rx}deg`, "--orbit-ry": `${parallax.ry}deg` } as CSSProperties}
     >
       <div className="orbit-glow" aria-hidden="true" />
+      <div className="orbit-story-head" aria-hidden="true"><span>01 · Sources</span><i /><span>02 · Answer</span><i /><span>03 · Next step</span></div>
       <div className="orbit-stage">
         {/* Only the decorative canvas is hidden from assistive tech; the source
             node buttons, core label and action card below stay in the a11y tree. */}
@@ -198,7 +185,7 @@ export default function EvidenceOrbit({
           viewBox="0 0 1440 470"
           preserveAspectRatio="xMidYMid meet"
           role="img"
-          aria-label="Evidence orbit: provider sources on the left route evidence into the proof core"
+          aria-label="Source map: connected systems feed a checked answer and a next step"
         >
           <defs>
             <linearGradient id="orbit-route-slack" x1="0" y1="0" x2="1" y2="0">
@@ -324,9 +311,9 @@ export default function EvidenceOrbit({
               title={`${node.provider}${connector?.canaryResultCount ? ` · ${connector.canaryResultCount} proven records` : ""}`}
             >
               <span className="orbit-node-icon">{providerIcon(node.provider, 19)}</span>
-              <span className="orbit-node-label">{node.provider.toUpperCase()}</span>
+              <span className="orbit-node-label">{node.provider[0].toUpperCase() + node.provider.slice(1)}</span>
               <span className="orbit-node-chip">
-                <small>{connector ? `${connector.canaryResultCount ?? 0} proven` : "idle"}</small>
+                <small>{connector ? `${connector.canaryResultCount ?? 0} receipts` : "not connected"}</small>
               </span>
               <i className="orbit-node-ping" aria-hidden="true" />
             </button>
@@ -335,27 +322,27 @@ export default function EvidenceOrbit({
 
         {/* Core DOM label (decorative duplicate of the status row) */}
         <div className="orbit-core-label" aria-hidden="true">
-          <strong>PROOF</strong>
-          <small>{stage === "idle" ? "STANDBY" : stage === "insufficient" ? "INSUFFICIENT EVIDENCE" : stage === "verified" ? "ANSWER VALIDATED" : showContradiction ? "CONTRADICTION" : stage.toUpperCase()}</small>
+          <strong>ANSWER</strong>
+          <small>{STAGE_LABEL[stage]}</small>
         </div>
 
         {/* Resolved action card — real DOM, emerges from the core region */}
         {action && (
           <article className="orbit-action-card" aria-label="Resolved priority action">
-            <span className="orbit-action-kicker"><ShieldCheck size={12} /> RESOLVED ACTION</span>
+            <span className="orbit-action-kicker"><ShieldCheck size={12} /> NEXT STEP</span>
             <div className="orbit-action-score"><strong>{action.score}</strong><small>/100</small></div>
             <h3>{action.title}</h3>
             <p>{action.safeAction}</p>
             <div className="orbit-action-meta">
               <span>{action.coverage.join(" · ")}</span>
-              <span>{action.approvalRequired ? "Approval gated" : "Read only"}</span>
+              <span>{action.approvalRequired ? "Needs approval" : "Read only"}</span>
             </div>
           </article>
         )}
 
         {!action && stage !== "idle" && (
           <div className="orbit-action-slot" aria-hidden="true">
-            <span>{retrievalActive ? receiptLabel : showVerified ? "ACTION COMPILING" : "AWAITING ACTION"}</span>
+            <span>{retrievalActive ? receiptLabel : showVerified ? "Preparing the next step" : "Waiting for an answer"}</span>
           </div>
         )}
       </div>
@@ -364,11 +351,11 @@ export default function EvidenceOrbit({
       <div className="orbit-console" role="status" aria-live="polite">
         <span className="orbit-mode">
           <i className="mode-orb" />
-          {stage === "idle" ? "STANDBY" : stage === "routing" ? `ROUTING · ${modeLabel}` : stage === "retrieving" ? `RETRIEVING · ${modeLabel}` : modeLabel.toUpperCase()}
+          {STAGE_LABEL[stage]}{stage !== "idle" && stage !== "insufficient" ? ` · ${modeLabel.replace("AUTO ROUTE", "Auto")}` : ""}
         </span>
-        <span className="orbit-receipts">{receiptCount} RECEIPTS LINKED</span>
-        {showContradiction && <span className="orbit-contradiction"><i /> {contradictionCount} CONTRADICTION{contradictionCount === 1 ? "" : "S"}</span>}
-        {replay && <span className="orbit-replay-badge">REPLAY · VERIFIED RECEIPT</span>}
+        <span className="orbit-receipts">{receiptCount} source receipt{receiptCount === 1 ? "" : "s"}</span>
+        {showContradiction && <span className="orbit-contradiction"><i /> {contradictionCount} source conflict{contradictionCount === 1 ? "" : "s"}</span>}
+        {replay && <span className="orbit-replay-badge">Saved answer replay</span>}
         <button
           type="button"
           className="orbit-pause"

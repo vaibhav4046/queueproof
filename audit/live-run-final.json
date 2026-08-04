@@ -1,0 +1,863 @@
+{
+  "generatedAt": "2026-08-04T03:44:22.086Z",
+  "grader": "grounded-grader-v2",
+  "runner": "scripts/run-live-benchmark.mjs",
+  "fixture": "evals/fixtures/live-cases.json",
+  "target": "https://queueproof.vercel.app",
+  "connectors": [
+    "github",
+    "linear",
+    "slack"
+  ],
+  "cases": 6,
+  "passed": 1,
+  "allThreeProviders": 1,
+  "thinking": 4,
+  "fast": 2,
+  "latencyMs": {
+    "p50": 4915,
+    "p95": 6285,
+    "min": 552,
+    "max": 6285,
+    "fast": {
+      "count": 2,
+      "p50": 552,
+      "p95": 690
+    },
+    "thinking": {
+      "count": 4,
+      "p50": 5157,
+      "p95": 6285
+    }
+  },
+  "calls": {
+    "median": 1,
+    "mean": 1.1666666666666667,
+    "min": 1,
+    "max": 2
+  },
+  "quality": {
+    "requiredFactAccuracy": 0.7894736842105263,
+    "requiredFactRecall": 0.7894736842105263,
+    "citationPrecision": 1,
+    "citationCompleteness": 1,
+    "unsupportedClaimRate": 0,
+    "providerRequirementPasses": 3,
+    "contradictionRequirementPasses": 0,
+    "contradictionRequirementCases": 2,
+    "zeroKnowinglyUnsupportedClaims": true,
+    "note": "Required facts are explicit frozen groups. Citation metrics require IDs to resolve and claim text to occur in a same-provider cited excerpt."
+  },
+  "costModel": {
+    "unit": "weighted HydraDB query",
+    "fastWeight": 1,
+    "thinkingWeight": 3,
+    "usd": null,
+    "note": "No public per-query HydraDB price is assumed. Calls and weighted units are reported for honest relative cost comparison."
+  },
+  "rows": [
+    {
+      "id": "live-three-provider-multi-hop",
+      "label": "three-provider multi-hop",
+      "question": "Who escalated the AuthShield outage, what did engineering commit to, and is the fix already merged?",
+      "expected": "Northwind escalated AuthShield; engineering committed to ship by 7 August; GitHub reports the fix merged.",
+      "actual": "The AuthShield authentication fix for the Northwind outage (INC-2031) was merged. [1] Engineering committed to shipping the AuthShield fix before Friday 7 August 2026. [2] I have committed to Northwind that we will ship the AuthShield fix before Friday 7 August 2026. [3] Northwind have escalated the AuthShield authentication outage (INC-2031). [4]",
+      "pass": true,
+      "apiOk": true,
+      "httpStatus": 200,
+      "error": null,
+      "requiredFacts": [
+        {
+          "id": "northwind-escalation",
+          "label": "Northwind escalated AuthShield",
+          "allOf": [
+            [
+              "northwind"
+            ],
+            [
+              "escalated",
+              "escalation"
+            ],
+            [
+              "authshield"
+            ]
+          ]
+        },
+        {
+          "id": "engineering-commitment",
+          "label": "Engineering committed to ship by 7 August",
+          "allOf": [
+            [
+              "engineering"
+            ],
+            [
+              "committed",
+              "commitment"
+            ],
+            [
+              "7 august"
+            ]
+          ]
+        },
+        {
+          "id": "merged-fix",
+          "label": "The AuthShield fix is merged",
+          "allOf": [
+            [
+              "authshield"
+            ],
+            [
+              "merged"
+            ]
+          ]
+        }
+      ],
+      "matchedFacts": [
+        {
+          "id": "northwind-escalation",
+          "label": "Northwind escalated AuthShield",
+          "matched": true,
+          "matchedAlternatives": [
+            "northwind",
+            "escalated",
+            "authshield"
+          ]
+        },
+        {
+          "id": "engineering-commitment",
+          "label": "Engineering committed to ship by 7 August",
+          "matched": true,
+          "matchedAlternatives": [
+            "engineering",
+            "committed",
+            "7 august"
+          ]
+        },
+        {
+          "id": "merged-fix",
+          "label": "The AuthShield fix is merged",
+          "matched": true,
+          "matchedAlternatives": [
+            "authshield",
+            "merged"
+          ]
+        }
+      ],
+      "missingFacts": [],
+      "matchedFactCount": 3,
+      "requiredFactCount": 3,
+      "requiredFactRecall": 1,
+      "requiredProviders": [
+        "github",
+        "linear",
+        "slack"
+      ],
+      "providers": [
+        "github",
+        "linear",
+        "slack"
+      ],
+      "reportedProviders": [
+        "github",
+        "linear",
+        "slack"
+      ],
+      "missingProviders": [],
+      "reportedWithoutSupportingCitation": [],
+      "citedButUnreportedProviders": [],
+      "providerPass": true,
+      "requiresContradiction": false,
+      "contradictionPass": true,
+      "contradictions": [
+        {
+          "summary": "github reports the work complete while the tracked issue is still open.",
+          "evidenceIds": [
+            "b7cac22b810e04837baf85a9cb471eb78d1fbd13f473dddbc78a7bd3fbb13dda:chunk:0"
+          ],
+          "providers": [
+            "github"
+          ]
+        }
+      ],
+      "supportedContradictions": [],
+      "citationPass": true,
+      "citationPrecision": 1,
+      "citationCompleteness": 1,
+      "unsupportedClaimRate": 0,
+      "invalidCitationIds": [],
+      "unsupportedClaims": [],
+      "citedSources": [
+        {
+          "id": "b7cac22b810e04837baf85a9cb471eb78d1fbd13f473dddbc78a7bd3fbb13dda:chunk:0",
+          "provider": "github",
+          "title": "AuthShield fix merged in PR-8871 but ENG-456 still open",
+          "excerpt": "The AuthShield authentication fix for the Northwind outage (INC-2031) was merged. Linear issue ENG-456 is still showing as open even though the code is shipped. Someone should close it or explain why it is still tracked.",
+          "supported": true
+        },
+        {
+          "id": "772fc4ca6eab32434a9df0b8626810c498ed652518d9228a756078ea4abf7f61:chunk:0",
+          "provider": "linear",
+          "title": "AuthShield authentication outage for Northwind",
+          "excerpt": "INC-2031: enterprise customer Northwind reported an authentication outage on 29 July 2026. Priya Raman filed this against Atlas Launch. Engineering committed to shipping the AuthShield fix before Friday 7 August 2026.",
+          "supported": true
+        },
+        {
+          "id": "15324de4470e69a20c97673f34db589bf45f1dac7f5e3ad5d82330fb5ce98e59:chunk:0",
+          "provider": "slack",
+          "title": "I have committed to Northwind that we will ship the AuthShield fix before Friday",
+          "excerpt": "I have committed to Northwind that we will ship the AuthShield fix before Friday 7 August 2026. That is now a hard customer commitment, not an estimate.",
+          "supported": true
+        },
+        {
+          "id": "ffb7a9aecb9fea364671ca67feb700561d9cd59057b134af0a595d3d845a3dac:chunk:0",
+          "provider": "slack",
+          "title": "Northwind have escalated the AuthShield authentication outage (INC-2031). Their",
+          "excerpt": "Northwind have escalated the AuthShield authentication outage (INC-2031). Their whole team has been locked out since 29 July. Priya Raman is on it and filed BUG-123 against Atlas Launch.",
+          "supported": true
+        }
+      ],
+      "claimCount": 4,
+      "supportedClaimCount": 4,
+      "claimCitationPairCount": 4,
+      "supportedClaimCitationPairCount": 4,
+      "mode": "thinking",
+      "latencyMs": 5242,
+      "measuredLatencyMs": 7980,
+      "callCount": 1,
+      "sources": 5,
+      "costUnits": 3,
+      "runId": "query_bbc25cab-1c8f-441e-bc45-2ec7bf135af2"
+    },
+    {
+      "id": "live-deadline-conflict",
+      "label": "deadline conflict",
+      "question": "Which sources disagree about the billing migration deadline?",
+      "expected": "The answer must preserve the 7 August versus 14 August deadline disagreement and cite the sources.",
+      "actual": "The billing migration deadline moved from 7 August to 14 August 2026 after the Northwind escalation took priority. [1] Heads up: the Linear ticket still says the billing migration deadline moved to 14 August, but finance confirmed today it is staying at 7 August. [2]",
+      "pass": false,
+      "apiOk": true,
+      "httpStatus": 200,
+      "error": null,
+      "requiredFacts": [
+        {
+          "id": "billing-migration",
+          "label": "Billing Migration is the subject",
+          "anyOf": [
+            "billing migration"
+          ]
+        },
+        {
+          "id": "first-deadline",
+          "label": "One source says 7 August",
+          "anyOf": [
+            "7 august"
+          ]
+        },
+        {
+          "id": "second-deadline",
+          "label": "Another source says 14 August",
+          "anyOf": [
+            "14 august"
+          ]
+        }
+      ],
+      "matchedFacts": [
+        {
+          "id": "billing-migration",
+          "label": "Billing Migration is the subject",
+          "matched": true,
+          "matchedAlternatives": [
+            "billing migration"
+          ]
+        },
+        {
+          "id": "first-deadline",
+          "label": "One source says 7 August",
+          "matched": true,
+          "matchedAlternatives": [
+            "7 august"
+          ]
+        },
+        {
+          "id": "second-deadline",
+          "label": "Another source says 14 August",
+          "matched": true,
+          "matchedAlternatives": [
+            "14 august"
+          ]
+        }
+      ],
+      "missingFacts": [],
+      "matchedFactCount": 3,
+      "requiredFactCount": 3,
+      "requiredFactRecall": 1,
+      "requiredProviders": [
+        "linear",
+        "slack"
+      ],
+      "providers": [
+        "linear",
+        "slack"
+      ],
+      "reportedProviders": [
+        "linear",
+        "slack"
+      ],
+      "missingProviders": [],
+      "reportedWithoutSupportingCitation": [],
+      "citedButUnreportedProviders": [],
+      "providerPass": true,
+      "requiresContradiction": true,
+      "contradictionPass": false,
+      "contradictions": [],
+      "supportedContradictions": [],
+      "citationPass": true,
+      "citationPrecision": 1,
+      "citationCompleteness": 1,
+      "unsupportedClaimRate": 0,
+      "invalidCitationIds": [],
+      "unsupportedClaims": [],
+      "citedSources": [
+        {
+          "id": "22c77303332a462af0fce84884ba26c4c0cb8b3a02ea8323ea173027c07cb41a:chunk:0",
+          "provider": "linear",
+          "title": "Billing migration deadline moved to 14 August",
+          "excerpt": "The billing migration deadline moved from 7 August to 14 August 2026 after the Northwind escalation took priority.",
+          "supported": true
+        },
+        {
+          "id": "e8142efbc628db7a7ac8a8e6166f0c6e3430be8a3892a6b4acf5033072297a55:chunk:0",
+          "provider": "slack",
+          "title": "Heads up: the Linear ticket still says the billing migration deadline moved to 1",
+          "excerpt": "Heads up: the Linear ticket still says the billing migration deadline moved to 14 August, but finance confirmed today it is staying at 7 August. Linear is out of date.",
+          "supported": true
+        }
+      ],
+      "claimCount": 2,
+      "supportedClaimCount": 2,
+      "claimCitationPairCount": 2,
+      "supportedClaimCitationPairCount": 2,
+      "mode": "thinking",
+      "latencyMs": 6285,
+      "measuredLatencyMs": 7216,
+      "callCount": 1,
+      "sources": 3,
+      "costUnits": 3,
+      "runId": "query_2ca964b7-3ab8-4198-869f-568a3b3c6234"
+    },
+    {
+      "id": "live-untracked-commitment",
+      "label": "untracked commitment",
+      "question": "Which promise to Northwind has no issue tracking it?",
+      "expected": "The written incident post-mortem promised by 10 August is not tracked in Linear.",
+      "actual": "I promised Northwind a written incident post-mortem by 10 August. [1] Vaibhav promised Northwind a written incident post-mortem by 10 August 2026. [2]",
+      "pass": false,
+      "apiOk": true,
+      "httpStatus": 200,
+      "error": null,
+      "requiredFacts": [
+        {
+          "id": "post-mortem",
+          "label": "A written incident post-mortem was promised",
+          "allOf": [
+            [
+              "written"
+            ],
+            [
+              "incident post mortem",
+              "post mortem"
+            ],
+            [
+              "promised",
+              "promise"
+            ]
+          ]
+        },
+        {
+          "id": "post-mortem-date",
+          "label": "The promise is due 10 August",
+          "anyOf": [
+            "10 august"
+          ]
+        },
+        {
+          "id": "not-tracked",
+          "label": "The promise has no Linear issue",
+          "anyOf": [
+            "not tracked in linear",
+            "no linear issue",
+            "has no linear issue",
+            "without a linear issue",
+            "lacks a linear issue"
+          ]
+        }
+      ],
+      "matchedFacts": [
+        {
+          "id": "post-mortem",
+          "label": "A written incident post-mortem was promised",
+          "matched": true,
+          "matchedAlternatives": [
+            "written",
+            "incident post mortem",
+            "promised"
+          ]
+        },
+        {
+          "id": "post-mortem-date",
+          "label": "The promise is due 10 August",
+          "matched": true,
+          "matchedAlternatives": [
+            "10 august"
+          ]
+        }
+      ],
+      "missingFacts": [
+        {
+          "id": "not-tracked",
+          "label": "The promise has no Linear issue",
+          "matched": false,
+          "matchedAlternatives": []
+        }
+      ],
+      "matchedFactCount": 2,
+      "requiredFactCount": 3,
+      "requiredFactRecall": 0.6666666666666666,
+      "requiredProviders": [
+        "linear",
+        "slack"
+      ],
+      "providers": [
+        "github",
+        "slack"
+      ],
+      "reportedProviders": [
+        "github",
+        "slack"
+      ],
+      "missingProviders": [
+        "linear"
+      ],
+      "reportedWithoutSupportingCitation": [],
+      "citedButUnreportedProviders": [],
+      "providerPass": false,
+      "requiresContradiction": false,
+      "contradictionPass": true,
+      "contradictions": [],
+      "supportedContradictions": [],
+      "citationPass": true,
+      "citationPrecision": 1,
+      "citationCompleteness": 1,
+      "unsupportedClaimRate": 0,
+      "invalidCitationIds": [],
+      "unsupportedClaims": [],
+      "citedSources": [
+        {
+          "id": "0fb0b5a6bca9f71c1b24ac4ca461e3c4d6cb4a9eafceed5dc656d208393b3dfa:chunk:0",
+          "provider": "slack",
+          "title": "I promised Northwind a written incident post-mortem by 10 August. There is no Li",
+          "excerpt": "I promised Northwind a written incident post-mortem by 10 August. There is no Linear issue tracking that yet, someone please raise one.",
+          "supported": true
+        },
+        {
+          "id": "4eb449c9b0923e8f3e12f945d4f99971d3730403b58eb12785b3a634bb0ffd84:chunk:0",
+          "provider": "github",
+          "title": "Post-mortem doc for INC-2031 Northwind outage",
+          "excerpt": "Vaibhav promised Northwind a written incident post-mortem by 10 August 2026. Tracking it here since there is no Linear issue for it. Owner unassigned.",
+          "supported": true
+        }
+      ],
+      "claimCount": 2,
+      "supportedClaimCount": 2,
+      "claimCitationPairCount": 2,
+      "supportedClaimCitationPairCount": 2,
+      "mode": "fast",
+      "latencyMs": 690,
+      "measuredLatencyMs": 1584,
+      "callCount": 1,
+      "sources": 4,
+      "costUnits": 1,
+      "runId": "query_bdf7f751-f332-40ce-a5c5-82cf436b3d97"
+    },
+    {
+      "id": "live-stale-tracked-work",
+      "label": "stale tracked work",
+      "question": "Which open issue appears to be already resolved elsewhere?",
+      "expected": "The AuthShield fix is merged or shipped while its tracked issue remains open.",
+      "actual": "Linear issue ENG-456 is still showing as open even though the code is shipped. [1]",
+      "pass": false,
+      "apiOk": true,
+      "httpStatus": 200,
+      "error": null,
+      "requiredFacts": [
+        {
+          "id": "authshield",
+          "label": "The work is the AuthShield fix",
+          "anyOf": [
+            "authshield"
+          ]
+        },
+        {
+          "id": "completed-elsewhere",
+          "label": "The fix is complete elsewhere",
+          "anyOf": [
+            "merged",
+            "shipped",
+            "resolved"
+          ]
+        },
+        {
+          "id": "tracked-open",
+          "label": "The tracked issue remains open",
+          "anyOf": [
+            "remains open",
+            "still open",
+            "showing as open",
+            "issue is open"
+          ]
+        }
+      ],
+      "matchedFacts": [
+        {
+          "id": "completed-elsewhere",
+          "label": "The fix is complete elsewhere",
+          "matched": true,
+          "matchedAlternatives": [
+            "shipped"
+          ]
+        },
+        {
+          "id": "tracked-open",
+          "label": "The tracked issue remains open",
+          "matched": true,
+          "matchedAlternatives": [
+            "showing as open"
+          ]
+        }
+      ],
+      "missingFacts": [
+        {
+          "id": "authshield",
+          "label": "The work is the AuthShield fix",
+          "matched": false,
+          "matchedAlternatives": []
+        }
+      ],
+      "matchedFactCount": 2,
+      "requiredFactCount": 3,
+      "requiredFactRecall": 0.6666666666666666,
+      "requiredProviders": [
+        "github",
+        "linear"
+      ],
+      "providers": [
+        "github"
+      ],
+      "reportedProviders": [
+        "github"
+      ],
+      "missingProviders": [
+        "linear"
+      ],
+      "reportedWithoutSupportingCitation": [],
+      "citedButUnreportedProviders": [],
+      "providerPass": false,
+      "requiresContradiction": true,
+      "contradictionPass": false,
+      "contradictions": [
+        {
+          "summary": "github reports the work complete while the tracked issue is still open.",
+          "evidenceIds": [
+            "b7cac22b810e04837baf85a9cb471eb78d1fbd13f473dddbc78a7bd3fbb13dda:chunk:0"
+          ],
+          "providers": [
+            "github"
+          ]
+        }
+      ],
+      "supportedContradictions": [],
+      "citationPass": true,
+      "citationPrecision": 1,
+      "citationCompleteness": 1,
+      "unsupportedClaimRate": 0,
+      "invalidCitationIds": [],
+      "unsupportedClaims": [],
+      "citedSources": [
+        {
+          "id": "b7cac22b810e04837baf85a9cb471eb78d1fbd13f473dddbc78a7bd3fbb13dda:chunk:0",
+          "provider": "github",
+          "title": "AuthShield fix merged in PR-8871 but ENG-456 still open",
+          "excerpt": "The AuthShield authentication fix for the Northwind outage (INC-2031) was merged. Linear issue ENG-456 is still showing as open even though the code is shipped. Someone should close it or explain why it is still tracked.",
+          "supported": true
+        }
+      ],
+      "claimCount": 1,
+      "supportedClaimCount": 1,
+      "claimCitationPairCount": 1,
+      "supportedClaimCitationPairCount": 1,
+      "mode": "fast",
+      "latencyMs": 552,
+      "measuredLatencyMs": 1412,
+      "callCount": 1,
+      "sources": 1,
+      "costUnits": 1,
+      "runId": "query_366f477b-a690-4fb4-a180-a38a3586052c"
+    },
+    {
+      "id": "live-actor-reconstruction",
+      "label": "actor reconstruction",
+      "question": "Who is Priya Raman and what has she been working on?",
+      "expected": "Priya Raman is tied to the Northwind/AuthShield incident and Atlas Launch work.",
+      "actual": "Priya Raman filed this against Atlas Launch. [1] Priya Raman is on it and filed BUG-123 against Atlas Launch. [2]",
+      "pass": false,
+      "apiOk": true,
+      "httpStatus": 200,
+      "error": null,
+      "requiredFacts": [
+        {
+          "id": "actor",
+          "label": "The actor is Priya Raman",
+          "anyOf": [
+            "priya raman"
+          ]
+        },
+        {
+          "id": "incident",
+          "label": "Priya is tied to the Northwind AuthShield incident",
+          "allOf": [
+            [
+              "northwind"
+            ],
+            [
+              "authshield"
+            ]
+          ]
+        },
+        {
+          "id": "project",
+          "label": "Priya is tied to Atlas Launch",
+          "anyOf": [
+            "atlas launch"
+          ]
+        }
+      ],
+      "matchedFacts": [
+        {
+          "id": "actor",
+          "label": "The actor is Priya Raman",
+          "matched": true,
+          "matchedAlternatives": [
+            "priya raman"
+          ]
+        },
+        {
+          "id": "project",
+          "label": "Priya is tied to Atlas Launch",
+          "matched": true,
+          "matchedAlternatives": [
+            "atlas launch"
+          ]
+        }
+      ],
+      "missingFacts": [
+        {
+          "id": "incident",
+          "label": "Priya is tied to the Northwind AuthShield incident",
+          "matched": false,
+          "matchedAlternatives": []
+        }
+      ],
+      "matchedFactCount": 2,
+      "requiredFactCount": 3,
+      "requiredFactRecall": 0.6666666666666666,
+      "requiredProviders": [
+        "linear",
+        "slack"
+      ],
+      "providers": [
+        "linear",
+        "slack"
+      ],
+      "reportedProviders": [
+        "linear",
+        "slack"
+      ],
+      "missingProviders": [],
+      "reportedWithoutSupportingCitation": [],
+      "citedButUnreportedProviders": [],
+      "providerPass": true,
+      "requiresContradiction": false,
+      "contradictionPass": true,
+      "contradictions": [],
+      "supportedContradictions": [],
+      "citationPass": true,
+      "citationPrecision": 1,
+      "citationCompleteness": 1,
+      "unsupportedClaimRate": 0,
+      "invalidCitationIds": [],
+      "unsupportedClaims": [],
+      "citedSources": [
+        {
+          "id": "772fc4ca6eab32434a9df0b8626810c498ed652518d9228a756078ea4abf7f61:chunk:0",
+          "provider": "linear",
+          "title": "AuthShield authentication outage for Northwind",
+          "excerpt": "INC-2031: enterprise customer Northwind reported an authentication outage on 29 July 2026. Priya Raman filed this against Atlas Launch. Engineering committed to shipping the AuthShield fix before Friday 7 August 2026.",
+          "supported": true
+        },
+        {
+          "id": "ffb7a9aecb9fea364671ca67feb700561d9cd59057b134af0a595d3d845a3dac:chunk:0",
+          "provider": "slack",
+          "title": "Northwind have escalated the AuthShield authentication outage (INC-2031). Their",
+          "excerpt": "Northwind have escalated the AuthShield authentication outage (INC-2031). Their whole team has been locked out since 29 July. Priya Raman is on it and filed BUG-123 against Atlas Launch.",
+          "supported": true
+        }
+      ],
+      "claimCount": 2,
+      "supportedClaimCount": 2,
+      "claimCitationPairCount": 2,
+      "supportedClaimCitationPairCount": 2,
+      "mode": "thinking",
+      "latencyMs": 5157,
+      "measuredLatencyMs": 6048,
+      "callCount": 1,
+      "sources": 5,
+      "costUnits": 3,
+      "runId": "query_38dd0834-cf91-4fe6-ab00-2ebdc471adcb"
+    },
+    {
+      "id": "live-exact-identifier-context",
+      "label": "exact identifier plus context",
+      "question": "What is BUG-123, who filed it, and which project is it against?",
+      "expected": "BUG-123 is the AuthShield/Northwind incident work, filed by Priya Raman against Atlas Launch.",
+      "actual": "Priya Raman is on it and filed BUG-123 against Atlas Launch. [1]",
+      "pass": false,
+      "apiOk": true,
+      "httpStatus": 200,
+      "error": null,
+      "requiredFacts": [
+        {
+          "id": "identifier",
+          "label": "The issue is BUG-123",
+          "anyOf": [
+            "bug-123"
+          ]
+        },
+        {
+          "id": "incident-context",
+          "label": "BUG-123 is AuthShield work for Northwind",
+          "allOf": [
+            [
+              "authshield"
+            ],
+            [
+              "northwind"
+            ]
+          ]
+        },
+        {
+          "id": "filed-by",
+          "label": "Priya Raman filed it",
+          "allOf": [
+            [
+              "priya raman"
+            ],
+            [
+              "filed"
+            ]
+          ]
+        },
+        {
+          "id": "project",
+          "label": "It is against Atlas Launch",
+          "anyOf": [
+            "atlas launch"
+          ]
+        }
+      ],
+      "matchedFacts": [
+        {
+          "id": "identifier",
+          "label": "The issue is BUG-123",
+          "matched": true,
+          "matchedAlternatives": [
+            "bug-123"
+          ]
+        },
+        {
+          "id": "filed-by",
+          "label": "Priya Raman filed it",
+          "matched": true,
+          "matchedAlternatives": [
+            "priya raman",
+            "filed"
+          ]
+        },
+        {
+          "id": "project",
+          "label": "It is against Atlas Launch",
+          "matched": true,
+          "matchedAlternatives": [
+            "atlas launch"
+          ]
+        }
+      ],
+      "missingFacts": [
+        {
+          "id": "incident-context",
+          "label": "BUG-123 is AuthShield work for Northwind",
+          "matched": false,
+          "matchedAlternatives": []
+        }
+      ],
+      "matchedFactCount": 3,
+      "requiredFactCount": 4,
+      "requiredFactRecall": 0.75,
+      "requiredProviders": [
+        "linear",
+        "slack"
+      ],
+      "providers": [
+        "slack"
+      ],
+      "reportedProviders": [
+        "slack"
+      ],
+      "missingProviders": [
+        "linear"
+      ],
+      "reportedWithoutSupportingCitation": [],
+      "citedButUnreportedProviders": [],
+      "providerPass": false,
+      "requiresContradiction": false,
+      "contradictionPass": true,
+      "contradictions": [],
+      "supportedContradictions": [],
+      "citationPass": true,
+      "citationPrecision": 1,
+      "citationCompleteness": 1,
+      "unsupportedClaimRate": 0,
+      "invalidCitationIds": [],
+      "unsupportedClaims": [],
+      "citedSources": [
+        {
+          "id": "ffb7a9aecb9fea364671ca67feb700561d9cd59057b134af0a595d3d845a3dac:chunk:0",
+          "provider": "slack",
+          "title": "Northwind have escalated the AuthShield authentication outage (INC-2031). Their",
+          "excerpt": "Northwind have escalated the AuthShield authentication outage (INC-2031). Their whole team has been locked out since 29 July. Priya Raman is on it and filed BUG-123 against Atlas Launch.",
+          "supported": true
+        }
+      ],
+      "claimCount": 1,
+      "supportedClaimCount": 1,
+      "claimCitationPairCount": 1,
+      "supportedClaimCitationPairCount": 1,
+      "mode": "thinking",
+      "latencyMs": 4915,
+      "measuredLatencyMs": 5796,
+      "callCount": 2,
+      "sources": 1,
+      "costUnits": 6,
+      "runId": "query_e75839a8-fb70-4c71-830e-15b8fc42e767"
+    }
+  ]
+}

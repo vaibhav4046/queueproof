@@ -11,6 +11,8 @@ queue, and keeps external writes behind an approval boundary.
 - Canonical demo: [docs/DEMO_SCRIPT_60S.md](docs/DEMO_SCRIPT_60S.md)
 - Judge-ready copy: [docs/SUBMISSION_COPY.md](docs/SUBMISSION_COPY.md)
 
+![QueueProof premium proof console](audit/screenshots/premium-cdp-1440x900-final.png)
+
 ## Why it is different
 
 QueueProof treats retrieval, ranking, and execution as one inspectable chain:
@@ -42,7 +44,7 @@ execute external provider writes. Those control-plane operations require a priva
 workspace actor. Public proof queries, queue generation, and proposals are rate-limited;
 the bounded `/api/ask` workflow remains available to judges.
 
-## Verified release evidence - 3 August 2026
+## Verified release-candidate evidence - 4 August 2026
 
 | Gate | Result |
 | --- | ---: |
@@ -51,19 +53,20 @@ the bounded `/api/ask` workflow remains available to judges.
 | Production build | pass |
 | End-to-end shell contract | pass |
 | Deployment binding check | pass |
-| Full test suite | 274 tests across 29 files |
+| Full test suite | 324 tests across 32 files |
 | Security suite | 13 tests |
 | MCP suite | 8 tests |
 | Offline router benchmark | 39/39 cases; 331 assertions |
 
-Application release `855e61abb85cfaf414db70fa04ed5f01c1f96b01` is live at the
-canonical URL. Its immutable Vercel deployment is
-<https://queueproof-9dosezsup-vaibhav4046s-projects.vercel.app>.
+The canonical public product is <https://queueproof.vercel.app>. The final local hardening
+commit is not included in that deployment yet; publication and post-deploy acceptance
+remain explicit release gates.
 
-Responsive browser QA covers 360x800, 390x844, 768x1024, 1440x900, 1920x1080,
-2560x1440, and 3840x2160. The mobile shell retains all six destinations; dialogs manage
-focus; citations are interactive; and grounded, partial, and abstained answers have
-distinct states.
+Responsive browser QA covers 375×812, 390×844, 768×1024, 1024×768, 1440×900, and
+844×390 landscape, plus reduced-motion checks on mobile and desktop. The mobile shell
+retains all six destinations; dialogs manage focus; citations are interactive; and
+grounded, partial, and abstained answers have distinct states. See
+[the visual QA receipt](audit/UI_QA_2026-08-04.md).
 
 The last observed production workspace showed four `data_verified` connectors: GitHub,
 Gmail, Linear, and Slack. The flagship question returned cited GitHub, Linear, and Slack
@@ -77,9 +80,10 @@ invoice, newsletter, and zero-score records were absent from that run. HydraDB r
 is relevance-ranked, so this documents an observed acceptance receipt rather than a
 fixed future ordering.
 
-The stored large-PDF artifact is a historical pre-hardening run: 21/22 under the old
-grader. It is not comparable with the current strict grader and is not claimed as a fresh
-release result. See [docs/LARGE_PDF_PROOF.md](docs/LARGE_PDF_PROOF.md).
+A fresh strict public-production run over the deterministic 346-page PDF passed 20/22
+cases and recovered 53/56 required facts with 100% citation precision/completeness and
+zero unsupported claims. It predates the final unpublished retrieval change and must be
+rerun after release. See [docs/LARGE_PDF_PROOF.md](docs/LARGE_PDF_PROOF.md).
 
 ## Architecture
 
@@ -167,8 +171,8 @@ npm run benchmark:pdf -- --url https://queueproof.vercel.app
 
 ## Honest boundaries
 
-- No fresh production PDF score is claimed after the strict grader was introduced.
-- The six-question live sample in `BENCHMARK_REPORT.md` is historical, small, and not an SLA.
+- The strict PDF baseline is 20/22, not 22/22, and requires a post-deploy rerun.
+- The six-question live sample in `BENCHMARK_REPORT.md` is small and not an SLA.
 - Relative query units are shown; QueueProof does not invent a HydraDB dollar cost.
 - Public visitors cannot mutate credentials, connector configuration, uploads, tokens, or
   external systems.

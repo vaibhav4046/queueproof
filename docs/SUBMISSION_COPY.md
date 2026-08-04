@@ -20,7 +20,7 @@ retrieval concurrently. Strong connector/resource lineage prevents evidence from
 credited merely because its provider name matches.
 
 The current deterministic benchmark passes 39/39 labelled router cases and 331
-assertions. The full release suite passes 274 tests across 29 files, including 13 security
+assertions. The full release suite passes 324 tests across 32 files, including 13 security
 and 8 MCP tests, plus typecheck, lint, production build, E2E, and deployment checks. The
 interface is verified from 360x800 through 3840x2160 with all six destinations available
 on mobile.
@@ -44,14 +44,14 @@ closed.
 - Flagship production answer with cited GitHub, Linear, and Slack evidence in one thinking
   query.
 - 39/39 deterministic router cases; 331 assertions.
-- 274 tests across 29 files; 13 security tests; 8 MCP tests.
+- 324 tests across 32 files; 13 security tests; 8 MCP tests.
 - Zero secret-pattern matching files across the complete pre-release history and final
   release worktree.
 
 ## Boundaries to quote with equal prominence
 
-- The stored 21/22 PDF run used the old grader. No fresh strict production PDF score is
-  claimed.
+- A fresh strict public-production PDF baseline passed 20/22 cases and recovered 53/56
+  facts with complete citations; it must be rerun after the final release is published.
 - The stored six-query live run is a small historical sample, not an SLA.
 - Relative cost units are reported; no HydraDB USD cost is invented.
 - External execution is considered proven only after a provider response ID is persisted.

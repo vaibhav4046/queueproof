@@ -1,6 +1,7 @@
 # QueueProof social posts
 
-These drafts use only release evidence verified on 3 August 2026.
+These drafts use measurements verified on 4 August 2026. Publish only after the final
+commit is live and the repository is judge-accessible.
 
 ## LinkedIn
 
@@ -14,9 +15,11 @@ The trust boundary is part of the product: the public sandbox supports shared ev
 questions, queue review, and proposals, while credentials, connector changes, uploads,
 tokens, and external writes require a private owner.
 
-Release evidence: 39/39 labelled router cases, 331 assertions, and 274 tests across 29
-files, including 13 security and 8 MCP tests. Typecheck, lint, build, E2E, and deployment
-checks pass.
+Release-candidate evidence: 39/39 labelled router cases, 331 assertions, and 324 tests
+across 32 files, including 13 security and 8 MCP tests. Typecheck, lint, build, E2E, and
+deployment-binding checks pass. A fresh strict run over a 346-page PDF recovered 53/56
+required facts and passed 20/22 cases with complete supporting citations; the misses stay
+visible as REVIEW, not hidden in a vanity score.
 
 One answer. Every system. Proven.
 
@@ -31,8 +34,9 @@ QueueProof gives agents one defensible next action - with receipts.
 HydraDB evidence -> cited claims -> preserved conflicts -> deterministic priority ->
 approval-gated execution.
 
-39/39 router cases. 331 assertions. 274 tests. Public evidence sandbox; external writes
-stay private and approval-gated.
+39/39 router cases. 331 assertions. 324 tests. Fresh 346-page PDF: 20/22 cases, 53/56
+facts, complete citations. Public evidence sandbox; external writes stay private and
+approval-gated.
 
 <https://queueproof.vercel.app>
 
@@ -46,6 +50,6 @@ QueueProof - One answer. Every system. Proven.
 
 ## Accuracy note
 
-Do not add a current PDF score until the 22-case production suite is rerun under the
-hardened fact-and-citation grader. The retained 21/22 artifact is historical and not
-comparable.
+The strict public-production PDF baseline is 20/22 cases and 53/56 facts. It was measured
+before the final unpublished retrieval changes, so rerun it after deployment and update
+the copy only from that artifact. Never present it as 22/22.

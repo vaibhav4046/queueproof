@@ -7,8 +7,8 @@
  * before, on every device, with or without this component mounted.
  *
  * This layer renders an icosahedral "proof core" — dark glass interior, an
- * emissive wireframe edge that recolors per OrbitStage, and a limited pointer
- * parallax on the camera (never free-flight, never OrbitControls). It mounts
+ * emissive wireframe edge that recolors per OrbitStage, with deliberately calm
+ * stage-driven movement (never pointer tracking, free-flight, or OrbitControls). It mounts
  * only when every capability check below passes; otherwise it renders null
  * with zero layout shift, and the SVG scene is all the user ever sees.
  *
@@ -55,9 +55,6 @@ import { detectEvidenceWorldCapability } from "./evidence-world-capability";
 
 export type EvidenceWorldProps = OrbitProps;
 
-const MAX_PARALLAX_OFFSET = 0.32;
-const PARALLAX_EASE = 0.06;
-
 const STAGE_EDGE_COLOR: Record<OrbitStage, string> = {
   idle: "#7d867a",
   routing: "#d7ff48",
@@ -69,42 +66,14 @@ const STAGE_EDGE_COLOR: Record<OrbitStage, string> = {
 };
 
 const STAGE_ROTATION_SPEED: Record<OrbitStage, number> = {
-  idle: 0.05,
-  routing: 0.14,
-  retrieving: 0.18,
-  linking: 0.22,
-  contradiction: 0.34,
+  idle: 0,
+  routing: 0.035,
+  retrieving: 0.05,
+  linking: 0.06,
+  contradiction: 0.075,
   verified: 0, // locked / stable geometry once the answer is proven
-  insufficient: 0.02,
+  insufficient: 0,
 };
-
-/** Limited pointer parallax: a small clamped camera offset that follows the
- * pointer, always looking back at the core. Not orbit controls — there is no
- * drag, no zoom, no free rotation. */
-function ParallaxRig() {
-  const pointer = useRef({ x: 0, y: 0 });
-
-  useEffect(() => {
-    const onMove = (event: PointerEvent) => {
-      pointer.current = {
-        x: (event.clientX / window.innerWidth) * 2 - 1,
-        y: (event.clientY / window.innerHeight) * 2 - 1,
-      };
-    };
-    window.addEventListener("pointermove", onMove);
-    return () => window.removeEventListener("pointermove", onMove);
-  }, []);
-
-  useFrame(({ camera }) => {
-    const targetX = THREE.MathUtils.clamp(pointer.current.x * MAX_PARALLAX_OFFSET, -MAX_PARALLAX_OFFSET, MAX_PARALLAX_OFFSET);
-    const targetY = THREE.MathUtils.clamp(-pointer.current.y * MAX_PARALLAX_OFFSET, -MAX_PARALLAX_OFFSET, MAX_PARALLAX_OFFSET);
-    camera.position.x += (targetX - camera.position.x) * PARALLAX_EASE;
-    camera.position.y += (targetY - camera.position.y) * PARALLAX_EASE;
-    camera.lookAt(0, 0, 0);
-  });
-
-  return null;
-}
 
 function ProofCore({ stage }: { stage: OrbitStage }) {
   const glassRef = useRef<THREE.Mesh>(null);
@@ -149,11 +118,10 @@ function ProofCore({ stage }: { stage: OrbitStage }) {
 function WorldScene({ stage }: { stage: OrbitStage }) {
   return (
     <>
-      <ambientLight intensity={0.35} />
-      <pointLight position={[2.4, 1.8, 2.6]} intensity={12} color="#d7ff48" />
-      <pointLight position={[-2.2, -1.4, -1.8]} intensity={4} color="#64f2c2" />
+      <ambientLight intensity={0.28} />
+      <pointLight position={[2.4, 1.8, 2.6]} intensity={7} color="#d7ff48" />
+      <pointLight position={[-2.2, -1.4, -1.8]} intensity={3} color="#a879ed" />
       <ProofCore stage={stage} />
-      <ParallaxRig />
     </>
   );
 }
@@ -208,6 +176,7 @@ export default function EvidenceWorld({ stage }: EvidenceWorldProps) {
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const stageNeedsFrames = stage === "routing" || stage === "retrieving" || stage === "linking" || stage === "contradiction";
 
   // Explicit, self-driven resize: measured verification found @react-three/fiber's
   // built-in ResizeObserver-based auto-sizing never fires in at least one real
@@ -258,7 +227,7 @@ export default function EvidenceWorld({ stage }: EvidenceWorldProps) {
     <div className="evidence-world" aria-hidden="true" ref={containerRef}>
       <Canvas
         dpr={[1, 2]}
-        frameloop={hidden ? "never" : "always"}
+        frameloop={hidden ? "never" : stageNeedsFrames ? "always" : "demand"}
         camera={{ position: [0, 0, 4.4], fov: 34 }}
         gl={{ antialias: true, alpha: true }}
         onCreated={handleCreated}

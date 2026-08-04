@@ -119,6 +119,30 @@ describe("evidence-constrained synthesis", () => {
     expect(result.answer).not.toContain("personal data");
   });
 
+  it("detects a deadline conflict when one source omits the shared year", () => {
+    const result = synthesiseGroundedAnswer(
+      "Which sources disagree about the billing migration deadline?",
+      [
+        {
+          id: "billing-linear",
+          provider: "linear",
+          title: "Billing migration",
+          excerpt: "The billing migration deadline moved from 7 August to 14 August 2026.",
+        },
+        {
+          id: "billing-slack",
+          provider: "slack",
+          title: "Billing migration decision",
+          excerpt: "Finance confirmed the billing migration is staying at 7 August.",
+        },
+      ],
+    );
+
+    expect(result.contradictions).toEqual([
+      expect.objectContaining({ providers: expect.arrayContaining(["linear", "slack"]) }),
+    ]);
+  });
+
   it("requires tracked and completed state for a stale-work question", () => {
     const result = synthesiseGroundedAnswer(
       "Which open issue appears to be already resolved elsewhere?",

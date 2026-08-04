@@ -19,7 +19,26 @@ covers tables, exact IDs, superseded policies, close-name entities, multilingual
 distractors, and a document-plus-connector join. Generation checks validate PDF structure,
 fact placement, object references, and xref offsets.
 
-## Historical production artifact - not a current score
+## Fresh strict public-production baseline
+
+`audit/pdf-live-final.json` was generated on 4 August 2026 against
+`https://queueproof.vercel.app` with `grounded-grader-v2`:
+
+- 20/22 cases passed;
+- 53/56 required facts recovered (94.64%);
+- beginning, middle, and end canaries passed;
+- citation precision and completeness were both 100%;
+- unsupported-claim rate was 0%;
+- p50/p95 request latency was 554/5,898 ms; and
+- median/mean HydraDB calls were 1/1.41.
+
+The REVIEW cases were the original superseded-policy question (4/5 facts) and the draft
+distractor question (3/5 facts). The cross-source extension recovered its two document
+facts and cited GitHub, but missed the required second non-document provider. This run is
+a baseline against the public deployment before the final local evidence-follow-up change;
+it must be rerun after that commit is published.
+
+## Historical production artifact
 
 `evals/results/pdf-live-run.json` is retained for provenance. It was generated on
 3 August 2026 and reports 21/22 under `legacy-token-recall-v1`, with its

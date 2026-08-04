@@ -24,6 +24,10 @@ import { useEvidenceWorldCapability } from "./components/evidence-world-capabili
 // this chunk pulls in Three.js and is ~230KB gzip, so it must not be fetched
 // by every visitor to the Proof screen regardless of whether they can use it.
 const EvidenceWorld = dynamic(() => import("./components/EvidenceWorld"), { ssr: false });
+const ShaderBackground = dynamic(
+  () => import("./components/ui/red-plasma").then((module) => module.ShaderBackground),
+  { ssr: false },
+);
 
 /**
  * Mount the optional WebGL chunk after the SVG/DOM proof scene has painted.
@@ -56,6 +60,15 @@ function DeferredEvidenceWorld(props: OrbitProps) {
   }, []);
 
   return ready ? <EvidenceWorld {...props} /> : null;
+}
+
+function TypedProofPrompt({ text }: { text: string }) {
+  return (
+    <>
+      <span className="typed-proof" aria-hidden="true"><span>{text}</span><i /></span>
+      <span className="sr-only">{text}</span>
+    </>
+  );
 }
 
 
@@ -443,18 +456,21 @@ export default function QueueProofApp({
   }
 
   return (
-    <div className="qp-app">
+    <div className="qp-app" data-active-tab={tab}>
       <div className="ambient-field" aria-hidden="true">
+        <ShaderBackground className="evidence-field-canvas" />
         <i className="ambient-orb orb-acid" />
         <i className="ambient-orb orb-mint" />
+        <i className="ambient-orb orb-violet" />
         <i className="ambient-orb orb-ink" />
+        <span className="ambient-lattice"><i /><i /><i /></span>
         <span className="ambient-scan" />
       </div>
       <div className="grain" />
       <header className="app-header">
         <button className="brand" onClick={() => navigateTab("ask")} aria-label="QueueProof home">
           <span className="brand-mark"><ShieldCheck size={17} /></span>
-          <span><strong>QUEUE</strong><em>PROOF</em></span>
+          <span className="brand-lockup"><span><strong>QUEUE</strong><em>PROOF</em></span><small>EVIDENCE OS</small></span>
         </button>
         <nav aria-label="Primary navigation">
           {nav.map(({ id, label, icon: Icon }) => (
@@ -502,7 +518,7 @@ export default function QueueProofApp({
         </div>
       )}
 
-      <main>
+      <main className="app-main" data-active-tab={tab}>
         {tab === "command" && (
           <CommandScreen queue={queue} verified={verified} busy={busy === "queue"}
             onGenerate={generateQueue} onOpenSources={() => navigateTab("sources")}
@@ -518,6 +534,11 @@ export default function QueueProofApp({
           setError={setError} setNotice={setNotice} readOnly={publicSandbox} />}
         {tab === "agent" && <AgentScreen workspace={view} setError={setError} setNotice={setNotice} readOnly={publicSandbox} />}
       </main>
+      <footer className="app-footer">
+        <span><ShieldCheck size={14} /><strong>QueueProof</strong> / evidence for every next step</span>
+        <span>Verified reads <i /> cited decisions <i /> approval-gated writes</span>
+        <button onClick={() => navigateTab("lab")}>Open audit surface <ArrowRight size={12} /></button>
+      </footer>
       {selectedPacket && <PacketDrawer packet={selectedPacket} onClose={() => setSelectedPacket(null)}
         onPropose={() => { setProposalPacket(selectedPacket); setSelectedPacket(null); navigateTab("approvals"); }} />}
       {commandOpen && <CommandPalette query={commandQuery} setQuery={setCommandQuery} onClose={() => setCommandOpen(false)} onNavigate={(next) => { navigateTab(next); setCommandOpen(false); }} />}
@@ -772,7 +793,7 @@ function CommandScreen({ queue, verified, busy, onGenerate, onOpenSources, onSel
       <div className="screen-heading command-heading">
         <div><span className="eyebrow"><Sparkles size={13} /> Evidence-ranked command queue</span>
           <h1>What deserves<br /><em>attention now.</em></h1>
-          <p>QueueProof retrieves only verified workplace evidence, screens unsafe instructions, applies a deterministic policy, and emits one cited packet per action.</p>
+          <p>QueueProof reads only verified sources, checks risky instructions, and builds one cited action card at a time.</p>
         </div>
         <div className="heading-actions">
           <span className="source-proof"><span className={verified.length ? "status-orb live" : "status-orb"} />{verified.length} verified</span>
@@ -788,7 +809,7 @@ function CommandScreen({ queue, verified, busy, onGenerate, onOpenSources, onSel
           <div className="radar"><Search size={28} /><i /><i /><i /></div>
           <div><span className="eyebrow">No fabricated priorities</span>
             <h2>{verified.length ? "Your sources are ready to reason over." : "Connect evidence before asking what matters."}</h2>
-            <p>{verified.length ? "Build the first queue from commitments, blockers, deadlines, incidents, and customer risk found in verified source records." : "QueueProof refuses to invent a task list. Connect Slack, Gmail, Linear, or another HydraDB provider first."}</p>
+            <p>{verified.length ? "Build the first queue from real commitments, blockers, deadlines, incidents, and customer risk." : "QueueProof will not invent a task list. Connect Slack, Gmail, Linear, or another source first."}</p>
           </div>
         </div>
       ) : (
@@ -862,7 +883,16 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<AskData | null>(null);
   const [citationPreview, setCitationPreview] = useState<{ evidence: Evidence; index: number } | null>(null);
-  const [judgePulse, setJudgePulse] = useState<{ status: string; passed: number; total: number; p50: number | null; calls: number | null } | null>(null);
+  const [judgePulse, setJudgePulse] = useState<{
+    status: string;
+    passed: number;
+    total: number;
+    p50: number | null;
+    calls: number | null;
+    citationPrecision: number | null;
+    citationCompleteness: number | null;
+    unsupportedClaimRate: number | null;
+  } | null>(null);
   const runPending = useRef(false);
   const stageRef = useRef<HTMLDivElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
@@ -914,6 +944,9 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
         total: measured.length,
         p50: results.live?.latencyMs?.p50 ?? null,
         calls,
+        citationPrecision: results.live?.quality?.citationPrecision ?? null,
+        citationCompleteness: results.live?.quality?.citationCompleteness ?? null,
+        unsupportedClaimRate: results.live?.quality?.unsupportedClaimRate ?? null,
       });
     }).catch(() => { /* The proof workflow remains usable if telemetry is unavailable. */ });
     return () => { active = false; };
@@ -963,8 +996,8 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
   const orbitProps: OrbitProps = {
     stage: orbitStage,
     modeLabel: busy
-      ? (mode === "auto" ? "AUTO ROUTE" : mode.toUpperCase())
-      : result ? result.trace.mode.toUpperCase() : "AUTO ROUTE",
+      ? (mode === "auto" ? "Auto" : mode === "thinking" ? "Deep check" : "Fast")
+      : result ? (result.trace.mode === "thinking" ? "Deep check" : result.trace.mode === "fast" ? "Fast" : "Auto") : "Auto",
     receiptCount: result?.retrieval_receipt.receipt_count ?? 0,
     providerCoverage: busy
       ? verified.map((connector) => connector.provider)
@@ -989,16 +1022,26 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
           <span className="eyebrow"><Radio size={13} /> Live · HydraDB evidence control plane</span>
           <h1><span>One answer.</span><br /><em>Every system.</em><br /><span className="outline-word">Proven.</span></h1>
           <div className="proof-details">
-            <p>QueueProof reconstructs commitments across Slack, Linear, GitHub, Gmail, and documents—then turns them into one cited answer with the retrieval calls, latency, policy, and conflicts left visible.</p>
+            <p>Ask one question across Slack, Linear, GitHub, Gmail, and documents. QueueProof shows the answer, the exact sources, what disagrees, and the safest next step.</p>
             <div className="live-source-row">
               {verified.map((connector) => <span key={connector.id} data-provider={connector.provider}><ProviderIcon provider={connector.provider} />{connector.provider}<i /></span>)}
               {!connectorsLoaded && <span className="connector-loading"><LoaderCircle className="spin" size={13} /> Resolving source proofs</span>}
               {connectorsLoaded && !verified.length && <button onClick={onOpenSources}><Plus size={13} /> Connect evidence</button>}
             </div>
             <div className="hero-proofline" aria-label="Live product proof">
-              <span><strong>{judgeMeasured ? `${judgePulse?.passed ?? 0}/${judgePulse?.total ?? 0}` : "PENDING"}</strong><small>STRICT SIGNAL CHECKS</small></span>
-              <span><strong>{judgeMeasured && judgePulse?.p50 ? `${(judgePulse.p50 / 1000).toFixed(2)}s` : "—"}</strong><small>P50 RETRIEVAL</small></span>
-              <span><strong>{judgeMeasured && judgePulse?.calls !== null && judgePulse?.calls !== undefined ? judgePulse.calls.toFixed(1) : "—"}</strong><small>HYDRADB CALLS / ANSWER</small></span>
+              <span><strong>{verifiedCount}</strong><small>LIVE SYSTEMS PROVEN</small></span>
+              <span><strong>{judgeMeasured && judgePulse?.citationPrecision !== null && judgePulse?.citationPrecision !== undefined ? `${Math.round(judgePulse.citationPrecision * 100)}%` : "—"}</strong><small>CITATION PRECISION</small></span>
+              <span><strong>{judgeMeasured && judgePulse?.unsupportedClaimRate !== null && judgePulse?.unsupportedClaimRate !== undefined ? `${Math.round(judgePulse.unsupportedClaimRate * 100)}%` : "—"}</strong><small>UNSUPPORTED CLAIM RATE</small></span>
+            </div>
+            <div className="proof-manifest" aria-label="QueueProof evidence workflow">
+              <span><b>01</b> Verify sources</span><i />
+              <span><b>02</b> Match the facts</span><i />
+              <span><b>03</b> Cite every claim</span><i />
+              <span><b>04</b> Approve the action</span>
+            </div>
+            <div className="proof-cta-row">
+              <button type="button" className="primary-button proof-hero-cta" onClick={() => document.getElementById("proof-question")?.focus()}><Play size={14} fill="currentColor" /> Prove it live <ArrowRight size={13} /></button>
+              <button type="button" className="secondary-button" onClick={onOpenLab}>See measured results</button>
             </div>
           </div>
         </div>
@@ -1017,14 +1060,15 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
         <div className="console-line">
           <span><span className={verifiedCount ? "status-orb live" : connectorsLoaded ? "status-orb" : "status-orb indexing"} />{connectorsLoaded ? `${verifiedCount} verified systems` : "Resolving connector proofs"}</span>
           <div className="mode-control">
-            {(["auto", "fast", "thinking"] as const).map((value) => <button key={value} type="button" className={mode === value ? "mode active" : "mode"} aria-pressed={mode === value} onClick={() => setMode(value)}>{value === "auto" ? "Auto route" : value}</button>)}
+            {(["auto", "fast", "thinking"] as const).map((value) => <button key={value} type="button" className={mode === value ? "mode active" : "mode"} aria-pressed={mode === value} onClick={() => setMode(value)}>{value === "auto" ? "Auto" : value === "thinking" ? "Deep check" : "Fast"}</button>)}
           </div>
         </div>
+        <div className="typing-cue"><Terminal size={13} /><TypedProofPrompt text="Ask one question. See every receipt." /></div>
         <label className="sr-only" htmlFor="proof-question">Cross-source proof question</label>
-        <textarea id="proof-question" value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); void run(); } }} placeholder="Ask a question that needs more than one system…" required maxLength={4000} />
+        <textarea id="proof-question" value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); void run(); } }} placeholder="Ask what to do next, who promised what, or where systems disagree…" required maxLength={4000} />
         <div className="prompt-actions">
           <span>⌘ Enter to run</span>
-          <button className="primary-button proof-button" disabled={!connectorsLoaded || busy || !question.trim()}>{busy || !connectorsLoaded ? <LoaderCircle className="spin" size={15} /> : <Play size={15} fill="currentColor" />}{!connectorsLoaded ? "Verifying connectors" : busy ? "Building cited answer" : question === FLAGSHIP_QUESTION ? "Run flagship proof" : "Run proof"}</button>
+          <button className="primary-button proof-button" disabled={!connectorsLoaded || busy || !question.trim()}>{busy || !connectorsLoaded ? <LoaderCircle className="spin" size={15} /> : <Play size={15} fill="currentColor" />}{!connectorsLoaded ? "Checking sources" : busy ? "Checking the evidence" : "Run live proof"}</button>
         </div>
       </form>
 
@@ -1046,7 +1090,7 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
 
       {busy && <div ref={stageRef} className="retrieval-stage" role="status" aria-live="polite" tabIndex={-1}>
         <div className="stage-track"><i /><i /><i /><i /></div>
-        <div><strong>HydraDB is joining verified context.</strong><span>Deduplicating scopes · matching citations by identity · screening untrusted instructions · synthesising only supported claims</span></div>
+        <div><strong>HydraDB is checking every source.</strong><span>Matching people and projects · finding conflicts · keeping only supported claims</span></div>
       </div>}
 
       {result && <div ref={resultRef} className={`ask-results premium-results ${resultTone}`} tabIndex={-1} aria-live="polite">
@@ -1055,7 +1099,7 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
           <span><Network size={14} />{result.validation.providerCoverage.length} providers</span>
           <span><Activity size={14} />{result.trace.callCount} HydraDB call{result.trace.callCount === 1 ? "" : "s"}</span>
           <span><Clock3 size={14} />{(result.trace.latencyMs / 1000).toFixed(2)}s</span>
-          <span><Zap size={14} />{result.trace.mode}</span>
+          <span><Zap size={14} />{result.trace.mode === "thinking" ? "Deep check" : result.trace.mode}</span>
         </div>
         <article className={`answer-surface ${resultTone}`}>
           <div className="answer-kicker"><span>{resultTone === "abstained" ? "INSUFFICIENT EVIDENCE" : resultTone === "partial" ? "PARTIAL EVIDENCE" : "GROUNDED ANSWER"}</span><button className="copy-id" onClick={() => void navigator.clipboard.writeText(result.retrieval_receipt.query_id)} title="Copy query receipt ID" aria-label="Copy query receipt ID"><code>{result.retrieval_receipt.query_id.slice(-8)}</code><Clipboard size={12} /></button></div>
@@ -1142,7 +1186,7 @@ function SourcesScreen({ workspace, connectors, reloadWorkspace, reloadConnector
   }
 
   return <section className="screen sources-screen">
-    <div className="screen-heading"><div><span className="eyebrow"><Database size={13} /> Live evidence boundary</span><h1>Connect once.<br /><em>Prove every read.</em></h1><p>Credentials are encrypted server-side. A source becomes usable only after QueueProof sees cursor evidence and retrieves real provider records.</p></div>{workspace.hydradb.configured && !readOnly && <button className="primary-button" onClick={() => setSetupOpen(true)}><Plus size={15} /> Add source</button>}</div>
+    <div className="screen-heading"><div><span className="eyebrow"><Database size={13} /> Live evidence boundary</span><h1>Connect once.<br /><em>Prove every read.</em></h1><p>Connect each source once. QueueProof will not trust it until a real record comes back with a receipt.</p></div>{workspace.hydradb.configured && !readOnly && <button className="primary-button" onClick={() => setSetupOpen(true)}><Plus size={15} /> Add source</button>}</div>
     {readOnly && <div className="inline-warning"><LockKeyhole size={14} />Public sandbox: connector credentials and lifecycle mutations are owner-only. Verified proof receipts remain inspectable.</div>}
     {!workspace.hydradb.configured ? readOnly ? <div className="honest-empty"><LockKeyhole size={24} /><div><strong>Evidence configuration is owner-only.</strong><p>This public sandbox cannot accept credentials.</p></div></div> : <form className="hydra-setup" onSubmit={connectHydra}><div className="hydra-symbol"><Database size={29} /></div><div><span className="eyebrow">Step 1 · Evidence engine</span><h2>Attach your HydraDB account.</h2><p>Use a newly generated API key. QueueProof verifies it against the authenticated database endpoint, encrypts it with AES-GCM, and never returns it.</p><label>HydraDB API key<input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder="Paste new key" autoComplete="off" required minLength={12} /></label><button className="primary-button" disabled={busy === "hydra"}>{busy === "hydra" ? <LoaderCircle className="spin" size={15} /> : <KeyRound size={15} />} Verify and encrypt</button></div></form> : <>
       <div className="source-stats"><div><small>HYDRADB</small><strong><CircleCheck size={14} /> Authenticated</strong><span>{workspace.hydradb.fingerprint ?? "Encrypted"}</span></div><div><small>CONNECTED</small><strong>{connectors.length}</strong><span>workplace sources</span></div><div><small>VERIFIED</small><strong>{connectors.filter((item) => item.state === "data_verified").length}</strong><span>eligible for retrieval</span></div><div><small>POLICY</small><strong>Fail closed</strong><span>no proof · no ranking</span></div></div>
@@ -1235,7 +1279,7 @@ function DocumentsPanel({ databases, setError, setNotice, readOnly }: {
         onDrop={(event) => { event.preventDefault(); if (!readOnly) setFile(event.dataTransfer.files[0] ?? null); }}>
         <UploadCloud size={30} />
         <h2>Drop knowledge into the evidence graph.</h2>
-        <p>QueueProof validates the real file signature, deduplicates by SHA-256, then waits for HydraDB to confirm indexing.</p>
+        <p>QueueProof verifies the file, removes exact duplicates, and waits for HydraDB to confirm that search is ready.</p>
         <label className="file-picker">
           <input key={inputKey} type="file" accept=".pdf,.md,.markdown,.txt,application/pdf,text/markdown,text/plain"
             onChange={(event) => setFile(event.target.files?.[0] ?? null)} disabled={readOnly} />
@@ -1415,7 +1459,7 @@ function ApprovalsScreen({ seedPacket, onSeedUsed, setError, setNotice, readOnly
   const executed = proposals.filter((item) => item.executionStatus === "succeeded" || item.status === "executed").length;
 
   return <section className="screen approvals-screen">
-    <div className="screen-heading"><div><span className="eyebrow"><ShieldCheck size={13} /> Human control plane</span><h1>Agents propose.<br /><em>Humans commit.</em></h1><p>Review the exact provider payload, its evidence chain, and risk class. Approval is an auditable decision; execution is idempotent and can happen at most once.</p></div><button className="primary-button" onClick={() => setComposerOpen(true)}><Plus size={15} /> New proposal</button></div>
+    <div className="screen-heading"><div><span className="eyebrow"><ShieldCheck size={13} /> Human approval</span><h1>Agents propose.<br /><em>Humans commit.</em></h1><p>See the exact action, the receipts behind it, and the risk before anything is written. An approved action can run only once.</p></div><button className="primary-button" onClick={() => setComposerOpen(true)}><Plus size={15} /> New proposal</button></div>
     {readOnly && <div className="inline-warning"><LockKeyhole size={14} />Public visitors may create evidence-linked proposals for the demo, but only a private workspace owner can approve or execute them.</div>}
     <div className="approval-stats"><div><small>PENDING REVIEW</small><strong>{pending}</strong><span>nothing executes silently</span></div><div><small>EXECUTED ONCE</small><strong>{executed}</strong><span>provider-confirmed writes</span></div><div><small>GUARDRAIL</small><strong>At most once</strong><span>unique execution claim</span></div></div>
     <div className="approval-list">
@@ -1493,7 +1537,7 @@ type LabResults = {
     status?: string; note?: string; target?: string; generatedAt?: string; cases?: number;
     connectors?: string[]; allThreeProviders?: number; fast?: number; thinking?: number;
     latencyMs?: { p50?: number; p95?: number; min?: number; max?: number };
-    quality?: { requiredFactRecall?: number; citationCompleteness?: number; unsupportedClaimRate?: number; note?: string };
+    quality?: { requiredFactRecall?: number; citationPrecision?: number; citationCompleteness?: number; unsupportedClaimRate?: number; note?: string };
     rows?: Array<{ label: string; question: string; expected?: string; actual?: string; pass?: boolean;
       mode: string; latencyMs: number; callCount?: number; sources: number; providers: string[]; costUnits?: number }>;
   };
@@ -1542,7 +1586,7 @@ function LabScreen({ setError }: { setError: (value: string) => void }) {
         <div>
           <span className="eyebrow"><Activity size={13} /> Production evidence lab</span>
           <h1>The benchmark is<br /><em>part of the product.</em></h1>
-          <p>Replayable cross-source questions against the deployed system. Expected facts, observed answers, provider coverage, routing mode, latency, calls, and cost units live together in one receipt.</p>
+          <p>Replay the same hard questions against the live app. Expected facts, real answers, sources, speed, and cost stay together in one receipt.</p>
         </div>
         {live?.target && <a className="secondary-button" href={live.target} target="_blank" rel="noreferrer">Live target <ExternalLink size={13} /></a>}
       </div>

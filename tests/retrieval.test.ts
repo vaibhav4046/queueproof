@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planRetrieval, retrievalQueryVariants } from "../packages/retrieval/src";
+import { evidenceFollowUpTerms, planRetrieval, retrievalQueryVariants } from "../packages/retrieval/src";
 
 describe("retrieval planner", () => {
   it("runs exact identifier lookup with parallel lexical fallback", () => {
@@ -21,5 +21,31 @@ describe("retrieval planner", () => {
     const plan = planRetrieval("Who owns the launch?");
     expect(plan).toMatchObject({ category: "single_source_fact", mode: "fast" });
     expect(retrievalQueryVariants(plan)).toEqual(["hybrid"]);
+  });
+
+  it("promotes absence and stale-open comparisons to thinking", () => {
+    expect(planRetrieval("Which promise has no issue tracking it?").mode).toBe("thinking");
+    expect(planRetrieval("Which open issue appears to be already resolved elsewhere?").mode).toBe("thinking");
+  });
+});
+
+describe("evidence-derived follow-up terms", () => {
+  it("extracts new record IDs and named entities without fixture-specific expansion", () => {
+    expect(evidenceFollowUpTerms(
+      "Who is Priya Raman and what is she working on?",
+      [
+        "Priya Raman filed BUG-123 against Atlas Launch.",
+        "The AuthShield incident affected Northwind and references INC-2031.",
+      ],
+    )).toEqual(expect.arrayContaining(["BUG-123", "INC-2031", "Atlas Launch", "AuthShield", "Northwind"]));
+  });
+
+  it("does not repeat entities already present in the question", () => {
+    const terms = evidenceFollowUpTerms("What is BUG-123 for Northwind?", [
+      "BUG-123 tracks AuthShield remediation for Northwind and Atlas Launch.",
+    ]);
+    expect(terms).not.toContain("BUG-123");
+    expect(terms).not.toContain("Northwind");
+    expect(terms).toEqual(expect.arrayContaining(["AuthShield", "Atlas Launch"]));
   });
 });

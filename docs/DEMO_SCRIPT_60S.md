@@ -47,16 +47,19 @@ execution.
 
 ## 56-60 seconds - close
 
-Open Benchmarks and point to `39/39`, `331 assertions`, and the explicit historical PDF
-label.
+Open Benchmarks and point to `39/39`, `331 assertions`, and the fresh strict 346-page PDF
+artifact: `20/22 cases`, `53/56 facts`, with its two REVIEW cases visible.
 
 > QueueProof gives agents one answer, every system, proven - and keeps the write under
 > human control.
 
 ## Demo discipline
 
-- Do not call the historical 21/22 PDF artifact a current strict-grade result.
+- Do not call the fresh 20/22 PDF baseline 22/22 or imply it was measured after the final
+  unpublished retrieval changes.
 - Do not present the six-query live latency sample as an SLA.
 - Do not imply that the public sandbox can configure or execute integrations.
 - If any provider is unavailable, use the visible failure/partial state; do not switch to
   a fixture and describe it as live.
+- Do not submit until the repository is judge-accessible and the final public commit has
+  passed the post-deploy acceptance rerun.

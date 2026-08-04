@@ -14,7 +14,7 @@
 ## Release evidence
 
 - Typecheck, lint, production build, E2E, and deployment check: pass.
-- Full suite: 274 tests across 29 files.
+- Full suite: 324 tests across 32 files.
 - Security suite: 13 tests.
 - MCP suite: 8 tests.
 - Router benchmark: 39/39 cases, 331 assertions.
@@ -35,8 +35,8 @@ required before a write.
 
 ## Honest limits
 
-- The retained PDF production result predates the strict grader; no fresh strict score is
-  claimed.
+- The fresh strict PDF baseline is 20/22 cases and 53/56 facts with complete citations;
+  it predates the final unpublished retrieval changes and is not called 22/22.
 - The historical six-query live sample is not a stable latency distribution or SLA.
 - Public sandbox visitors cannot modify integration or external-provider state.
 - A provider write is considered executed only when a provider response ID is stored.

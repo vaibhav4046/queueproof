@@ -57,8 +57,10 @@ Beginning, middle, and end canaries are keyed explicitly. The suite includes exa
 superseded policy, tables, similar people, multilingual evidence, distractors, and a
 document-plus-connectors join.
 
-The retained 21/22 production JSON predates this grader and is not a current score. See
-`docs/LARGE_PDF_PROOF.md`.
+The fresh strict public-production baseline in `audit/pdf-live-final.json` is 20/22 cases
+and 53/56 facts, with perfect citation precision/completeness and zero unsupported claims.
+It predates the final unpublished retrieval change and must be rerun after release. See
+`docs/LARGE_PDF_PROOF.md` for the misses and provenance.
 
 ## Metrics
 
@@ -83,5 +85,5 @@ npm run benchmark:live -- --url https://queueproof.vercel.app
 npm run benchmark:pdf -- --url https://queueproof.vercel.app
 ```
 
-Release gates are independently verified with typecheck, lint, 274 tests across 29 files,
+Release gates are independently verified with typecheck, lint, 324 tests across 32 files,
 13 security tests, 8 MCP tests, production build, E2E, and deployment checks.

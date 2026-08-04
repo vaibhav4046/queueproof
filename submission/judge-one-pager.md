@@ -45,7 +45,7 @@ before the provider call.
 | --- | ---: |
 | Router fixtures | 39/39 |
 | Fixture assertions | 331 |
-| Full suite | 274 tests / 29 files |
+| Full suite | 324 tests / 32 files |
 | Security / MCP | 13 / 8 tests |
 | Typecheck, lint, build, E2E, deploy check | pass |
 | Responsive viewports | 7, from 360x800 to 3840x2160 |
@@ -53,9 +53,9 @@ before the provider call.
 
 ## Honest boundary
 
-The retained large-PDF result is 21/22 under the previous grader. The current grader is
-stricter and has not been rerun against production, so QueueProof does not present that
-number as a current score.
+The fresh strict 346-page baseline passed 20/22 cases and recovered 53/56 facts with
+complete citations. It was measured against public production before the last unpublished
+retrieval changes, so QueueProof does not call it 22/22 or a post-release result.
 
 Live: <https://queueproof.vercel.app>
 

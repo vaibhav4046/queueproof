@@ -13,10 +13,13 @@ Verified on 3 August 2026 at 15:39 BST for application release
 Deployment receipt:
 <https://vercel.com/vaibhav4046s-projects/queueproof/HeScQwHp4GohxVCjni8LifKABPFf>.
 
-The stored six-question section in `BENCHMARK_REPORT.md` is a small historical live
-sample, not an SLA. The stored PDF result is also historical and predates the strict
-grader; it is documented in `docs/LARGE_PDF_PROOF.md` and is not a current acceptance
-score.
+A fresh strict six-question diagnostic run on 4 August matched 15/19 required facts and
+passed 1/6 complete cases, with 100% citation precision/completeness and zero unsupported
+claims. It is a small diagnostic sample, not an SLA or a general accuracy claim.
+
+The fresh strict 346-page PDF baseline passed 20/22 cases and matched 53/56 required facts,
+again with complete citations and zero unsupported claims. It predates the final local
+retrieval changes and must be rerun after publication; see `docs/LARGE_PDF_PROOF.md`.
 
 Current release gates are recorded in
 [submission/requirements-matrix.md](requirements-matrix.md). The immutable deployment

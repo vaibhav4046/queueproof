@@ -1,40 +1,37 @@
 # QueueProof — judge-path smoke test
 
-Canonical story executed against **production** (`https://queueproof.vercel.app`)
-after the release deploy. Each step lists the exact click/keystroke, the expected
-visible evidence, and the pass criterion. This file is the rehearsal checklist —
-record timestamps and results beside each step when the run is executed.
+Use this as the post-deploy rehearsal checklist. Record timestamps beside each step when
+the redesigned commit is published; until then, local browser QA and public-production
+retrieval measurements remain separate artifacts.
 
 ## The 60-second path
-1. **0-6 s — thesis.** Landing shows "One answer. Every system. Proven." with
-   `Public sandbox` disclosure and four verified connector receipts in the rail.
-2. **6-14 s — connector + PDF proof.** Evidence tab shows GitHub (canary ≥1),
-   Linear (≥5), Slack (≥3), Gmail (≥4) `data_verified` connectors, and the
-   indexed 346-page synthetic PDF with its receipt (doc_44fe0aac…, source
-   f64d374d…, indexed, human-readable duration).
-3. **14-31 s — flagship query.** Proof tab → run the flagship AuthShield question.
-   Watch the Evidence Orbit: routing ring → provider routes pulse → receipts
-   arrive → facets converge → core locks. Answer arrives with inline citation
-   chips and a retrieval receipt (mode, HydraDB calls, latency, provider
-   coverage, receipt count, cost units).
-4. **31-42 s — citations + contradiction.** Click citation chips (focus trap,
-   Escape, focus restore). Open the GitHub-versus-Linear open/merged
-   contradiction if present.
-5. **42-50 s — priority action.** Queue tab → hero packet with deterministic
-   score breakdown, why-now, penalties, confidence, safe next action, approval
-   requirement.
-6. **50-57 s — receipts + benchmark.** Open the retrieval receipt; Benchmarks
-   tab shows versioned strict-grader artifact (required facts, mode, calls,
-   latency, cost) with failed cases visible.
-7. **57-60 s — close.** Live URL and repository link (public GitHub only after
-   visibility change is approved).
+
+1. **0–7 seconds — thesis.** The first viewport shows “One answer. Every system.
+   Proven.”, the public-sandbox disclosure, the working proof console, and verified-source
+   receipts.
+2. **7–24 seconds — ask once.** Run the preloaded AuthShield question. The calm visual
+   sequence reads Sources → Answer → Next step while QueueProof selects Fast or Deep check.
+3. **24–37 seconds — prove it.** Open a citation receipt. Show the source excerpt,
+   provider, source ID, timestamp, and any explicit disagreement or missing information.
+4. **37–49 seconds — decide.** Open Queue and show the deterministic score components,
+   constraints, evidence, acceptance criteria, permissions, and receipt hash.
+5. **49–56 seconds — protect the write.** Open Approvals and inspect the exact proposed
+   Linear payload. Do not claim public execution.
+6. **56–60 seconds — measured close.** Open Benchmarks and show 39/39 labelled routes,
+   331 fixture assertions, and the strict 20/22 PDF baseline with REVIEW rows visible.
 
 ## Pass criteria
-- Every click works within the allotted time; no dead controls.
-- No console errors, no failed internal requests, no horizontal overflow.
-- No metric shown without a receipt/artifact behind it.
+
+- Every control in the path works; the query CTA focuses the real console.
+- No application console error, failed internal request, or horizontal overflow.
+- Six destinations remain available on mobile, with at least 44 px touch targets.
+- Reduced-motion mode shows the complete text and static background without auto-motion.
+- No metric appears without a receipt or versioned artifact.
 
 ## Status
-- [ ] Desktop rehearsal on production (blocked on deploy).
-- [ ] Mobile rehearsal (360×390) — orbit hidden, rail as receipt strip.
-- [ ] Two-to-three-minute backup demo recorded (slower walkthrough).
+
+- [x] Local responsive QA at 375, 390, 768, 1024, and 1440 px plus 844×390 landscape.
+- [x] Local reduced-motion QA at 390×844 and 1440×900.
+- [x] Local CTA, keyboard-focus, E2E, lint, typecheck, test, and build gates.
+- [ ] Production rehearsal after the redesigned commit is explicitly published.
+- [ ] Final 60-second recording and two-minute backup recording.
