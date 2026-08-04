@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evidenceFollowUpTerms, planRetrieval, retrievalQueryVariants } from "../packages/retrieval/src";
+import { evidenceFollowUpTerms, planRetrieval, retrievalIntentTerms, retrievalQueryVariants } from "../packages/retrieval/src";
 
 describe("retrieval planner", () => {
   it("runs exact identifier lookup with parallel lexical fallback", () => {
@@ -26,6 +26,13 @@ describe("retrieval planner", () => {
   it("promotes absence and stale-open comparisons to thinking", () => {
     expect(planRetrieval("Which promise has no issue tracking it?").mode).toBe("thinking");
     expect(planRetrieval("Which open issue appears to be already resolved elsewhere?").mode).toBe("thinking");
+  });
+
+  it("adds only state-language retrieval terms for an abstract stale-work question", () => {
+    expect(retrievalIntentTerms("Which open issue appears to be already resolved elsewhere?")).toEqual([
+      "merged", "shipped", "still open", "tracked state",
+    ]);
+    expect(retrievalIntentTerms("Show me ENG-456")).toEqual([]);
   });
 });
 

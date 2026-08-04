@@ -163,6 +163,7 @@ describe("evidence-constrained synthesis", () => {
       ],
     );
 
+    expect(result.answer).toMatch(/AuthShield/i);
     expect(result.answer).toMatch(/issue ENG-456|shipped/i);
     expect(result.answer).not.toContain("external risks");
   });
@@ -182,7 +183,39 @@ describe("evidence-constrained synthesis", () => {
     );
 
     expect(result.answer).toContain("BUG-123");
+    expect(result.answer).toMatch(/AuthShield.*Northwind|Northwind.*AuthShield/i);
     expect(result.answer).not.toContain("lawsuit");
+  });
+
+  it("keeps the no-Linear tracking statement beside the promise it qualifies", () => {
+    const result = synthesiseGroundedAnswer(
+      "Which promise to Northwind has no issue tracking it?",
+      [{
+        id: "slack-postmortem",
+        provider: "slack",
+        title: "Northwind post-mortem commitment",
+        excerpt: "I promised Northwind a written incident post-mortem by 10 August. There is no Linear issue tracking that yet, someone please raise one.",
+      }],
+    );
+
+    expect(result.answer).toMatch(/written incident post-mortem/i);
+    expect(result.answer).toMatch(/no Linear issue/i);
+  });
+
+  it("keeps incident context beside the actor named later in the same receipt", () => {
+    const result = synthesiseGroundedAnswer(
+      "Who is Priya Raman and what has she been working on?",
+      [{
+        id: "slack-priya",
+        provider: "slack",
+        title: "Northwind escalation",
+        excerpt: "Northwind have escalated the AuthShield authentication outage (INC-2031). Their whole team has been locked out since 29 July. Priya Raman is on it and filed BUG-123 against Atlas Launch.",
+      }],
+    );
+
+    expect(result.answer).toMatch(/Priya Raman/i);
+    expect(result.answer).toMatch(/Northwind.*AuthShield|AuthShield.*Northwind/i);
+    expect(result.answer).toMatch(/Atlas Launch/i);
   });
 
   it("extracts an exact-ID fact after markdown headings instead of dropping the long chunk", () => {

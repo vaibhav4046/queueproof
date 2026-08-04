@@ -4,7 +4,7 @@ import { extractQuerySources, matchingChunks, providerFromSource, sourceBelongsT
 import { requireRequestActor } from "../../../lib/server/identity";
 import { requireDb } from "../../../lib/server/runtime";
 import { audit, createId, enforcePublicRateLimit, requireWorkspaceForUser } from "../../../lib/server/store";
-import { evidenceFollowUpTerms, planRetrieval, retrievalQueryVariants } from "../../../packages/retrieval/src";
+import { evidenceFollowUpTerms, planRetrieval, retrievalIntentTerms, retrievalQueryVariants } from "../../../packages/retrieval/src";
 import { isPotentialPromptInjection, redactSecrets } from "../../../packages/security/src";
 import { synthesiseGroundedAnswer } from "../../../lib/server/synthesis";
 import { listQueueForWorkspace } from "../../../lib/server/queue";
@@ -116,7 +116,8 @@ export async function POST(request: Request) {
     // exact_identifier; this is the honest execution of that plan). Call count
     // and cost are unchanged — only the query string is anchored.
     const identifiers = [...new Set(question.match(/\b[A-Z][A-Z0-9]+-\d+\b/g) ?? [])];
-    const retrievalQuery = identifiers.length ? `${identifiers.join(" ")} ${question}` : question;
+    const intentTerms = retrievalIntentTerms(question);
+    const retrievalQuery = [identifiers.join(" "), question, ...intentTerms].filter(Boolean).join(" ");
     const evidence: RetrievedEvidence[] = [];
     const trace: Array<Record<string, unknown>> = [];
     const connectorScopes = [...connectors.results.reduce((map, connector) => {

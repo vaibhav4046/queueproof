@@ -91,7 +91,7 @@ scanner emitted paths only, never candidate values. See `audit/secret-scan-2026-
 ```bash
 npm run test:security   # 13 tests
 npm run test:mcp        # 8 tests
-npm test               # 327 tests across 35 files
+npm test               # 330 tests across 35 files
 ```
 
 Also run typecheck, lint, build, deployment checks, and a worktree-plus-history secret
