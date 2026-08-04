@@ -91,6 +91,12 @@ export async function POST(request: Request) {
     }
     const plan = planRetrieval(question);
     const mode = payload.mode && payload.mode !== "auto" ? payload.mode : plan.mode;
+    // Exact-identifier questions retrieve more precisely when the identifier
+    // leads the HydraDB query text (the router already classified this query as
+    // exact_identifier; this is the honest execution of that plan). Call count
+    // and cost are unchanged — only the query string is anchored.
+    const identifiers = [...new Set(question.match(/\b[A-Z][A-Z0-9]+-\d+\b/g) ?? [])];
+    const retrievalQuery = identifiers.length ? `${identifiers.join(" ")} ${question}` : question;
     const client = await hydraClientForWorkspace(workspaceId);
     const started = Date.now();
     const evidence: Array<{
@@ -120,7 +126,7 @@ export async function POST(request: Request) {
         const response = await client.query({
           database: scope.database,
           ...(scope.collection ? { collections: [scope.collection] } : {}),
-          query: question,
+          query: retrievalQuery,
           type: "knowledge",
           query_by: queryBy,
           mode,
