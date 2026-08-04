@@ -89,10 +89,11 @@ scanner emitted paths only, never candidate values. See `audit/secret-scan-2026-
 ## Verification
 
 ```bash
-npm run test:security   # 13 tests
-npm run test:mcp        # 8 tests
-npm test               # 330 tests across 35 files
+pnpm test:security
+pnpm test:mcp
+pnpm test
 ```
 
-Also run typecheck, lint, build, deployment checks, and a worktree-plus-history secret
-scan before release.
+Also run typecheck, lint, build, deployment checks, dependency audit, and a
+worktree-plus-history secret scan before release. Exact test totals belong in the final CI
+receipt rather than this long-lived security model.

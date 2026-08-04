@@ -1,4 +1,8 @@
-# QueueProof — visual system ("Evidence Orbit")
+# QueueProof — “Evidence Orbit” visual system (historical)
+
+> **Superseded design record.** These tokens and spatial rules describe the pre-final dark
+> cinematic interface. They are not the current product design system. The file remains only
+> as design-history evidence; inspect the deployed product and current CSS for release visuals.
 
 Original design language for the Proof surface. Not a copy of any referenced
 competitor; it extracts craft principles (cinematic negative space, restrained

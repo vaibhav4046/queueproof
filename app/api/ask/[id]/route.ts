@@ -9,6 +9,7 @@ type StoredReceipt = {
   receiptHash: string;
   schemaVersion: string;
   createdAt: string;
+  question: string;
 };
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
@@ -22,20 +23,26 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     }
     await ensureCoreSchema();
     const stored = await requireDb().prepare(
-      `SELECT receipt_json AS receiptJson, receipt_hash AS receiptHash,
-              schema_version AS schemaVersion, created_at AS createdAt
-       FROM query_receipts
-       WHERE workspace_id = ? AND query_run_id = ? LIMIT 1`,
+      `SELECT receipts.receipt_json AS receiptJson, receipts.receipt_hash AS receiptHash,
+              receipts.schema_version AS schemaVersion, receipts.created_at AS createdAt,
+              runs.sanitised_query AS question
+       FROM query_receipts AS receipts
+       JOIN query_runs AS runs
+         ON runs.workspace_id = receipts.workspace_id AND runs.id = receipts.query_run_id
+       WHERE receipts.workspace_id = ? AND receipts.query_run_id = ? LIMIT 1`,
     ).bind(workspaceId, id).first<StoredReceipt>();
     if (!stored) {
       return noStoreJson({ ok: false, error: "Verified query receipt not found." }, { status: 404 });
     }
     const payload = JSON.parse(stored.receiptJson) as { workflow?: unknown; result?: unknown };
     const workflow = liveProofStateSchema.parse(payload.workflow);
+    const result = typeof payload.result === "object" && payload.result !== null
+      ? { ...(payload.result as Record<string, unknown>), question: (payload.result as Record<string, unknown>).question ?? stored.question }
+      : payload.result;
     return noStoreJson({
       ok: true,
       workflow,
-      result: payload.result,
+      result,
       receiptHash: stored.receiptHash,
       schemaVersion: stored.schemaVersion,
       persistedAt: stored.createdAt,

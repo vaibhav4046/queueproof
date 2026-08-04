@@ -193,8 +193,8 @@ describe("graph route: workspace resolution and cross-workspace isolation", () =
     await withLocalIdentity(async () => {
       const { GET } = await import("../app/api/graph/route");
       const response = await GET(new Request("https://queueproof.example/api/graph"));
-      expect(response.status).toBe(200);
-      const body = await response.json() as { ok: boolean; graph: { nodes: Array<{ id: string }> } };
+      const body = await response.json() as { ok: boolean; error?: string; graph: { nodes: Array<{ id: string }> } };
+      expect(response.status, body.error).toBe(200);
       expect(body.ok).toBe(true);
       const nodeIds = body.graph.nodes.map((node) => node.id);
       expect(nodeIds).toEqual(expect.arrayContaining([
@@ -208,8 +208,8 @@ describe("graph route: workspace resolution and cross-workspace isolation", () =
     await withLocalIdentity(async () => {
       const { GET } = await import("../app/api/graph/route");
       const response = await GET(new Request("https://queueproof.example/api/graph?taskId=task-own-a"));
-      expect(response.status).toBe(200);
-      const body = await response.json() as { ok: boolean; graph: { nodes: Array<{ id: string }> } };
+      const body = await response.json() as { ok: boolean; error?: string; graph: { nodes: Array<{ id: string }> } };
+      expect(response.status, body.error).toBe(200);
       const nodeIds = body.graph.nodes.map((node) => node.id);
       expect(nodeIds).toEqual(expect.arrayContaining(["task:task-own-a", "source:source-own-a"]));
       expect(nodeIds).not.toEqual(expect.arrayContaining(["task:task-own-b", "source:source-own-b"]));

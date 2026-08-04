@@ -1,0 +1,16 @@
+{
+  "status": "not_measured",
+  "requestedMode": "fast",
+  "generatedAt": null,
+  "target": null,
+  "fixture": "evals/fixtures/live-cases.json",
+  "release": {
+    "commitSha": null,
+    "commitRef": null,
+    "deploymentUrl": null
+  },
+  "cases": 0,
+  "passed": 0,
+  "rows": [],
+  "note": "Run npm run benchmark:live -- --mode fast after deploying the release."
+}

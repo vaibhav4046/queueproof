@@ -1,4 +1,9 @@
-# External authorisation required
+# External authorisation required — historical checklist
+
+> **Archived 4 August 2026.** This checklist captured external blockers on 31 July. It is not
+> current release guidance: durable production storage and later deployment work superseded
+> several items. Verify current health endpoints and [`README.md`](README.md) before taking
+> action. Never reuse or paste any credential referenced by an old workflow.
 
 Last updated: 2026-07-31
 

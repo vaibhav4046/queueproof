@@ -1,4 +1,5 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 import process from "node:process";
 import { GROUNDED_GRADER_VERSION, gradeGroundedAnswer } from "../evals/lib/grounded-grader.mjs";
 
@@ -8,8 +9,47 @@ const valueAfter = (flag) => {
   return index >= 0 ? args[index + 1] : undefined;
 };
 const target = (valueAfter("--url") ?? process.env.QUEUEPROOF_URL ?? "https://queueproof.vercel.app").replace(/\/$/, "");
-const output = valueAfter("--out") ?? "evals/results/live-run.json";
+const requestedMode = valueAfter("--mode") ?? "auto";
+if (!["auto", "fast", "thinking"].includes(requestedMode)) {
+  process.stderr.write("--mode must be one of: auto, fast, thinking.\n");
+  process.exit(2);
+}
+const defaultOutput = requestedMode === "auto"
+  ? "evals/results/live-run.json"
+  : `evals/results/live-${requestedMode}.json`;
+const output = valueAfter("--out") ?? defaultOutput;
 const cases = JSON.parse(await readFile(new URL("../evals/fixtures/live-cases.json", import.meta.url), "utf8"));
+
+async function fetchHealth() {
+  const started = Date.now();
+  try {
+    const response = await fetch(`${target}/api/health/live`, {
+      headers: { "Cache-Control": "no-store" },
+      signal: AbortSignal.timeout(10_000),
+    });
+    let body = null;
+    try {
+      body = await response.json();
+    } catch {
+      body = null;
+    }
+    return {
+      ok: response.ok && body?.status === "live",
+      httpStatus: response.status,
+      measuredLatencyMs: Date.now() - started,
+      body: body && typeof body === "object" ? body : {},
+      error: response.ok ? null : `HTTP ${response.status}`,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      httpStatus: 0,
+      measuredLatencyMs: Date.now() - started,
+      body: {},
+      error: error instanceof Error ? error.message : "Health request failed.",
+    };
+  }
+}
 
 async function ask(question) {
   const started = Date.now();
@@ -17,7 +57,7 @@ async function ask(question) {
     const response = await fetch(`${target}/api/ask`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
-      body: JSON.stringify({ question, mode: "auto" }),
+      body: JSON.stringify({ question, mode: requestedMode }),
       signal: AbortSignal.timeout(40_000),
     });
     let body = null;
@@ -44,6 +84,12 @@ async function ask(question) {
   }
 }
 
+const health = await fetchHealth();
+const release = {
+  commitSha: typeof health.body?.release?.commitSha === "string" ? health.body.release.commitSha : null,
+  commitRef: typeof health.body?.release?.commitRef === "string" ? health.body.release.commitRef : null,
+  deploymentUrl: typeof health.body?.release?.deploymentUrl === "string" ? health.body.release.deploymentUrl : null,
+};
 const rows = [];
 for (const benchmark of cases) {
   const result = await ask(benchmark.question);
@@ -60,13 +106,15 @@ for (const benchmark of cases) {
     requiresContradiction: benchmark.requiresContradiction,
   });
   const apiOk = result.httpOk && body.ok === true;
+  const actualMode = body.retrieval_receipt?.hydradb_mode ?? body.trace?.mode ?? "unknown";
+  const modeHonored = requestedMode === "auto" || !apiOk || actualMode === requestedMode;
   const row = {
     id: benchmark.id,
     label: benchmark.label,
     question: benchmark.question,
     expected: benchmark.expected,
     actual: String(body.answer ?? "").slice(0, 1_500),
-    pass: apiOk && grade.pass,
+    pass: apiOk && grade.pass && modeHonored,
     apiOk,
     httpStatus: result.status,
     error: result.error,
@@ -98,7 +146,9 @@ for (const benchmark of cases) {
     supportedClaimCount: grade.supportedClaimCount,
     claimCitationPairCount: grade.claimCitationPairCount,
     supportedClaimCitationPairCount: grade.supportedClaimCitationPairCount,
-    mode: body.retrieval_receipt?.hydradb_mode ?? body.trace?.mode ?? "unknown",
+    requestedMode,
+    mode: actualMode,
+    modeHonored,
     latencyMs: body.retrieval_receipt?.total_latency_ms ?? body.trace?.latencyMs ?? result.measuredLatencyMs,
     measuredLatencyMs: result.measuredLatencyMs,
     callCount: body.retrieval_receipt?.hydradb_call_count ?? body.trace?.callCount ?? body.trace?.calls?.length ?? 0,
@@ -108,8 +158,8 @@ for (const benchmark of cases) {
   };
   rows.push(row);
   process.stdout.write(
-    `${row.pass ? "PASS" : "REVIEW"} ${benchmark.label} · ${row.matchedFactCount}/${row.requiredFactCount} facts · ` +
-    `${row.providers.join(", ") || "no supported providers"} · ${row.latencyMs}ms\n`,
+    `${row.pass ? "PASS" : "REVIEW"} ${benchmark.label} | ${row.matchedFactCount}/${row.requiredFactCount} facts | ` +
+    `${row.providers.join(", ") || "no supported providers"} | ${row.latencyMs}ms | ${row.mode}\n`,
   );
 }
 
@@ -133,11 +183,17 @@ const ratio = (numerator, denominator) => denominator > 0 ? numerator / denomina
 const requiredContradictionRows = rows.filter((row) => row.requiresContradiction);
 
 const artifact = {
+  status: "measured",
   generatedAt: new Date().toISOString(),
   grader: GROUNDED_GRADER_VERSION,
   runner: "scripts/run-live-benchmark.mjs",
   fixture: "evals/fixtures/live-cases.json",
   target,
+  requestedMode,
+  command: `node scripts/run-live-benchmark.mjs --url ${target} --mode ${requestedMode} --out ${output}`,
+  health,
+  release,
+  releaseVerified: Boolean(release.commitSha && release.commitRef),
   connectors,
   cases: rows.length,
   passed: rows.filter((row) => row.pass).length,
@@ -180,10 +236,13 @@ const artifact = {
   rows,
 };
 
-if (!args.includes("--no-write")) await writeFile(output, `${JSON.stringify(artifact, null, 2)}\n`, "utf8");
+if (!args.includes("--no-write")) {
+  await mkdir(dirname(resolve(output)), { recursive: true });
+  await writeFile(output, `${JSON.stringify(artifact, null, 2)}\n`, "utf8");
+}
 process.stdout.write(
-  `${artifact.passed}/${artifact.cases} cases passed · ` +
-  `${totalMatchedFacts}/${totalRequiredFacts} required facts · p50 ${artifact.latencyMs.p50}ms · ` +
-  `providers ${connectors.join(", ") || "none"}\n`,
+  `${artifact.passed}/${artifact.cases} cases passed | ` +
+  `${totalMatchedFacts}/${totalRequiredFacts} required facts | p50 ${artifact.latencyMs.p50}ms | ` +
+  `requested ${requestedMode} | providers ${connectors.join(", ") || "none"}\n`,
 );
 if (artifact.passed !== artifact.cases) process.exitCode = 1;

@@ -1,8 +1,8 @@
 # QueueProof submission form answers
 
-Prepared from measurements taken on 4 August 2026. The exact final application commit is
-published and the strict live run is complete. Do not submit until the repository is made
-judge-accessible and the bracketed video field is replaced.
+Prepared from measurements taken on 4 August 2026. Recheck every exact measurement against
+the final deployed commit. Do not submit until the repository opens in a signed-out browser
+and the bracketed video field is replaced.
 
 ## Product name
 
@@ -21,8 +21,8 @@ deterministic next-action packet, while keeping external writes behind human app
 
 <https://github.com/vaibhav4046/queueproof>
 
-The repository was verified as **private** on 4 August 2026. Make it public or invite the
-judges before submitting.
+Release gate: open this URL in a signed-out browser and confirm the source, README, license,
+and CI workflow are visible before submitting it.
 
 ## Video URL
 
@@ -77,11 +77,12 @@ explicit, and a unique execution row is claimed before provider I/O.
 ## What is verified?
 
 - Typecheck, lint, production build, E2E, and deployment check pass.
-- 330 tests across 35 files pass.
+- Current local candidate: 340 tests across 37 files pass; replace this with the final CI
+  result if the candidate changes.
 - Security suite: 13 tests. MCP suite: 8 tests.
 - Offline router benchmark: 39/39 labelled cases and 331 assertions.
-- Responsive QA: 360x800, 390x844, 768x1024, 1440x900, 1920x1080,
-  2560x1440, and 3840x2160.
+- The earlier responsive capture set is archived because it predates the final redesign;
+  cite only the fresh final-deployment QA receipt.
 - Tracked-release secret scan: zero literal credential matches for the final candidate.
 - Four last-observed production connectors at `data_verified`; flagship cited evidence
   from GitHub, Linear, and Slack.
@@ -123,7 +124,7 @@ REVIEW. This remains a separately scoped strict production benchmark.
 - The fresh strict PDF baseline is 20/22, not 22/22.
 - Relative query units are shown; no HydraDB dollar cost is invented.
 - A provider write is not described as executed without a stored provider response ID.
-- Repository access and the final video URL remain gates.
+- Signed-out repository access and the final video URL remain gates until directly verified.
 
 ## Hackathon form quick answers
 
@@ -139,8 +140,8 @@ contained supporting citations from GitHub, Linear, and Slack.
 
 **Video demo:** `[ADD FINAL VIDEO URL]`
 
-**GitHub submission:** <https://github.com/vaibhav4046/queueproof> — currently private;
-make judge-accessible before submission.
+**GitHub submission:** <https://github.com/vaibhav4046/queueproof> — verify signed-out access
+immediately before submission.
 
 **LinkedIn:** use [docs/SOCIAL_POSTS.md](../docs/SOCIAL_POSTS.md), then add the post URL.
 

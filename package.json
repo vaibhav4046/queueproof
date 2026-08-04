@@ -1,7 +1,15 @@
 {
   "name": "queueproof",
   "version": "0.1.0",
+  "description": "Evidence-backed cross-source retrieval and priority workspace powered by HydraDB.",
   "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "license": "MIT",
+  "homepage": "https://queueproof.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vaibhav4046/queueproof.git"
+  },
   "bin": {
     "queueproof": "./cli/queueproof.mjs"
   },
@@ -14,16 +22,16 @@
     "start": "node ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --env-file .env.local",
     "lint": "node ./node_modules/eslint/bin/eslint.js . --ignore-pattern dist --ignore-pattern .next",
     "typecheck": "node ./node_modules/typescript/bin/tsc --noEmit",
-    "test": "node ./node_modules/vitest/vitest.mjs run --config vitest.config.ts",
+    "test": "node ./node_modules/vitest/vitest.mjs run --config vitest.config.ts --pool=threads --maxWorkers=1 --fileParallelism=false",
     "test:e2e": "node scripts/run-e2e.mjs",
     "test:mcp": "node ./node_modules/vitest/vitest.mjs run --config vitest.config.ts tests/mcp.test.ts",
     "test:security": "node ./node_modules/vitest/vitest.mjs run --config vitest.config.ts tests/security.test.ts",
     "test:live": "node scripts/live-acceptance.mjs",
     "benchmark:live": "node scripts/run-live-benchmark.mjs",
-    "benchmark": "node scripts/run-evals.mjs",
-    "benchmark:router": "node scripts/run-evals.mjs --fixture",
+    "benchmark": "node --experimental-strip-types scripts/run-evals.mjs",
+    "benchmark:router": "node --experimental-strip-types scripts/run-evals.mjs --fixture",
     "benchmark:pdf": "node scripts/run-pdf-benchmark.mjs",
-    "eval": "node scripts/run-evals.mjs",
+    "eval": "node --experimental-strip-types scripts/run-evals.mjs",
     "doctor": "node scripts/doctor.mjs",
     "seed:test": "node scripts/seed-test.mjs",
     "generate:large-pdf": "node scripts/generate-large-pdf.mjs",

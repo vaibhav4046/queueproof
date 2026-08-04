@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
+import "./product.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,7 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const title = "QueueProof — One Answer. Every System. Proven.";
   const description =
     "QueueProof reconstructs commitments and dependencies across workplace systems and produces defensible next actions with source-level evidence.";
-  const image = new URL("/og-v2.png", metadataBase).toString();
+  const image = new URL("/og-v3.png", metadataBase).toString();
   return {
     metadataBase,
     title: { default: title, template: "%s · QueueProof" },
@@ -33,7 +34,7 @@ export async function generateMetadata(): Promise<Metadata> {
       type: "website",
       title,
       description,
-      images: [{ url: image, width: 1731, height: 909, alt: "QueueProof evidence streams converging into a verified proof seal and next action" }],
+      images: [{ url: image, width: 1672, height: 941, alt: "Evidence receipts connected to grounded claims, a preserved conflict, and a verified next action" }],
     },
     twitter: {
       card: "summary_large_image",

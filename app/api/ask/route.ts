@@ -4,7 +4,7 @@ import { extractQuerySources, matchingChunks, providerFromSource, sourceBelongsT
 import { requireRequestActor } from "../../../lib/server/identity";
 import { requireDb } from "../../../lib/server/runtime";
 import { audit, createId, enforcePublicRateLimit, requireWorkspaceForUser } from "../../../lib/server/store";
-import { evidenceFollowUpTerms, planRetrieval, retrievalIntentTerms, retrievalQueryVariants } from "../../../packages/retrieval/src";
+import { focusedEvidenceFollowUpQuery, planRetrieval, retrievalIntentTerms, retrievalQueryVariants } from "../../../packages/retrieval/src";
 import { isPotentialPromptInjection, redactSecrets } from "../../../packages/security/src";
 import { synthesiseGroundedAnswer } from "../../../lib/server/synthesis";
 import { listQueueForWorkspace } from "../../../lib/server/queue";
@@ -278,12 +278,12 @@ export async function POST(request: Request) {
 
     await runQueryBatch(retrievalQuery, retrievalQueryVariants(plan), "primary");
     if (mode === "thinking") {
-      const followUpTerms = evidenceFollowUpTerms(
+      const followUpQuery = focusedEvidenceFollowUpQuery(
         question,
         evidence.map((item) => `${item.title}. ${item.excerpt}`),
       );
-      if (followUpTerms.length) {
-        await runQueryBatch(`${retrievalQuery} ${followUpTerms.join(" ")}`, ["hybrid"], "follow_up");
+      if (followUpQuery) {
+        await runQueryBatch(followUpQuery, ["hybrid"], "follow_up");
       }
     }
     const deduped = evidence.filter((item, index, all) =>
@@ -464,6 +464,7 @@ export async function POST(request: Request) {
       replayAvailable: true,
     });
     const responsePayload = {
+      question: redactSecrets(question),
       ...groundedContract,
       workflow,
       evidence: synthesis.evidence,

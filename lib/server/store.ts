@@ -1,4 +1,5 @@
 import { requireDb, runtimeEnv } from "./runtime";
+import { publicRateLimitBucketId } from "./public-client";
 
 let initialised = false;
 
@@ -309,18 +310,33 @@ export async function enforcePublicRateLimit(input: {
   operation: string;
   limit: number;
   windowMs: number;
+  /** Optional deployment-wide ceiling. Defaults to ten client buckets. */
+  globalLimit?: number;
 }) {
   if (input.actorId !== "user:public-access") return;
   await ensureCoreSchema();
   const db = requireDb();
   const auditOperation = `rate_limit.${input.operation}`;
+  // A signed random browser nonce is HMACed before it reaches this ledger. No IP,
+  // user-agent, email, or raw cookie identifier is stored. If cookies/signing are not
+  // available the resolver fails safely into the legacy shared public bucket.
+  const bucketActorId = await publicRateLimitBucketId();
+  const globalLimit = input.globalLimit ?? Math.max(input.limit * 10, input.limit + 10);
   const cutoff = new Date(Date.now() - input.windowMs).toISOString().slice(0, 19).replace("T", " ");
-  const count = async () => Number((await db
+  const bucketCount = async () => Number((await db
     .prepare(
       `SELECT COUNT(*) AS total FROM audit_events
        WHERE workspace_id = ? AND actor_id = ? AND operation = ? AND created_at >= ?`,
     )
-    .bind(input.workspaceId, input.actorId, auditOperation, cutoff)
+    .bind(input.workspaceId, bucketActorId, auditOperation, cutoff)
+    .first<{ total: number }>())?.total ?? 0);
+  const overallCount = async () => Number((await db
+    .prepare(
+      `SELECT COUNT(*) AS total FROM audit_events
+       WHERE workspace_id = ? AND operation = ? AND target_type = 'public_rate_limit'
+       AND created_at >= ?`,
+    )
+    .bind(input.workspaceId, auditOperation, cutoff)
     .first<{ total: number }>())?.total ?? 0);
   const retryAfter = Math.max(1, Math.ceil(input.windowMs / 1_000));
   const reject = () => {
@@ -329,16 +345,16 @@ export async function enforcePublicRateLimit(input: {
       { status: 429, headers: { "Retry-After": String(retryAfter) } },
     );
   };
-  if (await count() >= input.limit) reject();
+  if (await bucketCount() >= input.limit || await overallCount() >= globalLimit) reject();
   await audit({
     workspaceId: input.workspaceId,
-    actorId: input.actorId,
+    actorId: bucketActorId,
     operation: auditOperation,
     targetType: "public_rate_limit",
     outcome: "success",
-    metadata: { limit: input.limit, windowMs: input.windowMs },
+    metadata: { clientLimit: input.limit, globalLimit, windowMs: input.windowMs },
   });
-  if (await count() > input.limit) reject();
+  if (await bucketCount() > input.limit || await overallCount() > globalLimit) reject();
 }
 
 export async function workspaceForUser(userId: string) {

@@ -1,4 +1,10 @@
-# HydraDB contract diff — QueueProof vs. installed SDK
+# HydraDB contract diff — historical SDK snapshot
+
+> **Research snapshot from 31 July 2026.** This comparison applies only to the source tree and
+> installed `@hydradb/sdk` version inspected on that date. Later ingestion and connector work
+> superseded some implementation findings. Do not treat it as current API documentation; use
+> the pinned dependency, current code, tests, and HydraDB's official documentation. The
+> original contract analysis is retained below for traceability.
 
 **Access date: 2026-07-31, source: installed `@hydradb/sdk` 2.1.2 type declarations**
 (`node_modules/@hydradb/sdk/dist/**/*.d.ts`, `dist/**/*.js` for URL paths, and `README.md`).

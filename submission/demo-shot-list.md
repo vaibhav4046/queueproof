@@ -1,17 +1,16 @@
 # QueueProof demo shot list
 
-Use with the canonical [60-second script](../docs/DEMO_SCRIPT_60S.md).
+Use with the canonical [60-second script](../docs/DEMO_SCRIPT_60S.md). Capture the final
+deployed commit only.
 
-1. Desktop first viewport: product promise, public-sandbox disclosure, proof console, and
-   verified connector rail in one frame.
-2. Flagship question: thinking-mode trace and returned provider coverage.
-3. Interactive citation: supporting excerpt, provider, source ID, and timestamp.
-4. Preserved disagreement or missing-information state; do not hide it.
-5. Queue packet: score components, penalties, evidence, permissions, and receipt hash.
-6. Approval payload: show proposal boundary; do not attempt public external execution.
-7. Benchmarks: 39/39, 331 assertions, and the strict 20/22 PDF baseline with REVIEW rows.
-8. Mobile 390x844: show that Proof, Queue, Evidence, Benchmarks, Approvals, and Developer
-   are all reachable.
+1. **Ask, 0–8s:** first viewport with the working composer and verified-source readiness.
+2. **Live run, 8–24s:** flagship question and the real routing/progress state.
+3. **Answer, 24–31s:** answer with provider coverage, mode, calls, and elapsed time.
+4. **Receipt, 31–39s:** one citation dialog showing provider, timestamp, source ID, and excerpt.
+5. **Priorities, 39–50s:** top queue packet, score factors, safe action, and approval boundary.
+6. **Benchmarks, 50–60s:** denominator, PASS/REVIEW rows, latency/calls/mode, and reproduction
+   command.
 
-Keep private account identifiers and credentials out of the recording. Do not show the
-fresh 20/22 PDF baseline as 22/22 or as a post-release measurement.
+Before recording, verify there is no horizontal overflow or console error at the capture size,
+the repository is publicly accessible in a signed-out browser, and `/api/health/live` identifies
+the submitted release. Never show credentials, account identifiers, or private source content.

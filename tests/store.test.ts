@@ -184,4 +184,24 @@ describe("audit trail", () => {
       audit({ actorId: "user:anon", operation: "session.denied", outcome: "denied" }),
     ).resolves.toBeUndefined();
   });
+
+  it("retains a deployment-wide ceiling across anonymous client buckets", async () => {
+    const workspaceId = createId("ws_global_rate");
+    await audit({
+      workspaceId,
+      actorId: "public-client:already-counted",
+      operation: "rate_limit.global-test",
+      targetType: "public_rate_limit",
+      outcome: "success",
+    });
+
+    await expect(enforcePublicRateLimit({
+      actorId: "user:public-access",
+      workspaceId,
+      operation: "global-test",
+      limit: 100,
+      globalLimit: 1,
+      windowMs: 60_000,
+    })).rejects.toMatchObject({ status: 429 });
+  });
 });

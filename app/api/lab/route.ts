@@ -1,7 +1,10 @@
 import { apiError, noStoreJson } from "../../../lib/server/api";
 import { requireRequestActor } from "../../../lib/server/identity";
 import results from "../../../evals/results/results.json";
+import fastRun from "../../../evals/results/live-fast.json";
 import liveRun from "../../../evals/results/live-run.json";
+import thinkingRun from "../../../evals/results/live-thinking.json";
+import { compareLiveModes } from "../../../evals/lib/live-mode-comparison.mjs";
 
 /**
  * Serve the evaluation results produced by `node scripts/run-evals.mjs`.
@@ -31,6 +34,7 @@ export async function GET() {
               cases: 0,
               rows: [],
             },
+        modeComparison: compareLiveModes(fastRun, thinkingRun),
       },
     });
   } catch (error) {

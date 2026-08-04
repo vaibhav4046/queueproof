@@ -1,4 +1,10 @@
-# WINNER_STATUS
+# WINNER_STATUS — historical recovery snapshot
+
+> **Archived 4 August 2026.** This file records an early recovery checkpoint and is not a
+> statement of the current product, test totals, deployment, or connector state. Several
+> blockers and missing capabilities described below were resolved in later work. Use
+> [`README.md`](README.md), the CI workflow, and timestamped artifacts under `audit/` for
+> current release evidence. The original text is retained for audit history.
 
 CURRENT GATE: Gates 1, 3 (document artefact), 5, 6, 7 and 9 have landed as far as they can
 without credentials. Gates 2, 4, 8 and 10 are blocked on external authorisation and cannot

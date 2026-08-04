@@ -1,4 +1,9 @@
-# Build status — 2026-07-31 (recovery session)
+# Build status — 2026-07-31 recovery session (historical)
+
+> **Archived 4 August 2026.** This is a before-state from the recovery process, not a current
+> build or deployment report. Its test counts, blockers, URLs, and implementation claims must
+> not be quoted as current. Use [`README.md`](README.md), `.github/workflows/ci.yml`, and the
+> newest timestamped files in `audit/` instead. The original evidence remains below.
 
 ## Current gate
 

@@ -92,6 +92,46 @@ export function evidenceFollowUpTerms(question: string, passages: string[]): str
     .map(([phrase]) => phrase);
 }
 
+/**
+ * Build the actual second-hop query from identifiers and entities proven by the
+ * first retrieval. Repeating the whole natural-language question makes a
+ * follow-up behave like a second primary search: generic words can outweigh the
+ * newly discovered join key. This compact query instead leads with exact record
+ * IDs, then adds evidence-derived entities and only the bounded state language
+ * needed by stale/missing-work intents.
+ *
+ * Nothing here invents a fixture alias or answer. Every entity comes from the
+ * user's question or a retained first-hop passage.
+ */
+export function focusedEvidenceFollowUpQuery(question: string, passages: string[]): string | null {
+  const exactIds = [
+    ...(question.match(/\b[A-Z][A-Z0-9]+-\d+\b/g) ?? []),
+    ...passages.slice(0, 16).flatMap((passage) => passage.match(/\b[A-Z][A-Z0-9]+-\d+\b/g) ?? []),
+  ];
+  const terms = [
+    ...exactIds,
+    ...evidenceFollowUpTerms(question, passages),
+    ...retrievalIntentTerms(question),
+  ];
+  const seen = new Set<string>();
+  const selected: string[] = [];
+  let length = 0;
+
+  for (const raw of terms) {
+    const term = raw.replace(/\s+/g, " ").trim();
+    const key = term.toLowerCase();
+    if (!term || seen.has(key)) continue;
+    const nextLength = length + (selected.length ? 1 : 0) + term.length;
+    if (nextLength > 180) continue;
+    seen.add(key);
+    selected.push(term);
+    length = nextLength;
+    if (selected.length >= 12) break;
+  }
+
+  return selected.length ? selected.join(" ") : null;
+}
+
 const exactId = /\b(?:[A-Z][A-Z0-9]+-\d+|[0-9a-f]{8}-[0-9a-f-]{27,})\b/i;
 
 export function planRetrieval(query: string): RetrievalPlan {

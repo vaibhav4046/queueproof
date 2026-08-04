@@ -10,7 +10,9 @@ QueueProof treats the browser, MCP client, provider content, connector descripto
 - Provider credentials flow browser → QueueProof server → HydraDB and are not persisted by QueueProof.
 - Remote MCP is fail-closed, bearer-authenticated, workspace-bound by server configuration, constant-time compared, origin checked, and no-store.
 - OAuth protected-resource metadata returns unavailable unless a real issuer is configured.
-- All write-capable MCP concepts are proposals. The current implementation performs no provider write.
+- Owner access uses a signed, `httpOnly`, same-site session. A gateway identity header is accepted only when the deployment explicitly opts into the trusted OpenAI Sites proxy; local identity is forbidden in production.
+- The public workspace denies credential, connector, upload, MCP-token, and external-write control operations. Anonymous rate-limit buckets use signed random client cookies plus a deployment-wide ceiling; raw IP addresses and browser fingerprints are not stored.
+- Write-capable MCP concepts are proposals. The only implemented external execution path is a human-approved Linear issue creation; it claims a database uniqueness record before calling the provider and reports success only when Linear returns an issue ID.
 - Zod schemas bound query size, action evidence, risk class, idempotency keys, and execution packets.
 - Retrieved content is marked as untrusted evidence; prompt-injection patterns are flagged.
 - Private-network and non-HTTPS outbound destinations are rejected by shared security utilities.
@@ -28,8 +30,9 @@ QueueProof treats the browser, MCP client, provider content, connector descripto
 ## Known limitations
 
 - Bearer MCP authentication is implemented; full OAuth authorisation-server integration depends on a configured issuer.
-- Rate limiting is designed into the deployment checklist but is not yet backed by a distributed limiter.
-- Automated dependency, secret, and static-analysis scans must run in CI before a public release.
+- The rate limiter uses the product's durable audit ledger rather than a dedicated edge-rate-limit service. Operators should add upstream abuse controls for high-volume deployments.
+- CI rejects high/critical dependency advisories and runs type, lint, test, benchmark, build, and binding gates. The full-history secret scan remains a separate release gate and must be repeated before a visibility change.
+- External execution is implemented only for Linear; other provider actions remain proposals.
 - Live connector and write-action penetration tests require real scoped test accounts.
 
 Report suspected vulnerabilities privately to the repository owner. Do not include credentials, customer content, or exploit data in a public issue.

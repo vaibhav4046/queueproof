@@ -132,11 +132,12 @@ execution forward migration.
 
 ## 9. Product surface
 
-The app exposes Proof, Queue, Evidence, Benchmarks, Replay, Approvals, and Developer destinations.
-All seven remain reachable on mobile. The header remains sticky, transient notifications
-remain fixed, result state is announced accessibly, citations open receipt dialogs, and
-modal/drawer focus is contained and restored.
+The app exposes real routes for Ask, Priorities, Evidence, Benchmarks, Replay, Approvals,
+and Developer. The compact mobile navigation keeps the four primary destinations visible
+and puts the remaining routes behind a labelled More control. The header remains sticky,
+result status is announced accessibly, citations open receipt dialogs, and modal/drawer focus
+is contained and restored.
 
-Responsive QA covers 320x568, 375x667, 390x844, 430x932, 768x1024, 1024x768,
-1280x800, 1440x900, 1920x1080, mobile landscape, 200% zoom, reduced motion, and the
-WebGL-disabled fallback.
+Release QA must cover 320x568, 375x667, 390x844, 430x932, 768x1024, 1024x768,
+1280x800, 1440x900, 1920x1080, mobile landscape, 200% zoom, keyboard navigation, and
+reduced motion. Historical Evidence Orbit/WebGL captures are not proof of the final design.

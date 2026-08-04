@@ -1,4 +1,8 @@
-# QueueProof — Evidence Orbit scene architecture
+# QueueProof — Evidence Orbit scene architecture (historical)
+
+> **Superseded design record.** The final product removed the decorative Evidence Orbit from
+> the primary workflow in favor of a calmer evidence workspace. This document is preserved to
+> explain the earlier implementation and must not be used as a current UI or recording guide.
 
 ## Implementation choice
 The scene is a **state-driven SVG + CSS 3D DOM composition** (`app/components/EvidenceOrbit.tsx`),
