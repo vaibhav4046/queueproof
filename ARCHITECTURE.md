@@ -99,6 +99,45 @@ on storage availability instead, so a configured deployment still works while re
 misreports it. Readiness should be split per runtime, or drop the upload check until an
 upload path exists.
 
+## Evidence graph
+
+`packages/graph` (`deriveGraphFromPacket`, `deriveGraphFromAskResult`) derives a small
+node/edge graph from an already-produced `ExecutionPacket` or `/api/ask` response,
+exposed read-only at `GET /api/graph`. It is computed at request time from
+`task_evidence` / `execution_packets` / synthesis contradiction output and returned;
+nothing about it is written to storage. Regenerating the queue or re-asking a question
+produces a different graph on the next `GET`, the same way the packet and the ask
+response it reads from can change.
+
+Five node types, four edge types, every one traceable to a field that already exists at
+runtime:
+
+- `source` — one per `evidence`/`citations` item (`sourceReferenceSchema` /
+  `groundedCitationSchema`, `packages/contracts/src/index.ts`).
+- `claim` — one per `/api/ask` `claims[]` entry. Packets carry no claims (only
+  `synthesiseGroundedAnswer`'s output does), so this node type is only ever produced
+  by `deriveGraphFromAskResult`.
+- `contradiction` — one per recognisable entry in `contradictions`. Both the packet and
+  the ask-result schema type this field `z.unknown()`; at runtime both are populated
+  from the same `{ summary, evidenceIds, providers }` shape
+  (`lib/server/synthesis.ts`'s `contradictions()`, `lib/server/queue.ts`'s
+  `clusterContradictions()`), which is read defensively rather than trusted.
+- `task` — one per packet, or one per `/api/ask` `priority_items[]` entry (there are
+  normally zero or one, since `app/api/ask/route.ts` caps `relatedPriority` at one).
+- `action` — one per non-empty `recommended_safe_action` /
+  `recommended_next_safe_action`, with a `RESOLVES` edge from its task.
+
+Edges: `SUPPORTS` (source → task or source → claim, mirroring the `task_evidence.relation`
+column, which is always `'supports'` in the schema default and in every insert
+`lib/server/queue.ts` performs — there is no evidence-to-task `REFUTES` relation in the
+real data, so none is derived), `REFUTES` (source → contradiction), `RESOLVES`
+(task → action). `DEPENDS_ON` is declared in the type union but never emitted: the
+`task_dependencies` and `entity_links` tables in `db/schema.ts` are dormant — like the
+other tables `## Persistence` lists as aspirational, nothing reads or writes them at
+runtime — so there is no real dependency edge for this to represent yet.
+`why_above_next` is not represented either; it compares this task's score against a
+different task's, which is not a dependency between them.
+
 ## State invariants
 
 "Connected" is never inferred from a saved credential. A connector reaches
