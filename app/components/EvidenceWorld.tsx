@@ -203,16 +203,63 @@ export default function EvidenceWorld({ stage }: EvidenceWorldProps) {
     };
   }, []);
 
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+
+  // Explicit, self-driven resize: measured verification found @react-three/fiber's
+  // built-in ResizeObserver-based auto-sizing never fires in at least one real
+  // browser environment (drawingBufferWidth/Height stuck at the canvas element's
+  // 300x150 HTML default, canvas.width/height attributes never updated, zero pixels
+  // ever drawn, confirmed via gl.readPixels — not a load-timing artifact, reproduced
+  // after a multi-second wait). Rather than depend on R3F's internal sizing timing
+  // in every browser, this observer drives sizing directly off the actual measured
+  // container box and calls gl.setSize/updates camera.aspect itself, so correctness
+  // does not depend on R3F's resize implementation firing at all.
+  useEffect(() => {
+    const container = containerRef.current;
+    const renderer = rendererRef.current;
+    if (!container || !renderer) return;
+    const applySize = (width: number, height: number) => {
+      if (width <= 0 || height <= 0) return;
+      renderer.setSize(width, height, false);
+      const camera = cameraRef.current;
+      if (camera) {
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+      }
+    };
+    const rect = container.getBoundingClientRect();
+    applySize(rect.width, rect.height);
+    const observer = new ResizeObserver(([entry]) => {
+      if (!entry) return;
+      const box = entry.contentRect;
+      applySize(box.width, box.height);
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [capable]);
+
   if (!capable) return null;
 
   function handleCreated(state: RootState) {
     rendererRef.current = state.gl;
     sceneRef.current = state.scene;
+    cameraRef.current = state.camera as THREE.PerspectiveCamera;
     state.gl.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const container = containerRef.current;
+    if (container) {
+      const rect = container.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        state.gl.setSize(rect.width, rect.height, false);
+        const camera = state.camera as THREE.PerspectiveCamera;
+        camera.aspect = rect.width / rect.height;
+        camera.updateProjectionMatrix();
+      }
+    }
   }
 
   return (
-    <div className="evidence-world" aria-hidden="true">
+    <div className="evidence-world" aria-hidden="true" ref={containerRef}>
       <Canvas
         dpr={[1, 2]}
         frameloop={hidden ? "never" : "always"}
