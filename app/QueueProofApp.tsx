@@ -207,7 +207,11 @@ const openDialogIds: number[] = [];
  * focus is trapped while open, and the invoking control receives focus again
  * after close.
  */
-function useDialogBehavior<T extends HTMLElement>(open: boolean, onClose: () => void) {
+function useDialogBehavior<T extends HTMLElement>(
+  open: boolean,
+  onClose: () => void,
+  returnFocusRef?: { readonly current: HTMLElement | null },
+) {
   const dialogRef = useRef<T>(null);
   const closeRef = useRef(onClose);
   const [dialogId] = useState(() => ++nextDialogId);
@@ -221,7 +225,9 @@ function useDialogBehavior<T extends HTMLElement>(open: boolean, onClose: () => 
     const dialog = dialogRef.current;
     if (!dialog) return;
 
-    const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const returnFocus = returnFocusRef?.current ?? (
+      document.activeElement instanceof HTMLElement ? document.activeElement : null
+    );
     const previousOverflow = document.body.style.overflow;
     const inerted = new Map<HTMLElement, boolean>();
     openDialogIds.push(dialogId);
@@ -246,7 +252,21 @@ function useDialogBehavior<T extends HTMLElement>(open: boolean, onClose: () => 
       .filter((element) => !element.hidden && element.getAttribute("aria-hidden") !== "true");
 
     const initial = dialog.querySelector<HTMLElement>("[data-dialog-initial]") ?? focusable()[0] ?? dialog;
-    const frame = window.requestAnimationFrame(() => initial.focus({ preventScroll: true }));
+    // Focus once immediately and once on the next frame. Async dialogs can mount while
+    // their invoking row is still re-rendering; the second pass keeps that update from
+    // dropping keyboard focus back onto <body>.
+    initial.focus({ preventScroll: true });
+    const recoverFocus = () => {
+      if (openDialogIds.at(-1) === dialogId && !dialog.contains(document.activeElement)) {
+        initial.focus({ preventScroll: true });
+      }
+    };
+    const frame = window.requestAnimationFrame(recoverFocus);
+    const recoveryTimers = [250, 750].map((delay) => window.setTimeout(recoverFocus, delay));
+    const onFocusIn = (event: FocusEvent) => {
+      if (openDialogIds.at(-1) !== dialogId) return;
+      if (event.target instanceof Node && !dialog.contains(event.target)) recoverFocus();
+    };
     const onKeyDown = (event: KeyboardEvent) => {
       if (openDialogIds.at(-1) !== dialogId) return;
       if (event.key === "Escape") {
@@ -267,17 +287,20 @@ function useDialogBehavior<T extends HTMLElement>(open: boolean, onClose: () => 
       }
     };
     document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("focusin", onFocusIn);
 
     return () => {
       window.cancelAnimationFrame(frame);
+      recoveryTimers.forEach((timer) => window.clearTimeout(timer));
       document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("focusin", onFocusIn);
       const stackIndex = openDialogIds.lastIndexOf(dialogId);
       if (stackIndex >= 0) openDialogIds.splice(stackIndex, 1);
       for (const [element, previous] of inerted) element.inert = previous;
       document.body.style.overflow = previousOverflow;
       if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
     };
-  }, [dialogId, open]);
+  }, [dialogId, open, returnFocusRef]);
 
   return dialogRef;
 }
@@ -1179,6 +1202,7 @@ function SourcesScreen({ workspace, connectors, reloadWorkspace, reloadConnector
   const [busy, setBusy] = useState("");
   const [setupOpen, setSetupOpen] = useState(false);
   const [proof, setProof] = useState<Record<string, unknown> | null>(null);
+  const proofReturnFocusRef = useRef<HTMLButtonElement | null>(null);
 
   async function connectHydra(event: FormEvent) {
     event.preventDefault(); setBusy("hydra"); setError("");
@@ -1187,7 +1211,8 @@ function SourcesScreen({ workspace, connectors, reloadWorkspace, reloadConnector
     finally { setBusy(""); }
   }
 
-  async function connectorAction(connector: Connector) {
+  async function connectorAction(connector: Connector, opener: HTMLButtonElement) {
+    proofReturnFocusRef.current = opener;
     setBusy(connector.id); setError(""); setProof(null);
     try {
       if (connector.state === "connector_created" || connector.state === "resources_discovered") {
@@ -1213,13 +1238,13 @@ function SourcesScreen({ workspace, connectors, reloadWorkspace, reloadConnector
     {readOnly && <div className="inline-warning"><LockKeyhole size={14} />Public sandbox: connector credentials and lifecycle mutations are owner-only. Verified proof receipts remain inspectable.</div>}
     {!workspace.hydradb.configured ? readOnly ? <div className="honest-empty"><LockKeyhole size={24} /><div><strong>Evidence configuration is owner-only.</strong><p>This public sandbox cannot accept credentials.</p></div></div> : <form className="hydra-setup" onSubmit={connectHydra}><div className="hydra-symbol"><Database size={29} /></div><div><span className="eyebrow">Step 1 · Evidence engine</span><h2>Attach your HydraDB account.</h2><p>Use a newly generated API key. QueueProof verifies it against the authenticated database endpoint, encrypts it with AES-GCM, and never returns it.</p><label>HydraDB API key<input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder="Paste new key" autoComplete="off" required minLength={12} /></label><button className="primary-button" disabled={busy === "hydra"}>{busy === "hydra" ? <LoaderCircle className="spin" size={15} /> : <KeyRound size={15} />} Verify and encrypt</button></div></form> : <>
       <div className="source-stats"><div><small>HYDRADB</small><strong><CircleCheck size={14} /> Authenticated</strong><span>{workspace.hydradb.fingerprint ?? "Encrypted"}</span></div><div><small>CONNECTED</small><strong>{connectors.length}</strong><span>workplace sources</span></div><div><small>VERIFIED</small><strong>{connectors.filter((item) => item.state === "data_verified").length}</strong><span>eligible for retrieval</span></div><div><small>POLICY</small><strong>Fail closed</strong><span>no proof · no ranking</span></div></div>
-      {connectors.length ? <div className="connector-list">{connectors.map((connector) => <article className="connector-row" data-provider={connector.provider} key={connector.id}><span className="provider-glyph large"><ProviderIcon provider={connector.provider} size={19} /></span><div className="connector-identity"><strong>{connector.name}</strong><span>{connector.provider} · {connector.database}{connector.collection ? ` / ${connector.collection}` : ""}</span></div><div className="connector-state"><span className={connector.state === "data_verified" ? "status-orb live" : connector.state.includes("sync") ? "status-orb indexing" : "status-orb"} /><strong>{stateCopy[connector.state] ?? connector.state}</strong><small>{connector.state === "data_verified" ? `${connector.canaryResultCount ?? 0} live records proven` : connector.lastError || "Awaiting next lifecycle step"}</small></div><button className="secondary-button" onClick={() => void connectorAction(connector)} disabled={busy === connector.id || (readOnly && connector.state !== "data_verified")}>{busy === connector.id ? <LoaderCircle className="spin" size={14} /> : connector.state === "data_verified" ? <Eye size={14} /> : readOnly ? <LockKeyhole size={14} /> : connector.state === "connector_created" || connector.state === "resources_discovered" ? <Search size={14} /> : <RefreshCw size={14} />}{connector.state === "data_verified" ? "View proof" : readOnly ? "Owner action" : connector.state === "connector_created" || connector.state === "resources_discovered" ? "Choose scope" : connector.state === "resources_selected" ? "Start sync" : "Check proof"}</button></article>)}</div> : <div className="empty-source"><Unplug size={28} /><div><h2>No workplace source yet.</h2><p>Add Slack, Gmail, Linear, or any provider exposed by your live HydraDB catalogue.</p></div>{!readOnly && <button className="primary-button" onClick={() => setSetupOpen(true)}><Plus size={15} /> Add first source</button>}</div>}
+      {connectors.length ? <div className="connector-list">{connectors.map((connector) => <article className="connector-row" data-provider={connector.provider} key={connector.id}><span className="provider-glyph large"><ProviderIcon provider={connector.provider} size={19} /></span><div className="connector-identity"><strong>{connector.name}</strong><span>{connector.provider} · {connector.database}{connector.collection ? ` / ${connector.collection}` : ""}</span></div><div className="connector-state"><span className={connector.state === "data_verified" ? "status-orb live" : connector.state.includes("sync") ? "status-orb indexing" : "status-orb"} /><strong>{stateCopy[connector.state] ?? connector.state}</strong><small>{connector.state === "data_verified" ? `${connector.canaryResultCount ?? 0} live records proven` : connector.lastError || "Awaiting next lifecycle step"}</small></div><button className="secondary-button" onClick={(event) => void connectorAction(connector, event.currentTarget)} disabled={busy === connector.id || (readOnly && connector.state !== "data_verified")}>{busy === connector.id ? <LoaderCircle className="spin" size={14} /> : connector.state === "data_verified" ? <Eye size={14} /> : readOnly ? <LockKeyhole size={14} /> : connector.state === "connector_created" || connector.state === "resources_discovered" ? <Search size={14} /> : <RefreshCw size={14} />}{connector.state === "data_verified" ? "View proof" : readOnly ? "Owner action" : connector.state === "connector_created" || connector.state === "resources_discovered" ? "Choose scope" : connector.state === "resources_selected" ? "Start sync" : "Check proof"}</button></article>)}</div> : <div className="empty-source"><Unplug size={28} /><div><h2>No workplace source yet.</h2><p>Add Slack, Gmail, Linear, or any provider exposed by your live HydraDB catalogue.</p></div>{!readOnly && <button className="primary-button" onClick={() => setSetupOpen(true)}><Plus size={15} /> Add first source</button>}</div>}
       <DocumentsPanel databases={[...new Set(connectors.map((item) => item.database).filter(Boolean))]}
         setError={setError} setNotice={setNotice} readOnly={readOnly} />
       <EvidenceGraphPanel setError={setError} />
     </>}
     {setupOpen && <SourceSetup onClose={() => setSetupOpen(false)} onDone={async () => { setSetupOpen(false); await reloadConnectors(); setNotice("Connector created. Choose the exact resources QueueProof may index."); }} setError={setError} />}
-    {proof && <ProofModal data={proof} onClose={() => setProof(null)} onConfigured={async () => { setProof(null); await reloadConnectors(); setNotice("Scope saved and initial backfill started. Check proof when indexing completes."); }} setError={setError} />}
+    {proof && <ProofModal data={proof} returnFocusRef={proofReturnFocusRef} onClose={() => setProof(null)} onConfigured={async () => { setProof(null); await reloadConnectors(); setNotice("Scope saved and initial backfill started. Check proof when indexing completes."); }} setError={setError} />}
   </section>;
 }
 
@@ -1387,20 +1412,20 @@ function SourceSetup({ onClose, onDone, setError }: { onClose: () => void; onDon
   return <div className="modal-layer" role="presentation"><form ref={dialogRef} className="modal-card source-modal" role="dialog" aria-modal="true" aria-labelledby="source-setup-title" tabIndex={-1} onSubmit={submit}><button type="button" className="modal-close" data-dialog-initial onClick={onClose}><X size={16} /></button><span className="eyebrow"><Plus size={13} /> New evidence source</span><h2 id="source-setup-title">Connect from the live catalogue.</h2><p>QueueProof renders this form from HydraDB’s current provider contract. It never guesses provider credentials.</p>{busy && !providers.length ? <div className="modal-loading" role="status"><LoaderCircle className="spin" /> Hydrating provider contracts…</div> : <div className="setup-form"><label>Provider<select value={providerId} onChange={(event) => { setProviderId(event.target.value); setCredentials({}); }} required>{providers.filter((item) => item.available).map((item) => <option key={item.id} value={item.id}>{item.name} · {item.supportClass}</option>)}</select></label><div className="two-cols"><label>HydraDB database<select value={database} onChange={(event) => setDatabase(event.target.value)} required><option value="" disabled>Select database</option>{databases.map((item) => <option key={item} value={item}>{item}</option>)}</select></label><label>Collection <small>optional isolation</small><input value={collection} onChange={(event) => setCollection(event.target.value)} placeholder="team-work" /></label></div>{!databases.length && <div className="database-create"><input value={newDatabase} onChange={(event) => setNewDatabase(event.target.value)} placeholder="Create database name" aria-label="Create database name" /><button type="button" className="secondary-button" onClick={() => void createDatabase()}>Create</button></div>}<label>Provider account scope <small>recommended for multi-account safety</small><input value={accountScope} onChange={(event) => setAccountScope(event.target.value)} placeholder="workspace / org / account identifier" /></label><div className="credential-grid">{selected?.credentialFields.map((field) => <label key={field.name}>{field.title || field.name}{field.required && <b> required</b>}{field.enum?.length ? <select value={credentials[field.name] ?? ""} onChange={(event) => setCredentials((current) => ({ ...current, [field.name]: event.target.value }))} required={field.required}><option value="">Select</option>{field.enum.map((value) => <option key={value} value={value}>{value}</option>)}</select> : <input type={field.format === "password" || /token|secret|password|key/i.test(field.name) ? "password" : "text"} value={credentials[field.name] ?? ""} onChange={(event) => setCredentials((current) => ({ ...current, [field.name]: event.target.value }))} required={field.required} autoComplete="off" />}{field.description && <small>{field.description}</small>}</label>)}</div>{selected && !selected.credentialFields.length && <div className="inline-warning"><CircleAlert size={14} />This provider contract exposes no credential fields. QueueProof will submit no credentials only if HydraDB marks that valid.</div>}<button className="primary-button" disabled={busy || !database || !selected}>{busy ? <LoaderCircle className="spin" size={15} /> : <ArrowRight size={15} />} Create connector</button></div>}</form></div>;
 }
 
-function ProofModal({ data, onClose, onConfigured, setError }: { data: Record<string, unknown>; onClose: () => void; onConfigured: () => Promise<void>; setError: (value: string) => void }) {
+function ProofModal({ data, returnFocusRef, onClose, onConfigured, setError }: { data: Record<string, unknown>; returnFocusRef?: { readonly current: HTMLElement | null }; onClose: () => void; onConfigured: () => Promise<void>; setError: (value: string) => void }) {
   const connector = data.connector as Connector | undefined;
   const resources = (data.resources ?? []) as Resource[];
   const verification = data.verification as Record<string, unknown> | undefined;
   const [selected, setSelected] = useState<string[]>(resources.filter((item) => item.selected).map((item) => item.id));
   const [busy, setBusy] = useState(false);
-  const dialogRef = useDialogBehavior<HTMLDivElement>(true, onClose);
+  const dialogRef = useDialogBehavior<HTMLDivElement>(true, onClose, returnFocusRef);
   async function configure() {
     if (!connector || !selected.length) return; setBusy(true);
     try { await api(`/api/connectors/${connector.id}/configure`, { method: "POST", body: JSON.stringify({ resourceIds: selected, lookbackDays: 30 }) }); await onConfigured(); }
     catch (reason) { setError(reason instanceof Error ? reason.message : "Scope configuration failed."); }
     finally { setBusy(false); }
   }
-  return <div className="modal-layer" role="presentation"><div ref={dialogRef} className="modal-card proof-modal" role="dialog" aria-modal="true" aria-labelledby="connection-proof-title" tabIndex={-1}><button type="button" className="modal-close" data-dialog-initial onClick={onClose}><X size={16} /></button><span className="eyebrow"><ShieldCheck size={13} /> Connection proof</span><h2 id="connection-proof-title">{connector?.name ?? "Verified source"}</h2>{verification ? <><div className="proof-seal"><CircleCheck size={28} /><div><strong>{String(verification.stage ?? "Proof available")}</strong><span>{String(verification.canaryResultCount ?? 0)} real provider records · {dateLabel(String(verification.verifiedAt ?? ""))}</span></div></div><div className="proof-grid"><div><small>CURSOR EVIDENCE</small><code>{String(verification.cursorEvidenceHash ?? "Not available").slice(0, 24)}</code></div><div><small>PROVIDER COVERAGE</small><strong>{Array.isArray(verification.providerCoverage) ? verification.providerCoverage.join(", ") : "Not available"}</strong></div><div><small>LAST SYNC</small><strong>{dateLabel(String(verification.lastSuccessfulSync ?? ""))}</strong></div><div><small>FAILURE</small><strong>{String(verification.failureReason ?? "None")}</strong></div></div><details className="trace-drawer"><summary><Terminal size={14} /> Raw proof record</summary><pre>{JSON.stringify(verification, null, 2)}</pre></details></> : <><p>Select the smallest resource scope QueueProof may index. Configure starts HydraDB’s initial backfill automatically.</p><div className="resource-picker">{resources.map((resource) => <label key={resource.id}><input type="checkbox" checked={selected.includes(resource.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, resource.id] : current.filter((id) => id !== resource.id))} /><span><strong>{resource.name}</strong><small>{resource.resourceType} · {resource.id}</small></span><Check size={14} /></label>)}</div><button type="button" className="primary-button" disabled={!selected.length || busy} onClick={() => void configure()}>{busy ? <LoaderCircle className="spin" size={15} /> : <Zap size={15} />} Save scope and start sync</button></>}</div></div>;
+  return <div className="modal-layer" role="presentation"><div ref={dialogRef} className="modal-card proof-modal" role="dialog" aria-modal="true" aria-labelledby="connection-proof-title" tabIndex={-1}><button type="button" className="modal-close" data-dialog-initial aria-label="Close connection proof" onClick={onClose}><X size={16} /></button><span className="eyebrow"><ShieldCheck size={13} /> Connection proof</span><h2 id="connection-proof-title">{connector?.name ?? "Verified source"}</h2>{verification ? <><div className="proof-seal"><CircleCheck size={28} /><div><strong>{String(verification.stage ?? "Proof available")}</strong><span>{String(verification.canaryResultCount ?? 0)} real provider records · {dateLabel(String(verification.verifiedAt ?? ""))}</span></div></div><div className="proof-grid"><div><small>CURSOR EVIDENCE</small><code>{String(verification.cursorEvidenceHash ?? "Not available").slice(0, 24)}</code></div><div><small>PROVIDER COVERAGE</small><strong>{Array.isArray(verification.providerCoverage) ? verification.providerCoverage.join(", ") : "Not available"}</strong></div><div><small>LAST SYNC</small><strong>{dateLabel(String(verification.lastSuccessfulSync ?? ""))}</strong></div><div><small>FAILURE</small><strong>{String(verification.failureReason ?? "None")}</strong></div></div><details className="trace-drawer"><summary><Terminal size={14} /> Raw proof record</summary><pre>{JSON.stringify(verification, null, 2)}</pre></details></> : <><p>Select the smallest resource scope QueueProof may index. Configure starts HydraDB’s initial backfill automatically.</p><div className="resource-picker">{resources.map((resource) => <label key={resource.id}><input type="checkbox" checked={selected.includes(resource.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, resource.id] : current.filter((id) => id !== resource.id))} /><span><strong>{resource.name}</strong><small>{resource.resourceType} · {resource.id}</small></span><Check size={14} /></label>)}</div><button type="button" className="primary-button" disabled={!selected.length || busy} onClick={() => void configure()}>{busy ? <LoaderCircle className="spin" size={15} /> : <Zap size={15} />} Save scope and start sync</button></>}</div></div>;
 }
 
 function parseJson<T>(value: string, fallback: T): T {

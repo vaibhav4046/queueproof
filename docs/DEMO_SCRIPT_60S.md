@@ -1,67 +1,65 @@
 # QueueProof 60-second demo
 
-Record the canonical product at <https://queueproof.vercel.app/>. Do not use fixtures or hide
-failed states. Before recording, confirm the visible connector count and run the flagship
-question once so provider latency cannot consume the entire take.
+Record <https://queueproof.vercel.app/> only after `/api/health/live` matches the current
+GitHub `main`. The displayed benchmark artifacts identify their measured release separately.
+Keep real failures visible and do not use fixtures. Pre-run the flagship query once so
+provider latency does not consume the take.
 
-## 0–8 seconds — start in the working product
+## 0–7 seconds — Ask
 
-**Screen:** Open Ask. Keep the source-readiness line and composer visible.
-
-**Say:**
-
-> This is QueueProof, a live workspace for deciding what needs attention from evidence across
-> connected systems. Four sources are verified here; unverified sources cannot influence an
-> answer.
-
-## 8–24 seconds — run a real multi-hop question
-
-**Screen:** Run the flagship AuthShield question. Point to the selected route while it resolves.
+**Screen:** Show the composer and four verified sources, select Fast, then run the AuthShield
+question.
 
 **Say:**
 
-> I’ll ask who escalated this outage, what engineering committed to, and whether the fix is
-> already merged. QueueProof routes the question through HydraDB and records the mode, calls,
-> provider coverage, and elapsed time.
+> This is QueueProof on four verified HydraDB sources. I’ll run a real multi-hop outage
+> question in Fast—no fixture.
 
-## 24–39 seconds — inspect proof, not prose
+## 7–22 seconds — Answer
 
-**Screen:** Show the returned answer, then open one numbered citation receipt.
-
-**Say:**
-
-> The answer is stored with the exact question. Each claim opens to its provider, timestamp,
-> source identifier, and excerpt. The Linear and GitHub disagreement remains visible instead
-> of being rewritten into false certainty.
-
-## 39–50 seconds — show the next action
-
-**Screen:** Close the receipt, open Priorities, and expand the top queue packet.
+**Screen:** Show the grounded answer, disagreement, route, provider coverage, calls, and latency.
 
 **Say:**
 
-> The same evidence compiles a deterministic priority packet with score factors, constraints,
-> and a safe next action. Any provider write starts as a proposal and still requires approval.
+> It returns one answer, but keeps the Linear and GitHub disagreement visible. Mode, provider
+> coverage, calls, and latency are recorded with the exact question.
 
-## 50–60 seconds — show the engineering receipt
+## 22–34 seconds — Receipt
 
-**Screen:** Open Benchmarks. Point to the total denominator, `PASS`/`REVIEW` rows, latency,
-calls, mode, and reproducibility command.
+**Screen:** Open one numbered citation and follow its original-source link.
 
 **Say:**
 
-> Benchmarks publish expected versus observed answers, latency, calls, and failures. REVIEW is
-> never relabelled as a pass. The public repository contains the locked build, tests, and exact
-> reproduction commands.
+> Every numbered claim opens to a receipt with provider, timestamp, source ID, excerpt, and
+> original link.
 
-## Recording rules
+## 34–44 seconds — Priority
 
-- Say the provider count, latency, call count, and benchmark denominator exactly as displayed
-  in the final take; do not memorize an older run.
-- Do not call the deterministic router fixture live accuracy or describe a replay as a new run.
-- Do not imply Gmail supported the flagship answer unless a Gmail citation is actually present.
-- Do not imply public visitors can configure connectors, upload documents, mint tokens, or
-  execute an external write.
-- Keep any degraded connector or `REVIEW` benchmark row visible. That honesty is part of the
-  product.
-- Stop and rerun acceptance if the health endpoint does not identify the submitted release.
+**Screen:** Open Priorities and expand the first execution packet.
+
+**Say:**
+
+> Priorities compiles the same evidence into a deterministic next action. Any external write
+> remains a proposal until a human approves it.
+
+## 44–60 seconds — Fast versus Deep and large PDF
+
+**Screen:** Open Benchmarks. Show the paired Fast/Deep table, `PASS`/`REVIEW` denominator, and
+the same-release 346-page PDF result.
+
+**Say:**
+
+> On this release, Fast and Deep both passed four of six strict cases and all nineteen facts.
+> Fast cut median latency from 23.6 seconds to 2.5, using seven calls versus thirteen. REVIEW
+> failures stay visible, alongside the same-release 346-page PDF result.
+
+## Recording gates
+
+- Confirm all nine routes return 200 and `/api/health/live` identifies the submitted `main`.
+- Confirm the four-source count, flagship disagreement, citation link, and priority packet in
+  the final take; do not narrate a state that is not visible.
+- Keep the two strict `REVIEW` cases visible. The six-case sample is not an SLA.
+- The PDF result is 20/22 strict cases and 53/56 facts on the same release; keep the
+  cross-source `REVIEW` visible.
+- Do not call Replay a live run or relative query units a dollar cost.
+- Do not claim the repository is public until its URL opens in a signed-out browser.
