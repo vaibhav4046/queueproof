@@ -355,19 +355,43 @@ export const queryRuns = sqliteTable(
   (table) => [index("query_runs_workspace_created_idx").on(table.workspaceId, table.createdAt)],
 );
 
-export const querySteps = sqliteTable("query_steps", {
-  id: text("id").primaryKey(),
-  workspaceId: text("workspace_id").notNull(),
-  queryRunId: text("query_run_id").notNull(),
-  sequence: integer("sequence").notNull(),
-  operation: text("operation").notNull(),
-  mode: text("mode").notNull(),
-  filtersJson: text("filters_json").notNull().default("{}"),
-  resultCount: integer("result_count").notNull().default(0),
-  latencyMs: integer("latency_ms").notNull().default(0),
-  status: text("status").notNull(),
-  ...timestamps,
-});
+export const querySteps = sqliteTable(
+  "query_steps",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    queryRunId: text("query_run_id").notNull(),
+    sequence: integer("sequence").notNull(),
+    operation: text("operation").notNull(),
+    mode: text("mode").notNull(),
+    filtersJson: text("filters_json").notNull().default("{}"),
+    resultCount: integer("result_count").notNull().default(0),
+    latencyMs: integer("latency_ms").notNull().default(0),
+    status: text("status").notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("query_steps_run_sequence_uq").on(table.queryRunId, table.sequence),
+    index("query_steps_workspace_run_idx").on(table.workspaceId, table.queryRunId),
+  ],
+);
+
+export const queryReceipts = sqliteTable(
+  "query_receipts",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    queryRunId: text("query_run_id").notNull(),
+    schemaVersion: text("schema_version").notNull().default("live-proof-v1"),
+    receiptJson: text("receipt_json").notNull(),
+    receiptHash: text("receipt_hash").notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("query_receipts_query_run_uq").on(table.queryRunId),
+    index("query_receipts_workspace_created_idx").on(table.workspaceId, table.createdAt),
+  ],
+);
 
 export const retrievalSources = sqliteTable("retrieval_sources", {
   id: text("id").primaryKey(),

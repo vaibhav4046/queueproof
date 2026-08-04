@@ -43,12 +43,28 @@ for (const contract of [
   "Verify sources", "Match the facts", "Cite every claim", "Approve the action",
   "missing-information", "(router?.total ?? 0) >= 30", "graded > 0", "scrollIntoView",
   "Evidence timeline", "Promised versus actual", "Stop waiting", "Reproducible investigation",
+  "Verified backend receipt", "Replay verified receipt", "does not simulate routing",
 ]) {
   assert.ok(appSource.includes(contract), `Missing frontend interaction contract: ${contract}`);
+}
+for (const forbidden of ["scheduleOrbit", "setOrbitStage", "orbitTimers"]) {
+  assert.ok(!appSource.includes(forbidden), `Timer-driven proof workflow survived in the frontend: ${forbidden}`);
 }
 assert.match(styles, /\.app-header\s*\{\s*position:\s*sticky/);
 assert.match(styles, /\.qp-app\s*>\s*\.toast\s*\{\s*position:\s*fixed/);
 assert.match(styles, /max-height:\s*1100px/);
 assert.match(styles, /\.mobile-nav-utility\s*\{\s*display:\s*flex\s*!important/);
+assert.ok(
+  styles.includes(".evidence-orbit-stack { display: block; aspect-ratio: auto; max-height: none; }"),
+  "Persisted receipt replay controls must remain in flow below the desktop Orbit and visible on mobile.",
+);
+for (const mobileOrder of [
+  ".premium-console { order: 3;",
+  ".evidence-orbit-stack { order: 4;",
+  ".retrieval-stage, .premium-results { order: 5;",
+  ".landing-proof-sections { order: 8;",
+]) {
+  assert.ok(styles.includes(mobileOrder), `Missing deterministic mobile proof order: ${mobileOrder}`);
+}
 
 console.log("PASS  live shell, seven-destination navigation, direct judge routes, public disclosure, proof-first layout, timeline, comparison, replay, citations, dialogs, and result-state contracts");

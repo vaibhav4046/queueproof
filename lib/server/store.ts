@@ -75,6 +75,27 @@ const schemaStatements = [
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
+  `CREATE TABLE IF NOT EXISTS query_steps (
+    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, query_run_id TEXT NOT NULL,
+    sequence INTEGER NOT NULL, operation TEXT NOT NULL, mode TEXT NOT NULL,
+    filters_json TEXT NOT NULL DEFAULT '{}', result_count INTEGER NOT NULL DEFAULT 0,
+    latency_ms INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS query_steps_run_sequence_uq
+    ON query_steps(query_run_id, sequence)`,
+  `CREATE INDEX IF NOT EXISTS query_steps_workspace_run_idx
+    ON query_steps(workspace_id, query_run_id)`,
+  `CREATE TABLE IF NOT EXISTS query_receipts (
+    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, query_run_id TEXT NOT NULL UNIQUE,
+    schema_version TEXT NOT NULL DEFAULT 'live-proof-v1', receipt_json TEXT NOT NULL,
+    receipt_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE INDEX IF NOT EXISTS query_receipts_workspace_created_idx
+    ON query_receipts(workspace_id, created_at)`,
   `CREATE TABLE IF NOT EXISTS source_references (
     id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, provider TEXT NOT NULL,
     connector_id TEXT, external_id TEXT, title TEXT NOT NULL, excerpt TEXT NOT NULL,

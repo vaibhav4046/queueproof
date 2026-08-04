@@ -13,7 +13,8 @@ import { SiGithub, SiGmail, SiLinear, SiSlack } from "react-icons/si";
 import { ComponentProps, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { WorkspaceView } from "../lib/server/workspace-state";
 import type { EvidenceGraph as EvidenceGraphData } from "../packages/graph/src";
-import EvidenceOrbit, { type OrbitProps, type OrbitStage } from "./components/EvidenceOrbit";
+import type { LiveProofState } from "../packages/contracts/src";
+import EvidenceOrbit, { type OrbitProps } from "./components/EvidenceOrbit";
 import EvidenceGraphView from "./components/EvidenceGraph";
 
 // One dependency-free WebGL field supplies the cinematic atmosphere. The
@@ -24,12 +25,7 @@ const ShaderBackground = dynamic(
 );
 
 function TypedProofPrompt({ text }: { text: string }) {
-  return (
-    <>
-      <span className="typed-proof" aria-hidden="true"><span>{text}</span><i /></span>
-      <span className="sr-only">{text}</span>
-    </>
-  );
+  return <span className="typed-proof"><span>{text}</span></span>;
 }
 
 
@@ -90,6 +86,7 @@ type QueueItem = {
 };
 type QueueData = { generatedAt: string | null; items: QueueItem[] };
 type AskData = {
+  workflow: LiveProofState;
   answer: string; evidence: Array<Evidence & { connectorId: string }>;
   claims: Array<{ text: string; citation_ids: string[]; providers: string[] }>;
   citations: Array<Evidence & { id: string }>;
@@ -847,6 +844,7 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
   const [mode, setMode] = useState<"auto" | "fast" | "thinking">("auto");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<AskData | null>(null);
+  const [replayStep, setReplayStep] = useState<number | null>(null);
   const [citationPreview, setCitationPreview] = useState<{ evidence: Evidence; index: number } | null>(null);
   const [judgePulse, setJudgePulse] = useState<{
     status: string;
@@ -863,21 +861,8 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
   const stageRef = useRef<HTMLDivElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
   const verifiedCount = verified.length;
-  // Evidence Orbit stage machine — every transition is driven by a real event:
-  // query accepted → routing; HydraDB calls in flight → retrieving; entity
-  // linking → linking; contradiction detected → contradiction; validation done
-  // → verified or insufficient. No cinematic event runs disconnected from state.
-  const [orbitStage, setOrbitStage] = useState<OrbitStage>("idle");
-  const orbitTimers = useRef<number[]>([]);
-  const clearOrbitTimers = useCallback(() => {
-    orbitTimers.current.forEach((id) => window.clearTimeout(id));
-    orbitTimers.current = [];
-  }, []);
-  const scheduleOrbit = useCallback((next: OrbitStage, afterMs: number) => {
-    const id = window.setTimeout(() => setOrbitStage(next), afterMs);
-    orbitTimers.current.push(id);
-  }, []);
-  useEffect(() => clearOrbitTimers, [clearOrbitTimers]);
+  // The synchronous API deliberately exposes no pseudo-live intermediate UI.
+  // Its returned workflow contains the exact persisted backend events.
   useEffect(() => () => requestController.current?.abort(), []);
 
   useEffect(() => {
@@ -920,13 +905,8 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
     runPending.current = true;
     const controller = new AbortController();
     requestController.current = controller;
-    clearOrbitTimers();
     setBusy(true); setError(""); setCitationPreview(null);
-    setResult(null);
-    // Query accepted → the route-decision ring appears, then the real HydraDB
-    // traversal activates the provider routes.
-    setOrbitStage("routing");
-    scheduleOrbit("retrieving", 750);
+    setResult(null); setReplayStep(null);
     try {
       const data = await api<AskData>("/api/ask", {
         method: "POST",
@@ -934,19 +914,10 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
         signal: controller.signal,
       });
       setResult(data);
-      if (data.contradictions.length > 0) {
-        scheduleOrbit("linking", 0);
-        scheduleOrbit("contradiction", 550);
-        scheduleOrbit(data.validation.status === "abstained" ? "insufficient" : "verified", 1650);
-      } else {
-        scheduleOrbit(data.validation.status === "abstained" ? "insufficient" : "verified", 950);
-      }
     } catch (reason) {
       setError(reason instanceof DOMException && reason.name === "AbortError"
         ? "You stopped waiting for this investigation. The server may still finish its audit record; check Replay before running it again."
         : reason instanceof Error ? reason.message : "Evidence retrieval failed.");
-      clearOrbitTimers();
-      setOrbitStage("idle");
     } finally {
       if (requestController.current === controller) requestController.current = null;
       runPending.current = false;
@@ -979,28 +950,31 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
     ? "Conflict preserved"
     : commitmentEvidence && observedEvidence ? "Compare both receipts" : "Evidence gap";
 
-  // Single source of truth for the SVG/DOM orbit: every value comes from the
-  // current workspace or result rather than a decorative animation timeline.
-  const orbitProps: OrbitProps = {
-    stage: orbitStage,
-    modeLabel: busy
-      ? (mode === "auto" ? "Auto" : mode === "thinking" ? "Deep check" : "Fast")
-      : result ? (result.trace.mode === "thinking" ? "Deep check" : result.trace.mode === "fast" ? "Fast" : "Auto") : "Auto",
-    receiptCount: result?.retrieval_receipt.receipt_count ?? 0,
-    providerCoverage: busy
-      ? verified.map((connector) => connector.provider)
-      : result?.retrieval_receipt.provider_coverage ?? verified.map((connector) => connector.provider),
-    contradictionCount: result?.contradictions.length ?? 0,
-    action: result?.priority_items[0]
+  const replayEvent = replayStep === null ? null : result?.workflow.events[replayStep] ?? null;
+  const orbitState: LiveProofState | null = result
+    ? replayEvent
       ? {
-        score: result.priority_items[0].score,
-        title: result.priority_items[0].title,
-        safeAction: result.priority_items[0].recommended_next_safe_action,
-        approvalRequired: result.priority_items[0].approval_required,
-        coverage: result.priority_items[0].provider_coverage,
+        ...result.workflow,
+        stage: replayEvent.stage,
+        providers: replayEvent.providers,
+        receipt: {
+          ...result.workflow.receipt,
+          hydradb_call_count: replayEvent.callCount,
+          receipt_count: replayEvent.receiptCount,
+          timestamp: replayEvent.recordedAt,
+        },
       }
-      : null,
+      : result.workflow
+    : null;
+
+  // A synchronous request shows no invented intermediate activity. Once the
+  // persisted response arrives, the orbit renders the final receipt or an
+  // explicitly controlled replay of its exact recorded events.
+  const orbitProps: OrbitProps = {
+    state: orbitState,
     connectors: verified,
+    waitingForReceipt: busy,
+    replay: replayStep !== null,
   };
 
   return (
@@ -1038,6 +1012,27 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
         {/* The SVG/DOM scene is the evidence source of truth at every device
             size and remains complete when the atmospheric shader is absent. */}
         <EvidenceOrbit {...orbitProps} />
+        {busy && <div className="receipt-wait-note" role="status">
+          <LoaderCircle className="spin" size={14} />
+          <span><strong>Waiting for a verified backend receipt.</strong> This synchronous request does not simulate routing, provider activity, or receipt counts.</span>
+        </div>}
+        {result && <section className="receipt-replay-controls" aria-label="Verified backend receipt replay">
+          <div>
+            <span className="eyebrow"><ShieldCheck size={12} /> Verified backend receipt</span>
+            <strong>{result.workflow.events.length} persisted events · {result.workflow.receipt.hydradb_call_count} HydraDB calls</strong>
+            <small>Manual replay only. Every step below was stored by the backend during this query.</small>
+          </div>
+          {replayStep === null
+            ? <button type="button" className="secondary-button" onClick={() => setReplayStep(0)}>Replay verified receipt</button>
+            : <div className="receipt-replay-step">
+              <span><b>{String(replayEvent?.sequence ?? 0).padStart(2, "0")}</b><strong>{replayEvent ? replayEvent.stage.replace(/-/g, " ") : "Recorded event"}</strong><small>{replayEvent?.detail}</small></span>
+              <div>
+                <button type="button" className="secondary-button" disabled={replayStep === 0} onClick={() => setReplayStep((step) => Math.max(0, (step ?? 0) - 1))}>Previous</button>
+                <button type="button" className="secondary-button" disabled={replayStep >= result.workflow.events.length - 1} onClick={() => setReplayStep((step) => Math.min(result.workflow.events.length - 1, (step ?? 0) + 1))}>Next</button>
+                <button type="button" className="secondary-button" onClick={() => setReplayStep(null)}>Exit replay</button>
+              </div>
+            </div>}
+        </section>}
       </div>
 
       <form className="ask-console premium-console" onSubmit={submit}>

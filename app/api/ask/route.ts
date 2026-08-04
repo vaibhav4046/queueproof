@@ -8,7 +8,13 @@ import { evidenceFollowUpTerms, planRetrieval, retrievalQueryVariants } from "..
 import { isPotentialPromptInjection, redactSecrets } from "../../../packages/security/src";
 import { synthesiseGroundedAnswer } from "../../../lib/server/synthesis";
 import { listQueueForWorkspace } from "../../../lib/server/queue";
-import { groundedAnswerContractSchema } from "../../../packages/contracts/src";
+import {
+  groundedAnswerContractSchema,
+  liveProofStateSchema,
+  type LiveProofState,
+} from "../../../packages/contracts/src";
+import { buildProofGraphView, createQueryWorkflowRecorder } from "../../../lib/server/query-workflow";
+import { compileContradictionAction } from "../../../lib/server/grounded-action";
 
 type Connector = { id: string; hydradbConnectorId: string; provider: string; database: string; collection: string | null };
 type RetrievalScope = {
@@ -20,6 +26,7 @@ type RetrievalScope = {
 type Row = Record<string, unknown>;
 type RetrievedEvidence = {
   id: string;
+  sourceId: string;
   provider: string;
   title: string;
   excerpt: string;
@@ -38,6 +45,10 @@ function textFrom(row: Row, keys: string[]) {
 }
 
 export async function POST(request: Request) {
+  let failureContext: {
+    recorder: ReturnType<typeof createQueryWorkflowRecorder>;
+    startedAt: number;
+  } | null = null;
   try {
     const actor = await requireRequestActor();
     const workspace = await requireWorkspaceForUser(actor.id);
@@ -106,8 +117,6 @@ export async function POST(request: Request) {
     // and cost are unchanged — only the query string is anchored.
     const identifiers = [...new Set(question.match(/\b[A-Z][A-Z0-9]+-\d+\b/g) ?? [])];
     const retrievalQuery = identifiers.length ? `${identifiers.join(" ")} ${question}` : question;
-    const client = await hydraClientForWorkspace(workspaceId);
-    const started = Date.now();
     const evidence: RetrievedEvidence[] = [];
     const trace: Array<Record<string, unknown>> = [];
     const connectorScopes = [...connectors.results.reduce((map, connector) => {
@@ -124,6 +133,36 @@ export async function POST(request: Request) {
     const scopes: RetrievalScope[] = requestedSourceIds.length
       ? [...documentScopes, ...(payload.includeConnectors ? connectorScopes : [])]
       : connectorScopes;
+    const runId = createId("query");
+    const started = Date.now();
+    await requireDb().prepare(
+      `INSERT INTO query_runs
+       (id, workspace_id, actor_id, category, sanitised_query, mode, plan_json,
+        provider_coverage_json, source_count, call_count, latency_ms, status, error_type)
+       VALUES (?, ?, ?, ?, ?, ?, ?, '[]', 0, 0, 0, 'routing', NULL)`,
+    ).bind(
+      runId, workspaceId, actor.id, plan.category, redactSecrets(question), mode, JSON.stringify(plan),
+    ).run();
+    const requiredProviders = new Set(scopes.flatMap((scope) =>
+      scope.sourceIds ? ["document"] : scope.connectors.map((connector) => connector.provider),
+    ));
+    const recorder = createQueryWorkflowRecorder({
+      queryId: runId,
+      workspaceId,
+      mode,
+      providerSeeds: [
+        ...connectors.results.map((connector) => ({
+          provider: connector.provider,
+          connectorId: connector.id,
+          required: requiredProviders.has(connector.provider),
+        })),
+        ...(requestedSourceIds.length ? [{ provider: "document", required: true }] : []),
+      ],
+    });
+    failureContext = { recorder, startedAt: started };
+    await recorder.record("routing", `Router selected ${mode} mode because ${plan.reason}`);
+    const client = await hydraClientForWorkspace(workspaceId);
+    let issuedCallCount = 0;
     const runQueryBatch = async (
       queryText: string,
       queryVariants: Array<"text" | "hybrid">,
@@ -131,6 +170,15 @@ export async function POST(request: Request) {
     ) => {
       await Promise.all(scopes.map(async (scope) => {
         await Promise.all(queryVariants.map(async (queryBy) => {
+        const queryProviders = scope.sourceIds
+          ? ["document"]
+          : [...new Set(scope.connectors.map((item) => item.provider))];
+        const callNumber = ++issuedCallCount;
+        await recorder.markQuerying(
+          queryProviders,
+          `${phase === "primary" ? "Primary" : "Evidence-derived follow-up"} ${queryBy} query issued to HydraDB.`,
+          callNumber,
+        );
         const callStarted = Date.now();
         const response = await client.query({
           database: scope.database,
@@ -158,7 +206,18 @@ export async function POST(request: Request) {
           sourceIds: scope.sourceIds ?? [], requestId: response.requestId,
           queryTermCount: queryText.split(/\s+/).filter(Boolean).length,
           latencyMs: Date.now() - callStarted, error: response.error });
-        if (!response.ok) return;
+        const callLatencyMs = Date.now() - callStarted;
+        const callEvidence: RetrievedEvidence[] = [];
+        if (!response.ok) {
+          await recorder.markResponse({
+            providers: queryProviders,
+            ok: false,
+            latencyMs: callLatencyMs,
+            callCount: trace.length,
+            evidenceByProvider: new Map(),
+          });
+          return;
+        }
         const extracted = extractQuerySources(response.data);
         extracted.sources.forEach((source, sourceIndex) => {
           const metadata = record(source.additional_metadata);
@@ -185,16 +244,32 @@ export async function POST(request: Request) {
               .replace(/\s+/g, " ").trim().slice(0, 6_000);
             if (!excerpt || isPotentialPromptInjection(excerpt)) return;
             const chunkId = textFrom(chunk, ["chunk_id", "chunkId"]);
-            evidence.push({
+            const retained = {
               id: chunkId ?? `${sourceId}:chunk:${chunkIndex}`,
+              sourceId,
               provider,
               title: textFrom(source, ["title", "subject", "name", "filename"]) ?? `${provider} source`,
               excerpt,
               timestamp: textFrom(source, ["timestamp", "source_timestamp", "updated_at", "created_at"]),
               url: textFrom(source, ["url", "source_url", "web_url", "permalink"]),
               connectorId: owningConnector?.id ?? `document:${sourceId}`,
-            });
+            } satisfies RetrievedEvidence;
+            evidence.push(retained);
+            callEvidence.push(retained);
           });
+        });
+        const evidenceByProvider = callEvidence.reduce((map, item) => {
+          const ids = map.get(item.provider) ?? [];
+          ids.push(item.id);
+          map.set(item.provider, ids);
+          return map;
+        }, new Map<string, string[]>());
+        await recorder.markResponse({
+          providers: queryProviders,
+          ok: true,
+          latencyMs: callLatencyMs,
+          callCount: trace.length,
+          evidenceByProvider,
         });
         }));
       }));
@@ -213,8 +288,17 @@ export async function POST(request: Request) {
     const deduped = evidence.filter((item, index, all) =>
       all.findIndex((candidate) => `${candidate.provider}:${candidate.id}` === `${item.provider}:${item.id}`) === index,
     );
+    await recorder.record(
+      "linking",
+      `Normalized ${deduped.length} attributable records and retained provider, connector, source, and evidence lineage.`,
+      { callCount: trace.length, latencyMs: Date.now() - started },
+    );
     const synthesis = synthesiseGroundedAnswer(question, deduped);
-    const runId = createId("query");
+    await recorder.record(
+      "checking-contradictions",
+      `Evaluated ${synthesis.claims.length} atomic claims and preserved ${synthesis.contradictions.length} contradiction records.`,
+      { callCount: trace.length, latencyMs: Date.now() - started },
+    );
     const citedIds = new Set([
       ...synthesis.claims.flatMap((claim) => claim.evidenceIds),
       ...synthesis.contradictions.flatMap((contradiction) => contradiction.evidenceIds),
@@ -230,7 +314,13 @@ export async function POST(request: Request) {
         timestamp: item.timestamp,
         url: item.url,
       }));
+    await recorder.record(
+      "validating",
+      `Validation retained ${synthesis.validation.citedClaimCount} cited claims and removed unsupported prose before rendering.`,
+      { callCount: trace.length, latencyMs: Date.now() - started },
+    );
     const queryTerms = new Set(question.toLowerCase().match(/[a-z0-9-]{4,}/g) ?? []);
+    const currentEvidenceIds = new Set(deduped.flatMap((item) => [item.id, item.sourceId]));
     const queue = await listQueueForWorkspace(workspaceId);
     type PriorityQueueItem = {
       taskId?: unknown; title?: unknown; project?: unknown; customer?: unknown;
@@ -244,17 +334,27 @@ export async function POST(request: Request) {
         evidence?: Array<{ sourceId?: string; id?: string; provider?: string }>;
       };
     };
-    const relatedPriority = (queue.items as unknown as PriorityQueueItem[])
+    const queuePriority = (queue.items as unknown as PriorityQueueItem[])
       .map((item) => {
         const packet = item.packet;
         const corpus = `${String(item.title ?? "")} ${String(packet.task?.objective ?? "")}`.toLowerCase();
         const overlap = [...queryTerms].filter((term) => corpus.includes(term)).length;
-        return { item, packet, overlap };
+        const packetEvidenceIds = new Set((packet.evidence ?? []).flatMap((entry) =>
+          [entry.sourceId, entry.id].filter((id): id is string => Boolean(id)),
+        ));
+        const linkedEvidence = deduped.filter((evidenceItem) =>
+          packetEvidenceIds.has(evidenceItem.id) || packetEvidenceIds.has(evidenceItem.sourceId),
+        );
+        return { item, packet, overlap, linkedEvidence };
       })
-      .filter((entry) => entry.overlap >= 1)
-      .sort((a, b) => b.overlap - a.overlap || Number(b.item.finalScore) - Number(a.item.finalScore))
+      // A next action may only be shown when the persisted queue packet and
+      // this query share exact evidence lineage. Text similarity alone is not
+      // enough to claim that an action came from the returned proof graph.
+      .filter((entry) => entry.linkedEvidence.some((item) => currentEvidenceIds.has(item.id)))
+      .sort((a, b) => b.linkedEvidence.length - a.linkedEvidence.length ||
+        b.overlap - a.overlap || Number(b.item.finalScore) - Number(a.item.finalScore))
       .slice(0, 1)
-      .map(({ item, packet }) => ({
+      .map(({ item, packet, linkedEvidence }) => ({
         id: String(item.taskId),
         title: String(item.title),
         normalized_entity: String(item.project ?? item.customer ?? item.title),
@@ -267,17 +367,34 @@ export async function POST(request: Request) {
         why_now: packet.why_now ?? [],
         recommended_next_safe_action: packet.recommended_safe_action ??
           "Review the cited receipt, then route any external write through QueueProof approval.",
-        evidence_ids: (item.packet.evidence ?? []).map((entry) =>
-          String(entry.sourceId ?? entry.id ?? ""),
-        ).filter(Boolean),
+        evidence_ids: linkedEvidence.map((entry) => entry.id),
         disagreements: packet.contradictions ?? [],
         confidence: Number(packet.task?.confidence ?? Number(item.confidence) / 100),
-        provider_coverage: packet.provider_coverage ?? [
-          ...new Set((item.packet.evidence ?? []).map((entry) => String(entry.provider ?? "unknown"))),
-        ],
+        provider_coverage: [...new Set(linkedEvidence.map((entry) => entry.provider))],
         deduplicated_tasks: packet.deduplicated_tasks ?? [],
         approval_required: true,
       }));
+    const derivedConflictAction = queuePriority.length
+      ? null
+      : compileContradictionAction({
+        queryId: runId,
+        evidence: deduped,
+        contradictions: synthesis.contradictions,
+      });
+    const relatedPriority = queuePriority.length
+      ? queuePriority
+      : derivedConflictAction
+        ? [derivedConflictAction]
+        : [];
+    await recorder.record(
+      "compiling-action",
+      relatedPriority.length
+        ? queuePriority.length
+          ? "Compiled the highest-scoring safe action whose persisted packet shares exact evidence with this proof."
+          : "Compiled an approval-required contradiction follow-up from the exact returned evidence and deterministic ranking formula."
+        : "No safely grounded action shared exact evidence lineage with this proof, so no action was shown.",
+      { callCount: trace.length, latencyMs: Date.now() - started },
+    );
     const totalLatencyMs = Date.now() - started;
     const costUnits = trace.length * (mode === "thinking" ? 3 : 1);
     const groundedContract = groundedAnswerContractSchema.parse({
@@ -306,22 +423,48 @@ export async function POST(request: Request) {
       },
       routing_reason: plan.reason,
     });
-    await requireDb().prepare(
-      `INSERT INTO query_runs
-       (id, workspace_id, actor_id, category, sanitised_query, mode, plan_json,
-        provider_coverage_json, source_count, call_count, latency_ms, status, error_type)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).bind(runId, workspaceId, actor.id, plan.category, redactSecrets(question), mode,
-      JSON.stringify(plan), JSON.stringify(synthesis.validation.providerCoverage),
-      synthesis.evidence.length, trace.length, totalLatencyMs, synthesis.evidence.length ? "completed" : "failed",
-      synthesis.evidence.length ? null : "no_safe_evidence").run();
-    await audit({ workspaceId, actorId: actor.id, operation: "ask.run", targetType: "query_run",
-      targetId: runId, outcome: synthesis.evidence.length ? "success" : "failure",
-      metadata: { sourceCount: synthesis.evidence.length, connectorCount: connectors.results.length,
-        callCount: trace.length, validation: synthesis.validation, trace } });
-    return noStoreJson({
-      ok: true,
+    const finalStage = synthesis.validation.status === "abstained" || !synthesis.evidence.length
+      ? "abstained"
+      : synthesis.validation.status === "partial" || synthesis.missingInformation.length
+        ? "partial"
+        : "complete";
+    await recorder.record(
+      finalStage,
+      finalStage === "complete"
+        ? "Grounded answer, exact citations, proof graph, and safe action candidates were finalized."
+        : finalStage === "partial"
+          ? "Only supported claims were returned; unresolved evidence gaps remain visible."
+          : "No safely supported answer was available, so QueueProof abstained.",
+      { callCount: trace.length, latencyMs: totalLatencyMs,
+        errorType: finalStage === "abstained" ? "no_safe_evidence" : null },
+    );
+    const graph = buildProofGraphView({
+      providers: recorder.providers(),
+      evidence: synthesis.evidence,
+      claims: groundedContract.claims,
+      contradictions: synthesis.contradictions,
+      priorityItems: groundedContract.priority_items,
+    });
+    const workflow: LiveProofState = liveProofStateSchema.parse({
+      schemaVersion: "live-proof-v1",
+      kind: "verified-backend-receipt",
+      queryId: runId,
+      stage: finalStage,
+      mode,
+      routingReason: plan.reason,
+      providers: recorder.providers(),
+      graph,
+      claims: groundedContract.claims,
+      contradictions: synthesis.contradictions,
+      priorityItems: groundedContract.priority_items,
+      events: recorder.events(),
+      receipt: groundedContract.retrieval_receipt,
+      persisted: true,
+      replayAvailable: true,
+    });
+    const responsePayload = {
       ...groundedContract,
+      workflow,
       evidence: synthesis.evidence,
       missingInformation: synthesis.missingInformation,
       validation: synthesis.validation,
@@ -343,8 +486,26 @@ export async function POST(request: Request) {
           basis: "Call-weight estimate; no public per-query HydraDB price is assumed.",
         },
       },
-    });
+    };
+    await recorder.persistReceipt({ workflow, result: responsePayload });
+    failureContext = null;
+    await audit({ workspaceId, actorId: actor.id, operation: "ask.run", targetType: "query_run",
+      targetId: runId, outcome: synthesis.evidence.length ? "success" : "failure",
+      metadata: { sourceCount: synthesis.evidence.length, connectorCount: connectors.results.length,
+        callCount: trace.length, validation: synthesis.validation, trace } });
+    return noStoreJson({ ok: true, ...responsePayload });
   } catch (error) {
+    if (failureContext) {
+      try {
+        await failureContext.recorder.record(
+          "failed",
+          "The backend workflow failed before a verified receipt could be finalized.",
+          { latencyMs: Date.now() - failureContext.startedAt, errorType: "query_failed" },
+        );
+      } catch {
+        // Receipt recording must never hide the original request failure.
+      }
+    }
     return apiError(error);
   }
 }
