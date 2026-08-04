@@ -28,6 +28,20 @@ export function isPotentialPromptInjection(text: string): boolean {
   );
 }
 
+/**
+ * Rejects requests that try to turn retrieval into credential disclosure or data exfiltration.
+ * Narrow compound patterns keep normal operational questions (including mentions of tokens)
+ * usable while enforcing a boundary before any provider request is issued.
+ */
+export function hostileQueryReason(text: string): string | null {
+  const credential = /\b(?:secret|credential|password|api[ _-]?key|access[ _-]?token|bearer token)\b/i;
+  const disclosure = /\b(?:reveal|show|print|dump|export|send|upload|transmit|exfiltrat(?:e|ion))\b/i;
+  const instructionOverride = /\b(?:ignore|override|forget)\s+(?:all\s+)?(?:previous|system|developer)\s+instructions\b/i;
+  if (credential.test(text) && disclosure.test(text)) return "credential disclosure or transmission";
+  if (instructionOverride.test(text) && (credential.test(text) || disclosure.test(text))) return "instruction override combined with sensitive data access";
+  return null;
+}
+
 export function assertSafeExternalUrl(raw: string): URL {
   const url = new URL(raw);
   if (url.protocol !== "https:") throw new Error("Only HTTPS destinations are allowed.");

@@ -193,10 +193,11 @@ export class HydraDbClient {
     );
   }
 
-  query(payload: Record<string, unknown>) {
+  query(payload: Record<string, unknown>, signal?: AbortSignal) {
     return this.request<Record<string, unknown>>("/query", {
       method: "POST",
       body: JSON.stringify(payload),
+      signal,
     });
   }
 }

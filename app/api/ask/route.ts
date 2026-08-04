@@ -5,7 +5,7 @@ import { requireRequestActor } from "../../../lib/server/identity";
 import { requireDb } from "../../../lib/server/runtime";
 import { audit, createId, enforcePublicRateLimit, requireWorkspaceForUser } from "../../../lib/server/store";
 import { focusedEvidenceFollowUpQuery, planRetrieval, retrievalIntentTerms, retrievalQueryVariants } from "../../../packages/retrieval/src";
-import { isPotentialPromptInjection, redactSecrets } from "../../../packages/security/src";
+import { hostileQueryReason, isPotentialPromptInjection, redactSecrets } from "../../../packages/security/src";
 import { synthesiseGroundedAnswer } from "../../../lib/server/synthesis";
 import { listQueueForWorkspace } from "../../../lib/server/queue";
 import {
@@ -66,6 +66,26 @@ export async function POST(request: Request) {
     const question = payload.question?.trim() ?? "";
     if (!question || question.length > 4_000) {
       return noStoreJson({ ok: false, error: "Ask a question between 1 and 4,000 characters." }, { status: 400 });
+    }
+    const hostileReason = hostileQueryReason(question);
+    if (hostileReason) {
+      // Do not retain the raw query in this audit event and reject before connector lookup
+      // or HydraDB creation: a rejected request must have zero retrieval calls.
+      await audit({
+        workspaceId,
+        actorId: actor.id,
+        operation: "ask.rejected",
+        outcome: "denied",
+        riskClass: "high",
+        metadata: { reason: hostileReason, queryLength: question.length },
+      });
+      return noStoreJson({
+        ok: false,
+        error: "QueueProof cannot retrieve, disclose, or transmit credentials. Ask about work evidence instead.",
+      }, { status: 400 });
+    }
+    if (request.signal.aborted) {
+      return noStoreJson({ ok: false, error: "Request cancelled before retrieval began." }, { status: 499 });
     }
     const connectors = await requireDb().prepare(
       `SELECT id, hydradb_connector_id AS hydradbConnectorId, provider, database, collection FROM connectors
@@ -171,6 +191,7 @@ export async function POST(request: Request) {
     ) => {
       await Promise.all(scopes.map(async (scope) => {
         await Promise.all(queryVariants.map(async (queryBy) => {
+        if (request.signal.aborted) throw new DOMException("Request cancelled.", "AbortError");
         const queryProviders = scope.sourceIds
           ? ["document"]
           : [...new Set(scope.connectors.map((item) => item.provider))];
@@ -200,7 +221,7 @@ export async function POST(request: Request) {
           ...(payload.metadataFilters && Object.keys(payload.metadataFilters).length > 0
             ? { metadata_filters: payload.metadataFilters }
             : {}),
-        });
+        }, request.signal);
         trace.push({ phase, connectorIds: scope.connectors.map((item) => item.id),
           providers: scope.sourceIds ? ["document"] : scope.connectors.map((item) => item.provider), database: scope.database,
           collection: scope.collection, queryBy, ok: response.ok, status: response.status,

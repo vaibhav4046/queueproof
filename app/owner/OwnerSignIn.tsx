@@ -21,16 +21,26 @@ export default function OwnerSignIn() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    void fetch("/api/session", { cache: "no-store" })
+  const checkSession = () => {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 10_000);
+    void fetch("/api/session", { cache: "no-store", signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error("Owner access is temporarily unavailable.");
         return response.json() as Promise<SessionState>;
       })
       .then(setState)
       .catch((reason: unknown) => {
-        setError(reason instanceof Error ? reason.message : "Owner access is temporarily unavailable.");
-      });
+        setError(reason instanceof DOMException && reason.name === "AbortError"
+          ? "Session check timed out. Your workspace has not been changed."
+          : reason instanceof Error ? reason.message : "Owner access is temporarily unavailable.");
+      })
+      .finally(() => window.clearTimeout(timeout));
+    return () => { window.clearTimeout(timeout); controller.abort(); };
+  };
+
+  useEffect(() => {
+    return checkSession();
   }, []);
 
   async function signIn(event: FormEvent<HTMLFormElement>) {
@@ -124,7 +134,7 @@ export default function OwnerSignIn() {
           </div>
         ) : null}
 
-        {error ? <div className={styles.error} role="alert">{error}</div> : null}
+        {error ? <div className={styles.error} role="alert">{error}<button type="button" className={styles.secondary} onClick={() => { setError(null); setState(null); checkSession(); }}>Retry</button></div> : null}
 
         <Link className={styles.back} href="/">← Return to public workspace</Link>
       </section>

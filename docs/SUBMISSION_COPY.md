@@ -20,7 +20,7 @@ retrieval concurrently. Strong connector/resource lineage prevents evidence from
 credited merely because its provider name matches.
 
 The current deterministic benchmark passes 39/39 labelled router cases and 331
-assertions. The current local candidate passes 340 tests across 37 files, including the
+assertions. The current local candidate passes 342 tests across 37 files, including the
 security and MCP suites, plus typecheck and lint. Replace those counts with the final CI
 receipt if the candidate changes; fresh build, E2E, deployment, and responsive checks remain
 release gates.
@@ -53,7 +53,7 @@ closed.
   passes, 100% citation precision/completeness, zero unsupported claims, p50 16.294 s,
   and p95 29.877 s.
 - 39/39 deterministic router cases; 331 assertions.
-- Current local candidate: 340 tests across 37 files; use the final CI receipt at submission.
+- Current local candidate: 342 tests across 37 files; use the final CI receipt at submission.
 - Zero secret-pattern matching files across the complete pre-release history and final
   release worktree.
 

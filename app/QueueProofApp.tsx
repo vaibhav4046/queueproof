@@ -335,8 +335,12 @@ export default function QueueProofApp({
   const [view, setView] = useState<WorkspaceView | null>(initialView);
   const [bootError, setBootError] = useState(initialError ?? "");
   const [retrying, setRetrying] = useState(false);
-  const [connectors, setConnectors] = useState<Connector[]>([]);
-  const [connectorsLoaded, setConnectorsLoaded] = useState(false);
+  // Server evidence is the initial truth. A later refresh may update it, but a failed
+  // refresh must never make verified sources briefly disappear from the interface.
+  const [connectors, setConnectors] = useState<Connector[]>(() =>
+    initialView?.kind === "ready" ? initialView.evidence.connectors : [],
+  );
+  const [connectorsLoaded, setConnectorsLoaded] = useState(() => initialView?.kind === "ready");
   const [queue, setQueue] = useState<QueueData>({ generatedAt: null, items: [] });
   const [selectedPacket, setSelectedPacket] = useState<Packet | null>(null);
   const [proposalPacket, setProposalPacket] = useState<Packet | null>(null);
@@ -1246,9 +1250,9 @@ function SourcesScreen({ workspace, connectors, reloadWorkspace, reloadConnector
     <div className="screen-heading"><div><span className="eyebrow"><Database size={13} /> Live evidence boundary</span><h1>Connect once.<br /><em>Prove every read.</em></h1><p>Connect each source once. QueueProof will not trust it until a real record comes back with a receipt.</p></div>{workspace.hydradb.configured && !readOnly && <button className="primary-button" onClick={() => setSetupOpen(true)}><Plus size={15} /> Add source</button>}</div>
     {readOnly && <div className="inline-warning"><LockKeyhole size={14} />Public sandbox: connector credentials and lifecycle mutations are owner-only. Verified proof receipts remain inspectable.</div>}
     {!workspace.hydradb.configured ? readOnly ? <div className="honest-empty"><LockKeyhole size={24} /><div><strong>Evidence configuration is owner-only.</strong><p>This public sandbox cannot accept credentials.</p></div></div> : <form className="hydra-setup" onSubmit={connectHydra}><div className="hydra-symbol"><Database size={29} /></div><div><span className="eyebrow">Step 1 · Evidence engine</span><h2>Attach your HydraDB account.</h2><p>Use a newly generated API key. QueueProof verifies it against the authenticated database endpoint, encrypts it with AES-GCM, and never returns it.</p><label>HydraDB API key<input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder="Paste new key" autoComplete="off" required minLength={12} /></label><button className="primary-button" disabled={busy === "hydra"}>{busy === "hydra" ? <LoaderCircle className="spin" size={15} /> : <KeyRound size={15} />} Verify and encrypt</button></div></form> : <>
-      <div className="source-stats"><div><small>HYDRADB</small><strong><CircleCheck size={14} /> Authenticated</strong><span>{workspace.hydradb.fingerprint ?? "Encrypted"}</span></div><div><small>CONNECTED</small><strong>{connectors.length}</strong><span>workplace sources</span></div><div><small>VERIFIED</small><strong>{connectors.filter((item) => item.state === "data_verified").length}</strong><span>eligible for retrieval</span></div><div><small>POLICY</small><strong>Fail closed</strong><span>no proof · no ranking</span></div></div>
+      <div className="source-stats"><div><small>HYDRADB</small><strong><CircleCheck size={14} /> Authenticated</strong><span>{workspace.hydradb.fingerprint ?? "Encrypted"}</span></div><div><small>CONFIGURED</small><strong>{connectors.length}</strong><span>workplace sources</span></div><div><small>RETRIEVAL-ELIGIBLE</small><strong>{connectors.filter((item) => item.state === "data_verified").length}</strong><span>{connectors.filter((item) => item.state !== "data_verified").length ? `${connectors.filter((item) => item.state !== "data_verified").length} needs re-verification` : "all currently proven"}</span></div><div><small>POLICY</small><strong>Fail closed</strong><span>no proof · no ranking</span></div></div>
       {connectors.length ? <div className="connector-list">{connectors.map((connector) => <article className="connector-row" data-provider={connector.provider} key={connector.id}><span className="provider-glyph large"><ProviderIcon provider={connector.provider} size={19} /></span><div className="connector-identity"><strong>{connector.name}</strong><span>{connector.provider} · {connector.database}{connector.collection ? ` / ${connector.collection}` : ""}</span></div><div className="connector-state"><span className={connector.state === "data_verified" ? "status-orb live" : connector.state.includes("sync") ? "status-orb indexing" : "status-orb"} /><strong>{stateCopy[connector.state] ?? connector.state}</strong><small>{connector.state === "data_verified" ? `${connector.canaryResultCount ?? 0} live records proven` : connector.lastError || "Awaiting next lifecycle step"}</small></div><button className="secondary-button" onClick={(event) => void connectorAction(connector, event.currentTarget)} disabled={busy === connector.id || (readOnly && connector.state !== "data_verified")}>{busy === connector.id ? <LoaderCircle className="spin" size={14} /> : connector.state === "data_verified" ? <Eye size={14} /> : readOnly ? <LockKeyhole size={14} /> : connector.state === "connector_created" || connector.state === "resources_discovered" ? <Search size={14} /> : <RefreshCw size={14} />}{connector.state === "data_verified" ? "View proof" : readOnly ? "Owner action" : connector.state === "connector_created" || connector.state === "resources_discovered" ? "Choose scope" : connector.state === "resources_selected" ? "Start sync" : "Check proof"}</button></article>)}</div> : <div className="empty-source"><Unplug size={28} /><div><h2>No workplace source yet.</h2><p>Add Slack, Gmail, Linear, or any provider exposed by your live HydraDB catalogue.</p></div>{!readOnly && <button className="primary-button" onClick={() => setSetupOpen(true)}><Plus size={15} /> Add first source</button>}</div>}
-      <DocumentsPanel databases={[...new Set(connectors.map((item) => item.database).filter(Boolean))]}
+      <DocumentsPanel initialDocuments={workspace.evidence.documents} databases={[...new Set(connectors.map((item) => item.database).filter(Boolean))]}
         setError={setError} setNotice={setNotice} readOnly={readOnly} />
       <EvidenceGraphPanel setError={setError} />
     </>}
@@ -1264,11 +1268,11 @@ function prettyBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function DocumentsPanel({ databases, setError, setNotice, readOnly }: {
-  databases: string[]; setError: (value: string) => void; setNotice: (value: string) => void;
+function DocumentsPanel({ initialDocuments, databases, setError, setNotice, readOnly }: {
+  initialDocuments: DocumentRecord[]; databases: string[]; setError: (value: string) => void; setNotice: (value: string) => void;
   readOnly: boolean;
 }) {
-  const [documents, setDocuments] = useState<DocumentRecord[]>([]);
+  const [documents, setDocuments] = useState<DocumentRecord[]>(initialDocuments);
   const [file, setFile] = useState<File | null>(null);
   const [database, setDatabase] = useState(databases[0] ?? "");
   const [busy, setBusy] = useState("");

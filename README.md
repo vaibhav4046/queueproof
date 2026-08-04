@@ -49,12 +49,14 @@ benchmark page publishes failures as `REVIEW`; it does not relabel them as passe
 6. Provider writes begin as proposals. Approval and a database-backed at-most-once claim are
    required before execution.
 
-## Measured production release
+## Measured production artifact
 
-Release `c7cf16b3c92f66d7b2f17a90e01372b77d62235b` on `main` returned HTTP 200 on all nine
-product and owner routes and showed four verified sources: GitHub, Gmail, Linear, and Slack.
-CI passed 341/341 tests, 39/39 deterministic router cases with 331 assertions, the production
-build, and the deployment-binding check.
+Release `c7cf16b3c92f66d7b2f17a90e01372b77d62235b` on `main` is the release identified by the
+bundled benchmark artifacts. It returned HTTP 200 on all nine product and owner routes and
+showed four verified sources: GitHub, Gmail, Linear, and Slack. Verify `/api/health/live` before
+claiming that this remains the currently running deployment. CI then passed 341/341 tests,
+39/39 deterministic router cases with 331 assertions, the production build, and the
+deployment-binding check.
 
 Forced Fast and Deep runs used the same six strict questions on that release and honored the
 requested mode:

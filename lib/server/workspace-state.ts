@@ -1,5 +1,5 @@
 import { getRequestActor, signInConfigured } from "./identity";
-import { runtimeEnv } from "./runtime";
+import { requireDb, runtimeEnv } from "./runtime";
 import { ensureCoreSchema, workspaceForUser } from "./store";
 import { hydraAccountForWorkspace } from "./hydradb-account";
 
@@ -23,8 +23,9 @@ export type WorkspaceView =
   | {
       kind: "ready";
       actor: ActorView;
-      workspace: WorkspaceSummary;
-      hydradb: HydraSummary;
+       workspace: WorkspaceSummary;
+       hydradb: HydraSummary;
+       evidence: PublicEvidenceSummary;
       /** Surfaced so an ephemeral deployment can never be mistaken for a durable one. */
       storageBackend: string;
     };
@@ -42,6 +43,22 @@ export type HydraSummary = {
   configured: boolean;
   verifiedAt: string | null;
   fingerprint: string | null;
+};
+
+/** Safe evidence state for the server-rendered shell; credentials and source content never cross this boundary. */
+export type PublicEvidenceSummary = {
+  connectors: Array<{
+    id: string; hydradbConnectorId: string; provider: string; name: string;
+    state: string; database: string; collection: string | null;
+    verificationStage: string | null; canaryResultCount: number | null;
+    verifiedAt: string | null; lastSuccessfulSyncAt: string | null; lastError: string | null;
+  }>;
+  documents: Array<{
+    id: string; filename: string; mime: string; byteSize: number; contentHash: string;
+    database: string | null; hydradbSourceId: string | null; pageCount: number | null;
+    indexedAt: string | null; processingDurationMs: number | null;
+    stage: string; error: string | null; createdAt: string;
+  }>;
 };
 
 export async function loadWorkspaceView(): Promise<WorkspaceView> {
@@ -72,7 +89,28 @@ export async function loadWorkspaceView(): Promise<WorkspaceView> {
 
   if (!workspace) return { kind: "no_workspace", actor: actorView };
 
-  const account = await hydraAccountForWorkspace(String(workspace.id));
+  const workspaceId = String(workspace.id);
+  const [account, connectorRows, documentRows] = await Promise.all([
+    hydraAccountForWorkspace(workspaceId),
+    requireDb().prepare(
+      `SELECT c.id, c.hydradb_connector_id AS hydradbConnectorId, c.provider, c.name, c.state, c.database, c.collection,
+              (SELECT verification_stage FROM connection_verifications v
+               WHERE v.connector_id = c.id ORDER BY v.created_at DESC LIMIT 1) AS verificationStage,
+              (SELECT canary_result_count FROM connection_verifications v
+               WHERE v.connector_id = c.id ORDER BY v.created_at DESC LIMIT 1) AS canaryResultCount,
+              (SELECT verified_at FROM connection_verifications v
+               WHERE v.connector_id = c.id ORDER BY v.created_at DESC LIMIT 1) AS verifiedAt,
+              c.last_successful_sync_at AS lastSuccessfulSyncAt, c.last_error AS lastError
+       FROM connectors c WHERE c.workspace_id = ? AND c.state != 'deleted' ORDER BY c.updated_at DESC LIMIT 100`,
+    ).bind(workspaceId).all<PublicEvidenceSummary["connectors"][number]>(),
+    requireDb().prepare(
+      `SELECT id, filename, mime, byte_size AS byteSize, content_hash AS contentHash,
+              hydradb_database AS database, hydradb_source_id AS hydradbSourceId,
+              page_count AS pageCount, indexed_at AS indexedAt,
+              processing_duration_ms AS processingDurationMs, stage, error, created_at AS createdAt
+       FROM documents WHERE workspace_id = ? ORDER BY created_at DESC LIMIT 100`,
+    ).bind(workspaceId).all<PublicEvidenceSummary["documents"][number]>(),
+  ]);
   return {
     kind: "ready",
     storageBackend:
@@ -91,5 +129,6 @@ export async function loadWorkspaceView(): Promise<WorkspaceView> {
       verifiedAt: (account?.verified_at as string | undefined) ?? null,
       fingerprint: (account?.key_fingerprint as string | undefined) ?? null,
     },
+    evidence: { connectors: connectorRows.results ?? [], documents: documentRows.results ?? [] },
   };
 }

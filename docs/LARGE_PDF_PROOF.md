@@ -29,7 +29,7 @@ fact placement, object references, and xref offsets.
 - beginning, middle, and end canaries passed;
 - citation precision and completeness were both 100%;
 - unsupported-claim rate was 0%;
-- p50/p95 request latency was 566/11,852 ms; and
+- p50/p95 request latency was 2,592/17,061 ms; and
 - median/mean HydraDB calls were 2/1.82.
 
 The REVIEW cases were the original superseded-policy question (4/5 facts) and the draft
