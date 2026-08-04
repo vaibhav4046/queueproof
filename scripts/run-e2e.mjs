@@ -45,7 +45,7 @@ const [appSource, styles] = await Promise.all([
   readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
 ]);
 for (const contract of [
-  "useDialogBehavior", "EvidenceReceiptDialog", "aria-pressed", "Run live proof",
+  "useDialogBehavior", "MutationObserver(recoverFocus)", "EvidenceReceiptDialog", "aria-pressed", "Run live proof",
   "Verify sources", "Match the facts", "Cite every claim", "Approve the action",
   "missing-information", "(router?.total ?? 0) >= 30", "graded > 0", "scrollIntoView",
   "Evidence timeline", "Expected facts, observed answers", "Stop waiting", "Reproducible investigation",

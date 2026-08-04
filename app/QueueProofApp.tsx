@@ -267,6 +267,11 @@ function useDialogBehavior<T extends HTMLElement>(
       if (openDialogIds.at(-1) !== dialogId) return;
       if (event.target instanceof Node && !dialog.contains(event.target)) recoverFocus();
     };
+    // React can replace the currently focused control while an async proof payload
+    // resolves. Browsers then fall back to <body> without emitting a new focusin event.
+    // Observe only the open dialog so that replacement is repaired without polling.
+    const focusObserver = new MutationObserver(recoverFocus);
+    focusObserver.observe(dialog, { childList: true, subtree: true });
     const onKeyDown = (event: KeyboardEvent) => {
       if (openDialogIds.at(-1) !== dialogId) return;
       if (event.key === "Escape") {
@@ -294,6 +299,7 @@ function useDialogBehavior<T extends HTMLElement>(
       recoveryTimers.forEach((timer) => window.clearTimeout(timer));
       document.removeEventListener("keydown", onKeyDown);
       document.removeEventListener("focusin", onFocusIn);
+      focusObserver.disconnect();
       const stackIndex = openDialogIds.lastIndexOf(dialogId);
       if (stackIndex >= 0) openDialogIds.splice(stackIndex, 1);
       for (const [element, previous] of inerted) element.inert = previous;
