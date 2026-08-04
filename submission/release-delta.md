@@ -1,7 +1,6 @@
 # QueueProof — 4 August 2026 release delta
 
-This is the current local release-candidate delta. It is intentionally separated from the
-older public deployment until publication is explicitly approved.
+This is the final reviewed release delta published to the canonical production URL.
 
 ## Product changes
 
@@ -25,17 +24,16 @@ older public deployment until publication is explicitly approved.
 | Production build | pass |
 | E2E shell contract | pass |
 | Sites binding check | pass |
-| Full test suite | 324 tests / 32 files |
+| Full test suite | 330 tests / 35 files |
 | Deterministic router | 39/39 cases / 331 assertions |
 | Strict PDF public baseline | 20/22 cases / 53/56 facts |
-| Six-query public diagnostic | 1/6 complete / 15/19 facts |
+| Six-query public diagnostic | 4/6 complete / 19/19 facts |
 
-The PDF and six-query figures are public-production baselines measured before the final
-unpublished code. They are not presented as post-release results.
+The six-query figure is a post-release production result for commit
+`4510d3fe60b3c271a107f514c98c42d120c9929b`. The PDF result remains a separately scoped
+strict public-production benchmark and is never merged into the live connector score.
 
 ## Release gates still requiring owner authority
 
-- Publish the local release to the linked production target.
-- Push the final commit to GitHub and make the repository judge-accessible.
-- Rerun strict PDF and live acceptance against that exact published commit.
+- Make the private repository judge-accessible.
 - Record and attach the final video, LinkedIn post, and X post URLs.

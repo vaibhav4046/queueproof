@@ -49,6 +49,9 @@ closed.
   and Slack.
 - Flagship production answer with cited GitHub, Linear, and Slack evidence in one thinking
   query.
+- Final six-query production sample: 19/19 required facts, four of six complete case
+  passes, 100% citation precision/completeness, zero unsupported claims, p50 16.294 s,
+  and p95 29.877 s.
 - 39/39 deterministic router cases; 331 assertions.
 - 330 tests across 35 files; 13 security tests; 8 MCP tests.
 - Zero secret-pattern matching files across the complete pre-release history and final
@@ -58,6 +61,8 @@ closed.
 
 - The final post-deploy strict PDF run passed 20/22 cases and recovered 53/56 facts with
   complete citations; both REVIEW cases and the cross-source provider miss stay visible.
-- The stored six-query live run is a small historical sample, not an SLA.
+- The stored six-query live run is a small diagnostic sample, not an SLA. Two cases stay
+  REVIEW because the returned receipts did not satisfy the frozen multi-provider rubric,
+  even though all required answer facts were present.
 - Relative cost units are reported; no HydraDB USD cost is invented.
 - External execution is considered proven only after a provider response ID is persisted.

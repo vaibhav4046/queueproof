@@ -35,9 +35,11 @@ retained receipt, and abstains when evidence cannot support an answer.
 ## Latency, accuracy, and cost
 
 - Offline router fixture: 39/39 labelled cases and 331 deterministic assertions.
-- Final six-question public sample: 13/19 required facts (68.4%), 100% citation precision
-  and completeness, zero unsupported claims, two full case passes, six Deep check runs,
-  p50 18.153 seconds and p95 29.723 seconds.
+- Final six-question public sample: 19/19 required facts (100%), 100% citation precision
+  and completeness, zero unsupported claims, four full case passes, six Deep check runs,
+  p50 16.294 seconds and p95 29.877 seconds. The two REVIEW cases remain visible: one
+  stale-state answer lacked a separate Linear receipt and therefore a cross-provider
+  contradiction, and one exact-ID answer lacked the rubric-required Linear receipt.
 - Relative cost: mean 2.17 HydraDB calls; Deep check is reported as 3 weighted units.
   No unverified USD price is invented.
 - Final strict 346-page PDF run: 20/22 cases, 53/56 facts, p50 566 ms, p95 11.852 s,

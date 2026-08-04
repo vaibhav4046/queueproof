@@ -1,6 +1,6 @@
 # QueueProof benchmark report
 
-Generated: 2026-08-04T09:02:18.997Z
+Generated: 2026-08-04T10:07:40.275Z
 Runner: `node scripts/run-evals.mjs`
 Fixtures: `evals/fixtures/cases.json` (39 ground truth cases, fictional company "Helios Robotics")
 
@@ -123,22 +123,22 @@ did not measure.
 
 ## Live connector run (strict grader; measured, not fixture)
 
-Target https://queueproof.vercel.app. Connectors: github, gmail, linear, slack. Generated 2026-08-04T06:54:28.562Z. Grader: `grounded-grader-v2`.
+Target https://queueproof.vercel.app. Connectors: github, gmail, linear, slack. Generated 2026-08-04T10:06:06.911Z. Grader: `grounded-grader-v2`.
 
 | Case | Mode | Latency | Sources | Providers in evidence |
 | --- | --- | --- | --- | --- |
-| three-provider multi-hop | `thinking` | 12654 ms | 5 | github, linear, slack |
-| deadline conflict | `thinking` | 26357 ms | 2 | linear, slack |
-| untracked commitment | `thinking` | 12337 ms | 9 | github, gmail, slack |
-| stale tracked work | `thinking` | 27588 ms | 3 |  |
-| actor reconstruction | `thinking` | 18153 ms | 7 | linear, slack |
-| exact identifier plus context | `thinking` | 29723 ms | 1 | slack |
+| three-provider multi-hop | `thinking` | 14501 ms | 5 | github, linear, slack |
+| deadline conflict | `thinking` | 29877 ms | 3 | linear, slack |
+| untracked commitment | `thinking` | 16294 ms | 5 | github, gmail, linear, slack |
+| stale tracked work | `thinking` | 17824 ms | 2 | github |
+| actor reconstruction | `thinking` | 22022 ms | 9 | linear, slack |
+| exact identifier plus context | `thinking` | 12310 ms | 1 | slack |
 
-Latency across 6 live questions: p50 18153 ms, p95 29723 ms, min 12337 ms, max 29723 ms.
+Latency across 6 live questions: p50 16294 ms, p95 29877 ms, min 12310 ms, max 29877 ms.
 
 Questions whose evidence spanned all three connected providers: 2/6. Routed thinking/fast: 6/0.
 
-Required-fact recall: 68.4%. Citation completeness: 100.0%. Unsupported-claim rate: 0.0%.
+Required-fact recall: 100.0%. Citation completeness: 100.0%. Unsupported-claim rate: 0.0%.
 
 These are real end-to-end measurements against connected providers.
 The sample is small and is not presented as a stable distribution.

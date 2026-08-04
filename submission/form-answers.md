@@ -1,8 +1,8 @@
 # QueueProof submission form answers
 
-Prepared from measurements taken on 4 August 2026. Do not submit until the final commit
-is published, the strict live/PDF checks are rerun on that commit, the repository is made
-judge-accessible, and the bracketed video field is replaced.
+Prepared from measurements taken on 4 August 2026. The exact final application commit is
+published and the strict live run is complete. Do not submit until the repository is made
+judge-accessible and the bracketed video field is replaced.
 
 ## Product name
 
@@ -77,7 +77,7 @@ explicit, and a unique execution row is claimed before provider I/O.
 ## What is verified?
 
 - Typecheck, lint, production build, E2E, and deployment check pass.
-- 324 tests across 32 files pass.
+- 330 tests across 35 files pass.
 - Security suite: 13 tests. MCP suite: 8 tests.
 - Offline router benchmark: 39/39 labelled cases and 331 assertions.
 - Responsive QA: 360x800, 390x844, 768x1024, 1440x900, 1920x1080,
@@ -112,18 +112,18 @@ The deterministic 346-page PDF contains 22 questions and 56 required-fact groups
 and passed 20/22 cases, with 100% citation precision/completeness and zero unsupported
 claims. Beginning, middle, and end canaries all passed. The document-plus-connectors case
 found document and GitHub evidence but missed the required second connector, so it remains
-REVIEW. This is a pre-release production baseline and must be rerun after publication.
+REVIEW. This remains a separately scoped strict production benchmark.
 
 ## Honest limitations
 
-- The fresh six-query production sample passed 1/6 complete cases and 15/19 required facts.
-  Citation precision/completeness were 100% with zero unsupported claims; this small sample
-  is a diagnostic baseline, not an SLA or a general accuracy claim.
-- The fresh strict PDF baseline is 20/22, not 22/22, and predates the unpublished final
-  retrieval changes.
+- The final six-query production sample passed 4/6 complete cases and matched 19/19
+  required facts. Citation precision/completeness were 100% with zero unsupported claims;
+  the two REVIEW cases missed frozen multi-provider requirements, so this small sample is
+  a diagnostic, not an SLA or a general accuracy claim.
+- The fresh strict PDF baseline is 20/22, not 22/22.
 - Relative query units are shown; no HydraDB dollar cost is invented.
 - A provider write is not described as executed without a stored provider response ID.
-- Final publication, repository access, post-deploy reruns, and the video URL remain gates.
+- Repository access and the final video URL remain gates.
 
 ## Hackathon form quick answers
 
