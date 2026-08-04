@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
 const nextConfig: NextConfig = {
+  agentRules: false,
   webpack(config) {
     config.resolve.alias[path.resolve(projectRoot, "lib/server/runtime-provider.ts")] =
       path.resolve(projectRoot, "lib/server/runtime-vercel.ts");

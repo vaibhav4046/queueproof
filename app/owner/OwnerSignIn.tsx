@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import styles from "./owner.module.css";
+import { QueueProofLogo } from "../components/QueueProofLogo";
 
 type SessionState = {
   signInConfigured: boolean;
@@ -83,7 +84,7 @@ export default function OwnerSignIn() {
     <main className={styles.shell}>
       <section className={styles.card} aria-labelledby="owner-title">
         <Link className={styles.brand} href="/" aria-label="Back to QueueProof">
-          <span>Q</span> QueueProof
+          <QueueProofLogo />
         </Link>
 
         <div className={styles.heading}>

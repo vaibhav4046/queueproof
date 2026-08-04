@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, CircleAlert, CircleCheck, FileCheck2, Network, Route, ShieldCheck } from "lucide-react";
+import { ArrowRight, CircleAlert, CircleCheck, FileCheck2, Network, Route } from "lucide-react";
 import { ShaderBackground } from "../components/ui/red-plasma";
+import { QueueProofLogo } from "../components/QueueProofLogo";
 
 export const metadata: Metadata = {
   title: "How QueueProof works",
@@ -20,7 +21,7 @@ const steps = [
 export default function MethodPage() {
   return <div className="method-page">
     <div className="ambient-field" aria-hidden="true"><ShaderBackground className="evidence-field-canvas" /></div>
-    <header className="method-header"><Link href="/" className="method-brand"><span><ShieldCheck size={17} /></span><strong>QUEUE<em>PROOF</em></strong></Link><nav aria-label="Public pages"><Link href="/demo">Live demo</Link><Link href="/benchmarks">Benchmarks</Link></nav></header>
+    <header className="method-header"><Link href="/" className="method-brand"><QueueProofLogo /></Link><nav aria-label="Public pages"><Link href="/">Ask</Link><Link href="/benchmarks">Benchmarks</Link><Link href="/replay">Replay</Link></nav></header>
     <main id="main-content">
       <section className="method-hero"><span className="eyebrow"><Route size={13} /> How QueueProof reached the answer</span><h1>Search every source.<br /><em>Show every receipt.</em></h1><p>QueueProof does not ask you to trust an unexplained answer. It records the route, the HydraDB calls, the retained evidence, the conflicts, and the exact basis for the next action.</p><div><Link className="primary-button" href="/demo">Run the proof <ArrowRight size={13} /></Link><Link className="secondary-button" href="/benchmarks">Inspect measured results</Link></div></section>
       <section className="method-steps" aria-label="Verification method">{steps.map(([number, title, body]) => <article key={number}><small>{number}</small><div><h2>{title}</h2><p>{body}</p></div></article>)}</section>

@@ -11,6 +11,7 @@ export async function GET() {
     release: {
       commitSha,
       commitRef,
+      target: process.env.VERCEL_ENV ?? null,
       deploymentUrl: process.env.VERCEL_URL ?? null,
     },
   });

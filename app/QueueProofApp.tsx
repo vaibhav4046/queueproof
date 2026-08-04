@@ -12,10 +12,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { SiGithub, SiGmail, SiLinear, SiSlack } from "react-icons/si";
 import { ComponentProps, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import type { WorkspaceView } from "../lib/server/workspace-state";
 import type { EvidenceGraph as EvidenceGraphData } from "../packages/graph/src";
 import type { LiveProofState } from "../packages/contracts/src";
 import EvidenceGraphView from "./components/EvidenceGraph";
+import { QueueProofLogo } from "./components/QueueProofLogo";
+import { ShaderBackground } from "./components/ui/red-plasma";
 
 type CredentialField = {
   name: string; required?: boolean; title?: string; description?: string;
@@ -123,11 +126,15 @@ export type ActiveTab = "command" | "ask" | "sources" | "lab" | "replay" | "appr
 type ReadyView = Extract<WorkspaceView, { kind: "ready" }>;
 
 const nav = [
-  { id: "ask", label: "Ask", mobileLabel: "Ask", icon: Sparkles },
+  { id: "ask", label: "Ask", mobileLabel: "Ask", icon: Search },
   { id: "command", label: "Priorities", mobileLabel: "Priorities", icon: Command },
-  { id: "sources", label: "Sources", mobileLabel: "Sources", icon: Link2 },
-  { id: "lab", label: "Benchmarks", mobileLabel: "Tests", icon: Activity },
-  { id: "replay", label: "History", mobileLabel: "History", icon: RotateCcw },
+  { id: "sources", label: "Evidence", mobileLabel: "Evidence", icon: Link2 },
+  { id: "lab", label: "Lab", mobileLabel: "Lab", icon: Activity },
+] as const;
+
+const labNav = [
+  { id: "lab", label: "Benchmarks", icon: Activity },
+  { id: "replay", label: "Replay", icon: RotateCcw },
 ] as const;
 
 const utilityNav = [
@@ -149,8 +156,8 @@ const tabForRoute = Object.fromEntries(
   Object.entries(routeForTab).map(([tab, route]) => [route, tab]),
 ) as Record<string, ActiveTab>;
 
-const allNav = [...nav, ...utilityNav] as const;
-const mobileNav = nav.filter(({ id }) => ["ask", "command", "sources", "lab"].includes(id));
+const allNav = [...nav, ...labNav.filter(({ id }) => id === "replay"), ...utilityNav] as const;
+const mobileNav = nav;
 
 const stateCopy: Record<string, string> = {
   connector_created: "Choose scope", resources_discovered: "Choose scope",
@@ -455,22 +462,30 @@ export default function QueueProofApp({
   }
 
   return (
-    <div className="qp-app" data-active-tab={tab}>
+    <div className="qp-app" data-active-tab={tab} data-design-system="evidence-command-centre-v1">
+      <div className="ambient-field" aria-hidden="true"><ShaderBackground className="evidence-field-canvas" /></div>
       <header className="app-header">
         <Link className="brand" href="/" aria-label="QueueProof home">
-          <span className="brand-mark"><ShieldCheck size={17} /></span>
-          <span className="brand-lockup"><span><strong>QUEUE</strong><em>PROOF</em></span><small>WORKSPACE</small></span>
+          <QueueProofLogo className="queueproof-logo" />
         </Link>
         <nav aria-label="Primary navigation">
-          {allNav.map(({ id, label, icon: Icon }) => (
-            <Link key={id} href={routeForTab[id]} className={tab === id ? "active" : ""} aria-current={tab === id ? "page" : undefined}>
-              <Icon size={14} /><span>{label}</span>
-            </Link>
-          ))}
+          {nav.filter(({ id }) => id !== "lab").map(({ id, label, icon: Icon }) => {
+            const active = tab === id;
+            return <Link key={id} href={routeForTab[id]} className={active ? "active" : ""} aria-current={active ? "page" : undefined}>
+              {active && <motion.span className="nav-lamp" layoutId="desktop-nav-lamp" transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
+              <Icon size={15} /><span>{label}</span>
+            </Link>;
+          })}
+          <details className={`nav-menu lab-menu ${tab === "lab" || tab === "replay" ? "active" : ""}`}>
+            <summary aria-label="Open Lab navigation"><Activity size={15} /><span>Lab</span>{(tab === "lab" || tab === "replay") && <motion.span className="nav-lamp" layoutId="desktop-nav-lamp" transition={{ type: "spring", stiffness: 420, damping: 34 }} />}</summary>
+            <div className="nav-popover">{labNav.map(({ id, label, icon: Icon }) => <Link key={id} href={routeForTab[id]} aria-current={tab === id ? "page" : undefined}><Icon size={15} /><span>{label}</span></Link>)}</div>
+          </details>
         </nav>
         <div className="header-status">
           <button className="command-trigger" onClick={() => setCommandOpen(true)} aria-label="Open command palette"><Search size={14} /><kbd>⌘K</kbd></button>
-          <span className="demo-badge"><span className={verified.length ? "status-orb live" : "status-orb"} />{publicSandbox ? "Public sandbox" : "Live workspace"}</span>
+          <span className="demo-badge"><span className={verified.length ? "status-orb live" : "status-orb"} />{verified.length} live</span>
+          <Link className={`header-utility ${tab === "approvals" ? "active" : ""}`} href="/approvals" aria-label="Approvals"><ShieldCheck size={15} /></Link>
+          <details className="nav-menu utility-menu"><summary aria-label="Open developer and owner menu"><MoreHorizontal size={17} /></summary><div className="nav-popover nav-popover-right"><Link href="/developer"><Bot size={15} />Developer</Link><Link href="/method"><Braces size={15} />Method</Link><Link href="/owner"><LockKeyhole size={15} />Owner</Link></div></details>
         </div>
       </header>
       <nav className="mobile-dock" aria-label="Mobile navigation">
@@ -482,7 +497,7 @@ export default function QueueProofApp({
         <button type="button" aria-label="Open all product pages" onClick={() => { setCommandQuery(""); setCommandOpen(true); }}><MoreHorizontal size={18} aria-hidden="true" /><span>More</span></button>
       </nav>
 
-      {publicSandbox && <div className="sandbox-disclosure" role="note"><ShieldCheck size={13} /><strong>Public sandbox</strong><span>Shared evidence and proposals · credentials and external execution disabled</span><Link href="/owner"><LockKeyhole size={12} /> Owner sign in</Link></div>}
+      {publicSandbox && <details className="sandbox-disclosure"><summary><span className="status-orb live" /><strong>Public evidence workspace</strong><span>Read-only controls</span></summary><div role="note"><p>You can run grounded retrieval, inspect receipts, review priorities, and create reviewable proposals. Credentials, connector changes, approvals, and provider execution remain owner-only.</p><Link href="/owner"><LockKeyhole size={12} /> Owner sign in</Link></div></details>}
 
       {view.storageBackend === "ephemeral" && (
         <div className="storage-banner" role="status">
@@ -521,7 +536,7 @@ export default function QueueProofApp({
         {tab === "agent" && <AgentScreen workspace={view} setError={setError} setNotice={setNotice} readOnly={publicSandbox} publicOrigin={publicOrigin} />}
       </main>
       <footer className="app-footer">
-        <span><ShieldCheck size={14} /><strong>QueueProof</strong> / evidence for every next step</span>
+        <span><QueueProofLogo className="footer-logo" /> / evidence for every next step</span>
         <span>Verified reads <i /> cited decisions <i /> approval-gated writes</span>
         <Link href="/benchmarks">Open audit surface <ArrowRight size={12} /></Link>
       </footer>
@@ -536,9 +551,9 @@ function CommandPalette({ query, setQuery, onClose, onNavigate }: {
   query: string; setQuery: (value: string) => void; onClose: () => void;
   onNavigate: (tab: ActiveTab) => void;
 }) {
-  const entries = [...nav, ...utilityNav].filter((entry) => entry.label.toLowerCase().includes(query.toLowerCase()));
+  const entries = allNav.filter((entry) => entry.label.toLowerCase().includes(query.toLowerCase()));
   const dialogRef = useDialogBehavior<HTMLDivElement>(true, onClose);
-  return <div className="modal-layer command-layer" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><div ref={dialogRef} className="command-palette" role="dialog" aria-modal="true" aria-label="Navigate QueueProof" tabIndex={-1}><div className="command-search"><Search size={17} /><input data-dialog-initial autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Go to a product surface…" aria-label="Search product surfaces" /><kbd>ESC</kbd></div><div className="command-results">{entries.map(({ id, label, icon: Icon }) => <button key={id} onClick={() => onNavigate(id)}><Icon size={16} /><span>{label}</span><ArrowRight size={13} /></button>)}</div></div></div>;
+  return <div className="modal-layer command-layer" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><div ref={dialogRef} className="command-palette" role="dialog" aria-modal="true" aria-label="Navigate QueueProof" tabIndex={-1}><div className="command-search"><Search size={17} /><input data-dialog-initial autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Go to a product surface…" aria-label="Search product surfaces" /><kbd>ESC</kbd></div><div className="command-results">{entries.map(({ id, label, icon: Icon }) => <button key={id} onClick={() => onNavigate(id)}><Icon size={16} /><span>{label}</span><ArrowRight size={13} /></button>)}{!query && <><Link href="/method" onClick={onClose}><Braces size={16} /><span>Method</span><ArrowRight size={13} /></Link><Link href="/owner" onClick={onClose}><LockKeyhole size={16} /><span>Owner</span><ArrowRight size={13} /></Link></>}</div></div></div>;
 }
 
 /**
