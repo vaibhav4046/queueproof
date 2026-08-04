@@ -48,7 +48,7 @@ export async function GET(request: Request) {
         .prepare(
           `SELECT id, provider, name, state, database, collection,
                   last_successful_sync_at AS lastSuccessfulSyncAt, last_error AS lastError
-           FROM connectors WHERE workspace_id = ?1`,
+           FROM connectors WHERE workspace_id = ?`,
         )
         .bind(workspaceId)
         .all(),
@@ -56,7 +56,7 @@ export async function GET(request: Request) {
         .prepare(
           `SELECT id, provider, title, excerpt, source_url AS url,
                   source_timestamp AS timestamp, authority, connector_id AS connectorId
-           FROM source_references WHERE workspace_id = ?1`,
+           FROM source_references WHERE workspace_id = ?`,
         )
         .bind(workspaceId)
         .all(),
