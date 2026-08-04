@@ -54,5 +54,9 @@ assert.match(styles, /\.app-header\s*\{\s*position:\s*sticky/);
 assert.match(styles, /\.qp-app\s*>\s*\.toast\s*\{\s*position:\s*fixed/);
 assert.match(styles, /max-height:\s*1100px/);
 assert.match(styles, /\.mobile-nav-utility\s*\{\s*display:\s*flex\s*!important/);
+assert.ok(
+  styles.includes(".evidence-orbit-stack { display: block; aspect-ratio: auto; max-height: none; }"),
+  "Persisted receipt replay controls must remain in flow below the desktop Orbit and visible on mobile.",
+);
 
 console.log("PASS  live shell, seven-destination navigation, direct judge routes, public disclosure, proof-first layout, timeline, comparison, replay, citations, dialogs, and result-state contracts");
