@@ -22,7 +22,7 @@
     "start": "node ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --env-file .env.local",
     "lint": "node ./node_modules/eslint/bin/eslint.js . --ignore-pattern dist --ignore-pattern .next",
     "typecheck": "node ./node_modules/typescript/bin/tsc --noEmit",
-    "test": "node ./node_modules/vitest/vitest.mjs run --config vitest.config.ts",
+    "test": "node ./node_modules/vitest/vitest.mjs run --config vitest.config.ts --pool=threads --maxWorkers=1 --fileParallelism=false",
     "test:e2e": "node scripts/run-e2e.mjs",
     "test:mcp": "node ./node_modules/vitest/vitest.mjs run --config vitest.config.ts tests/mcp.test.ts",
     "test:security": "node ./node_modules/vitest/vitest.mjs run --config vitest.config.ts tests/security.test.ts",
