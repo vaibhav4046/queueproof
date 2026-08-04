@@ -156,12 +156,22 @@ function valuePatternsForQuestion(question: string): RegExp[] {
     patterns.push(/\breleased?\s+(?:in|on)\s+[^.!?\n]{0,80}/gi);
     patterns.push(/\bratified\s+on\s+[^.!?\n]{0,80}/gi);
   }
-  if (anchored && /\b(still in force|supersed|withdrawn|single approver|binding rule|originally permit|original permission|permit|permitted|rule|policy)\b/i.test(question)) {
+  if (anchored && /\b(still in force|supersed|withdrawn|single approver|binding rule|originally permit|original permission|permit|permitted|rule|policy|draft)\b/i.test(question)) {
     patterns.push(/\b(?:supersed\w*|withdrawn|no longer in force|no longer valid)[^.!?\n]{0,130}/gi);
     patterns.push(/\btwo-?approver\w*[^.!?\n]{0,150}/gi);
     patterns.push(/\bSafety Case Owner[^.!?\n]{0,110}/gi);
     patterns.push(/\bbinding rule[^.!?\n]{0,130}/gi);
     patterns.push(/\bmust not be relied on[^.!?\n]{0,90}/gi);
+    // The original permission sentence itself: "A single Tier 2 engineer could
+    // flash Rover SDK field firmware without a second approver…". A question
+    // about what a policy originally permitted wants this sentence, not just
+    // the later supersession text.
+    patterns.push(/\bsingle\s+Tier\s+\d+\s+engineer[^.!?\n]{0,150}/gi);
+    patterns.push(/\bcould\s+flash[^.!?\n]{0,130}/gi);
+    // A never-ratified draft carries no authority; surface its exact wording
+    // for permit/still-in-force questions about drafts.
+    patterns.push(/\bnever ratified[^.!?\n]{0,90}/gi);
+    patterns.push(/\bcarries no operational authority[^.!?\n]{0,70}/gi);
   }
   if (anchored && /\b(impact|how long|duration)\b/i.test(question)) {
     // These stay narrow so "how long did impact last" pulls the duration
@@ -181,7 +191,7 @@ function valuePatternsForQuestion(question: string): RegExp[] {
       /\b(what happened|what was|describe|summary|occurred|record)\b/i.test(question)) {
     patterns.push(/\b[A-Z][A-Z0-9]+-\d+\s+was\s+a\s+[^.!?\n]{0,140}/gi);
   }
-  if (anchored && /\bescalat\w*/i.test(question)) {
+  if (anchored && /\bescalat\w*|\b(?:desk|runs?)\b/i.test(question)) {
     patterns.push(/\bescalation desk[^.!?\n]{0,60}/gi);
   }
   // Programme-code / project-alias questions keep their dedicated value intent.

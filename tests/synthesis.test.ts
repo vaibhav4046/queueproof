@@ -254,7 +254,56 @@ describe("evidence-constrained synthesis", () => {
       }],
     );
 
+    expect(result.answer).toMatch(/single Tier 2 engineer/i);
+    expect(result.answer).toMatch(/without a second approver/i);
     expect(result.answer).toMatch(/no longer in force/i);
+  });
+
+  it("surfaces the desk sentence when the question asks which desk someone runs", () => {
+    const result = synthesiseGroundedAnswer(
+      "What is Priya Ramanathan's role at Helios Robotics and which desk does she run?",
+      [
+        {
+          id: "handbook-people",
+          provider: "document",
+          title: "helios-operations-handbook.pdf",
+          excerpt: "Customer operations. Priya Ramanathan, Customer Escalation Manager, employee HR-5871, running the Billing Migration escalation desk.",
+        },
+        {
+          id: "handbook-people-2",
+          provider: "document",
+          title: "helios-operations-handbook.pdf",
+          excerpt: "A ticket that names only Priya is routed by subject: identity to HR-2214, billing to HR-5871.",
+        },
+      ],
+    );
+
+    expect(result.answer).toMatch(/Customer Escalation Manager/i);
+    expect(result.answer).toMatch(/Billing Migration escalation desk/i);
+  });
+
+  it("surfaces never-ratified and no-authority wording for a draft question", () => {
+    const result = synthesiseGroundedAnswer(
+      "Does DRAFT-OPS-14 permit single engineer firmware flashing today?",
+      [
+        {
+          id: "handbook-draft",
+          provider: "document",
+          title: "helios-operations-handbook.pdf",
+          excerpt: "No. DRAFT-OPS-14 was never ratified and carries no operational authority. The binding rule is ADR-037, which requires two approvers.",
+        },
+        {
+          id: "handbook-draft-2",
+          provider: "document",
+          title: "helios-operations-handbook.pdf",
+          excerpt: "DRAFT-ESC-9 A proposal to let the escalation desk issue credits up to a fixed limit without ledger access.",
+        },
+      ],
+    );
+
+    expect(result.answer).toMatch(/never ratified/i);
+    expect(result.answer).toMatch(/no operational authority/i);
+    expect(result.answer).toMatch(/ADR-037/i);
   });
 
   it("extracts the customer impact window for an incident question", () => {
