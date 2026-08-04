@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-04T00:06:50.093Z",
+  "generatedAt": "2026-08-04T00:51:32.659Z",
   "grader": "grounded-grader-v2",
   "target": "https://queueproof.vercel.app",
   "runner": "scripts/run-pdf-benchmark.mjs",
@@ -11,17 +11,17 @@
     "sha256": "c047a3d09c45ecf97e3ed8e2115eda08ea0f6152206237955030f4304fa2ed93"
   },
   "cases": 22,
-  "passed": 16,
+  "passed": 20,
   "canaries": {
     "beginning": true,
     "middle": true,
     "end": true
   },
   "latencyMs": {
-    "p50": 560,
-    "p95": 5226,
-    "min": 406,
-    "max": 5298
+    "p50": 504,
+    "p95": 5757,
+    "min": 435,
+    "max": 6997
   },
   "calls": {
     "median": 1,
@@ -30,7 +30,7 @@
     "max": 2
   },
   "quality": {
-    "requiredFactAccuracy": 0.8035714285714286,
+    "requiredFactAccuracy": 0.9464285714285714,
     "citationPrecision": 1,
     "citationCompleteness": 1,
     "unsupportedClaimRate": 0,
@@ -38,11 +38,11 @@
   },
   "crossSource": {
     "question": "According to the Helios operations handbook, what does ENG-456 require, and do Slack, Linear, or GitHub show related AuthShield work?",
-    "answer": "English translation The Helios Robotics security team commits that under ENG-456 the AuthShield operator token lifetime will be reduced to fifteen minutes by 30 June 2031.. [1] Linear issue ENG-456 is still showing as open even though the code is shipped. [2] ://linear.app/settings/integrations/slack>) Create issues from Slack messages and sync threads * **[GitHub](<https://linear.app/settings/integrations/github>) / [GitLab](<https://linear.app/settings/integrations/gitlab>)** Automate your pull request, commit workflows, and keep issues synced both ways * [**Agents**](<https://linear.app/integrations/agents>) Deploy AI agents that work alongside you as teammates. [3] Escalation beyond the rings If no ring answers within fifteen minutes, the depot manager pages the operations board directly. [4]",
+    "answer": "English translation The Helios Robotics security team commits that under ENG-456 the AuthShield operator token lifetime will be reduced to fifteen minutes by 30 June 2031.. [1] Linear issue ENG-456 is still showing as open even though the code is shipped. [2] Hindi, transliterated to Latin script Helios Robotics ki suraksha team vachan deti hai ki ENG-456 ke tahat AuthShield operator token ka jeevankaal 30 June 2031 tak ghatakar pandrah minute kar diya jaayega.. [1] Escalation beyond the rings If no ring answers within fifteen minutes, the depot manager pages the operations board directly. [3]",
     "apiOk": true,
     "httpStatus": 200,
     "error": null,
-    "pass": true,
+    "pass": false,
     "requiredFacts": [
       {
         "id": "issue",
@@ -93,13 +93,11 @@
     "requiredFactRecall": 1,
     "providers": [
       "document",
-      "github",
-      "linear"
+      "github"
     ],
     "reportedProviders": [
       "document",
-      "github",
-      "linear"
+      "github"
     ],
     "requiredProviderRule": {
       "document": true,
@@ -107,11 +105,12 @@
     },
     "documentProviderPass": true,
     "nonDocumentProviders": [
-      "github",
-      "linear"
+      "github"
     ],
-    "connectorProviderPass": true,
-    "missingProviderRequirements": [],
+    "connectorProviderPass": false,
+    "missingProviderRequirements": [
+      "1 additional non-document provider(s)"
+    ],
     "reportedWithoutSupportingCitation": [],
     "citationPass": true,
     "citationPrecision": 1,
@@ -135,13 +134,6 @@
         "supported": true
       },
       {
-        "id": "d0635e3e154857b4e79829ca5916ad3b46e4df1002af741ef7ce6f8521e65669:chunk:0",
-        "provider": "linear",
-        "title": "Connect your tools",
-        "excerpt": "Integrations turn Linear into your source of truth around product development. Keep data in sync, and eliminate manual updates between tools. ![connect-your-tools.png](https://uploads.linear.app/fe63b3e2-bf87-46c0-8784-cd7d639287c8/c2eae035-37e2-4754-adcb-b8305431aa1f/c92d70c7-e6d0-4fa2-a0fd-78f6e780993a) ### **Key integrations** * [**Slack**](<https://linear.app/settings/integrations/slack>) Create issues from Slack messages and sync threads * **[GitHub](<https://linear.app/settings/integrations/github>) / [GitLab](<https://linear.app/settings/integrations/gitlab>)** Automate your pull request, commit workflows, and keep issues synced both ways * [**Agents**](<https://linear.app/integration",
-        "supported": true
-      },
-      {
         "id": "f64d374d1899f3057707528f77703f3f:chunk:4",
         "provider": "document",
         "title": "helios-operations-handbook.pdf",
@@ -149,15 +141,15 @@
         "supported": true
       }
     ],
-    "citationCount": 4,
+    "citationCount": 3,
     "claimCount": 4,
     "supportedClaimCount": 4,
     "mode": "thinking",
-    "latencyMs": 20649,
-    "measuredLatencyMs": 22042,
+    "latencyMs": 20529,
+    "measuredLatencyMs": 21958,
     "callCount": 4,
     "costUnits": 12,
-    "runId": "query_cd1ec4f3-7613-4803-99bc-2569e678915b"
+    "runId": "query_10918753-b250-400d-ac6a-944a92ebddc8"
   },
   "rows": [
     {
@@ -221,10 +213,10 @@
           "supported": true
         },
         {
-          "id": "f64d374d1899f3057707528f77703f3f:chunk:5",
+          "id": "f64d374d1899f3057707528f77703f3f:chunk:18",
           "provider": "document",
           "title": "helios-operations-handbook.pdf",
-          "excerpt": "``` +------------------+--------------------+----------------------------------------+ ``` | \\| Term | \\| Status | \\| Not to be confused with +------------------+--------------------+----------------------------------------+ | \\| | |---|---|---|---| | \\| Atlas Launch | \\| current programme | \\| Atlas Lander, cancelled hardware | \\| | | \\| Rover SDK | \\| current toolkit | \\| Rover CLI, retired depot tool | \\| | | \\| AuthShield | \\| current programme | \\| AuthShell, an internal test rig | \\| | | \\| Depot gateway | \\| current component | \\| Depot console, the operator UI | \\| | | \\| Audit ledger | \\| system of record | \\| Billing ledger, a downstream copy +------------------+-------------------",
+          "excerpt": "``` +------------------+------------------+----------------------------------+---------- ``` | \\| Drill | \\| Date | \\| Scenario +------------------+------------------+----------------------------------+---------- | \\| Outcome | |---|---|---|---| | \\| DRILL-2031-04 | \\| 11 April 2031 | \\| Depot gateway total loss | \\| passed | | \\| DRILL-2031-05 | \\| 9 May 2031 | \\| Duplicate billing simulation | \\| passed | | \\| DRILL-2031-06 | \\| 13 June 2031 | \\| Fleet wide stop work rehearsal | \\| passed | | \\| DRILL-2031-07 | \\| 10 July 2031 | \\| Credential broker outage +------------------+------------------+----------------------------------+---------- | \\| retry req | ### Reading drill records - A dri",
           "supported": true
         }
       ],
@@ -234,11 +226,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 560,
-      "measuredLatencyMs": 3344,
+      "latencyMs": 456,
+      "measuredLatencyMs": 3274,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_f2c8d7aa-a8bf-4953-a71e-83888bc32991"
+      "runId": "query_80647b6a-d642-4a45-9e1b-6ba63a344cae"
     },
     {
       "id": "fact-charter-id",
@@ -336,11 +328,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "thinking",
-      "latencyMs": 5298,
-      "measuredLatencyMs": 8355,
+      "latencyMs": 6997,
+      "measuredLatencyMs": 9829,
       "callCount": 1,
       "costUnits": 3,
-      "runId": "query_651050b6-004a-4520-8bec-fe0615404a2d"
+      "runId": "query_1673a4aa-a1ae-422e-9c99-150cafb912e5"
     },
     {
       "id": "fact-superseded-policy",
@@ -402,11 +394,19 @@
       "apiOk": true,
       "httpStatus": 200,
       "error": null,
-      "answer": "ADR-037, dated 9 September 2031, supersedes OPS-POL-14. From this date every Rover SDK field firmware flash requires two approvers, and one of them must be a Safety Case Owner. The single engineer permission in OPS-POL-14 is withdraw [1] date every Rover SDK field firmware flash requires two approvers, and one of them must be a Safety Case Owner. The single engineer permission in OPS-POL-14 is withdrawn and must not be relied on, whatever the depot staffing situation.. Context OPS-POL-14 assumed the maintenance stand was sufficient protection, on the argument that an isolated rover cannot m [1] Part V. Architecture Decision Records. ## ADR-037 Two approvers for Rover SDK firmware flashing. Status: Accepted Decided: 9 September 2031 Author: Kenji Sato Supersedes: OPS-POL-14. Decision ADR-037, dated 9 September 2031, supersedes OPS-POL-14. From this date every Rover SDK field firmware flash requires two approvers, and one of them must be a Safety Ca [2] or Rover SDK firmware flashing. Status: Accepted Decided: 9 September 2031 Author: Kenji Sato Supersedes: OPS-POL-14. Decision ADR-037, dated 9 September 2031, supersedes OPS-POL-14. From this date every Rover SDK field firmware flash requires two approvers, and one of them must be a Safety Case Owner. The single engineer permission in OPS-POL-14 is withdraw [2]",
+      "answer": "ADR-037, dated 9 September 2031, supersedes OPS-POL-14. From this date every Rover SDK field firmware flash requires two approvers, and one of them must be a Safety Case Owner. The single engineer permission in OPS-POL-14 is withdraw [1] ting Policies. ## OPS-POL-14 Rover SDK field firmware flashing. Owner: Field Operations Effective: 3 February 2031 Status at issue: binding. Rule At a depot, a single Tier 2 engineer may flash Rover SDK field firmware without a second approver, provided the rover is on a maintenance stand with the drive system isolated and the depot console shows the rover o [2] date every Rover SDK field firmware flash requires two approvers, and one of them must be a Safety Case Owner. The single engineer permission in OPS-POL-14 is withdrawn and must not be relied on, whatever the depot staffing situation.. Context OPS-POL-14 assumed the maintenance stand was sufficient protection, on the argument that an isolated rover cannot m [1] ### DRAFT-OPS-14 DRAFT-OPS-14 was never ratified and carries no operational authority. It proposed that any engineer, at any tier, could flash rover firmware provided a photograph of the maintenance stand was attached to the ticket. It is routinely confused with OPS-POL-14, which was a real policy and which was itself superseded [3]",
       "pass": false,
       "exactIdPass": true,
       "documentReceipt": true,
       "matchedFacts": [
+        {
+          "id": "single-engineer",
+          "label": "A single Tier 2 engineer could perform the flash",
+          "matched": true,
+          "matchedAlternatives": [
+            "single Tier 2 engineer"
+          ]
+        },
         {
           "id": "field-firmware",
           "label": "The permission covered Rover SDK field firmware flashing",
@@ -415,6 +415,14 @@
             "Rover SDK",
             "field firmware",
             "flash"
+          ]
+        },
+        {
+          "id": "without-second-approver",
+          "label": "No second approver was required",
+          "matched": true,
+          "matchedAlternatives": [
+            "without a second approver"
           ]
         },
         {
@@ -428,27 +436,15 @@
       ],
       "missingFacts": [
         {
-          "id": "single-engineer",
-          "label": "A single Tier 2 engineer could perform the flash",
-          "matched": false,
-          "matchedAlternatives": []
-        },
-        {
-          "id": "without-second-approver",
-          "label": "No second approver was required",
-          "matched": false,
-          "matchedAlternatives": []
-        },
-        {
           "id": "no-longer-force",
           "label": "The permission is no longer in force",
           "matched": false,
           "matchedAlternatives": []
         }
       ],
-      "matchedFactCount": 2,
+      "matchedFactCount": 4,
       "requiredFactCount": 5,
-      "requiredFactRecall": 0.4,
+      "requiredFactRecall": 0.8,
       "providerPass": true,
       "providers": [
         "document"
@@ -473,24 +469,31 @@
           "supported": true
         },
         {
-          "id": "f64d374d1899f3057707528f77703f3f:chunk:0",
+          "id": "f64d374d1899f3057707528f77703f3f:chunk:1",
           "provider": "document",
           "title": "helios-operations-handbook.pdf",
-          "excerpt": "### Procedure - Confirm the failure on the depot console. A single failed probe is not enough. - Capture the diagnostics bundle before restarting anything. Restarting first destroys the evidence. - Drain the field diagnostics bundle and wait for in flight work to finish, up to 103 seconds. - Restart the service and watch the probe for two consecutive passes. - If the probe fails again, stop and escalate rather than restarting a third time. ### Verification The recovery is complete when the probe has passed twice, the dispatch queue depth is falling, and an operator at Manchester confirms live status is moving again. Record the diagnostics bundle reference on the ticket even when the restart ",
+          "excerpt": "----- Helios Robotics Operations Handbook, Revision 7 | Part I - Operating Policies --- ## OPS-POL-14 Rover SDK field firmware flashing --- Owner: Field Operations Effective: 3 February 2031 Status at issue: binding ### Rule At a depot, a single Tier 2 engineer may flash Rover SDK field firmware without a second approver, provided the rover is on a maintenance stand with the drive system isolated and the depot console shows the rover out of service. ### Why the rule was written this way Depots run thin on the night shift. Requiring a second approver for a routine flash meant either waking a second engineer or leaving the rover out of service until morning. The maintenance stand was treated a",
+          "supported": true
+        },
+        {
+          "id": "f64d374d1899f3057707528f77703f3f:chunk:3",
+          "provider": "document",
+          "title": "helios-operations-handbook.pdf",
+          "excerpt": "### DRAFT-OPS-14 DRAFT-OPS-14 was never ratified and carries no operational authority. It proposed that any engineer, at any tier, could flash rover firmware provided a photograph of the maintenance stand was attached to the ticket. It is routinely confused with OPS-POL-14, which was a real policy and which was itself superseded by ADR-037. Neither the draft nor the superseded policy permits single engineer flashing today. ### DRAFT-ESC-9 A proposal to let the escalation desk issue credits up to a fixed limit without ledger access. Withdrawn after the Billing Migration parallel run showed that a credit issued without ledger access cannot be reconciled. ### DRAFT-RB-2 A runbook draft for rest",
           "supported": true
         }
       ],
-      "citationCount": 2,
+      "citationCount": 3,
       "claimCount": 4,
       "supportedClaimCount": 4,
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 502,
-      "measuredLatencyMs": 2216,
+      "latencyMs": 501,
+      "measuredLatencyMs": 2415,
       "callCount": 2,
       "costUnits": 2,
-      "runId": "query_6c36692c-30d6-4a0d-9106-c8502ae81f69"
+      "runId": "query_c060afc8-3b5c-4e19-bc8b-dd30737c1709"
     },
     {
       "id": "fact-superseding-decision",
@@ -556,7 +559,7 @@
       "apiOk": true,
       "httpStatus": 200,
       "error": null,
-      "answer": "ADR-037, dated 9 September 2031, supersedes OPS-POL-14. From this date every Rover SDK field firmware flash requires two approvers, and one of them must be a Safety Case Owner. The single engineer permission in OPS-POL-14 is withdraw [1] date every Rover SDK field firmware flash requires two approvers, and one of them must be a Safety Case Owner. The single engineer permission in OPS-POL-14 is withdrawn and must not be relied on, whatever the depot staffing situation.. Context OPS-POL-14 assumed the maintenance stand was sufficient protection, on the argument that an isolated rover cannot m [1] or Rover SDK firmware flashing. Status: Accepted Decided: 9 September 2031 Author: Kenji Sato Supersedes: OPS-POL-14. Decision ADR-037, dated 9 September 2031, supersedes OPS-POL-14. From this date every Rover SDK field firmware flash requires two approvers, and one of them must be a Safety Case Owner. The single engineer permission in OPS-POL-14 is withdraw [2] ver SDK field firmware flash requires two approvers, and one of them must be a Safety Case Owner. The single engineer permission in OPS-POL-14 is withdrawn and must not be relied on, whatever the depot staffing situation.. Context OPS-POL-14 assumed the maintenance stand was sufficient protection, on the argument that an isolated rover cannot move. Two near [1]",
+      "answer": "ADR-037, dated 9 September 2031, supersedes OPS-POL-14. From this date every Rover SDK field firmware flash requires two approvers, and one of them must be a Safety Case Owner. The single engineer permission in OPS-POL-14 is withdraw [1] date every Rover SDK field firmware flash requires two approvers, and one of them must be a Safety Case Owner. The single engineer permission in OPS-POL-14 is withdrawn and must not be relied on, whatever the depot staffing situation.. Context OPS-POL-14 assumed the maintenance stand was sufficient protection, on the argument that an isolated rover cannot m [1] ting Policies. ## OPS-POL-14 Rover SDK field firmware flashing. Owner: Field Operations Effective: 3 February 2031 Status at issue: binding. Rule At a depot, a single Tier 2 engineer may flash Rover SDK field firmware without a second approver, provided the rover is on a maintenance stand with the drive system isolated and the depot console shows the rover o [2] ovided a photograph of the maintenance stand was attached to the ticket. It is routinely confused with OPS-POL-14, which was a real policy and which was itself superseded by ADR-037. Neither the draft nor the superseded policy permits single engineer flashing today.. DRAFT-ESC-9 A proposal to let the escalation desk issue credits up to a fixed limit without [3]",
       "pass": true,
       "exactIdPass": true,
       "documentReceipt": true,
@@ -632,31 +635,38 @@
       "unsupportedClaims": [],
       "citedSources": [
         {
-          "id": "f64d374d1899f3057707528f77703f3f:chunk:3",
+          "id": "f64d374d1899f3057707528f77703f3f:chunk:2",
           "provider": "document",
           "title": "helios-operations-handbook.pdf",
           "excerpt": "ADR-037, dated 9 September 2031, supersedes OPS-POL-14. From this date every Rover SDK field firmware flash requires two approvers, and one of them must be a Safety Case Owner. The single engineer permission in OPS-POL-14 is withdrawn and must not be relied on, whatever the depot staffing situation. ### Context OPS-POL-14 assumed the maintenance stand was sufficient protection, on the argument that an isolated rover cannot move. Two near misses showed the argument was too narrow. A flash that fails part way can leave the safety interlock in an undefined state, and the rover leaves the stand later with nobody aware. ### Consequences - Night shift flashes now wait for a second approver, and so",
           "supported": true
         },
         {
-          "id": "f64d374d1899f3057707528f77703f3f:chunk:0",
+          "id": "f64d374d1899f3057707528f77703f3f:chunk:1",
           "provider": "document",
           "title": "helios-operations-handbook.pdf",
-          "excerpt": "### Procedure - Confirm the failure on the depot console. A single failed probe is not enough. - Capture the diagnostics bundle before restarting anything. Restarting first destroys the evidence. - Drain the field diagnostics bundle and wait for in flight work to finish, up to 103 seconds. - Restart the service and watch the probe for two consecutive passes. - If the probe fails again, stop and escalate rather than restarting a third time. ### Verification The recovery is complete when the probe has passed twice, the dispatch queue depth is falling, and an operator at Manchester confirms live status is moving again. Record the diagnostics bundle reference on the ticket even when the restart ",
+          "excerpt": "----- Helios Robotics Operations Handbook, Revision 7 | Part I - Operating Policies --- ## OPS-POL-14 Rover SDK field firmware flashing --- Owner: Field Operations Effective: 3 February 2031 Status at issue: binding ### Rule At a depot, a single Tier 2 engineer may flash Rover SDK field firmware without a second approver, provided the rover is on a maintenance stand with the drive system isolated and the depot console shows the rover out of service. ### Why the rule was written this way Depots run thin on the night shift. Requiring a second approver for a routine flash meant either waking a second engineer or leaving the rover out of service until morning. The maintenance stand was treated a",
+          "supported": true
+        },
+        {
+          "id": "f64d374d1899f3057707528f77703f3f:chunk:4",
+          "provider": "document",
+          "title": "helios-operations-handbook.pdf",
+          "excerpt": "### DRAFT-OPS-14 DRAFT-OPS-14 was never ratified and carries no operational authority. It proposed that any engineer, at any tier, could flash rover firmware provided a photograph of the maintenance stand was attached to the ticket. It is routinely confused with OPS-POL-14, which was a real policy and which was itself superseded by ADR-037. Neither the draft nor the superseded policy permits single engineer flashing today. ### DRAFT-ESC-9 A proposal to let the escalation desk issue credits up to a fixed limit without ledger access. Withdrawn after the Billing Migration parallel run showed that a credit issued without ledger access cannot be reconciled. ### DRAFT-RB-2 A runbook draft for rest",
           "supported": true
         }
       ],
-      "citationCount": 2,
+      "citationCount": 3,
       "claimCount": 4,
       "supportedClaimCount": 4,
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 499,
-      "measuredLatencyMs": 2052,
+      "latencyMs": 504,
+      "measuredLatencyMs": 2155,
       "callCount": 2,
       "costUnits": 2,
-      "runId": "query_c8942fb3-28b7-421e-a073-d6b7d5eb52af"
+      "runId": "query_635d7a3b-4e89-457b-8092-64980bd3ec7d"
     },
     {
       "id": "fact-escalation-sev1",
@@ -769,11 +779,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "thinking",
-      "latencyMs": 3978,
-      "measuredLatencyMs": 5612,
+      "latencyMs": 4688,
+      "measuredLatencyMs": 6655,
       "callCount": 2,
       "costUnits": 6,
-      "runId": "query_93b1f983-417e-4113-b63e-afaf7cb55bc3"
+      "runId": "query_22c2208e-345b-49d6-924f-26c13f71d8fc"
     },
     {
       "id": "fact-alias-rover-sdk",
@@ -808,7 +818,7 @@
       "apiOk": true,
       "httpStatus": 200,
       "error": null,
-      "answer": "t the general queue does not have.. Helios Robotics Operations Handbook, Revision 7 | Part III. Project Workstreams. ## Rover SDK programme dossier. Programme: HR-P4 Sponsor: Hardware Integration Status: in flight [1] Code | \\| Scope | \\| Milestone | |---|---|---|---| | \\| Atlas Launch | \\| HR-P1 | \\| Depot fleet general availability | \\| 14 March 2031 | | \\| AuthShield | \\| HR-P2 | \\| Operator identity and tokens | \\| 30 June 2031 | | \\| Billing Migration | \\| HR-P3 | \\| Ledger cutover to usage billing | \\| 1 October 2031 | | \\| Rover SDK +--------------------+--------+- [2] Ledger cutover to usage billing | \\| 1 October 2031 | | \\| Rover SDK +--------------------+--------+----------------------------------+------------------ | \\| HR-P4 | \\| Field autonomy toolkit | \\| 15 November 2031 | **Reading the registry**. The milestone column is the committed date at the time of this revision, not the original estimate.. Programme codes [2] her than amended in place.. Helios Robotics Operations Handbook, Revision 7 | Part III. Project Workstreams. ## Billing Migration programme dossier. Programme: HR-P3 Sponsor: Billing Systems Status: in flight. Objective Billing Migration moves customers from a flat monthly plan to usage billing computed from completed deliveries, with the audit ledger as the [1]",
+      "answer": "t the general queue does not have.. Helios Robotics Operations Handbook, Revision 7 | Part III. Project Workstreams. ## Rover SDK programme dossier. Programme: HR-P4 Sponsor: Hardware Integration Status: in flight [1] Code | \\| Scope | \\| Milestone | |---|---|---|---| | \\| Atlas Launch | \\| HR-P1 | \\| Depot fleet general availability | \\| 14 March 2031 | | \\| AuthShield | \\| HR-P2 | \\| Operator identity and tokens | \\| 30 June 2031 | | \\| Billing Migration | \\| HR-P3 | \\| Ledger cutover to usage billing | \\| 1 October 2031 | | \\| Rover SDK +--------------------+--------+- [2] \\| Operator identity and tokens | \\| 30 June 2031 | | \\| Billing Migration | \\| HR-P3 | \\| Ledger cutover to usage billing | \\| 1 October 2031 | | \\| Rover SDK +--------------------+--------+----------------------------------+------------------ | \\| HR-P4 | \\| Field autonomy toolkit | \\| 15 November 2031 | **Reading the registry**. [2] ot fleet general availability | \\| 14 March 2031 | | \\| AuthShield | \\| HR-P2 | \\| Operator identity and tokens | \\| 30 June 2031 | | \\| Billing Migration | \\| HR-P3 | \\| Ledger cutover to usage billing | \\| 1 October 2031 | | \\| Rover SDK +--------------------+--------+----------------------------------+------------------ | \\| HR-P4 | \\| Field autonomy tool [2]",
       "pass": true,
       "exactIdPass": true,
       "documentReceipt": true,
@@ -859,7 +869,7 @@
       "unsupportedClaims": [],
       "citedSources": [
         {
-          "id": "f64d374d1899f3057707528f77703f3f:chunk:7",
+          "id": "f64d374d1899f3057707528f77703f3f:chunk:5",
           "provider": "document",
           "title": "helios-operations-handbook.pdf",
           "excerpt": "--- = The security team records commitments in the language they were made in, so that the wording a team actually agreed to is preserved rather than a translation of it. ### Commitment recorded in Hindi The Devanagari original of this commitment is carried in the PDF text annotation attached to this page and in the document Keywords entry, both encoded UTF-16BE with a byte order mark. The Latin transliteration below is what appears in the page text, because the standard Type1 font used throughout this handbook has no Devanagari glyphs. #### Hindi, transliterated to Latin script Helios Robotics ki suraksha team vachan deti hai ki ENG-456 ke tahat AuthShield operator token ka jeevankaal 30 Ju",
@@ -879,11 +889,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "thinking",
-      "latencyMs": 3421,
-      "measuredLatencyMs": 5123,
+      "latencyMs": 3977,
+      "measuredLatencyMs": 6071,
       "callCount": 1,
       "costUnits": 3,
-      "runId": "query_d41f0124-bc07-423f-9663-4ae2b638350e"
+      "runId": "query_40b47ff0-35a0-496c-a9ca-5d510dfc7184"
     },
     {
       "id": "fact-atlas-deadline",
@@ -953,7 +963,7 @@
           "supported": true
         },
         {
-          "id": "f64d374d1899f3057707528f77703f3f:chunk:4",
+          "id": "f64d374d1899f3057707528f77703f3f:chunk:5",
           "provider": "document",
           "title": "helios-operations-handbook.pdf",
           "excerpt": "--- Programme: HR-P2 Sponsor: Security Engineering Status: in flight ### Objective AuthShield replaces long lived operator credentials with short lived tokens issued by the credential broker, so that a stolen laptop stops being a standing grant of fleet access. ### Open work ENG-456 reduces the AuthShield operator token lifetime to fifteen minutes, down from the eight hours a token inherits from the old session model. The committed completion date is 30 June 2031. The work is held behind a refresh path for depots with intermittent links, because a fifteen minute token is useless if a depot cannot reach the broker to refresh it. ### Dependencies - Credential broker availability at depot sites",
@@ -966,11 +976,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 445,
-      "measuredLatencyMs": 1902,
+      "latencyMs": 492,
+      "measuredLatencyMs": 2162,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_89bb3d29-57c3-4e74-ab47-6195e001c36f"
+      "runId": "query_08a7b0ae-cc87-4c82-a3da-1b84a6a07e85"
     },
     {
       "id": "fact-eng-456",
@@ -1102,11 +1112,11 @@
       "claimCitationPairCount": 3,
       "supportedClaimCitationPairCount": 3,
       "mode": "thinking",
-      "latencyMs": 4094,
-      "measuredLatencyMs": 5584,
+      "latencyMs": 5541,
+      "measuredLatencyMs": 6984,
       "callCount": 2,
       "costUnits": 6,
-      "runId": "query_96ed7d1f-a473-4a8f-a8bb-0548d63dac41"
+      "runId": "query_8bc7af47-ca2b-451b-9639-55e341a1ec0b"
     },
     {
       "id": "fact-hindi-commitment",
@@ -1233,11 +1243,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 447,
-      "measuredLatencyMs": 2322,
+      "latencyMs": 530,
+      "measuredLatencyMs": 1947,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_8be0f12d-bf1a-4ed8-b203-555061c632b1"
+      "runId": "query_936c277c-310c-4323-879c-d26cbec8e3b9"
     },
     {
       "id": "fact-billing-cutover",
@@ -1300,7 +1310,7 @@
           "supported": true
         },
         {
-          "id": "f64d374d1899f3057707528f77703f3f:chunk:5",
+          "id": "f64d374d1899f3057707528f77703f3f:chunk:6",
           "provider": "document",
           "title": "helios-operations-handbook.pdf",
           "excerpt": "### Response - Acknowledge to the customer within 11 minutes, in writing. - Page the Billing Systems duty engineer and record the page reference on the ticket. - Post a status note every hour until the customer confirms the impact has stopped. - Close only after the customer, not the engineer, agrees the issue is resolved. ### Handling notes Do not offer a credit before the impact window is measured. Estimated credits that later shrink cost more trust than a slower and correct number. If the customer asks for a root cause before the review is finished, share the timeline that is known and say plainly which parts are still being confirmed. Escalations that cross a regional boundary move to th",
@@ -1313,11 +1323,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 567,
-      "measuredLatencyMs": 1944,
+      "latencyMs": 435,
+      "measuredLatencyMs": 1878,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_fb7e304c-989b-4852-9459-529b02c96270"
+      "runId": "query_f47996ab-dceb-4935-bbbd-5cd5a2990152"
     },
     {
       "id": "fact-rover-freeze",
@@ -1387,7 +1397,7 @@
           "supported": true
         },
         {
-          "id": "f64d374d1899f3057707528f77703f3f:chunk:3",
+          "id": "f64d374d1899f3057707528f77703f3f:chunk:2",
           "provider": "document",
           "title": "helios-operations-handbook.pdf",
           "excerpt": "``` | \\| Alias +--------------------+--------+----------------------------------+------------------ | \\| Code | \\| Scope | \\| Milestone | |---|---|---|---| | \\| Atlas Launch | \\| HR-P1 | \\| Depot fleet general availability | \\| 14 March 2031 | | \\| AuthShield | \\| HR-P2 | \\| Operator identity and tokens | \\| 30 June 2031 | | \\| Billing Migration | \\| HR-P3 | \\| Ledger cutover to usage billing | \\| 1 October 2031 | | \\| Rover SDK +--------------------+--------+----------------------------------+------------------ | \\| HR-P4 | \\| Field autonomy toolkit | \\| 15 November 2031 | **Reading the registry** - The milestone column is the committed date at the time of this revision, not the original es",
@@ -1400,11 +1410,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 475,
-      "measuredLatencyMs": 2277,
+      "latencyMs": 469,
+      "measuredLatencyMs": 2257,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_5c35f6f7-279a-43bb-8486-c6feb21a8e7d"
+      "runId": "query_2b315f02-b3a2-4bdf-8530-c3a6b9448712"
     },
     {
       "id": "fact-bug-123",
@@ -1444,8 +1454,8 @@
       "apiOk": true,
       "httpStatus": 200,
       "error": null,
-      "answer": "ru for the hardware dependency check.. Helios Robotics Operations Handbook, Revision 7 | Part VII. Change Log. ## Defect record BUG-123. Severity: high Opened: 2 May 2031 Closed: 21 May 2031 Owner: Daniel Okafor. Symptom [1] dependency check.. Helios Robotics Operations Handbook, Revision 7 | Part VII. Change Log. ## Defect record BUG-123. Severity: high Opened: 2 May 2031 Closed: 21 May 2031 Owner: Daniel Okafor. Symptom [1] ## Defect record BUG-123. Severity: high Opened: 2 May 2031 Closed: 21 May 2031 Owner: Daniel Okafor. Symptom BUG-123 records odometry drift after cold boot on Rover SDK 4.2.0. A rover powered on from cold in an unheated depot accumulated a position error of up to eleven centimetres over the first hour of operation, which was enough to make precision docking [2] Symptom BUG-123 records odometry drift after cold boot on Rover SDK 4.2.0. [2]",
-      "pass": false,
+      "answer": "ru for the hardware dependency check.. Helios Robotics Operations Handbook, Revision 7 | Part VII. Change Log. ## Defect record BUG-123. Severity: high Opened: 2 May 2031 Closed: 21 May 2031 Owner: Daniel Okafor. Symptom [1] Symptom BUG-123 records odometry drift after cold boot on Rover SDK 4.2.0. [2] The fix shipped in Rover SDK 4.2.1, released on 21 May 2031, and the defect was closed the same day after two depots confirmed docking success rates returned to normal.. [3] A change that was reviewed weeks earlier but held for a maintenance window appears at its release date. ``` +------------+--------------------+--------------------------+------------------+ | Change | Released +------------+--------------------+--------------------------+------------------+ ``` | \\| PR-9298 | \\| 17 June 2030 | |---|---| | \\| PR-9299 | \\| 7 December 2031 | | \\| PR-9300 | \\| 11 November 2031 | [3]",
+      "pass": true,
       "exactIdPass": true,
       "documentReceipt": true,
       "matchedFacts": [
@@ -1459,6 +1469,14 @@
           ]
         },
         {
+          "id": "release",
+          "label": "It was fixed in Rover SDK 4.2.1",
+          "matched": true,
+          "matchedAlternatives": [
+            "Rover SDK 4.2.1"
+          ]
+        },
+        {
           "id": "release-date",
           "label": "The release date was 21 May 2031",
           "matched": true,
@@ -1467,17 +1485,10 @@
           ]
         }
       ],
-      "missingFacts": [
-        {
-          "id": "release",
-          "label": "It was fixed in Rover SDK 4.2.1",
-          "matched": false,
-          "matchedAlternatives": []
-        }
-      ],
-      "matchedFactCount": 2,
+      "missingFacts": [],
+      "matchedFactCount": 3,
       "requiredFactCount": 3,
-      "requiredFactRecall": 0.6666666666666666,
+      "requiredFactRecall": 1,
       "providerPass": true,
       "providers": [
         "document"
@@ -1507,19 +1518,26 @@
           "title": "helios-operations-handbook.pdf",
           "excerpt": "--- ## Workstream note WS-619 --- Team: Billing Systems Site: Sao Paulo Week ending: 12 November 2030 ### Progress The depot gateway migration reached 46 percent of depots this week. The remaining sites are held by a hardware dependency rather than by software readiness, and the Billing Systems team has stopped adding scope until those sites are scheduled. ### Risks - Two operators can accept the same job when the dispatch queue partitions. - Two engineers on this workstream rotate onto on call next month, which halves review capacity. ### Decisions taken this week We will not backport the change to the previous depot image. Sites still on that image are scheduled for replacement before 12 A",
           "supported": true
+        },
+        {
+          "id": "f64d374d1899f3057707528f77703f3f:chunk:1",
+          "provider": "document",
+          "title": "helios-operations-handbook.pdf",
+          "excerpt": "### Cause The wheel encoder calibration constant was read once at boot, before the sensor board reached its operating temperature. At low temperature the constant read several counts low, and the error persisted for the whole session because the value was never re read. ### Fix Calibration is now sampled three times during the first ten minutes after boot and the drive controller uses the last sample. The fix shipped in Rover SDK 4.2.1, released on 21 May 2031, and the defect was closed the same day after two depots confirmed docking success rates returned to normal. ### Detection gap - No alert existed for docking retries. One was added with the fix. - Cold boot was not covered by the depot",
+          "supported": true
         }
       ],
-      "citationCount": 2,
+      "citationCount": 3,
       "claimCount": 4,
       "supportedClaimCount": 4,
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 646,
-      "measuredLatencyMs": 2085,
+      "latencyMs": 466,
+      "measuredLatencyMs": 1851,
       "callCount": 2,
       "costUnits": 2,
-      "runId": "query_2b6773f4-259d-4546-b454-f598571a7d4f"
+      "runId": "query_322d584d-07d6-4d5f-bb11-f4485118afab"
     },
     {
       "id": "fact-pr-8871",
@@ -1552,7 +1570,7 @@
       "apiOk": true,
       "httpStatus": 200,
       "error": null,
-      "answer": "What changed PR-8871 merged the Atlas Launch telemetry schema version 3 on 2 July 2031. [1] hange record PR-8871. Area: telemetry ingest Programme: HR-P1 Review: two approvers. What changed PR-8871 merged the Atlas Launch telemetry schema version 3 on 2 July 2031. Version 3 flattens the nested per subsystem envelope into a single record with an explicit subsystem field, which cut ingest cost by roughly a third and removed the ambiguity that produce [1] apacity.. Decisions taken this week We will not backport the change to the previous depot image. Sites still on that image are scheduled for replacement before 12 August 2030, and maintaining two images through the transition costs more review time than the replacement itself.. Asks. One reviewer from Site Reliability for the rollout window.. A depot slot at [2] ru for the hardware dependency check.. Helios Robotics Operations Handbook, Revision 7 | Part VII. Change Log. ## Defect record BUG-123. Severity: high Opened: 2 May 2031 Closed: 21 May 2031 Owner: Daniel Okafor. Symptom BUG-123 records odometry drift after cold boot on Rover SDK 4.2.0. A rover powered on from cold in an unheated depot accumulated a position [2]",
+      "answer": "What changed PR-8871 merged the Atlas Launch telemetry schema version 3 on 2 July 2031. [1] apacity.. Decisions taken this week We will not backport the change to the previous depot image. Sites still on that image are scheduled for replacement before 12 August 2030, and maintaining two images through the transition costs more review time than the replacement itself.. Asks. One reviewer from Site Reliability for the rollout window.. A depot slot at [2] ru for the hardware dependency check.. Helios Robotics Operations Handbook, Revision 7 | Part VII. Change Log. ## Defect record BUG-123. Severity: high Opened: 2 May 2031 Closed: 21 May 2031 Owner: Daniel Okafor. Symptom BUG-123 records odometry drift after cold boot on Rover SDK 4.2.0. A rover powered on from cold in an unheated depot accumulated a position [2] Change Log. ## Change record PR-8871. [1]",
       "pass": true,
       "exactIdPass": true,
       "documentReceipt": true,
@@ -1616,11 +1634,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "thinking",
-      "latencyMs": 3747,
-      "measuredLatencyMs": 5256,
+      "latencyMs": 4738,
+      "measuredLatencyMs": 6161,
       "callCount": 2,
       "costUnits": 6,
-      "runId": "query_9afc74f4-88bf-47bf-8aea-602a45a0fc4c"
+      "runId": "query_63af878e-e968-44db-a81f-00671c8a6e58"
     },
     {
       "id": "fact-middle-beacon",
@@ -1689,11 +1707,11 @@
       "claimCitationPairCount": 3,
       "supportedClaimCitationPairCount": 3,
       "mode": "fast",
-      "latencyMs": 406,
-      "measuredLatencyMs": 2021,
+      "latencyMs": 458,
+      "measuredLatencyMs": 1903,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_d718cbb8-aa7a-4d63-9cf4-ebab2700912f"
+      "runId": "query_4c9716e8-58d7-4d10-96a3-b47fc9640e81"
     },
     {
       "id": "fact-middle-buffer",
@@ -1763,7 +1781,7 @@
           "supported": true
         },
         {
-          "id": "f64d374d1899f3057707528f77703f3f:chunk:5",
+          "id": "f64d374d1899f3057707528f77703f3f:chunk:6",
           "provider": "document",
           "title": "helios-operations-handbook.pdf",
           "excerpt": "### Objective The Rover SDK is the field autonomy toolkit that runs on the rover itself: navigation, telemetry, safety interlocks, and the firmware update path. Depot software talks to it, and never around it. ### Release plan Rover SDK 5.0 enters code freeze on 15 November 2031, with a six week soak at three depots before any wider rollout. Version 4.2.1 remains the supported release for the whole fleet until the soak completes. ### Compatibility - Depot software supports the current and previous minor release, and nothing older. - Firmware rollback is supported within a minor release only. - Calibration profiles survive an upgrade but not a cross minor rollback. ### Naming The Rover SDK is",
@@ -1776,11 +1794,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 536,
-      "measuredLatencyMs": 2192,
+      "latencyMs": 472,
+      "measuredLatencyMs": 2162,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_d0eaf87f-44e2-44bf-bb00-b481c0a26168"
+      "runId": "query_e7498fe8-d4eb-44d5-a0c6-263ce8a9fcb8"
     },
     {
       "id": "fact-inc-2031",
@@ -1828,11 +1846,28 @@
       "apiOk": true,
       "httpStatus": 200,
       "error": null,
-      "answer": "Customer impact lasted 41 minutes, from the first duplicate write to the point the run was halted and invoices were frozen.. [1] ead of reusing the key from the first attempt. A transient timeout in the ledger write path therefore produced two records that the ledger considered distinct. Customer impact lasted 41 minutes, from the first duplicate write to the point the run was halted and invoices were frozen.. Resolution. The parallel run was halted and the duplicate records were reve [1] using the key from the first attempt. A transient timeout in the ledger write path therefore produced two records that the ledger considered distinct. Customer impact lasted 41 minutes, from the first duplicate write to the point the run was halted and invoices were frozen.. Resolution. The parallel run was halted and the duplicate records were reversed with [1] Impact is the customer visible window, not the time the incident channel stayed open.. [2]",
-      "pass": false,
-      "exactIdPass": false,
+      "answer": "Revision 7 | Part IV. Incident Reports. ## Incident report INC-2031. Severity: SEV-2 Date: 8 April 2031 Impact: 41 minutes Commander: Ruth Vanterpool. Summary INC-2031 was a Billing Migration double charge event on 8 April 2031. During a parallel ledger run, 1,184 completed deliveries were written to the new ledger twice, and 212 customers saw a duplicate l [1] Customer impact lasted 41 minutes, from the first duplicate write to the point the run was halted and invoices were frozen.. [1] nfirms the impact has stopped.. Close only after the customer, not the engineer, agrees the issue is resolved.. Handling notes Do not offer a credit before the impact window is measured. Estimated credits that later shrink cost more trust than a slower and correct number. If the customer asks for a root cause before the review is finished, share the timeline [2] | \\| INC-2031 | \\| 8 April 2031 | \\| SEV-2 | \\| 41 min | \\| closed | \\| | | \\| INC-2032 | \\| 3 June 2031 | \\| SEV-3 +------------+-------------------+--------+----------+------------+ | \\| 19 min | \\| closed | \\| |. [3]",
+      "pass": true,
+      "exactIdPass": true,
       "documentReceipt": true,
       "matchedFacts": [
+        {
+          "id": "event",
+          "label": "INC-2031 was a Billing Migration double charge event",
+          "matched": true,
+          "matchedAlternatives": [
+            "Billing Migration",
+            "double charge"
+          ]
+        },
+        {
+          "id": "event-date",
+          "label": "It happened on 8 April 2031",
+          "matched": true,
+          "matchedAlternatives": [
+            "8 April 2031"
+          ]
+        },
         {
           "id": "impact",
           "label": "Customer impact lasted 41 minutes",
@@ -1843,23 +1878,114 @@
           ]
         }
       ],
-      "missingFacts": [
+      "missingFacts": [],
+      "matchedFactCount": 3,
+      "requiredFactCount": 3,
+      "requiredFactRecall": 1,
+      "providerPass": true,
+      "providers": [
+        "document"
+      ],
+      "reportedProviders": [
+        "document"
+      ],
+      "missingProviders": [],
+      "reportedWithoutSupportingCitation": [],
+      "citationPass": true,
+      "citationPrecision": 1,
+      "citationCompleteness": 1,
+      "unsupportedClaimRate": 0,
+      "invalidCitationIds": [],
+      "unsupportedClaims": [],
+      "citedSources": [
         {
-          "id": "event",
-          "label": "INC-2031 was a Billing Migration double charge event",
-          "matched": false,
-          "matchedAlternatives": []
+          "id": "f64d374d1899f3057707528f77703f3f:chunk:2",
+          "provider": "document",
+          "title": "helios-operations-handbook.pdf",
+          "excerpt": "### Verification The recovery is complete when the probe has passed twice, the dispatch queue depth is falling, and an operator at Denver confirms live status is moving again. Record the diagnostics bundle reference on the ticket even when the restart worked. ### If this does not work Escalate to the Field Operations duty engineer with the bundle reference and the exact probe output. Do not roll back firmware as a first response; firmware rollback needs its own approval. ----- Helios Robotics Operations Handbook, Revision 7 | Part IV - Incident Reports --- ## Incident report INC-2031 --- Severity: SEV-2 Date: 8 April 2031 Impact: 41 minutes Commander: Ruth Vanterpool ### Summary INC-2031 was",
+          "supported": true
         },
         {
-          "id": "event-date",
-          "label": "It happened on 8 April 2031",
-          "matched": false,
-          "matchedAlternatives": []
+          "id": "f64d374d1899f3057707528f77703f3f:chunk:7",
+          "provider": "document",
+          "title": "helios-operations-handbook.pdf",
+          "excerpt": "### Response - Acknowledge to the customer within 53 minutes, in writing. - Page the Site Reliability duty engineer and record the page reference on the ticket. - Post a status note every hour until the customer confirms the impact has stopped. - Close only after the customer, not the engineer, agrees the issue is resolved. ### Handling notes Do not offer a credit before the impact window is measured. Estimated credits that later shrink cost more trust than a slower and correct number. If the customer asks for a root cause before the review is finished, share the timeline that is known and say plainly which parts are still being confirmed. Escalations that cross a regional boundary move to t",
+          "supported": true
+        },
+        {
+          "id": "f64d374d1899f3057707528f77703f3f:chunk:1",
+          "provider": "document",
+          "title": "helios-operations-handbook.pdf",
+          "excerpt": "| \\| INC-2031 | \\| 8 April 2031 | \\| SEV-2 | \\| 41 min | \\| closed | \\| | | \\| INC-2032 | \\| 3 June 2031 | \\| SEV-3 +------------+-------------------+--------+----------+------------+ | \\| 19 min | \\| closed | \\| | ### Reading the summary - Impact is the customer visible window, not the time the incident channel stayed open. - Status is closed only after the follow up actions have shipped, not when the symptom stopped. ### Trend Four of the five incidents in this window began with a change that was reviewed for correctness but not for what it did under retry. That pattern is the reason the deployment check now asserts timeout and retry behaviour explicitly. ----- Helios Robotics Operations H",
+          "supported": true
         }
       ],
-      "matchedFactCount": 1,
-      "requiredFactCount": 3,
-      "requiredFactRecall": 0.3333333333333333,
+      "citationCount": 3,
+      "claimCount": 4,
+      "supportedClaimCount": 4,
+      "claimCitationPairCount": 4,
+      "supportedClaimCitationPairCount": 4,
+      "mode": "thinking",
+      "latencyMs": 5222,
+      "measuredLatencyMs": 6698,
+      "callCount": 2,
+      "costUnits": 6,
+      "runId": "query_cd53236f-599b-4306-96cc-24430a10f6c5"
+    },
+    {
+      "id": "fact-incident-table",
+      "page": 181,
+      "kind": "table_lookup",
+      "question": "In the incident log summary, what severity and impact window are recorded against INC-2031?",
+      "expectedAnswer": "SEV-2, with a 41 minute impact window.",
+      "requiredFacts": [
+        {
+          "id": "severity",
+          "label": "INC-2031 is SEV-2",
+          "anyOf": [
+            "SEV-2"
+          ]
+        },
+        {
+          "id": "impact-window",
+          "label": "The impact window is 41 minutes",
+          "anyOf": [
+            "41 minutes",
+            "41 minute",
+            "41 min"
+          ]
+        }
+      ],
+      "exactIdentifier": "INC-2031",
+      "apiOk": true,
+      "httpStatus": 200,
+      "error": null,
+      "answer": "Revision 7 | Part IV. Incident Reports. ## Incident report INC-2031. Severity: SEV-2 Date: 8 April 2031 Impact: 41 minutes Commander: Ruth Vanterpool. Summary INC-2031 was a Billing Migration double charge event on 8 April 2031. During a parallel ledger run, 1,184 completed deliveries were written to the new ledger twice, and 212 customers saw a duplicate l [1] ead of reusing the key from the first attempt. A transient timeout in the ledger write path therefore produced two records that the ledger considered distinct. Customer impact lasted 41 minutes, from the first duplicate write to the point the run was halted and invoices were frozen.. Resolution. The parallel run was halted and the duplicate records were reve [1] Internal degradations that no customer could perceive are recorded in the change log instead. ``` +------------+-------------------+--------+----------+------------+ ``` | \\| Incident | \\| Date | \\| Sev +------------+-------------------+--------+----------+------------+ | \\| Impact | \\| Status | \\| | |---|---|---|---|---|---| | \\| INC-2028 | \\| 17 February 2031 | \\| SEV-3 | \\| 12 min | \\| closed | \\| | [1] | \\| INC-2031 | \\| 8 April 2031 | \\| SEV-2 | \\| 41 min | \\| closed | \\| | | \\| INC-2032 | \\| 3 June 2031 | \\| SEV-3 +------------+-------------------+--------+----------+------------+ | \\| 19 min | \\| closed | \\| |. [2]",
+      "pass": true,
+      "exactIdPass": true,
+      "documentReceipt": true,
+      "matchedFacts": [
+        {
+          "id": "severity",
+          "label": "INC-2031 is SEV-2",
+          "matched": true,
+          "matchedAlternatives": [
+            "SEV-2"
+          ]
+        },
+        {
+          "id": "impact-window",
+          "label": "The impact window is 41 minutes",
+          "matched": true,
+          "matchedAlternatives": [
+            "41 minutes"
+          ]
+        }
+      ],
+      "missingFacts": [],
+      "matchedFactCount": 2,
+      "requiredFactCount": 2,
+      "requiredFactRecall": 1,
       "providerPass": true,
       "providers": [
         "document"
@@ -1896,115 +2022,12 @@
       "supportedClaimCount": 4,
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
-      "mode": "thinking",
-      "latencyMs": 4717,
-      "measuredLatencyMs": 6140,
-      "callCount": 2,
-      "costUnits": 6,
-      "runId": "query_c4cc525b-2618-49f1-ad3e-5e9658c1629c"
-    },
-    {
-      "id": "fact-incident-table",
-      "page": 181,
-      "kind": "table_lookup",
-      "question": "In the incident log summary, what severity and impact window are recorded against INC-2031?",
-      "expectedAnswer": "SEV-2, with a 41 minute impact window.",
-      "requiredFacts": [
-        {
-          "id": "severity",
-          "label": "INC-2031 is SEV-2",
-          "anyOf": [
-            "SEV-2"
-          ]
-        },
-        {
-          "id": "impact-window",
-          "label": "The impact window is 41 minutes",
-          "anyOf": [
-            "41 minutes",
-            "41 minute",
-            "41 min"
-          ]
-        }
-      ],
-      "exactIdentifier": "INC-2031",
-      "apiOk": true,
-      "httpStatus": 200,
-      "error": null,
-      "answer": "er.. Helios Robotics Operations Handbook, Revision 7 | Part IV. Incident Reports. ## INC-3398 Waypoint planner degradation. Severity: SEV-2 Date: 20 April 2031 Impact window: 171 minutes Commander: Hana Petrova. Summary The waypoint planner returned errors to 9 percent of requests for 171 minutes. Deliveries continued on the cached plan, so no rover stopped, [1] Robotics Operations Handbook, Revision 7 | Part IV. Incident Reports. ## INC-3300 Field diagnostics bundle degradation. Severity: SEV-4 Date: 10 September 2031 Impact window: 53 minutes Commander: Daniel Okafor. Summary The field diagnostics bundle returned errors to 51 percent of requests for 53 minutes. Deliveries continued on the cached plan, so no rover [2] s Robotics Operations Handbook, Revision 7 | Part IV. Incident Reports. ## INC-3399 Field diagnostics bundle degradation. Severity: SEV-4 Date: 13 January 2031 Impact window: 130 minutes Commander: Marta Kilburn. Summary The field diagnostics bundle returned errors to 44 percent of requests for 130 minutes. Deliveries continued on the cached plan, so no rove [1] lios Robotics Operations Handbook, Revision 7 | Part IV. Incident Reports. ## INC-3383 Field diagnostics bundle degradation. Severity: SEV-2 Date: 9 March 2030 Impact window: 150 minutes Commander: Gregor Amsel. Summary The field diagnostics bundle returned errors to 51 percent of requests for 150 minutes. Deliveries continued on the cached plan, so no rover [3]",
-      "pass": false,
-      "exactIdPass": false,
-      "documentReceipt": true,
-      "matchedFacts": [
-        {
-          "id": "severity",
-          "label": "INC-2031 is SEV-2",
-          "matched": true,
-          "matchedAlternatives": [
-            "SEV-2"
-          ]
-        }
-      ],
-      "missingFacts": [
-        {
-          "id": "impact-window",
-          "label": "The impact window is 41 minutes",
-          "matched": false,
-          "matchedAlternatives": []
-        }
-      ],
-      "matchedFactCount": 1,
-      "requiredFactCount": 2,
-      "requiredFactRecall": 0.5,
-      "providerPass": true,
-      "providers": [
-        "document"
-      ],
-      "reportedProviders": [
-        "document"
-      ],
-      "missingProviders": [],
-      "reportedWithoutSupportingCitation": [],
-      "citationPass": true,
-      "citationPrecision": 1,
-      "citationCompleteness": 1,
-      "unsupportedClaimRate": 0,
-      "invalidCitationIds": [],
-      "unsupportedClaims": [],
-      "citedSources": [
-        {
-          "id": "f64d374d1899f3057707528f77703f3f:chunk:4",
-          "provider": "document",
-          "title": "helios-operations-handbook.pdf",
-          "excerpt": "### Timeline | T+00 | automated alert fires on error rate above 4 percent | |---|---| | T+04 | duty engineer acknowledges and opens the incident channel | | T+10 | cause narrowed to a configuration change shipped earlier that day | | T+64 | change reverted, error rate falls within two minutes | | T+106 | customer facing status updated and incident closed | ### Root cause A configuration value was tightened without a matching change to the client timeout. Requests that would previously have completed slowly were cut off instead, and the retry storm that followed kept the service saturated until the change was reverted. ### Follow up - Client and server timeouts are now asserted against each o",
-          "supported": true
-        },
-        {
-          "id": "f64d374d1899f3057707528f77703f3f:chunk:3",
-          "provider": "document",
-          "title": "helios-operations-handbook.pdf",
-          "excerpt": "### Timeline | T+00 | automated alert fires on error rate above 5 percent | |---|---| | T+02 | duty engineer acknowledges and opens the incident channel | | T+18 | cause narrowed to a configuration change shipped earlier that day | | T+45 | change reverted, error rate falls within two minutes | | T+130 | customer facing status updated and incident closed | ### Root cause A configuration value was tightened without a matching change to the client timeout. Requests that would previously have completed slowly were cut off instead, and the retry storm that followed kept the service saturated until the change was reverted. ### Follow up - Client and server timeouts are now asserted against each o",
-          "supported": true
-        },
-        {
-          "id": "f64d374d1899f3057707528f77703f3f:chunk:6",
-          "provider": "document",
-          "title": "helios-operations-handbook.pdf",
-          "excerpt": "|---|---| | T+05 | duty engineer acknowledges and opens the incident channel | | T+30 | cause narrowed to a configuration change shipped earlier that day | | T+60 | change reverted, error rate falls within two minutes | | T+121 | customer facing status updated and incident closed | ### Root cause A configuration value was tightened without a matching change to the client timeout. Requests that would previously have completed slowly were cut off instead, and the retry storm that followed kept the service saturated until the change was reverted. ### Follow up - Client and server timeouts are now asserted against each other in the deployment check. - Alert threshold lowered so the page fires 4 ",
-          "supported": true
-        }
-      ],
-      "citationCount": 3,
-      "claimCount": 4,
-      "supportedClaimCount": 4,
-      "claimCitationPairCount": 4,
-      "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 494,
-      "measuredLatencyMs": 2041,
+      "latencyMs": 511,
+      "measuredLatencyMs": 1884,
       "callCount": 2,
       "costUnits": 2,
-      "runId": "query_36f0d34e-3bed-49df-8af9-38f02634367c"
+      "runId": "query_c85eb0ce-c949-4fab-9aad-00f3a1cb554c"
     },
     {
       "id": "fact-priya-raman",
@@ -2123,11 +2146,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "thinking",
-      "latencyMs": 4647,
-      "measuredLatencyMs": 6349,
+      "latencyMs": 5331,
+      "measuredLatencyMs": 6787,
       "callCount": 1,
       "costUnits": 3,
-      "runId": "query_bd5451b7-4d49-4bbb-8e62-a415da1d4a6a"
+      "runId": "query_4864f949-aab6-4060-ad07-6087eadef74f"
     },
     {
       "id": "fact-priya-ramanathan",
@@ -2167,8 +2190,8 @@
       "apiOk": true,
       "httpStatus": 200,
       "error": null,
-      "answer": "### Customer operations Priya Ramanathan, Customer Escalation Manager, employee HR-5871, based in Toronto. [1] A ticket that names only Priya is routed by subject: identity to HR-2214, billing to HR-5871.. [1] Engineering owner The engineering owner for AuthShield is Priya Raman. [2] Engineering Priya Raman, Staff Reliability Engineer, employee HR-2214, based in Bengaluru. [3]",
-      "pass": false,
+      "answer": "### Customer operations Priya Ramanathan, Customer Escalation Manager, employee HR-5871, based in Toronto. She runs the Billing Migration escalation desk. Route customer facing billing complaints, credit decisions, and invoice corrections to her desk, not to engineering.. Disambiguation rule. A ticket that names only Priya is routed by [1] hat lose connectivity mid shift.. Engineering owner The engineering owner for AuthShield is Priya Raman. Escalations about AuthShield customer impact go to the escalation desk, not to the engineering owner directly.. Helios Robotics Operations Handbook, Revision 7 | Part III. Project Workstreams. ## AuthShield commitment record. = The security team records c [2] Escalation desk Billing Migration escalations are handled by a dedicated desk rather than the general customer queue, because a billing complaint needs ledger access that the general queue does not have.. [3] A ticket that names only Priya is routed by subject: identity to HR-2214, billing to HR-5871.. [1]",
+      "pass": true,
       "exactIdPass": true,
       "documentReceipt": true,
       "matchedFacts": [
@@ -2187,19 +2210,21 @@
           "matchedAlternatives": [
             "HR-5871"
           ]
-        }
-      ],
-      "missingFacts": [
+        },
         {
           "id": "desk",
           "label": "She runs the Billing Migration escalation desk",
-          "matched": false,
-          "matchedAlternatives": []
+          "matched": true,
+          "matchedAlternatives": [
+            "Billing Migration",
+            "escalation desk"
+          ]
         }
       ],
-      "matchedFactCount": 2,
+      "missingFacts": [],
+      "matchedFactCount": 3,
       "requiredFactCount": 3,
-      "requiredFactRecall": 0.6666666666666666,
+      "requiredFactRecall": 1,
       "providerPass": true,
       "providers": [
         "document"
@@ -2231,10 +2256,10 @@
           "supported": true
         },
         {
-          "id": "f64d374d1899f3057707528f77703f3f:chunk:0",
+          "id": "f64d374d1899f3057707528f77703f3f:chunk:4",
           "provider": "document",
           "title": "helios-operations-handbook.pdf",
-          "excerpt": "### Timeline | T+00 | automated alert fires on error rate above 4 percent | |---|---| | T+03 | duty engineer acknowledges and opens the incident channel | | T+29 | cause narrowed to a configuration change shipped earlier that day | | T+48 | change reverted, error rate falls within two minutes | | T+87 | customer facing status updated and incident closed | ### Root cause A configuration value was tightened without a matching change to the client timeout. Requests that would previously have completed slowly were cut off instead, and the retry storm that followed kept the service saturated until the change was reverted. ### Follow up - Client and server timeouts are now asserted against each ot",
+          "excerpt": "--- ## Billing Migration programme dossier --- Programme: HR-P3 Sponsor: Billing Systems Status: in flight ### Objective Billing Migration moves customers from a flat monthly plan to usage billing computed from completed deliveries, with the audit ledger as the source of truth for what was delivered. ### Cutover The Billing Migration ledger cutover is scheduled for 1 October 2031. Both ledgers run in parallel for the preceding month, and a customer is only moved once two consecutive parallel runs agree to the cent. ### Risks carried - Retry paths can produce duplicate charges when an idempotency key is regenerated rather than reused. - Parallel running doubles ledger write volume for a month",
           "supported": true
         }
       ],
@@ -2244,11 +2269,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "thinking",
-      "latencyMs": 4825,
-      "measuredLatencyMs": 6212,
+      "latencyMs": 5757,
+      "measuredLatencyMs": 8630,
       "callCount": 1,
       "costUnits": 3,
-      "runId": "query_8746c91e-e498-432c-992a-5acf598b96c0"
+      "runId": "query_3a49e176-b3c5-4d34-8fc6-7c78098c4a44"
     },
     {
       "id": "fact-oncall-ring0",
@@ -2338,11 +2363,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 461,
-      "measuredLatencyMs": 1927,
+      "latencyMs": 471,
+      "measuredLatencyMs": 1861,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_974892d9-9e40-4d11-999c-3cbbf271b9f8"
+      "runId": "query_669fee31-d06d-4f08-afd1-f579b101cbb3"
     },
     {
       "id": "fact-distractor-draft",
@@ -2394,9 +2419,9 @@
       "apiOk": true,
       "httpStatus": 200,
       "error": null,
-      "answer": "Neither the draft nor the superseded policy permits single engineer flashing today.. [1] ovided a photograph of the maintenance stand was attached to the ticket. It is routinely confused with OPS-POL-14, which was a real policy and which was itself superseded by ADR-037. Neither the draft nor the superseded policy permits single engineer flashing today.. DRAFT-ESC-9 A proposal to let the escalation desk issue credits up to a fixed limit without [1] attached to the ticket. It is routinely confused with OPS-POL-14, which was a real policy and which was itself superseded by ADR-037. Neither the draft nor the superseded policy permits single engineer flashing today.. DRAFT-ESC-9 A proposal to let the escalation desk issue credits up to a fixed limit without ledger access. Withdrawn after the Billing Migrat [1] eded policy permits single engineer flashing today.. DRAFT-ESC-9 A proposal to let the escalation desk issue credits up to a fixed limit without ledger access. Withdrawn after the Billing Migration parallel run showed that a credit issued without ledger access cannot be reconciled.. DRAFT-RB-2 A runbook draft for restarting the dispatch queue that omitted th [1]",
+      "answer": "### DRAFT-OPS-14 DRAFT-OPS-14 was never ratified and carries no operational authority. It proposed that any engineer, at any tier, could flash rover firmware provided a photograph of the maintenance stand was attached to the ticket. It is routinely confused with OPS-POL-14, which was a real policy and which was itself superseded [1] Neither the draft nor the superseded policy permits single engineer flashing today.. [1] eded policy permits single engineer flashing today.. DRAFT-ESC-9 A proposal to let the escalation desk issue credits up to a fixed limit without ledger access. Withdrawn after the Billing Migration parallel run showed that a credit issued without ledger access cannot be reconciled.. DRAFT-RB-2 A runbook draft for restarting the dispatch queue that omitted th [1] Rule At a depot, a single Tier 2 engineer may flash Rover SDK field firmware without a second approver, provided the rover is on a maintenance stand with the drive system isolated and the depot console shows the rover out of service.. [2]",
       "pass": false,
-      "exactIdPass": false,
+      "exactIdPass": true,
       "documentReceipt": true,
       "matchedFacts": [
         {
@@ -2408,24 +2433,26 @@
           ]
         },
         {
-          "id": "binding-rule",
-          "label": "ADR-037 is the binding rule",
+          "id": "never-ratified",
+          "label": "DRAFT-OPS-14 was never ratified",
           "matched": true,
           "matchedAlternatives": [
-            "ADR-037"
+            "never ratified"
+          ]
+        },
+        {
+          "id": "no-authority",
+          "label": "The draft has no operational authority",
+          "matched": true,
+          "matchedAlternatives": [
+            "no operational authority"
           ]
         }
       ],
       "missingFacts": [
         {
-          "id": "never-ratified",
-          "label": "DRAFT-OPS-14 was never ratified",
-          "matched": false,
-          "matchedAlternatives": []
-        },
-        {
-          "id": "no-authority",
-          "label": "The draft has no operational authority",
+          "id": "binding-rule",
+          "label": "ADR-037 is the binding rule",
           "matched": false,
           "matchedAlternatives": []
         },
@@ -2436,9 +2463,9 @@
           "matchedAlternatives": []
         }
       ],
-      "matchedFactCount": 2,
+      "matchedFactCount": 3,
       "requiredFactCount": 5,
-      "requiredFactRecall": 0.4,
+      "requiredFactRecall": 0.6,
       "providerPass": true,
       "providers": [
         "document"
@@ -2461,19 +2488,26 @@
           "title": "helios-operations-handbook.pdf",
           "excerpt": "### DRAFT-OPS-14 DRAFT-OPS-14 was never ratified and carries no operational authority. It proposed that any engineer, at any tier, could flash rover firmware provided a photograph of the maintenance stand was attached to the ticket. It is routinely confused with OPS-POL-14, which was a real policy and which was itself superseded by ADR-037. Neither the draft nor the superseded policy permits single engineer flashing today. ### DRAFT-ESC-9 A proposal to let the escalation desk issue credits up to a fixed limit without ledger access. Withdrawn after the Billing Migration parallel run showed that a credit issued without ledger access cannot be reconciled. ### DRAFT-RB-2 A runbook draft for rest",
           "supported": true
+        },
+        {
+          "id": "f64d374d1899f3057707528f77703f3f:chunk:4",
+          "provider": "document",
+          "title": "helios-operations-handbook.pdf",
+          "excerpt": "----- Helios Robotics Operations Handbook, Revision 7 | Part I - Operating Policies --- ## OPS-POL-14 Rover SDK field firmware flashing --- Owner: Field Operations Effective: 3 February 2031 Status at issue: binding ### Rule At a depot, a single Tier 2 engineer may flash Rover SDK field firmware without a second approver, provided the rover is on a maintenance stand with the drive system isolated and the depot console shows the rover out of service. ### Why the rule was written this way Depots run thin on the night shift. Requiring a second approver for a routine flash meant either waking a second engineer or leaving the rover out of service until morning. The maintenance stand was treated a",
+          "supported": true
         }
       ],
-      "citationCount": 1,
+      "citationCount": 2,
       "claimCount": 4,
       "supportedClaimCount": 4,
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "thinking",
-      "latencyMs": 5226,
-      "measuredLatencyMs": 6703,
+      "latencyMs": 5533,
+      "measuredLatencyMs": 7024,
       "callCount": 2,
       "costUnits": 6,
-      "runId": "query_62270921-66e7-4215-b22c-e55863e64b33"
+      "runId": "query_87a776f4-7ea5-4497-9f1c-a440643f7e28"
     },
     {
       "id": "fact-end-battery",
@@ -2550,11 +2584,11 @@
       "claimCitationPairCount": 2,
       "supportedClaimCitationPairCount": 2,
       "mode": "fast",
-      "latencyMs": 490,
-      "measuredLatencyMs": 1878,
+      "latencyMs": 462,
+      "measuredLatencyMs": 1855,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_fbabc59f-9005-4f15-9a34-8e4c10201981"
+      "runId": "query_6765f019-7a52-42ac-9904-6b44a1a15651"
     }
   ]
 }
