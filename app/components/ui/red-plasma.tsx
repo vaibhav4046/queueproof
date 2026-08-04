@@ -107,6 +107,18 @@ const COLORS = new Float32Array([
 
 const pendingContextReleases = new WeakMap<HTMLCanvasElement, number>();
 
+export function acquireEvidenceFieldContext(canvas: HTMLCanvasElement) {
+  const gl = canvas.getContext("webgl", {
+    alpha: false,
+    antialias: false,
+    depth: false,
+    powerPreference: "low-power",
+    preserveDrawingBuffer: false,
+  });
+  if (!gl) canvas.dataset.unavailable = "true";
+  return gl;
+}
+
 function compileShader(gl: WebGLRenderingContext, type: number, source: string) {
   const shader = gl.createShader(type);
   if (!shader) throw new Error("Unable to create the QueueProof evidence-field shader.");
@@ -137,17 +149,8 @@ export function ShaderBackground({ className }: { className?: string }) {
     if (pendingRelease !== undefined) window.clearTimeout(pendingRelease);
     pendingContextReleases.delete(canvas);
 
-    const gl = canvas.getContext("webgl", {
-      alpha: false,
-      antialias: false,
-      depth: false,
-      powerPreference: "low-power",
-      preserveDrawingBuffer: false,
-    });
-    if (!gl) {
-      canvas.dataset.unavailable = "true";
-      return;
-    }
+    const gl = acquireEvidenceFieldContext(canvas);
+    if (!gl) return;
     const surface: HTMLCanvasElement = canvas;
     const context: WebGLRenderingContext = gl;
 

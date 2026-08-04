@@ -13,7 +13,7 @@ if (!workspaceResponse.ok) throw new Error(`Workspace bootstrap failed: ${worksp
 const workspace = await workspaceResponse.json();
 if (workspace.ok !== true) throw new Error("Workspace bootstrap did not return an explicit success contract.");
 
-for (const destination of ["Proof", "Queue", "Evidence", "Benchmarks", "Approvals", "Developer"]) {
+for (const destination of ["Proof", "Queue", "Evidence", "Benchmarks", "Replay", "Approvals", "Developer"]) {
   assert.match(html, new RegExp(`>${destination}<`), `Missing rendered navigation destination: ${destination}`);
 }
 assert.match(html, /aria-current="page"/, "The active product area must be exposed to assistive technology.");
@@ -24,6 +24,16 @@ if (workspace.view?.actor?.publicAccess === true) {
   assert.match(html, /Shared evidence and proposals/);
 }
 
+for (const [path, marker] of [
+  ["/demo", "Cross-source proof question"],
+  ["/benchmarks", "Production evidence lab"],
+  ["/method", "Search every source."],
+]) {
+  const routeResponse = await fetch(`${base}${path}`);
+  assert.equal(routeResponse.status, 200, `${path} must be directly reachable by judges.`);
+  assert.match(await routeResponse.text(), new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `${path} is missing its release marker.`);
+}
+
 const [appSource, styles] = await Promise.all([
   readFile(new URL("../app/QueueProofApp.tsx", import.meta.url), "utf8"),
   readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
@@ -32,6 +42,7 @@ for (const contract of [
   "useDialogBehavior", "EvidenceReceiptDialog", "aria-pressed", "Run live proof",
   "Verify sources", "Match the facts", "Cite every claim", "Approve the action",
   "missing-information", "(router?.total ?? 0) >= 30", "graded > 0", "scrollIntoView",
+  "Evidence timeline", "Promised versus actual", "Stop waiting", "Reproducible investigation",
 ]) {
   assert.ok(appSource.includes(contract), `Missing frontend interaction contract: ${contract}`);
 }
@@ -40,4 +51,4 @@ assert.match(styles, /\.qp-app\s*>\s*\.toast\s*\{\s*position:\s*fixed/);
 assert.match(styles, /max-height:\s*1100px/);
 assert.match(styles, /\.mobile-nav-utility\s*\{\s*display:\s*flex\s*!important/);
 
-console.log("PASS  live shell, six-destination navigation, public disclosure, proof-first layout, citations, dialogs, and result-state contracts");
+console.log("PASS  live shell, seven-destination navigation, direct judge routes, public disclosure, proof-first layout, timeline, comparison, replay, citations, dialogs, and result-state contracts");

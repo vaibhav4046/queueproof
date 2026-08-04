@@ -2,9 +2,10 @@
 
 import {
   Activity, ArrowRight, Bot, Braces, Check, ChevronRight, CircleAlert, CircleCheck, Clock3,
-  Clipboard, Command, Database, ExternalLink, Eye, FileCheck2, FileText, KeyRound,
+  Clipboard, Command, Database, Download, ExternalLink, Eye, FileCheck2, FileText, KeyRound,
   Link2, LoaderCircle, LockKeyhole, Network, Play, Plus,
-  Radio, RefreshCw, Search, ShieldCheck, Sparkles, Terminal, Unplug, UploadCloud, X as LucideX, Zap,
+  Pause, Radio, RefreshCw, RotateCcw, Search, ShieldCheck, Sparkles, StepForward, Terminal,
+  Unplug, UploadCloud, X as LucideX, Zap,
 } from "lucide-react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
@@ -14,53 +15,13 @@ import type { WorkspaceView } from "../lib/server/workspace-state";
 import type { EvidenceGraph as EvidenceGraphData } from "../packages/graph/src";
 import EvidenceOrbit, { type OrbitProps, type OrbitStage } from "./components/EvidenceOrbit";
 import EvidenceGraphView from "./components/EvidenceGraph";
-import { useEvidenceWorldCapability } from "./components/evidence-world-capability";
 
-// Client-only, strictly additive WebGL layer behind Evidence Orbit. Loaded
-// with ssr:false: EvidenceOrbit's SVG/DOM scene remains the only thing that
-// ever renders on the server or during hydration, so this can never cause an
-// SSR mismatch. Its dynamic import() only fires once useEvidenceWorldCapability()
-// (below) says the device qualifies — see evidence-world-capability.ts for why:
-// this chunk pulls in Three.js and is ~230KB gzip, so it must not be fetched
-// by every visitor to the Proof screen regardless of whether they can use it.
-const EvidenceWorld = dynamic(() => import("./components/EvidenceWorld"), { ssr: false });
+// One dependency-free WebGL field supplies the cinematic atmosphere. The
+// evidence model itself stays SVG/DOM so proof remains readable without WebGL.
 const ShaderBackground = dynamic(
   () => import("./components/ui/red-plasma").then((module) => module.ShaderBackground),
   { ssr: false },
 );
-
-/**
- * Mount the optional WebGL chunk after the SVG/DOM proof scene has painted.
- * The parent only renders this wrapper while the capability gate is true, so
- * losing capability unmounts it and resets `ready` without a synchronous
- * state update inside an effect.
- */
-function DeferredEvidenceWorld(props: OrbitProps) {
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    const markReady = () => {
-      if (!cancelled) setReady(true);
-    };
-
-    if (typeof window.requestIdleCallback === "function") {
-      const handle = window.requestIdleCallback(markReady, { timeout: 2000 });
-      return () => {
-        cancelled = true;
-        window.cancelIdleCallback?.(handle);
-      };
-    }
-
-    const timeoutId = window.setTimeout(markReady, 200);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timeoutId);
-    };
-  }, []);
-
-  return ready ? <EvidenceWorld {...props} /> : null;
-}
 
 function TypedProofPrompt({ text }: { text: string }) {
   return (
@@ -170,7 +131,7 @@ type ActionProposal = {
   providerResponseId: string | null; executionError: string | null;
 };
 type IssuePayload = { title?: string; description?: string; teamId?: string; projectId?: string };
-type ActiveTab = "command" | "ask" | "sources" | "lab" | "approvals" | "agent";
+export type ActiveTab = "command" | "ask" | "sources" | "lab" | "replay" | "approvals" | "agent";
 
 /** The only view in which the main application shell renders. */
 type ReadyView = Extract<WorkspaceView, { kind: "ready" }>;
@@ -180,6 +141,7 @@ const nav = [
   { id: "command", label: "Queue", icon: Command },
   { id: "sources", label: "Evidence", icon: Link2 },
   { id: "lab", label: "Benchmarks", icon: Activity },
+  { id: "replay", label: "Replay", icon: RotateCcw },
 ] as const;
 
 const utilityNav = [
@@ -320,11 +282,13 @@ function useDialogBehavior<T extends HTMLElement>(open: boolean, onClose: () => 
 export default function QueueProofApp({
   initialView,
   initialError,
+  initialTab = "ask",
 }: {
   initialView: WorkspaceView | null;
   initialError: string | null;
+  initialTab?: ActiveTab;
 }) {
-  const [tab, setTab] = useState<ActiveTab>("ask");
+  const [tab, setTab] = useState<ActiveTab>(initialTab);
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   // Seeded from the server render, so the first paint is already the correct screen.
@@ -518,7 +482,7 @@ export default function QueueProofApp({
         </div>
       )}
 
-      <main className="app-main" data-active-tab={tab}>
+      <main id="main-content" className="app-main" data-active-tab={tab}>
         {tab === "command" && (
           <CommandScreen queue={queue} verified={verified} busy={busy === "queue"}
             onGenerate={generateQueue} onOpenSources={() => navigateTab("sources")}
@@ -529,6 +493,7 @@ export default function QueueProofApp({
           reloadWorkspace={reloadWorkspace} reloadConnectors={loadConnectors}
           setError={setError} setNotice={setNotice} readOnly={publicSandbox} />}
         {tab === "lab" && <LabScreen setError={setError} />}
+        {tab === "replay" && <ReplayScreen setError={setError} />}
         {tab === "approvals" && <ApprovalsScreen key={proposalPacket?.packet_id ?? "approvals"}
           seedPacket={proposalPacket} onSeedUsed={() => setProposalPacket(null)}
           setError={setError} setNotice={setNotice} readOnly={publicSandbox} />}
@@ -894,15 +859,10 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
     unsupportedClaimRate: number | null;
   } | null>(null);
   const runPending = useRef(false);
+  const requestController = useRef<AbortController | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
   const verifiedCount = verified.length;
-  // Gates WHETHER the optional Three.js layer can ever mount — see
-  // evidence-world-capability.ts. Reactive: flips false (and unmounts
-  // EvidenceWorld, running its dispose-on-unmount cleanup) if the viewport
-  // is resized below 1024px or prefers-reduced-motion turns on mid-session.
-  const canRenderEvidenceWorld = useEvidenceWorldCapability();
-  // DeferredEvidenceWorld controls when the chunk mounts after this gate passes.
   // Evidence Orbit stage machine — every transition is driven by a real event:
   // query accepted → routing; HydraDB calls in flight → retrieving; entity
   // linking → linking; contradiction detected → contradiction; validation done
@@ -918,6 +878,7 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
     orbitTimers.current.push(id);
   }, []);
   useEffect(() => clearOrbitTimers, [clearOrbitTimers]);
+  useEffect(() => () => requestController.current?.abort(), []);
 
   useEffect(() => {
     const target = busy ? stageRef.current : result ? resultRef.current : null;
@@ -957,6 +918,8 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
     if (!connectorsLoaded) return;
     if (!verifiedCount) { onOpenSources(); return; }
     runPending.current = true;
+    const controller = new AbortController();
+    requestController.current = controller;
     clearOrbitTimers();
     setBusy(true); setError(""); setCitationPreview(null);
     setResult(null);
@@ -965,7 +928,11 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
     setOrbitStage("routing");
     scheduleOrbit("retrieving", 750);
     try {
-      const data = await api<AskData>("/api/ask", { method: "POST", body: JSON.stringify({ question: nextQuestion, mode }) });
+      const data = await api<AskData>("/api/ask", {
+        method: "POST",
+        body: JSON.stringify({ question: nextQuestion, mode }),
+        signal: controller.signal,
+      });
       setResult(data);
       if (data.contradictions.length > 0) {
         scheduleOrbit("linking", 0);
@@ -975,10 +942,19 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
         scheduleOrbit(data.validation.status === "abstained" ? "insufficient" : "verified", 950);
       }
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Evidence retrieval failed.");
+      setError(reason instanceof DOMException && reason.name === "AbortError"
+        ? "You stopped waiting for this investigation. The server may still finish its audit record; check Replay before running it again."
+        : reason instanceof Error ? reason.message : "Evidence retrieval failed.");
       clearOrbitTimers();
       setOrbitStage("idle");
-    } finally { runPending.current = false; setBusy(false); }
+    } finally {
+      if (requestController.current === controller) requestController.current = null;
+      runPending.current = false;
+      setBusy(false);
+    }
+  }
+  function cancelRun() {
+    requestController.current?.abort();
   }
   async function submit(event: FormEvent) { event.preventDefault(); await run(); }
 
@@ -989,10 +965,22 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
   const missingInformation = [...new Set([...(result?.missing_information ?? []), ...(result?.missingInformation ?? [])])];
   const resultTone = result?.validation.status === "abstained" ? "abstained" : result?.validation.status === "partial" || missingInformation.length ? "partial" : "grounded";
   const judgeMeasured = judgePulse?.status === "measured";
+  const contradictionEvidenceIds = new Set(result?.contradictions.flatMap((item) => item.evidenceIds) ?? []);
+  const timelineEvidence = [...(result?.evidence ?? [])]
+    .sort((left, right) => {
+      const leftTime = left.timestamp ? new Date(left.timestamp).getTime() : Number.MAX_SAFE_INTEGER;
+      const rightTime = right.timestamp ? new Date(right.timestamp).getTime() : Number.MAX_SAFE_INTEGER;
+      return leftTime - rightTime;
+    })
+    .slice(0, 10);
+  const commitmentEvidence = result?.evidence.find((item) => /\b(commit|promise|deadline|due|before)\b/i.test(`${item.title} ${item.excerpt}`));
+  const observedEvidence = result?.evidence.find((item) => /\b(merged|shipped|deployed|completed|resolved|implemented|open)\b/i.test(`${item.title} ${item.excerpt}`));
+  const comparisonResult = result?.contradictions.length
+    ? "Conflict preserved"
+    : commitmentEvidence && observedEvidence ? "Compare both receipts" : "Evidence gap";
 
-  // Single source of truth for both the SVG/DOM orbit and the optional WebGL
-  // layer — built once so EvidenceWorld can never drift from EvidenceOrbit's
-  // real backend-driven state.
+  // Single source of truth for the SVG/DOM orbit: every value comes from the
+  // current workspace or result rather than a decorative animation timeline.
   const orbitProps: OrbitProps = {
     stage: orbitStage,
     modeLabel: busy
@@ -1028,10 +1016,10 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
               {!connectorsLoaded && <span className="connector-loading"><LoaderCircle className="spin" size={13} /> Resolving source proofs</span>}
               {connectorsLoaded && !verified.length && <button onClick={onOpenSources}><Plus size={13} /> Connect evidence</button>}
             </div>
-            <div className="hero-proofline" aria-label="Live product proof">
+            <div className="hero-proofline" aria-label="Current source proof and recorded live benchmark">
               <span><strong>{verifiedCount}</strong><small>LIVE SYSTEMS PROVEN</small></span>
-              <span><strong>{judgeMeasured && judgePulse?.citationPrecision !== null && judgePulse?.citationPrecision !== undefined ? `${Math.round(judgePulse.citationPrecision * 100)}%` : "—"}</strong><small>CITATION PRECISION</small></span>
-              <span><strong>{judgeMeasured && judgePulse?.unsupportedClaimRate !== null && judgePulse?.unsupportedClaimRate !== undefined ? `${Math.round(judgePulse.unsupportedClaimRate * 100)}%` : "—"}</strong><small>UNSUPPORTED CLAIM RATE</small></span>
+              <span><strong>{judgeMeasured && judgePulse?.citationPrecision !== null && judgePulse?.citationPrecision !== undefined ? `${Math.round(judgePulse.citationPrecision * 100)}%` : "—"}</strong><small>RECORDED CITATION PRECISION</small></span>
+              <span><strong>{judgeMeasured && judgePulse?.unsupportedClaimRate !== null && judgePulse?.unsupportedClaimRate !== undefined ? `${Math.round(judgePulse.unsupportedClaimRate * 100)}%` : "—"}</strong><small>RECORDED UNSUPPORTED RATE</small></span>
             </div>
             <div className="proof-manifest" aria-label="QueueProof evidence workflow">
               <span><b>01</b> Verify sources</span><i />
@@ -1047,12 +1035,8 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
         </div>
       </div>
       <div className="evidence-orbit-stack">
-        {/* Optional WebGL layer, strictly behind and in sync with the SVG
-            scene below — same props, same stage, no separate data source.
-            Only mounted (and only then does its dynamic import fire) once
-            canRenderEvidenceWorld says the device qualifies. The wrapper
-            then defers the import until idle (or its bounded fallback). */}
-        {canRenderEvidenceWorld && <DeferredEvidenceWorld {...orbitProps} />}
+        {/* The SVG/DOM scene is the evidence source of truth at every device
+            size and remains complete when the atmospheric shader is absent. */}
         <EvidenceOrbit {...orbitProps} />
       </div>
 
@@ -1076,6 +1060,40 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
         {proofPrompts.map((prompt, index) => <button key={prompt} onClick={() => { setQuestion(prompt); void run(prompt); }} aria-label={`Run example ${index + 1}: ${prompt}`}><span>{String(index + 1).padStart(2, "0")}</span>{prompt}<ArrowRight size={13} /></button>)}
       </div>
 
+      <section className="landing-proof-sections" aria-label="QueueProof product overview">
+        <div className="landing-problem">
+          <span className="eyebrow">Why QueueProof</span>
+          <h2>Your work is split across tools.<br /><em>AI can summarise it. QueueProof verifies it.</em></h2>
+          <p>Messages, tickets, code, email, and documents often disagree. QueueProof keeps the disagreement visible and links every supported claim to the exact receipt.</p>
+        </div>
+        <div className="landing-steps" aria-label="How QueueProof works">
+          {[
+            ["01", "Connect", "Prove a source can return real, attributable records."],
+            ["02", "Ask", "Choose one operational question or claim to verify."],
+            ["03", "Verify", "Compare receipts, dates, people, and changed information."],
+            ["04", "Act", "Recommend one safe next step and gate external writes."],
+          ].map(([number, title, body]) => <article key={number}><small>{number}</small><h3>{title}</h3><p>{body}</p></article>)}
+        </div>
+        <div className="landing-proof-grid">
+          <article className="flagship-proof-card">
+            <span className="eyebrow">Flagship proof</span>
+            <h3>Who escalated AuthShield, what was promised, and is the fix merged?</h3>
+            <p>QueueProof reconstructs the warning, commitment, implementation, tracked state, and missing follow-up across the verified sources available to this workspace.</p>
+            <div><span><small>LIVE SOURCES PROVEN</small><strong>{verifiedCount || "—"}</strong></span><span><small>RECORDED CITATION PRECISION</small><strong>{judgeMeasured && judgePulse?.citationPrecision !== null && judgePulse?.citationPrecision !== undefined ? `${Math.round(judgePulse.citationPrecision * 100)}%` : "Not measured"}</strong></span><span><small>RECORDED UNSUPPORTED</small><strong>{judgeMeasured && judgePulse?.unsupportedClaimRate !== null && judgePulse?.unsupportedClaimRate !== undefined ? `${Math.round(judgePulse.unsupportedClaimRate * 100)}%` : "Not measured"}</strong></span></div>
+            <button type="button" className="secondary-button" onClick={() => { setQuestion("Who escalated the AuthShield outage, what did engineering commit to, and is the fix already merged?"); document.getElementById("proof-question")?.focus(); }}>Load this investigation</button>
+          </article>
+          <article className="difficult-questions-card">
+            <span className="eyebrow">Built for difficult questions</span>
+            <ul><li>Timeline reasoning</li><li>Cross-source identity</li><li>Updated information</li><li>Thread understanding</li><li>Multi-hop retrieval</li></ul>
+            <p>Fast handles direct facts. Deep check performs a bounded evidence-derived follow-up only when the question requires it.</p>
+          </article>
+        </div>
+        <div className="measured-cta">
+          <div><span className="eyebrow">Measured, not claimed</span><h2>Failures stay visible.</h2><p>Expected facts, observed answers, citation support, latency, HydraDB calls, mode, and relative cost live together in the benchmark receipt.</p></div>
+          <div><a className="primary-button" href="/demo">Ask QueueProof <ArrowRight size={13} /></a><a className="secondary-button" href="/benchmarks">Inspect the benchmark</a><a className="text-link" href="/method">How proof works</a></div>
+        </div>
+      </section>
+
       {verified.length > 0 && <section className="connector-proof-rail" aria-label="Verified connector receipts">
         <div className="rail-heading"><span><Link2 size={13} /> Live connector receipts</span><button onClick={onOpenSources}>Inspect evidence boundary <ArrowRight size={12} /></button></div>
         <div className="connector-proof-grid">
@@ -1090,7 +1108,8 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
 
       {busy && <div ref={stageRef} className="retrieval-stage" role="status" aria-live="polite" tabIndex={-1}>
         <div className="stage-track"><i /><i /><i /><i /></div>
-        <div><strong>HydraDB is checking every source.</strong><span>Matching people and projects · finding conflicts · keeping only supported claims</span></div>
+        <div><strong>HydraDB request in progress.</strong><span>{mode === "thinking" ? "Deep check" : mode === "fast" ? "Fast check" : "QueueProof selected the route"} · searching {verified.map((connector) => connector.provider).join(", ")} · unsupported claims stay blocked</span></div>
+        <button type="button" className="secondary-button retrieval-cancel" onClick={cancelRun}>Stop waiting</button>
       </div>}
 
       {result && <div ref={resultRef} className={`ask-results premium-results ${resultTone}`} tabIndex={-1} aria-live="polite">
@@ -1103,9 +1122,55 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
         </div>
         <article className={`answer-surface ${resultTone}`}>
           <div className="answer-kicker"><span>{resultTone === "abstained" ? "INSUFFICIENT EVIDENCE" : resultTone === "partial" ? "PARTIAL EVIDENCE" : "GROUNDED ANSWER"}</span><button className="copy-id" onClick={() => void navigator.clipboard.writeText(result.retrieval_receipt.query_id)} title="Copy query receipt ID" aria-label="Copy query receipt ID"><code>{result.retrieval_receipt.query_id.slice(-8)}</code><Clipboard size={12} /></button></div>
+          <p className="result-question"><small>QUESTION</small>{question}</p>
           <h2><CitedAnswer text={result.answer} citations={result.citations} onOpen={(evidence, index) => setCitationPreview({ evidence, index })} /></h2>
           <div className="answer-verdict">{resultTone === "grounded" ? <CircleCheck size={17} /> : <CircleAlert size={17} />}<span><strong>{result.validation.citedClaimCount}/{result.validation.claimCount} claims cited</strong> · {resultTone === "abstained" ? "no unsupported answer was generated" : resultTone === "partial" ? "supported claims are shown, but evidence gaps remain" : "unsupported prose is blocked"}</span></div>
         </article>
+
+        <section className="evidence-strength" aria-labelledby="evidence-strength-title">
+          <div className="result-heading"><div><span className="eyebrow">Evidence strength</span><h3 id="evidence-strength-title">Five checks, kept separate.</h3></div></div>
+          <div className="strength-grid">
+            <span><small>SOURCE COVERAGE</small><strong>{result.validation.providerCoverage.length} provider{result.validation.providerCoverage.length === 1 ? "" : "s"}</strong><em>{result.validation.providerCoverage.join(" · ") || "No provider coverage"}</em></span>
+            <span><small>CITATION SUPPORT</small><strong>{result.validation.citedClaimCount}/{result.validation.claimCount}</strong><em>claims linked to receipts</em></span>
+            <span><small>TIMELINE</small><strong>{timelineEvidence.filter((item) => item.timestamp).length}/{timelineEvidence.length}</strong><em>receipts with timestamps</em></span>
+            <span><small>ENTITY CONFIDENCE</small><strong>{result.priority_items[0] ? `${Math.round(result.priority_items[0].confidence * 100)}%` : "Not measured"}</strong><em>{result.priority_items[0]?.normalized_entity ?? "No ranked entity"}</em></span>
+            <span><small>CONTRADICTION RISK</small><strong>{result.contradictions.length ? `${result.contradictions.length} review` : "No conflict found"}</strong><em>never folded into one score</em></span>
+          </div>
+        </section>
+
+        {timelineEvidence.length > 0 && <section className="evidence-timeline" aria-labelledby="evidence-timeline-title">
+          <div className="result-heading"><div><span className="eyebrow">Evidence timeline</span><h3 id="evidence-timeline-title">What the receipts establish, in order.</h3></div><span>{timelineEvidence.length} events</span></div>
+          <ol>
+            {timelineEvidence.map((item, index) => {
+              const receiptId = item.id ?? item.sourceId ?? `${item.provider}-${index}`;
+              const isConflict = contradictionEvidenceIds.has(receiptId);
+              const isCited = rankedEvidenceIds.has(receiptId);
+              return <li key={receiptId} className={isConflict ? "conflict" : ""}>
+                <time>{dateLabel(item.timestamp)}</time>
+                <i />
+                <article>
+                  <div><span className="provider-glyph"><ProviderIcon provider={item.provider} size={13} /></span><strong>{item.provider}</strong><small>{isConflict ? "Conflicts with another receipt" : isCited ? "Supports the answer" : "Supporting context"}</small></div>
+                  <h4>{item.title}</h4>
+                  <p>{item.excerpt}</p>
+                  <button type="button" onClick={() => setCitationPreview({ evidence: item as Evidence & { id: string }, index })}>Inspect receipt <Eye size={12} /></button>
+                </article>
+              </li>;
+            })}
+          </ol>
+        </section>}
+
+        <section className="promise-actual" aria-labelledby="promise-actual-title">
+          <div className="result-heading"><div><span className="eyebrow">Promised versus actual</span><h3 id="promise-actual-title">Compare the proof without guessing.</h3></div><span className={result.contradictions.length ? "case-status fail" : "case-status pass"}>{comparisonResult}</span></div>
+          <div className="comparison-table-wrap"><table>
+            <caption>Commitment and observed outcome drawn only from retrieved receipts.</caption>
+            <thead><tr><th scope="col">Dimension</th><th scope="col">Promised</th><th scope="col">Observed</th><th scope="col">Result</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Source</th><td>{commitmentEvidence ? `${commitmentEvidence.provider} · ${commitmentEvidence.title}` : "No commitment receipt"}</td><td>{observedEvidence ? `${observedEvidence.provider} · ${observedEvidence.title}` : "No outcome receipt"}</td><td>{comparisonResult}</td></tr>
+              <tr><th scope="row">Time</th><td>{dateLabel(commitmentEvidence?.timestamp)}</td><td>{dateLabel(observedEvidence?.timestamp)}</td><td>{commitmentEvidence?.timestamp && observedEvidence?.timestamp ? "Both timestamps visible" : "Timestamp review needed"}</td></tr>
+              <tr><th scope="row">Receipt</th><td>{commitmentEvidence?.excerpt ?? "QueueProof found no supported promise in this result."}</td><td>{observedEvidence?.excerpt ?? "QueueProof found no supported outcome in this result."}</td><td>{result.contradictions.length ? "Open the conflicting receipts" : "Review before acting"}</td></tr>
+            </tbody>
+          </table></div>
+        </section>
 
         {missingInformation.length > 0 && <section className={`missing-information ${resultTone}`} aria-labelledby="missing-information-title"><CircleAlert size={18} /><div><span>{resultTone === "abstained" ? "ANSWER WITHHELD" : "EVIDENCE GAP"}</span><h3 id="missing-information-title">Evidence still needed</h3><ul>{missingInformation.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ul></div></section>}
 
@@ -1520,6 +1585,12 @@ function AgentScreen({ workspace, setError, setNotice, readOnly }: { workspace: 
   return <section className="screen agent-screen"><div className="screen-heading"><div><span className="eyebrow"><Bot size={13} /> Agent dock · MCP</span><h1>Give agents the plan.<br /><em>Keep humans in control.</em></h1><p>Generate a scoped token, connect any modern MCP client, and retrieve the exact execution packet shown in Command. Provider writes remain proposals unless a human approves them.</p></div></div>{readOnly && <div className="inline-warning"><LockKeyhole size={14} />Token issuance and revocation are disabled in the public sandbox. The integration shape and endpoint remain visible.</div>}<div className="agent-grid"><div className="token-console"><div className="console-line"><span><Terminal size={14} /> New agent connection</span><span className="secure-chip"><LockKeyhole size={12} /> hashed at rest</span></div><label>Client<select value={clientType} onChange={(event) => setClientType(event.target.value)} disabled={readOnly}><option value="codex">Codex</option><option value="claude">Claude Code</option><option value="kimi">Kimi Code</option><option value="kilo">Kilo Code</option><option value="generic">Generic MCP client</option></select></label><label className="scope-choice"><input type="checkbox" checked={writeScopes} onChange={(event) => setWriteScopes(event.target.checked)} disabled={readOnly} /><span><strong>Allow proposal + sync tools</strong><small>Still cannot execute a provider write without QueueProof approval.</small></span></label><button className="primary-button" onClick={() => void createToken()} disabled={readOnly || busy}>{busy ? <LoaderCircle className="spin" size={15} /> : readOnly ? <LockKeyhole size={15} /> : <KeyRound size={15} />}{readOnly ? "Token issuance disabled" : "Generate 30-day token"}</button>{freshToken && <div className="token-reveal"><span><CircleAlert size={13} /> Copy once — it cannot be shown again</span><code>{freshToken}</code><button onClick={() => void navigator.clipboard.writeText(freshToken)}><Clipboard size={13} /> Copy token</button></div>}</div><div className="config-card"><div className="list-title"><span><Braces size={14} /> Project configuration</span><button onClick={() => void navigator.clipboard.writeText(JSON.stringify(config, null, 2))}><Clipboard size={13} /> Copy</button></div><pre>{JSON.stringify(config, null, 2)}</pre><div className="endpoint-row"><small>REMOTE MCP ENDPOINT</small><code>{endpoint}</code></div></div></div><div className="token-list"><div className="list-title"><span><ShieldCheck size={14} /> Issued credentials</span><small>{workspace.workspace?.name}</small></div>{tokens.length ? tokens.map((token) => <div className="token-row" key={token.id}><span className={token.revokedAt ? "status-orb" : token.lastHandshakeAt ? "status-orb live" : "status-orb indexing"} /><div><strong>{token.clientType}</strong><small>{token.scopes.join(" · ")} · expires {dateLabel(token.expiresAt)}</small></div><span>{token.revokedAt ? "Revoked" : token.lastHandshakeAt ? `Connected ${dateLabel(token.lastHandshakeAt)}` : "Awaiting handshake"}</span>{!token.revokedAt && !readOnly && <button onClick={() => void revoke(token.id)}>Revoke</button>}</div>) : <div className="honest-empty"><Bot size={24} /><div><strong>No agent credential exists.</strong><p>Create one only when you are ready to connect a client.</p></div></div>}</div></section>;
 }
 
+type BenchmarkReplayRow = {
+  id?: string; runId?: string; label: string; question: string; expected?: string; actual?: string;
+  pass?: boolean; mode: string; latencyMs: number; callCount?: number; sources: number;
+  providers: string[]; costUnits?: number;
+};
+
 type LabResults = {
   generatedAt?: string;
   fixture?: {
@@ -1538,10 +1609,103 @@ type LabResults = {
     connectors?: string[]; allThreeProviders?: number; fast?: number; thinking?: number;
     latencyMs?: { p50?: number; p95?: number; min?: number; max?: number };
     quality?: { requiredFactRecall?: number; citationPrecision?: number; citationCompleteness?: number; unsupportedClaimRate?: number; note?: string };
-    rows?: Array<{ label: string; question: string; expected?: string; actual?: string; pass?: boolean;
-      mode: string; latencyMs: number; callCount?: number; sources: number; providers: string[]; costUnits?: number }>;
+    rows?: BenchmarkReplayRow[];
   };
 };
+
+function ReplayScreen({ setError }: { setError: (value: string) => void }) {
+  const [data, setData] = useState<LabResults | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [step, setStep] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [speed, setSpeed] = useState(1);
+
+  useEffect(() => {
+    let active = true;
+    void api<{ results: LabResults }>("/api/lab")
+      .then((payload) => { if (active) setData(payload.results); })
+      .catch((reason: Error) => { if (active) setError(reason.message); });
+    return () => { active = false; };
+  }, [setError]);
+
+  const rows = data?.live?.rows ?? [];
+  const selected = rows[selectedIndex] ?? null;
+  const replaySteps = useMemo(() => selected ? [
+    { label: "Question captured", value: selected.question },
+    { label: "Router decision", value: `${selected.mode === "thinking" ? "Deep check" : "Fast"} mode selected` },
+    { label: "Source checkpoint", value: `${selected.providers.join(", ") || "No provider coverage"} · ${dateLabel(data?.live?.generatedAt ?? data?.generatedAt)}` },
+    { label: "HydraDB retrieval", value: `${selected.callCount ?? "—"} call${selected.callCount === 1 ? "" : "s"} · ${selected.sources} retained receipt${selected.sources === 1 ? "" : "s"}` },
+    { label: "Expected result", value: selected.expected ?? "No frozen expected answer" },
+    { label: "Observed result", value: selected.actual ?? "No observed answer captured" },
+    { label: "Evaluation", value: typeof selected.pass === "boolean" ? selected.pass ? "PASS" : "REVIEW" : "MEASURED" },
+  ] : [], [data?.generatedAt, data?.live?.generatedAt, selected]);
+
+  useEffect(() => {
+    if (!playing || !replaySteps.length) return;
+    const timer = window.setInterval(() => {
+      setStep((current) => {
+        if (current >= replaySteps.length - 1) {
+          setPlaying(false);
+          return current;
+        }
+        return current + 1;
+      });
+    }, Math.max(350, 1100 / speed));
+    return () => window.clearInterval(timer);
+  }, [playing, replaySteps.length, speed]);
+
+  function selectRow(index: number) {
+    setSelectedIndex(index);
+    setStep(0);
+    setPlaying(false);
+  }
+  function exportRun() {
+    if (!selected) return;
+    const payload = {
+      schemaVersion: 1,
+      exportedAt: new Date().toISOString(),
+      checkpoint: data?.live?.generatedAt ?? data?.generatedAt ?? null,
+      target: data?.live?.target ?? null,
+      run: selected,
+      replay: replaySteps,
+    };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `queueproof-${selected.id ?? selected.runId ?? "replay"}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
+  return <section className="screen replay-screen">
+    <div className="screen-heading"><div><span className="eyebrow"><RotateCcw size={13} /> Reproducible investigation</span><h1>Replay the proof.<br /><em>Step by measured step.</em></h1><p>Each frame comes from a stored benchmark artifact. If source data changes, the next benchmark creates a new checkpoint instead of rewriting this run.</p></div></div>
+    {!rows.length ? <div className="honest-empty"><RotateCcw size={24} /><div><strong>No measured replay is available.</strong><p>Run the controlled live benchmark first. QueueProof will not animate a fixture and call it production evidence.</p></div></div> : <div className="replay-layout">
+      <aside className="replay-runs" aria-label="Recorded investigations"><div className="list-title"><span><FileCheck2 size={14} /> Recorded runs</span><small>{rows.length}</small></div>{rows.map((row, index) => <button key={row.id ?? `${row.label}-${index}`} className={selectedIndex === index ? "active" : ""} aria-pressed={selectedIndex === index} onClick={() => selectRow(index)}><span><strong>{row.label}</strong><small>{row.mode} · {row.providers.join(" · ")}</small></span><em className={row.pass === false ? "review" : "pass"}>{typeof row.pass === "boolean" ? row.pass ? "PASS" : "REVIEW" : "MEASURED"}</em></button>)}</aside>
+      <div className="replay-stage-panel">
+        <div className="replay-toolbar">
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() => {
+              if (!playing && step >= replaySteps.length - 1) setStep(0);
+              setPlaying((value) => !value);
+            }}
+          >
+            {playing ? <Pause size={14} /> : <Play size={14} fill="currentColor" />}
+            {playing ? "Pause" : step >= replaySteps.length - 1 ? "Play again" : "Play"}
+          </button>
+          <button type="button" className="secondary-button" onClick={() => { setPlaying(false); setStep((value) => Math.min(value + 1, replaySteps.length - 1)); }} disabled={step >= replaySteps.length - 1}><StepForward size={14} /> Step</button>
+          <button type="button" className="secondary-button" onClick={() => { setPlaying(false); setStep(0); }} disabled={step === 0}><RotateCcw size={14} /> Reset</button>
+          <label>Speed<select value={speed} onChange={(event) => setSpeed(Number(event.target.value))}><option value={0.5}>0.5×</option><option value={1}>1×</option><option value={2}>2×</option></select></label>
+          <button type="button" className="secondary-button" onClick={exportRun}><Download size={14} /> Export JSON</button>
+        </div>
+        {selected && <><div className="replay-head"><div><small>RUN ID</small><code>{selected.runId ?? selected.id ?? "artifact row"}</code></div><div><small>CHECKPOINT</small><strong>{dateLabel(data?.live?.generatedAt ?? data?.generatedAt)}</strong></div><div><small>DURATION</small><strong>{(selected.latencyMs / 1000).toFixed(2)}s</strong></div><div><small>COST</small><strong>{selected.costUnits ?? "—"} units</strong></div></div>
+          <ol className="replay-steps">{replaySteps.map((item, index) => <li key={item.label} className={index < step ? "complete" : index === step ? "active" : "pending"}><span>{String(index + 1).padStart(2, "0")}</span><div><strong>{item.label}</strong>{index <= step && <p>{item.value}</p>}</div></li>)}</ol>
+          <div className="replay-progress" role="progressbar" aria-label="Replay progress" aria-valuemin={1} aria-valuemax={replaySteps.length} aria-valuenow={step + 1}><i style={{ width: `${((step + 1) / replaySteps.length) * 100}%` }} /></div></>}
+      </div>
+    </div>}
+  </section>;
+}
 
 /**
  * Evaluation Lab.

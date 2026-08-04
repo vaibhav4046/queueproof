@@ -20,9 +20,9 @@ retrieval concurrently. Strong connector/resource lineage prevents evidence from
 credited merely because its provider name matches.
 
 The current deterministic benchmark passes 39/39 labelled router cases and 331
-assertions. The full release suite passes 324 tests across 32 files, including 13 security
+assertions. The full release suite passes 320 tests across 32 files, including 13 security
 and 8 MCP tests, plus typecheck, lint, production build, E2E, and deployment checks. The
-interface is verified from 360x800 through 3840x2160 with all six destinations available
+interface is verified across the release matrix with all seven destinations available
 on mobile.
 
 The public product is intentionally a shared evidence sandbox. It allows grounded
@@ -32,6 +32,12 @@ public workspace is selected by configuration and ambiguous multi-workspace stat
 closed.
 
 **Live product:** <https://queueproof.vercel.app>
+
+**Direct judge demo:** <https://queueproof.vercel.app/demo>
+
+**Method and boundaries:** <https://queueproof.vercel.app/method>
+
+**Measured results and replay:** <https://queueproof.vercel.app/benchmarks>
 
 **Repository:** <https://github.com/vaibhav4046/queueproof>
 
@@ -44,7 +50,7 @@ closed.
 - Flagship production answer with cited GitHub, Linear, and Slack evidence in one thinking
   query.
 - 39/39 deterministic router cases; 331 assertions.
-- 324 tests across 32 files; 13 security tests; 8 MCP tests.
+- 320 tests across 32 files; 13 security tests; 8 MCP tests.
 - Zero secret-pattern matching files across the complete pre-release history and final
   release worktree.
 

@@ -7,6 +7,9 @@ evidence through HydraDB, produces cited answers, compiles a deterministic next-
 queue, and keeps external writes behind an approval boundary.
 
 - Live product: <https://queueproof.vercel.app>
+- Direct demo: <https://queueproof.vercel.app/demo>
+- Method: <https://queueproof.vercel.app/method>
+- Measured results: <https://queueproof.vercel.app/benchmarks>
 - Repository: <https://github.com/vaibhav4046/queueproof>
 - Canonical demo: [docs/DEMO_SCRIPT_60S.md](docs/DEMO_SCRIPT_60S.md)
 - Judge-ready copy: [docs/SUBMISSION_COPY.md](docs/SUBMISSION_COPY.md)
@@ -53,18 +56,18 @@ the bounded `/api/ask` workflow remains available to judges.
 | Production build | pass |
 | End-to-end shell contract | pass |
 | Deployment binding check | pass |
-| Full test suite | 324 tests across 32 files |
+| Full test suite | 320 tests across 32 files |
 | Security suite | 13 tests |
 | MCP suite | 8 tests |
 | Offline router benchmark | 39/39 cases; 331 assertions |
 
-The canonical public product is <https://queueproof.vercel.app>. The final local hardening
-commit is not included in that deployment yet; publication and post-deploy acceptance
-remain explicit release gates.
+The canonical public product is <https://queueproof.vercel.app>. A release is accepted
+only after that target passes the post-deploy E2E and live-evidence reruns against the
+same final commit.
 
-Responsive browser QA covers 375×812, 390×844, 768×1024, 1024×768, 1440×900, and
-844×390 landscape, plus reduced-motion checks on mobile and desktop. The mobile shell
-retains all six destinations; dialogs manage focus; citations are interactive; and
+Responsive browser QA covers the phone, tablet, desktop, mobile-landscape, 200% zoom,
+reduced-motion, and WebGL-fallback release matrix recorded in the visual QA receipt. The
+mobile shell retains all seven destinations; dialogs manage focus; citations are interactive; and
 grounded, partial, and abstained answers have distinct states. See
 [the visual QA receipt](audit/UI_QA_2026-08-04.md).
 
@@ -165,8 +168,10 @@ npm run benchmark:pdf -- --url https://queueproof.vercel.app
 - [Connector proof](docs/CONNECTOR_PROOF.md)
 - [Large-PDF proof status](docs/LARGE_PDF_PROOF.md)
 - [Security model](docs/SECURITY.md)
-- [Secret-scan evidence](audit/secret-scan-2026-08-03.md)
+- [Secret-scan evidence](audit/secret-scan-2026-08-04.md)
+- [Dependency advisory audit](audit/dependency-audit-2026-08-04.md)
 - [Judging matrix](docs/JUDGING_MATRIX.md)
+- [Hackathon form answers and judge instructions](docs/HACKATHON_FORM.md)
 - [Submission copy](docs/SUBMISSION_COPY.md)
 
 ## Honest boundaries

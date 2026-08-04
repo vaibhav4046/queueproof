@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import QueueProofApp from "./QueueProofApp";
-import { loadWorkspaceView, type WorkspaceView } from "../lib/server/workspace-state";
+import QueueProofRoute from "./QueueProofRoute";
 
 export const dynamic = "force-dynamic";
 
@@ -15,17 +14,5 @@ export const metadata: Metadata = {
  * Failures stay recoverable so the client can offer a retry.
  */
 export default async function Home() {
-  let initialView: WorkspaceView | null = null;
-  let bootError: string | null = null;
-
-  try {
-    initialView = await loadWorkspaceView();
-  } catch (error) {
-    bootError =
-      error instanceof Error
-        ? error.message
-        : "QueueProof could not determine the workspace state.";
-  }
-
-  return <QueueProofApp initialView={initialView} initialError={bootError} />;
+  return <QueueProofRoute initialTab="ask" />;
 }

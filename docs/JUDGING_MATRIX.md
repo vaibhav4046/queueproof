@@ -6,20 +6,21 @@
 | Cross-source reasoning | Four verified connectors; flagship GitHub + Linear + Slack answer; contradictions remain explicit | Point to provider coverage and tracked-state disagreement |
 | Retrieval quality | Exact IDs execute text and hybrid lanes concurrently; sources merge/dedupe; strong connector/resource lineage | Show routing reason and retrieval receipt |
 | Latency and cost | Receipts expose elapsed time, actual call count, and relative units; stored live sample is clearly labelled small | Open Benchmarks and distinguish measured from unmeasured |
-| Reproducibility | 39 labelled router cases, 331 assertions, deterministic 346-page PDF, 22 questions, 56 fact groups | Show the replay commands and historical/current labels |
+| Reproducibility | 39 labelled router cases, 331 assertions, deterministic 346-page PDF, 22 questions, 56 fact groups, and a step-through measured-run replay | Open Replay, step through one stored run, then show the exact command |
 | Trust and safety | Public sandbox guard, versioned signed sessions, encrypted credentials, approval gate, at-most-once execution | Show the sandbox notice and exact proposal payload |
 | Developer experience | Same persisted packets across web/API/MCP; MCP scope, expiry, revocation, and audience enforcement | Open Developer and show the bounded contract |
-| Product quality | Proof-first first viewport, six mobile destinations, interactive citations, focus-managed dialogs, distinct result states | Resize to mobile and navigate without losing functionality |
+| Product quality | Proof-first first viewport, seven mobile destinations, interactive citations, evidence timeline, promised-versus-actual table, focus-managed dialogs, distinct result states | Resize to mobile and navigate without losing functionality |
 
 ## Release evidence
 
 - Typecheck, lint, production build, E2E, and deployment check: pass.
-- Full suite: 324 tests across 32 files.
+- Full suite: 320 tests across 32 files.
 - Security suite: 13 tests.
 - MCP suite: 8 tests.
 - Router benchmark: 39/39 cases, 331 assertions.
-- Responsive QA: 360x800, 390x844, 768x1024, 1440x900, 1920x1080,
-  2560x1440, and 3840x2160.
+- Responsive QA: 320x568, 375x667, 390x844, 430x932, 768x1024, 1024x768,
+  1280x800, 1440x900, 1920x1080, mobile landscape, 200% zoom, reduced motion,
+  and WebGL fallback.
 - Secret scan: zero matching files across the final worktree and complete pre-release history.
 
 ## Differentiator

@@ -62,10 +62,11 @@ Typography uses Iowan Old Style / Palatino for the editorial thesis and evidence
 
 ## Responsive and accessibility gates
 
-- Verify 375×812, 390×844, 768×1024, 1024×768, and 1440×900.
+- Verify 320×568, 375×667, 390×844, 430×932, 768×1024, 1024×768,
+  1280×800, 1440×900, and 1920×1080.
 - Verify one mobile landscape viewport and 200% text zoom.
 - Minimum interactive target: 44×44px.
 - Primary text contrast: 4.5:1 minimum; secondary text: 3:1 minimum.
-- Navigation must expose all six working destinations without page overflow.
+- Navigation must expose all seven working destinations without page overflow.
 - No important meaning can depend on color, hover, animation, WebGL, or Three.js.
 - The SVG/DOM evidence surface remains the source of truth when WebGL is unavailable.
