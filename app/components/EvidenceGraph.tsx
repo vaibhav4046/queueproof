@@ -23,13 +23,24 @@ import type { EvidenceGraph as EvidenceGraphData, GraphNode, GraphNodeType } fro
 
 export type EvidenceGraphProps = { graph: EvidenceGraphData };
 
-const COLUMN_ORDER: GraphNodeType[] = ["source", "claim", "contradiction", "task", "action"];
+// "approval"/"receipt" are exported node types (packages/graph/src) but are not
+// yet wired into GET /api/graph — deriveGraphFromActionProposal needs a joined
+// action_proposals/action_approvals/action_executions query the route doesn't
+// run yet (see ARCHITECTURE.md "Evidence graph"). They are deliberately left out
+// of COLUMN_ORDER: this component renders one label per column unconditionally,
+// so including a type that can never have nodes today would show a permanently
+// empty column — exactly the decorative-graph failure mode this project refuses
+// to ship. Add them here once the route actually derives them.
+const COLUMN_ORDER: GraphNodeType[] = ["connector", "source", "claim", "contradiction", "task", "action"];
 const COLUMN_LABEL: Record<GraphNodeType, string> = {
   source: "Sources",
   claim: "Claims",
   contradiction: "Contradictions",
   task: "Tasks",
   action: "Actions",
+  connector: "Connectors",
+  approval: "Approvals",
+  receipt: "Receipts",
 };
 
 const VIEW_WIDTH = 1160;
