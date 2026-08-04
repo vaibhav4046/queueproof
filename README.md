@@ -63,7 +63,8 @@ the bounded `/api/ask` workflow remains available to judges.
 
 The canonical public product is <https://queueproof.vercel.app>. A release is accepted
 only after that target passes the post-deploy E2E and live-evidence reruns against the
-same final commit.
+same final commit. The 4 August 2026 release passed that shell contract and the stored
+live and large-PDF reruns below; the strict misses remain visible.
 
 Responsive browser QA covers the phone, tablet, desktop, mobile-landscape, 200% zoom,
 reduced-motion, and WebGL-fallback release matrix recorded in the visual QA receipt. The
@@ -85,8 +86,9 @@ fixed future ordering.
 
 A fresh strict public-production run over the deterministic 346-page PDF passed 20/22
 cases and recovered 53/56 required facts with 100% citation precision/completeness and
-zero unsupported claims. It predates the final unpublished retrieval change and must be
-rerun after release. See [docs/LARGE_PDF_PROOF.md](docs/LARGE_PDF_PROOF.md).
+zero unsupported claims. The post-deploy run measured p50 566 ms and p95 11.852 s; its
+cross-source extension cited the document and GitHub but missed the required second
+non-document provider. See [docs/LARGE_PDF_PROOF.md](docs/LARGE_PDF_PROOF.md).
 
 ## Architecture
 
@@ -176,7 +178,8 @@ npm run benchmark:pdf -- --url https://queueproof.vercel.app
 
 ## Honest boundaries
 
-- The strict PDF baseline is 20/22, not 22/22, and requires a post-deploy rerun.
+- The strict post-deploy PDF result is 20/22, not 22/22; both REVIEW cases remain in the
+  machine-readable artifact.
 - The six-question live sample in `BENCHMARK_REPORT.md` is small and not an SLA.
 - Relative query units are shown; QueueProof does not invent a HydraDB dollar cost.
 - Public visitors cannot mutate credentials, connector configuration, uploads, tokens, or

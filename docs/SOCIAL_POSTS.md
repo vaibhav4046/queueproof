@@ -51,5 +51,5 @@ QueueProof - One answer. Every system. Proven.
 ## Accuracy note
 
 The strict public-production PDF baseline is 20/22 cases and 53/56 facts. It was measured
-before the final unpublished retrieval changes, so rerun it after deployment and update
-the copy only from that artifact. Never present it as 22/22.
+after the final judge deployment with complete citations and zero unsupported claims.
+Never present it as 22/22.

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-04T00:51:32.659Z",
+  "generatedAt": "2026-08-04T06:59:49.271Z",
   "grader": "grounded-grader-v2",
   "target": "https://queueproof.vercel.app",
   "runner": "scripts/run-pdf-benchmark.mjs",
@@ -18,16 +18,16 @@
     "end": true
   },
   "latencyMs": {
-    "p50": 504,
-    "p95": 5757,
-    "min": 435,
-    "max": 6997
+    "p50": 566,
+    "p95": 11852,
+    "min": 387,
+    "max": 12190
   },
   "calls": {
-    "median": 1,
-    "mean": 1.4090909090909092,
+    "median": 2,
+    "mean": 1.8181818181818181,
     "min": 1,
-    "max": 2
+    "max": 3
   },
   "quality": {
     "requiredFactAccuracy": 0.9464285714285714,
@@ -145,11 +145,11 @@
     "claimCount": 4,
     "supportedClaimCount": 4,
     "mode": "thinking",
-    "latencyMs": 20529,
-    "measuredLatencyMs": 21958,
-    "callCount": 4,
-    "costUnits": 12,
-    "runId": "query_10918753-b250-400d-ac6a-944a92ebddc8"
+    "latencyMs": 28458,
+    "measuredLatencyMs": 29850,
+    "callCount": 6,
+    "costUnits": 18,
+    "runId": "query_8a0c2cfb-8ef5-46f8-9fa7-d86b8259d966"
   },
   "rows": [
     {
@@ -213,7 +213,7 @@
           "supported": true
         },
         {
-          "id": "f64d374d1899f3057707528f77703f3f:chunk:18",
+          "id": "f64d374d1899f3057707528f77703f3f:chunk:19",
           "provider": "document",
           "title": "helios-operations-handbook.pdf",
           "excerpt": "``` +------------------+------------------+----------------------------------+---------- ``` | \\| Drill | \\| Date | \\| Scenario +------------------+------------------+----------------------------------+---------- | \\| Outcome | |---|---|---|---| | \\| DRILL-2031-04 | \\| 11 April 2031 | \\| Depot gateway total loss | \\| passed | | \\| DRILL-2031-05 | \\| 9 May 2031 | \\| Duplicate billing simulation | \\| passed | | \\| DRILL-2031-06 | \\| 13 June 2031 | \\| Fleet wide stop work rehearsal | \\| passed | | \\| DRILL-2031-07 | \\| 10 July 2031 | \\| Credential broker outage +------------------+------------------+----------------------------------+---------- | \\| retry req | ### Reading drill records - A dri",
@@ -226,11 +226,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 456,
-      "measuredLatencyMs": 3274,
+      "latencyMs": 506,
+      "measuredLatencyMs": 2152,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_80647b6a-d642-4a45-9e1b-6ba63a344cae"
+      "runId": "query_62cedb88-ef32-4aca-9802-56aec4c114ca"
     },
     {
       "id": "fact-charter-id",
@@ -328,11 +328,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "thinking",
-      "latencyMs": 6997,
-      "measuredLatencyMs": 9829,
-      "callCount": 1,
-      "costUnits": 3,
-      "runId": "query_1673a4aa-a1ae-422e-9c99-150cafb912e5"
+      "latencyMs": 11852,
+      "measuredLatencyMs": 13181,
+      "callCount": 2,
+      "costUnits": 6,
+      "runId": "query_cafdc3f0-975d-4d4a-b700-d775fc77f42c"
     },
     {
       "id": "fact-superseded-policy",
@@ -489,11 +489,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 501,
-      "measuredLatencyMs": 2415,
+      "latencyMs": 521,
+      "measuredLatencyMs": 2218,
       "callCount": 2,
       "costUnits": 2,
-      "runId": "query_c060afc8-3b5c-4e19-bc8b-dd30737c1709"
+      "runId": "query_4506d0bc-deae-4f49-b976-44e940d6c2ad"
     },
     {
       "id": "fact-superseding-decision",
@@ -662,11 +662,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 504,
-      "measuredLatencyMs": 2155,
+      "latencyMs": 636,
+      "measuredLatencyMs": 2261,
       "callCount": 2,
       "costUnits": 2,
-      "runId": "query_635d7a3b-4e89-457b-8092-64980bd3ec7d"
+      "runId": "query_47a50573-5114-49ce-bc8d-70c311c90210"
     },
     {
       "id": "fact-escalation-sev1",
@@ -779,11 +779,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "thinking",
-      "latencyMs": 4688,
-      "measuredLatencyMs": 6655,
-      "callCount": 2,
-      "costUnits": 6,
-      "runId": "query_22c2208e-345b-49d6-924f-26c13f71d8fc"
+      "latencyMs": 11140,
+      "measuredLatencyMs": 12500,
+      "callCount": 3,
+      "costUnits": 9,
+      "runId": "query_b2f20b45-50ca-4d58-a35d-e5104be14065"
     },
     {
       "id": "fact-alias-rover-sdk",
@@ -889,11 +889,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "thinking",
-      "latencyMs": 3977,
-      "measuredLatencyMs": 6071,
-      "callCount": 1,
-      "costUnits": 3,
-      "runId": "query_40b47ff0-35a0-496c-a9ca-5d510dfc7184"
+      "latencyMs": 8775,
+      "measuredLatencyMs": 10217,
+      "callCount": 2,
+      "costUnits": 6,
+      "runId": "query_4c120cb5-5938-414d-852c-e21df40cfd99"
     },
     {
       "id": "fact-atlas-deadline",
@@ -976,11 +976,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 492,
-      "measuredLatencyMs": 2162,
+      "latencyMs": 519,
+      "measuredLatencyMs": 2256,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_08a7b0ae-cc87-4c82-a3da-1b84a6a07e85"
+      "runId": "query_78fae65c-5b9c-4c93-a8cf-7e8338304d58"
     },
     {
       "id": "fact-eng-456",
@@ -1112,11 +1112,11 @@
       "claimCitationPairCount": 3,
       "supportedClaimCitationPairCount": 3,
       "mode": "thinking",
-      "latencyMs": 5541,
-      "measuredLatencyMs": 6984,
-      "callCount": 2,
-      "costUnits": 6,
-      "runId": "query_8bc7af47-ca2b-451b-9639-55e341a1ec0b"
+      "latencyMs": 10209,
+      "measuredLatencyMs": 11585,
+      "callCount": 3,
+      "costUnits": 9,
+      "runId": "query_254b7ce5-eef1-483b-93bb-6130fb3c7b61"
     },
     {
       "id": "fact-hindi-commitment",
@@ -1243,11 +1243,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 530,
-      "measuredLatencyMs": 1947,
+      "latencyMs": 470,
+      "measuredLatencyMs": 1868,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_936c277c-310c-4323-879c-d26cbec8e3b9"
+      "runId": "query_5fffa96f-183f-4885-9e67-4b25ffef78bd"
     },
     {
       "id": "fact-billing-cutover",
@@ -1323,11 +1323,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 435,
-      "measuredLatencyMs": 1878,
+      "latencyMs": 464,
+      "measuredLatencyMs": 1809,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_f47996ab-dceb-4935-bbbd-5cd5a2990152"
+      "runId": "query_6148624b-e7d5-416d-871f-eb2bc76ccc23"
     },
     {
       "id": "fact-rover-freeze",
@@ -1410,11 +1410,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 469,
-      "measuredLatencyMs": 2257,
+      "latencyMs": 387,
+      "measuredLatencyMs": 1847,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_2b315f02-b3a2-4bdf-8530-c3a6b9448712"
+      "runId": "query_bbfb8517-7087-4bfd-a16a-e70967e09328"
     },
     {
       "id": "fact-bug-123",
@@ -1533,11 +1533,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 466,
-      "measuredLatencyMs": 1851,
+      "latencyMs": 592,
+      "measuredLatencyMs": 1933,
       "callCount": 2,
       "costUnits": 2,
-      "runId": "query_322d584d-07d6-4d5f-bb11-f4485118afab"
+      "runId": "query_0e0e27b5-7e40-4dfd-85da-79089a0b1bd0"
     },
     {
       "id": "fact-pr-8871",
@@ -1634,11 +1634,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "thinking",
-      "latencyMs": 4738,
-      "measuredLatencyMs": 6161,
-      "callCount": 2,
-      "costUnits": 6,
-      "runId": "query_63af878e-e968-44db-a81f-00671c8a6e58"
+      "latencyMs": 10224,
+      "measuredLatencyMs": 11578,
+      "callCount": 3,
+      "costUnits": 9,
+      "runId": "query_545747ff-5f40-4641-b7d8-84fe36763053"
     },
     {
       "id": "fact-middle-beacon",
@@ -1707,11 +1707,11 @@
       "claimCitationPairCount": 3,
       "supportedClaimCitationPairCount": 3,
       "mode": "fast",
-      "latencyMs": 458,
-      "measuredLatencyMs": 1903,
+      "latencyMs": 440,
+      "measuredLatencyMs": 1869,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_4c9716e8-58d7-4d10-96a3-b47fc9640e81"
+      "runId": "query_43f56606-cd35-409e-b181-20f26d392b51"
     },
     {
       "id": "fact-middle-buffer",
@@ -1794,11 +1794,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 472,
-      "measuredLatencyMs": 2162,
+      "latencyMs": 421,
+      "measuredLatencyMs": 1793,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_e7498fe8-d4eb-44d5-a0c6-263ce8a9fcb8"
+      "runId": "query_3799fe82-1aa6-4fd7-bb63-b5c7b33ba9f7"
     },
     {
       "id": "fact-inc-2031",
@@ -1926,11 +1926,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "thinking",
-      "latencyMs": 5222,
-      "measuredLatencyMs": 6698,
-      "callCount": 2,
-      "costUnits": 6,
-      "runId": "query_cd53236f-599b-4306-96cc-24430a10f6c5"
+      "latencyMs": 9849,
+      "measuredLatencyMs": 11171,
+      "callCount": 3,
+      "costUnits": 9,
+      "runId": "query_cae533fd-2579-40f5-89a2-48132e2b5616"
     },
     {
       "id": "fact-incident-table",
@@ -2023,11 +2023,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 511,
-      "measuredLatencyMs": 1884,
+      "latencyMs": 566,
+      "measuredLatencyMs": 1882,
       "callCount": 2,
       "costUnits": 2,
-      "runId": "query_c85eb0ce-c949-4fab-9aad-00f3a1cb554c"
+      "runId": "query_fa7d7669-2acf-4d04-9107-db1a61476d79"
     },
     {
       "id": "fact-priya-raman",
@@ -2146,11 +2146,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "thinking",
-      "latencyMs": 5331,
-      "measuredLatencyMs": 6787,
-      "callCount": 1,
-      "costUnits": 3,
-      "runId": "query_4864f949-aab6-4060-ad07-6087eadef74f"
+      "latencyMs": 10023,
+      "measuredLatencyMs": 11492,
+      "callCount": 2,
+      "costUnits": 6,
+      "runId": "query_c95f4ae0-becc-4d61-aba0-5fdb4fa46a43"
     },
     {
       "id": "fact-priya-ramanathan",
@@ -2269,11 +2269,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "thinking",
-      "latencyMs": 5757,
-      "measuredLatencyMs": 8630,
-      "callCount": 1,
-      "costUnits": 3,
-      "runId": "query_3a49e176-b3c5-4d34-8fc6-7c78098c4a44"
+      "latencyMs": 9858,
+      "measuredLatencyMs": 11224,
+      "callCount": 2,
+      "costUnits": 6,
+      "runId": "query_7a088595-8f9c-4b96-b3d5-fd2dc9d637fd"
     },
     {
       "id": "fact-oncall-ring0",
@@ -2363,11 +2363,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 471,
-      "measuredLatencyMs": 1861,
+      "latencyMs": 416,
+      "measuredLatencyMs": 1744,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_669fee31-d06d-4f08-afd1-f579b101cbb3"
+      "runId": "query_fdedd18a-7a91-48a7-91ff-3296170b7e7c"
     },
     {
       "id": "fact-distractor-draft",
@@ -2503,11 +2503,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "thinking",
-      "latencyMs": 5533,
-      "measuredLatencyMs": 7024,
-      "callCount": 2,
-      "costUnits": 6,
-      "runId": "query_87a776f4-7ea5-4497-9f1c-a440643f7e28"
+      "latencyMs": 12190,
+      "measuredLatencyMs": 13549,
+      "callCount": 3,
+      "costUnits": 9,
+      "runId": "query_d32356c2-51de-4fe4-8e21-7dc3b188fc65"
     },
     {
       "id": "fact-end-battery",
@@ -2584,11 +2584,11 @@
       "claimCitationPairCount": 2,
       "supportedClaimCitationPairCount": 2,
       "mode": "fast",
-      "latencyMs": 462,
-      "measuredLatencyMs": 1855,
+      "latencyMs": 481,
+      "measuredLatencyMs": 2088,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_6765f019-7a52-42ac-9904-6b44a1a15651"
+      "runId": "query_ec2cc7cc-dd2d-4cc0-aedd-55bb85d4acb0"
     }
   ]
 }

@@ -1,49 +1,50 @@
 {
-  "generatedAt": "2026-08-04T01:58:50.373Z",
+  "generatedAt": "2026-08-04T06:54:28.562Z",
   "grader": "grounded-grader-v2",
   "runner": "scripts/run-live-benchmark.mjs",
   "fixture": "evals/fixtures/live-cases.json",
   "target": "https://queueproof.vercel.app",
   "connectors": [
     "github",
+    "gmail",
     "linear",
     "slack"
   ],
   "cases": 6,
-  "passed": 1,
-  "allThreeProviders": 1,
-  "thinking": 4,
-  "fast": 2,
+  "passed": 2,
+  "allThreeProviders": 2,
+  "thinking": 6,
+  "fast": 0,
   "latencyMs": {
-    "p50": 4522,
-    "p95": 6248,
-    "min": 558,
-    "max": 6248,
+    "p50": 18153,
+    "p95": 29723,
+    "min": 12337,
+    "max": 29723,
     "fast": {
-      "count": 2,
-      "p50": 558,
-      "p95": 599
+      "count": 0,
+      "p50": null,
+      "p95": null
     },
     "thinking": {
-      "count": 4,
-      "p50": 5171,
-      "p95": 6248
+      "count": 6,
+      "p50": 18153,
+      "p95": 29723
     }
   },
   "calls": {
-    "median": 1,
-    "mean": 1.1666666666666667,
-    "min": 1,
-    "max": 2
+    "median": 2,
+    "mean": 2.1666666666666665,
+    "min": 2,
+    "max": 3
   },
   "quality": {
-    "requiredFactAccuracy": 0.7894736842105263,
-    "requiredFactRecall": 0.7894736842105263,
+    "requiredFactAccuracy": 0.6842105263157895,
+    "requiredFactRecall": 0.6842105263157895,
     "citationPrecision": 1,
     "citationCompleteness": 1,
     "unsupportedClaimRate": 0,
     "providerRequirementPasses": 3,
-    "contradictionRequirementPasses": 0,
+    "contradictionRequirementPasses": 1,
     "contradictionRequirementCases": 2,
     "zeroKnowinglyUnsupportedClaims": true,
     "note": "Required facts are explicit frozen groups. Citation metrics require IDs to resolve and claim text to occur in a same-provider cited excerpt."
@@ -221,12 +222,12 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "thinking",
-      "latencyMs": 5171,
-      "measuredLatencyMs": 6878,
-      "callCount": 1,
-      "sources": 4,
-      "costUnits": 3,
-      "runId": "query_65c29fdd-0ebc-46d1-919d-80cfafa93ae7"
+      "latencyMs": 12654,
+      "measuredLatencyMs": 14232,
+      "callCount": 2,
+      "sources": 5,
+      "costUnits": 6,
+      "runId": "query_24f6a1aa-0adf-4de7-91ee-6fc138d4e306"
     },
     {
       "id": "live-deadline-conflict",
@@ -234,7 +235,7 @@
       "question": "Which sources disagree about the billing migration deadline?",
       "expected": "The answer must preserve the 7 August versus 14 August deadline disagreement and cite the sources.",
       "actual": "The billing migration deadline moved from 7 August to 14 August 2026 after the Northwind escalation took priority. [1] Heads up: the Linear ticket still says the billing migration deadline moved to 14 August, but finance confirmed today it is staying at 7 August. [2]",
-      "pass": false,
+      "pass": true,
       "apiOk": true,
       "httpStatus": 200,
       "error": null,
@@ -308,9 +309,34 @@
       "citedButUnreportedProviders": [],
       "providerPass": true,
       "requiresContradiction": true,
-      "contradictionPass": false,
-      "contradictions": [],
-      "supportedContradictions": [],
+      "contradictionPass": true,
+      "contradictions": [
+        {
+          "summary": "The cited records contain different dates: linear says 14 August 2026; slack says 7 August.",
+          "evidenceIds": [
+            "22c77303332a462af0fce84884ba26c4c0cb8b3a02ea8323ea173027c07cb41a:chunk:0",
+            "e8142efbc628db7a7ac8a8e6166f0c6e3430be8a3892a6b4acf5033072297a55:chunk:0"
+          ],
+          "providers": [
+            "linear",
+            "slack"
+          ]
+        }
+      ],
+      "supportedContradictions": [
+        {
+          "index": 0,
+          "summary": "The cited records contain different dates: linear says 14 August 2026; slack says 7 August.",
+          "evidenceIds": [
+            "22c77303332a462af0fce84884ba26c4c0cb8b3a02ea8323ea173027c07cb41a:chunk:0",
+            "e8142efbc628db7a7ac8a8e6166f0c6e3430be8a3892a6b4acf5033072297a55:chunk:0"
+          ],
+          "providers": [
+            "linear",
+            "slack"
+          ]
+        }
+      ],
       "citationPass": true,
       "citationPrecision": 1,
       "citationCompleteness": 1,
@@ -338,19 +364,19 @@
       "claimCitationPairCount": 2,
       "supportedClaimCitationPairCount": 2,
       "mode": "thinking",
-      "latencyMs": 6248,
-      "measuredLatencyMs": 7179,
-      "callCount": 1,
-      "sources": 3,
-      "costUnits": 3,
-      "runId": "query_01ed1cd5-9be9-4641-999d-3f375e460939"
+      "latencyMs": 26357,
+      "measuredLatencyMs": 27665,
+      "callCount": 2,
+      "sources": 2,
+      "costUnits": 6,
+      "runId": "query_ddd1dcf2-be53-4337-a57f-61100fa9a9b6"
     },
     {
       "id": "live-untracked-commitment",
       "label": "untracked commitment",
       "question": "Which promise to Northwind has no issue tracking it?",
       "expected": "The written incident post-mortem promised by 10 August is not tracked in Linear.",
-      "actual": "I promised Northwind a written incident post-mortem by 10 August. [1] Vaibhav promised Northwind a written incident post-mortem by 10 August 2026. [2]",
+      "actual": "I promised Northwind a written incident post-mortem by 10 August. [1] Vaibhav promised Northwind a written incident post-mortem by 10 August 2026. [2] We did promise you this one last month. [3] ​ So here is yesterday’s email again: ​ I don't want to do this, but there's no other way… ​ When we started the BenAI Accelerator, our promise to you was simple: ​ Give you a real path to actually implement AI in your daily work, not just another pile of courses. [4]",
       "pass": false,
       "apiOk": true,
       "httpStatus": 200,
@@ -429,10 +455,12 @@
       ],
       "providers": [
         "github",
+        "gmail",
         "slack"
       ],
       "reportedProviders": [
         "github",
+        "gmail",
         "slack"
       ],
       "missingProviders": [
@@ -465,26 +493,40 @@
           "title": "Post-mortem doc for INC-2031 Northwind outage",
           "excerpt": "Vaibhav promised Northwind a written incident post-mortem by 10 August 2026. Tracking it here since there is no Linear issue for it. Owner unassigned.",
           "supported": true
+        },
+        {
+          "id": "5de0678e3da3538141d1a9353e03b8d486dca986c6f0836ebf1af05b3d96afe2:chunk:0",
+          "provider": "gmail",
+          "title": "AI BOM Creation is live. Here's what that means for your shop.",
+          "excerpt": "READ IT HERE> 03 Reduce Quoting Errors and Delays with Cableteque's AI-Powered Quoting Too How AI-driven PDF extraction, parts intelligence, and live sourcing work together to cut a 7 to 10 day quoting cycle down to under an hour, with real numbers from shops already using it. READ IT HERE> MARKET RESEARCH State of Wire Harness Operations Where the industry actually stands right now. What manufacturers are saying about their biggest operational challenges, where digital maturity is highest and lowest, and what the data says about where the gaps are. Free Research Report COMING NEXT MONTH Next month: What happens when your senior estimator leaves? We did promise you this one last month. Hones",
+          "supported": true
+        },
+        {
+          "id": "ae8095bd096492bfbc3030c872a053143c7323e102cfdb1ba106a608504b0c54:chunk:0",
+          "provider": "gmail",
+          "title": "About yesterday😬",
+          "excerpt": "Did you read my email from yesterday? ​ If you did, feel free to close this and get back to building. ​ No need to read it twice. ​ But I know that life can get busy, and emails like these are easy to push to \"later.\" ​ I get it. ​ But I wanted to make sure you don’t miss this announcement. ​ So here is yesterday’s email again: ​ I don't want to do this, but there's no other way… ​ When we started the BenAI Accelerator, our promise to you was simple: ​ Give you a real path to actually implement AI in your daily work, not just another pile of courses. ​ I still remember the brainstorming sessions before we'd even built the first course. ​ We'd sit there for hours, genuinely excited, mapping o",
+          "supported": true
         }
       ],
-      "claimCount": 2,
-      "supportedClaimCount": 2,
-      "claimCitationPairCount": 2,
-      "supportedClaimCitationPairCount": 2,
-      "mode": "fast",
-      "latencyMs": 558,
-      "measuredLatencyMs": 1414,
-      "callCount": 1,
-      "sources": 4,
-      "costUnits": 1,
-      "runId": "query_bf63c2ef-ddef-4a79-9fb8-27bd88bb3d88"
+      "claimCount": 4,
+      "supportedClaimCount": 4,
+      "claimCitationPairCount": 4,
+      "supportedClaimCitationPairCount": 4,
+      "mode": "thinking",
+      "latencyMs": 12337,
+      "measuredLatencyMs": 13353,
+      "callCount": 2,
+      "sources": 9,
+      "costUnits": 6,
+      "runId": "query_b6e2e0ee-5ade-4508-9de3-ec4e9d2845b5"
     },
     {
       "id": "live-stale-tracked-work",
       "label": "stale tracked work",
       "question": "Which open issue appears to be already resolved elsewhere?",
       "expected": "The AuthShield fix is merged or shipped while its tracked issue remains open.",
-      "actual": "Linear issue ENG-456 is still showing as open even though the code is shipped. [1]",
+      "actual": "Insufficient evidence. QueueProof will not invent an answer.",
       "pass": false,
       "apiOk": true,
       "httpStatus": 200,
@@ -517,46 +559,38 @@
           ]
         }
       ],
-      "matchedFacts": [
-        {
-          "id": "completed-elsewhere",
-          "label": "The fix is complete elsewhere",
-          "matched": true,
-          "matchedAlternatives": [
-            "shipped"
-          ]
-        },
-        {
-          "id": "tracked-open",
-          "label": "The tracked issue remains open",
-          "matched": true,
-          "matchedAlternatives": [
-            "showing as open"
-          ]
-        }
-      ],
+      "matchedFacts": [],
       "missingFacts": [
         {
           "id": "authshield",
           "label": "The work is the AuthShield fix",
           "matched": false,
           "matchedAlternatives": []
+        },
+        {
+          "id": "completed-elsewhere",
+          "label": "The fix is complete elsewhere",
+          "matched": false,
+          "matchedAlternatives": []
+        },
+        {
+          "id": "tracked-open",
+          "label": "The tracked issue remains open",
+          "matched": false,
+          "matchedAlternatives": []
         }
       ],
-      "matchedFactCount": 2,
+      "matchedFactCount": 0,
       "requiredFactCount": 3,
-      "requiredFactRecall": 0.6666666666666666,
+      "requiredFactRecall": 0,
       "requiredProviders": [
         "github",
         "linear"
       ],
-      "providers": [
-        "github"
-      ],
-      "reportedProviders": [
-        "github"
-      ],
+      "providers": [],
+      "reportedProviders": [],
       "missingProviders": [
+        "github",
         "linear"
       ],
       "reportedWithoutSupportingCitation": [],
@@ -564,44 +598,26 @@
       "providerPass": false,
       "requiresContradiction": true,
       "contradictionPass": false,
-      "contradictions": [
-        {
-          "summary": "github reports the work complete while the tracked issue is still open.",
-          "evidenceIds": [
-            "b7cac22b810e04837baf85a9cb471eb78d1fbd13f473dddbc78a7bd3fbb13dda:chunk:0"
-          ],
-          "providers": [
-            "github"
-          ]
-        }
-      ],
+      "contradictions": [],
       "supportedContradictions": [],
-      "citationPass": true,
-      "citationPrecision": 1,
-      "citationCompleteness": 1,
-      "unsupportedClaimRate": 0,
+      "citationPass": false,
+      "citationPrecision": null,
+      "citationCompleteness": null,
+      "unsupportedClaimRate": null,
       "invalidCitationIds": [],
       "unsupportedClaims": [],
-      "citedSources": [
-        {
-          "id": "b7cac22b810e04837baf85a9cb471eb78d1fbd13f473dddbc78a7bd3fbb13dda:chunk:0",
-          "provider": "github",
-          "title": "AuthShield fix merged in PR-8871 but ENG-456 still open",
-          "excerpt": "The AuthShield authentication fix for the Northwind outage (INC-2031) was merged. Linear issue ENG-456 is still showing as open even though the code is shipped. Someone should close it or explain why it is still tracked.",
-          "supported": true
-        }
-      ],
-      "claimCount": 1,
-      "supportedClaimCount": 1,
-      "claimCitationPairCount": 1,
-      "supportedClaimCitationPairCount": 1,
-      "mode": "fast",
-      "latencyMs": 599,
-      "measuredLatencyMs": 1503,
-      "callCount": 1,
-      "sources": 1,
-      "costUnits": 1,
-      "runId": "query_bb6617fe-3b11-46d8-af4f-418e98c338d9"
+      "citedSources": [],
+      "claimCount": 0,
+      "supportedClaimCount": 0,
+      "claimCitationPairCount": 0,
+      "supportedClaimCitationPairCount": 0,
+      "mode": "thinking",
+      "latencyMs": 27588,
+      "measuredLatencyMs": 28616,
+      "callCount": 2,
+      "sources": 3,
+      "costUnits": 6,
+      "runId": "query_67ed5c2a-a466-40b4-a2f6-2f87732984f1"
     },
     {
       "id": "live-actor-reconstruction",
@@ -717,12 +733,12 @@
       "claimCitationPairCount": 2,
       "supportedClaimCitationPairCount": 2,
       "mode": "thinking",
-      "latencyMs": 4522,
-      "measuredLatencyMs": 5354,
-      "callCount": 1,
+      "latencyMs": 18153,
+      "measuredLatencyMs": 19099,
+      "callCount": 2,
       "sources": 7,
-      "costUnits": 3,
-      "runId": "query_a3b2848c-f6d3-4a36-ba7c-d7b0bc405994"
+      "costUnits": 6,
+      "runId": "query_9727f248-cb5b-4300-934c-da07e1fa4ecf"
     },
     {
       "id": "live-exact-identifier-context",
@@ -852,12 +868,12 @@
       "claimCitationPairCount": 1,
       "supportedClaimCitationPairCount": 1,
       "mode": "thinking",
-      "latencyMs": 5188,
-      "measuredLatencyMs": 6056,
-      "callCount": 2,
+      "latencyMs": 29723,
+      "measuredLatencyMs": 30656,
+      "callCount": 3,
       "sources": 1,
-      "costUnits": 6,
-      "runId": "query_8267bffc-0791-41b2-87f4-6a59fcb2f755"
+      "costUnits": 9,
+      "runId": "query_356b268a-2e5d-4642-a132-ee031077f55c"
     }
   ]
 }

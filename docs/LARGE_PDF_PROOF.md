@@ -21,7 +21,7 @@ fact placement, object references, and xref offsets.
 
 ## Fresh strict public-production baseline
 
-`audit/pdf-live-final.json` was generated on 4 August 2026 against
+`evals/results/pdf-live-run.json` was generated on 4 August 2026 against
 `https://queueproof.vercel.app` with `grounded-grader-v2`:
 
 - 20/22 cases passed;
@@ -29,24 +29,20 @@ fact placement, object references, and xref offsets.
 - beginning, middle, and end canaries passed;
 - citation precision and completeness were both 100%;
 - unsupported-claim rate was 0%;
-- p50/p95 request latency was 554/5,898 ms; and
-- median/mean HydraDB calls were 1/1.41.
+- p50/p95 request latency was 566/11,852 ms; and
+- median/mean HydraDB calls were 2/1.82.
 
 The REVIEW cases were the original superseded-policy question (4/5 facts) and the draft
 distractor question (3/5 facts). The cross-source extension recovered its two document
 facts and cited GitHub, but missed the required second non-document provider. This run is
-a baseline against the public deployment before the final local evidence-follow-up change;
-it must be rerun after that commit is published.
+a post-deploy result against the final judge release; its misses are accepted limitations,
+not hidden successes.
 
 ## Historical production artifact
 
-`evals/results/pdf-live-run.json` is retained for provenance. It was generated on
-3 August 2026 and reports 21/22 under `legacy-token-recall-v1`, with its
-cross-source case failing. The old canary summary also used an incorrect end-canary key.
-
-That artifact is **not comparable** with the current strict grader and must not be quoted
-as a fresh release result. It is evidence that the production flow ran, not evidence that
-the hardened release passes 21/22 or 22/22.
+`audit/pdf-live-final.json` retains the earlier strict baseline for provenance. The
+canonical submission result is the newer `evals/results/pdf-live-run.json` artifact above.
+Neither artifact supports a 21/22 or 22/22 claim under the final strict grader.
 
 ## Current strict acceptance contract
 
@@ -65,7 +61,7 @@ Every one of the 22 cases now declares explicit required facts. A case passes on
 The canary map now uses `beginning_load_bearing`, `middle_load_bearing`, and
 `end_load_bearing` explicitly.
 
-## Reproduce after release authorization
+## Reproduce the release measurement
 
 ```bash
 npm run generate:large-pdf

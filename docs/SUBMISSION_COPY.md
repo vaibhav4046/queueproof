@@ -56,8 +56,8 @@ closed.
 
 ## Boundaries to quote with equal prominence
 
-- A fresh strict public-production PDF baseline passed 20/22 cases and recovered 53/56
-  facts with complete citations; it must be rerun after the final release is published.
+- The final post-deploy strict PDF run passed 20/22 cases and recovered 53/56 facts with
+  complete citations; both REVIEW cases and the cross-source provider miss stay visible.
 - The stored six-query live run is a small historical sample, not an SLA.
 - Relative cost units are reported; no HydraDB USD cost is invented.
 - External execution is considered proven only after a provider response ID is persisted.

@@ -37,7 +37,7 @@ required before a write.
 ## Honest limits
 
 - The fresh strict PDF baseline is 20/22 cases and 53/56 facts with complete citations;
-  it predates the final unpublished retrieval changes and is not called 22/22.
+  it is the final post-deploy result and is not called 22/22.
 - The historical six-query live sample is not a stable latency distribution or SLA.
 - Public sandbox visitors cannot modify integration or external-provider state.
 - A provider write is considered executed only when a provider response ID is stored.
