@@ -162,6 +162,93 @@ export const retrievalReceiptSchema = z.object({
   timestamp: z.string().datetime(),
 });
 
+export const workflowStageSchema = z.enum([
+  "idle",
+  "routing",
+  "retrieving",
+  "linking",
+  "checking-contradictions",
+  "validating",
+  "compiling-action",
+  "awaiting-approval",
+  "executing",
+  "complete",
+  "partial",
+  "abstained",
+  "failed",
+]);
+
+export type WorkflowStage = z.infer<typeof workflowStageSchema>;
+
+export const providerActivitySchema = z.object({
+  provider: z.string().min(1),
+  connectorId: z.string().min(1).optional(),
+  status: z.enum(["idle", "querying", "received", "partial", "failed", "not-required"]),
+  receiptCount: z.number().int().min(0),
+  latencyMs: z.number().int().min(0).optional(),
+  evidenceIds: z.array(z.string().min(1)),
+});
+
+export type ProviderActivity = z.infer<typeof providerActivitySchema>;
+
+export const proofGraphViewSchema = z.object({
+  nodes: z.array(z.object({
+    id: z.string().min(1),
+    type: z.enum(["provider", "evidence", "claim", "contradiction", "action"]),
+    label: z.string().min(1),
+    provider: z.string().min(1).optional(),
+  })),
+  edges: z.array(z.object({
+    id: z.string().min(1),
+    source: z.string().min(1),
+    target: z.string().min(1),
+    type: z.enum(["returned", "supports", "conflicts", "prioritises"]),
+  })),
+});
+
+export type ProofGraphView = z.infer<typeof proofGraphViewSchema>;
+
+export const workflowEventSchema = z.object({
+  sequence: z.number().int().min(1),
+  stage: workflowStageSchema,
+  recordedAt: z.string().datetime(),
+  detail: z.string().min(1),
+  providers: z.array(providerActivitySchema),
+  receiptCount: z.number().int().min(0),
+  callCount: z.number().int().min(0),
+});
+
+export type WorkflowEvent = z.infer<typeof workflowEventSchema>;
+
+export const liveProofStateSchema = z.object({
+  schemaVersion: z.literal("live-proof-v1"),
+  kind: z.literal("verified-backend-receipt"),
+  queryId: z.string().min(1),
+  stage: workflowStageSchema,
+  mode: z.enum(["fast", "thinking"]),
+  routingReason: z.string().min(1),
+  providers: z.array(providerActivitySchema),
+  graph: proofGraphViewSchema,
+  claims: z.array(groundedClaimSchema),
+  contradictions: z.array(z.object({
+    summary: z.string().min(1),
+    providers: z.array(z.string().min(1)),
+    evidenceIds: z.array(z.string().min(1)),
+  })),
+  priorityItems: z.array(groundedPriorityItemSchema),
+  events: z.array(workflowEventSchema).min(1),
+  receipt: retrievalReceiptSchema,
+  persisted: z.literal(true),
+  replayAvailable: z.literal(true),
+  error: z.object({
+    code: z.string().min(1),
+    message: z.string().min(1),
+    retryable: z.boolean(),
+  }).optional(),
+});
+
+export type LiveProofState = z.infer<typeof liveProofStateSchema>;
+
 export const groundedAnswerContractSchema = z.object({
   answer: z.string().min(1),
   claims: z.array(groundedClaimSchema),

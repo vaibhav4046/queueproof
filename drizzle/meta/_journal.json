@@ -15,6 +15,13 @@
       "when": 1785753517457,
       "tag": "0001_action_execution_integrity",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1785828683793,
+      "tag": "0002_sudden_callisto",
+      "breakpoints": true
     }
   ]
 }
