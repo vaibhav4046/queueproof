@@ -7,12 +7,23 @@ import {
   Radio, RefreshCw, Search, ShieldCheck, Sparkles, Terminal, Unplug, UploadCloud, X as LucideX, Zap,
 } from "lucide-react";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import { SiGithub, SiGmail, SiLinear, SiSlack } from "react-icons/si";
 import { ComponentProps, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { WorkspaceView } from "../lib/server/workspace-state";
 import type { EvidenceGraph as EvidenceGraphData } from "../packages/graph/src";
-import EvidenceOrbit, { type OrbitStage } from "./components/EvidenceOrbit";
+import EvidenceOrbit, { type OrbitProps, type OrbitStage } from "./components/EvidenceOrbit";
 import EvidenceGraphView from "./components/EvidenceGraph";
+import { useEvidenceWorldCapability } from "./components/evidence-world-capability";
+
+// Client-only, strictly additive WebGL layer behind Evidence Orbit. Loaded
+// with ssr:false: EvidenceOrbit's SVG/DOM scene remains the only thing that
+// ever renders on the server or during hydration, so this can never cause an
+// SSR mismatch. Its dynamic import() only fires once useEvidenceWorldCapability()
+// (below) says the device qualifies — see evidence-world-capability.ts for why:
+// this chunk pulls in Three.js and is ~230KB gzip, so it must not be fetched
+// by every visitor to the Proof screen regardless of whether they can use it.
+const EvidenceWorld = dynamic(() => import("./components/EvidenceWorld"), { ssr: false });
 
 
 type CredentialField = {
@@ -823,6 +834,9 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
   const stageRef = useRef<HTMLDivElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
   const verifiedCount = verified.length;
+  // Gates whether the optional Three.js layer even mounts (and therefore
+  // whether its dynamic import fires) — see evidence-world-capability.ts.
+  const canRenderEvidenceWorld = useEvidenceWorldCapability();
 
   // Evidence Orbit stage machine — every transition is driven by a real event:
   // query accepted → routing; HydraDB calls in flight → retrieving; entity
@@ -908,6 +922,31 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
   const resultTone = result?.validation.status === "abstained" ? "abstained" : result?.validation.status === "partial" || missingInformation.length ? "partial" : "grounded";
   const judgeMeasured = judgePulse?.status === "measured";
 
+  // Single source of truth for both the SVG/DOM orbit and the optional WebGL
+  // layer — built once so EvidenceWorld can never drift from EvidenceOrbit's
+  // real backend-driven state.
+  const orbitProps: OrbitProps = {
+    stage: orbitStage,
+    modeLabel: busy
+      ? (mode === "auto" ? "AUTO ROUTE" : mode.toUpperCase())
+      : result ? result.trace.mode.toUpperCase() : "AUTO ROUTE",
+    receiptCount: result?.retrieval_receipt.receipt_count ?? 0,
+    providerCoverage: busy
+      ? verified.map((connector) => connector.provider)
+      : result?.retrieval_receipt.provider_coverage ?? verified.map((connector) => connector.provider),
+    contradictionCount: result?.contradictions.length ?? 0,
+    action: result?.priority_items[0]
+      ? {
+        score: result.priority_items[0].score,
+        title: result.priority_items[0].title,
+        safeAction: result.priority_items[0].recommended_next_safe_action,
+        approvalRequired: result.priority_items[0].approval_required,
+        coverage: result.priority_items[0].provider_coverage,
+      }
+      : null,
+    connectors: verified,
+  };
+
   return (
     <section className="screen ask-screen proof-screen">
       <div className="proof-hero">
@@ -929,27 +968,14 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
           </div>
         </div>
       </div>
-      <EvidenceOrbit
-        stage={orbitStage}
-        modeLabel={busy
-          ? (mode === "auto" ? "AUTO ROUTE" : mode.toUpperCase())
-          : result ? result.trace.mode.toUpperCase() : "AUTO ROUTE"}
-        receiptCount={result?.retrieval_receipt.receipt_count ?? 0}
-        providerCoverage={busy
-          ? verified.map((connector) => connector.provider)
-          : result?.retrieval_receipt.provider_coverage ?? verified.map((connector) => connector.provider)}
-        contradictionCount={result?.contradictions.length ?? 0}
-        action={result?.priority_items[0]
-          ? {
-            score: result.priority_items[0].score,
-            title: result.priority_items[0].title,
-            safeAction: result.priority_items[0].recommended_next_safe_action,
-            approvalRequired: result.priority_items[0].approval_required,
-            coverage: result.priority_items[0].provider_coverage,
-          }
-          : null}
-        connectors={verified}
-      />
+      <div className="evidence-orbit-stack">
+        {/* Optional WebGL layer, strictly behind and in sync with the SVG
+            scene below — same props, same stage, no separate data source.
+            Only mounted (and only then does its dynamic import fire) once
+            canRenderEvidenceWorld says the device qualifies. */}
+        {canRenderEvidenceWorld && <EvidenceWorld {...orbitProps} />}
+        <EvidenceOrbit {...orbitProps} />
+      </div>
 
       <form className="ask-console premium-console" onSubmit={submit}>
         <div className="console-line">
