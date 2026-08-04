@@ -1196,6 +1196,30 @@ input, select { width: 100%; min-height: 42px; border: 1px solid var(--line); pa
    resolved action card emerges on the right. State-driven only;
    honours prefers-reduced-motion and a manual pause control.
    ============================================================ */
+/* Wraps EvidenceWorld (optional WebGL layer) + EvidenceOrbit (SVG/DOM,
+   always the source of truth). EvidenceOrbit keeps its own sizing rules
+   below; here it is pinned to inset:0 so it fills the same box the wrapper
+   reserves, and EvidenceWorld — rendered first in the DOM — sits behind it
+   by normal stacking order alone. No z-index war, no restructuring of
+   EvidenceOrbit's own markup or CSS. */
+.evidence-orbit-stack {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1440 / 470;
+  max-height: 480px;
+}
+.evidence-orbit-stack > .evidence-orbit {
+  position: absolute;
+  inset: 0;
+}
+.evidence-world {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.evidence-world canvas { display: block; width: 100%; height: 100%; }
+
 .evidence-orbit {
   position: relative;
   width: 100%;
@@ -1566,6 +1590,7 @@ input, select { width: 100%; min-height: 42px; border: 1px solid var(--line); pa
   .orbit-action-card { width: 280px; right: 1.5%; }
 }
 @media (max-width: 1023px) {
+  .evidence-orbit-stack { display: none; }
   .evidence-orbit { display: none; }
 }
 

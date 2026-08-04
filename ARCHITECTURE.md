@@ -101,19 +101,39 @@ upload path exists.
 
 ## Evidence graph
 
-`packages/graph` (`deriveGraphFromPacket`, `deriveGraphFromAskResult`) derives a small
-node/edge graph from an already-produced `ExecutionPacket` or `/api/ask` response,
-exposed read-only at `GET /api/graph`. It is computed at request time from
-`task_evidence` / `execution_packets` / synthesis contradiction output and returned;
-nothing about it is written to storage. Regenerating the queue or re-asking a question
-produces a different graph on the next `GET`, the same way the packet and the ask
-response it reads from can change.
+`packages/graph` derives a small node/edge graph at read time, never persisted. Two
+pairs of entry points, grouped by what they read:
 
-Five node types, four edge types, every one traceable to a field that already exists at
-runtime:
+- `deriveGraphFromPacket` / `deriveGraphFromAskResult` read an already-produced
+  `ExecutionPacket` or `/api/ask` response, exposed read-only at `GET /api/graph`. They
+  are computed from `task_evidence` / `execution_packets` / synthesis contradiction
+  output and returned; nothing about it is written to storage. Regenerating the queue
+  or re-asking a question produces a different graph on the next `GET`, the same way
+  the packet and the ask response it reads from can change.
+- `deriveGraphFromConnectors` / `deriveGraphFromActionProposal` read live
+  `connectors` / `source_references` rows and `action_proposals` /
+  `action_approvals` / `action_executions` rows directly, because neither
+  `sourceReferenceSchema` nor `ExecutionPacket` carries a `connectorId` or an
+  `action_proposals.id` — see the doc comments on each function in
+  `packages/graph/src/index.ts` for exactly which field is dropped where.
+  `deriveGraphFromConnectors` **is** wired in: `GET /api/graph` queries `connectors`
+  and `source_references` directly (two extra `SELECT`s, workspace-scoped) and merges
+  in `connector` nodes plus `ORIGINATED_FROM` edges for any source the packet/ask
+  derivation already produced. `deriveGraphFromActionProposal` is **not** wired in — it
+  needs a joined `action_proposals`/`action_approvals`/`action_executions` query the
+  route doesn't run yet, so `approval` and `receipt` nodes exist in code and are unit
+  tested, but never appear in a live `GET /api/graph` response today. The Evidence tab's
+  `EvidenceGraph.tsx` component reflects this honestly: its `COLUMN_ORDER` includes
+  `connector` (real, rendered) but omits `approval`/`receipt` (would render as a
+  permanently empty column, since the component draws one label per configured type
+  regardless of whether any node of that type exists).
 
-- `source` — one per `evidence`/`citations` item (`sourceReferenceSchema` /
-  `groundedCitationSchema`, `packages/contracts/src/index.ts`).
+Eight node types, seven edge types, every one traceable to a field that already exists
+at runtime:
+
+- `source` — one per `evidence`/`citations`/`source_references` item
+  (`sourceReferenceSchema` / `groundedCitationSchema`, `packages/contracts/src/index.ts`,
+  or a raw `source_references` row).
 - `claim` — one per `/api/ask` `claims[]` entry. Packets carry no claims (only
   `synthesiseGroundedAnswer`'s output does), so this node type is only ever produced
   by `deriveGraphFromAskResult`.
@@ -125,18 +145,61 @@ runtime:
 - `task` — one per packet, or one per `/api/ask` `priority_items[]` entry (there are
   normally zero or one, since `app/api/ask/route.ts` caps `relatedPriority` at one).
 - `action` — one per non-empty `recommended_safe_action` /
-  `recommended_next_safe_action`, with a `RESOLVES` edge from its task.
+  `recommended_next_safe_action` (from a packet/ask-result), or one per real
+  `action_proposals` row (from `deriveGraphFromActionProposal`), with a `RESOLVES` edge
+  from its task in the packet/ask-result case.
+- `connector` — one per real `connectors` row (`db/schema.ts`), carrying the actual
+  14-state `ConnectorState` (`packages/contracts`'s `connectorStateSchema`).
+- `approval` — one per real `action_approvals` row, which is 1:1 with its
+  `action_proposals` row (`uniqueIndex("action_approvals_proposal_uq")`).
+- `receipt` — one per `action_executions` row that reports `status === "succeeded"`
+  with a non-empty `provider_response_id` — the real external write confirmation
+  (`app/api/actions/[id]/approve/route.ts` only sets it after the provider call
+  returns an id). A pending or failed execution produces no receipt node.
 
-Edges: `SUPPORTS` (source → task or source → claim, mirroring the `task_evidence.relation`
+Edges: `SUPPORTS` (source → task/claim/action, mirroring the `task_evidence.relation`
 column, which is always `'supports'` in the schema default and in every insert
 `lib/server/queue.ts` performs — there is no evidence-to-task `REFUTES` relation in the
 real data, so none is derived), `REFUTES` (source → contradiction), `RESOLVES`
-(task → action). `DEPENDS_ON` is declared in the type union but never emitted: the
-`task_dependencies` and `entity_links` tables in `db/schema.ts` are dormant — like the
-other tables `## Persistence` lists as aspirational, nothing reads or writes them at
-runtime — so there is no real dependency edge for this to represent yet.
-`why_above_next` is not represented either; it compares this task's score against a
-different task's, which is not a dependency between them.
+(task → action), `ORIGINATED_FROM` (source → connector, from `source_references`'s real
+`connector_id` foreign key), `REQUIRES_APPROVAL` (action → approval),
+`EXECUTED_AS` (action → receipt). `DEPENDS_ON` is declared in the type union but never
+emitted: the `task_dependencies` and `entity_links` tables in `db/schema.ts` are
+dormant — like the other tables `## Persistence` lists as aspirational, nothing reads
+or writes them at runtime — so there is no real dependency edge for this to represent
+yet. `why_above_next` is not represented either; it compares this task's score against
+a different task's, which is not a dependency between them.
+
+Deliberately not modelled, with the reason:
+
+- `SUPERSEDES` — `lib/server/synthesis.ts`'s `valuePatternsForQuestion` can detect
+  supersession language ("supersed…", "no longer in force") well enough to surface the
+  sentence as a claim, but it identifies a *phrase*, not a specific prior claim/evidence
+  id being superseded. There is no second endpoint to point the edge at without
+  inventing one, so no `SUPERSEDES` edge type exists.
+- `DUPLICATES` — `RankingInput.penalties.duplicate` (`packages/contracts`) is
+  hardcoded to `0` in `lib/server/queue.ts`'s `rankingInput()` and never computed
+  anywhere. The actual duplicate handling happens earlier, in
+  `clusterTaskEvidence`/`attachUnambiguousDocumentEvidence`, which merges duplicate
+  evidence into one task's cluster before ranking — so by the time a graph is derived,
+  duplicates already show up as multiple `source` nodes `SUPPORTS`-ing one `task`, not
+  as two distinct task nodes that would need a `DUPLICATES` edge between them.
+- `Person`/`Organization` — `task.owner` and similar fields are free text with no
+  canonical entity resolution; `canonical_entities`/`entity_aliases`/`entity_links` are
+  declared in `db/schema.ts` but dormant, same as `commitments`. No exact id, no node.
+- `Commitment`/`Decision` — not distinct from the existing `task`/`claim` nodes in this
+  codebase; the `commitments` table exists in `db/schema.ts` but nothing reads or
+  writes it at runtime (confirmed: no `FROM commitments` / `INTO commitments` query
+  anywhere), and there is no `decisions` table at all.
+- `BenchmarkCase` — `evals/fixtures/*.json` and `evals/results/*.json` are real, but
+  they are a build-time evaluation artifact with no `workspace_id` and no relation to
+  a workspace's runtime evidence graph. Out of scope for this module.
+- `Workspace`, `Document`, `Chunk`, `Ticket`, `Commit`, `PullRequest`, `Thread` — each
+  would either be a single, edge-free node repeated on every graph (`Workspace`), or a
+  relabelling of the existing `source` node by `provider` string with no new field
+  behind it (a HydraDB chunk has no persisted identity once it is folded into
+  `evidence.excerpt`; a Linear/GitHub/Slack record is already a `source` node with
+  `provider` set to that name).
 
 ## State invariants
 
