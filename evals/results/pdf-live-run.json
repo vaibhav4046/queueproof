@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-04T06:59:49.271Z",
+  "generatedAt": "2026-08-04T18:28:35.671Z",
   "grader": "grounded-grader-v2",
   "target": "https://queueproof.vercel.app",
   "runner": "scripts/run-pdf-benchmark.mjs",
@@ -18,10 +18,10 @@
     "end": true
   },
   "latencyMs": {
-    "p50": 566,
-    "p95": 11852,
-    "min": 387,
-    "max": 12190
+    "p50": 2592,
+    "p95": 17061,
+    "min": 1642,
+    "max": 18162
   },
   "calls": {
     "median": 2,
@@ -38,7 +38,7 @@
   },
   "crossSource": {
     "question": "According to the Helios operations handbook, what does ENG-456 require, and do Slack, Linear, or GitHub show related AuthShield work?",
-    "answer": "English translation The Helios Robotics security team commits that under ENG-456 the AuthShield operator token lifetime will be reduced to fifteen minutes by 30 June 2031.. [1] Linear issue ENG-456 is still showing as open even though the code is shipped. [2] Hindi, transliterated to Latin script Helios Robotics ki suraksha team vachan deti hai ki ENG-456 ke tahat AuthShield operator token ka jeevankaal 30 June 2031 tak ghatakar pandrah minute kar diya jaayega.. [1] Escalation beyond the rings If no ring answers within fifteen minutes, the depot manager pages the operations board directly. [3]",
+    "answer": "English translation The Helios Robotics security team commits that under ENG-456 the AuthShield operator token lifetime will be reduced to fifteen minutes by 30 June 2031.. [1] Linear issue ENG-456 is still showing as open even though the code is shipped. [2] Hindi, transliterated to Latin script Helios Robotics ki suraksha team vachan deti hai ki ENG-456 ke tahat AuthShield operator token ka jeevankaal 30 June 2031 tak ghatakar pandrah minute kar diya jaayega.. [1] n4-vaibhav4046s-projects.vercel.app - `/api/health/live` reports the exact commit and branch - real stale-state retrieval now identifies AuthShield / ENG-456 as merged and shipped while still open, with exact GitHub citation and contradiction receipt The local hook runner itself is blocked by a Windows/WSL `E_ACCESSDENIED` launch failure; every underlying gate above was run directly and passed before these commits. [3]",
     "apiOk": true,
     "httpStatus": 200,
     "error": null,
@@ -134,10 +134,10 @@
         "supported": true
       },
       {
-        "id": "f64d374d1899f3057707528f77703f3f:chunk:4",
-        "provider": "document",
-        "title": "helios-operations-handbook.pdf",
-        "excerpt": "### Customer operations Priya Ramanathan, Customer Escalation Manager, employee HR-5871, based in Toronto. She runs the Billing Migration escalation desk. Route customer facing billing complaints, credit decisions, and invoice corrections to her desk, not to engineering. ### Disambiguation rule - A ticket that names only Priya is routed by subject: identity to HR-2214, billing to HR-5871. - Neither person approves work on behalf of the other, and neither covers the other on call. - Older tickets sometimes abbreviate both to P. Raman. Those must be checked by hand. ----- Helios Robotics Operations Handbook, Revision 7 | Part VI - Field Runbooks --- ## On call rotation and contact rings --- Ri",
+        "id": "6fbc87cfe971cbd8bf2e8597dc8751009e004cac0b7b6435d728ea00dac3e8e6:chunk:0",
+        "provider": "github",
+        "title": "Preserve compound receipt context and harden stale-state retrieval",
+        "excerpt": "## Outcome - preserves complete short receipt context for narrow multi-part questions, without inventing facts - adds fixture-agnostic retrieval intent terms for abstract stale/open-vs-shipped and untracked-work questions - adds regression coverage for actor, absence, stale-state, and exact-identifier synthesis - records the first production live benchmark artifact truthfully ## Verification - 330 tests passed across 35 files - TypeScript check passed - ESLint passed - Next/Webpack production build passed - Vinext build passed - source and reachable-history secret scans: 0 realistic matches - diff whitespace check passed ## Exact preview - commit: `c2a68be06047243e751e82a0f828d609be8e1e4c` -",
         "supported": true
       }
     ],
@@ -145,11 +145,11 @@
     "claimCount": 4,
     "supportedClaimCount": 4,
     "mode": "thinking",
-    "latencyMs": 28458,
-    "measuredLatencyMs": 29850,
+    "latencyMs": 31919,
+    "measuredLatencyMs": 34168,
     "callCount": 6,
     "costUnits": 18,
-    "runId": "query_8a0c2cfb-8ef5-46f8-9fa7-d86b8259d966"
+    "runId": "query_802e933d-9667-487f-9e38-ebce5c0fbbd4"
   },
   "rows": [
     {
@@ -213,7 +213,7 @@
           "supported": true
         },
         {
-          "id": "f64d374d1899f3057707528f77703f3f:chunk:19",
+          "id": "f64d374d1899f3057707528f77703f3f:chunk:18",
           "provider": "document",
           "title": "helios-operations-handbook.pdf",
           "excerpt": "``` +------------------+------------------+----------------------------------+---------- ``` | \\| Drill | \\| Date | \\| Scenario +------------------+------------------+----------------------------------+---------- | \\| Outcome | |---|---|---|---| | \\| DRILL-2031-04 | \\| 11 April 2031 | \\| Depot gateway total loss | \\| passed | | \\| DRILL-2031-05 | \\| 9 May 2031 | \\| Duplicate billing simulation | \\| passed | | \\| DRILL-2031-06 | \\| 13 June 2031 | \\| Fleet wide stop work rehearsal | \\| passed | | \\| DRILL-2031-07 | \\| 10 July 2031 | \\| Credential broker outage +------------------+------------------+----------------------------------+---------- | \\| retry req | ### Reading drill records - A dri",
@@ -226,11 +226,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 506,
-      "measuredLatencyMs": 2152,
+      "latencyMs": 1879,
+      "measuredLatencyMs": 4667,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_62cedb88-ef32-4aca-9802-56aec4c114ca"
+      "runId": "query_59e5eeee-d25b-4d74-8f2e-aede80a98ac6"
     },
     {
       "id": "fact-charter-id",
@@ -328,11 +328,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "thinking",
-      "latencyMs": 11852,
-      "measuredLatencyMs": 13181,
+      "latencyMs": 15276,
+      "measuredLatencyMs": 18895,
       "callCount": 2,
       "costUnits": 6,
-      "runId": "query_cafdc3f0-975d-4d4a-b700-d775fc77f42c"
+      "runId": "query_302e15e0-596e-4122-9a0e-b575efbbb3f9"
     },
     {
       "id": "fact-superseded-policy",
@@ -489,11 +489,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 521,
-      "measuredLatencyMs": 2218,
+      "latencyMs": 2533,
+      "measuredLatencyMs": 7654,
       "callCount": 2,
       "costUnits": 2,
-      "runId": "query_4506d0bc-deae-4f49-b976-44e940d6c2ad"
+      "runId": "query_dfcc7fbf-5f3f-47e1-b0d3-9c442c44e60d"
     },
     {
       "id": "fact-superseding-decision",
@@ -662,11 +662,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 636,
-      "measuredLatencyMs": 2261,
+      "latencyMs": 1745,
+      "measuredLatencyMs": 5155,
       "callCount": 2,
       "costUnits": 2,
-      "runId": "query_47a50573-5114-49ce-bc8d-70c311c90210"
+      "runId": "query_d9e1caca-e685-4016-87bb-87b3e6539cf6"
     },
     {
       "id": "fact-escalation-sev1",
@@ -779,11 +779,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "thinking",
-      "latencyMs": 11140,
-      "measuredLatencyMs": 12500,
+      "latencyMs": 16748,
+      "measuredLatencyMs": 19705,
       "callCount": 3,
       "costUnits": 9,
-      "runId": "query_b2f20b45-50ca-4d58-a35d-e5104be14065"
+      "runId": "query_8c50087a-8441-4dce-a74d-6af418b91b15"
     },
     {
       "id": "fact-alias-rover-sdk",
@@ -889,11 +889,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "thinking",
-      "latencyMs": 8775,
-      "measuredLatencyMs": 10217,
+      "latencyMs": 12565,
+      "measuredLatencyMs": 15460,
       "callCount": 2,
       "costUnits": 6,
-      "runId": "query_4c120cb5-5938-414d-852c-e21df40cfd99"
+      "runId": "query_049715c2-f89d-45e5-bde0-7293dee2b44e"
     },
     {
       "id": "fact-atlas-deadline",
@@ -976,11 +976,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 519,
-      "measuredLatencyMs": 2256,
+      "latencyMs": 2892,
+      "measuredLatencyMs": 5187,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_78fae65c-5b9c-4c93-a8cf-7e8338304d58"
+      "runId": "query_df87875a-3656-48d2-a96c-e4594d490ca8"
     },
     {
       "id": "fact-eng-456",
@@ -1112,11 +1112,11 @@
       "claimCitationPairCount": 3,
       "supportedClaimCitationPairCount": 3,
       "mode": "thinking",
-      "latencyMs": 10209,
-      "measuredLatencyMs": 11585,
+      "latencyMs": 15362,
+      "measuredLatencyMs": 18115,
       "callCount": 3,
       "costUnits": 9,
-      "runId": "query_254b7ce5-eef1-483b-93bb-6130fb3c7b61"
+      "runId": "query_359eae9b-7df3-4aa0-8f71-bd3f8ba08050"
     },
     {
       "id": "fact-hindi-commitment",
@@ -1243,11 +1243,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 470,
-      "measuredLatencyMs": 1868,
+      "latencyMs": 2038,
+      "measuredLatencyMs": 6107,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_5fffa96f-183f-4885-9e67-4b25ffef78bd"
+      "runId": "query_e1ab1db5-424f-48b5-919d-13f28fc233ad"
     },
     {
       "id": "fact-billing-cutover",
@@ -1323,11 +1323,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 464,
-      "measuredLatencyMs": 1809,
+      "latencyMs": 2150,
+      "measuredLatencyMs": 5672,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_6148624b-e7d5-416d-871f-eb2bc76ccc23"
+      "runId": "query_2c095860-14fa-4a55-a522-6a11dd31d348"
     },
     {
       "id": "fact-rover-freeze",
@@ -1410,11 +1410,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 387,
-      "measuredLatencyMs": 1847,
+      "latencyMs": 2790,
+      "measuredLatencyMs": 5221,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_bbfb8517-7087-4bfd-a16a-e70967e09328"
+      "runId": "query_2de6c641-c4d3-452a-a606-6c37fb2101e9"
     },
     {
       "id": "fact-bug-123",
@@ -1533,11 +1533,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 592,
-      "measuredLatencyMs": 1933,
+      "latencyMs": 1642,
+      "measuredLatencyMs": 4392,
       "callCount": 2,
       "costUnits": 2,
-      "runId": "query_0e0e27b5-7e40-4dfd-85da-79089a0b1bd0"
+      "runId": "query_7500062c-f75d-4018-b9eb-948b1c7d0947"
     },
     {
       "id": "fact-pr-8871",
@@ -1634,11 +1634,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "thinking",
-      "latencyMs": 10224,
-      "measuredLatencyMs": 11578,
+      "latencyMs": 14822,
+      "measuredLatencyMs": 19480,
       "callCount": 3,
       "costUnits": 9,
-      "runId": "query_545747ff-5f40-4641-b7d8-84fe36763053"
+      "runId": "query_3f4b8be6-b98b-44ac-bda4-446db9e1a53b"
     },
     {
       "id": "fact-middle-beacon",
@@ -1707,11 +1707,11 @@
       "claimCitationPairCount": 3,
       "supportedClaimCitationPairCount": 3,
       "mode": "fast",
-      "latencyMs": 440,
-      "measuredLatencyMs": 1869,
+      "latencyMs": 1978,
+      "measuredLatencyMs": 7975,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_43f56606-cd35-409e-b181-20f26d392b51"
+      "runId": "query_a08cd1d7-6d73-4ee2-b415-8350f2359162"
     },
     {
       "id": "fact-middle-buffer",
@@ -1794,11 +1794,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 421,
-      "measuredLatencyMs": 1793,
+      "latencyMs": 2592,
+      "measuredLatencyMs": 5259,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_3799fe82-1aa6-4fd7-bb63-b5c7b33ba9f7"
+      "runId": "query_bbed3f6a-fea1-42b7-8fca-dd7e159656cb"
     },
     {
       "id": "fact-inc-2031",
@@ -1926,11 +1926,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "thinking",
-      "latencyMs": 9849,
-      "measuredLatencyMs": 11171,
+      "latencyMs": 18162,
+      "measuredLatencyMs": 21184,
       "callCount": 3,
       "costUnits": 9,
-      "runId": "query_cae533fd-2579-40f5-89a2-48132e2b5616"
+      "runId": "query_c5abde51-2a69-43d6-9015-b788a6e77375"
     },
     {
       "id": "fact-incident-table",
@@ -2023,11 +2023,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 566,
-      "measuredLatencyMs": 1882,
+      "latencyMs": 2342,
+      "measuredLatencyMs": 6546,
       "callCount": 2,
       "costUnits": 2,
-      "runId": "query_fa7d7669-2acf-4d04-9107-db1a61476d79"
+      "runId": "query_f56116b8-8111-47a5-8b70-28d3253eb7d8"
     },
     {
       "id": "fact-priya-raman",
@@ -2146,11 +2146,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "thinking",
-      "latencyMs": 10023,
-      "measuredLatencyMs": 11492,
+      "latencyMs": 15586,
+      "measuredLatencyMs": 18374,
       "callCount": 2,
       "costUnits": 6,
-      "runId": "query_c95f4ae0-becc-4d61-aba0-5fdb4fa46a43"
+      "runId": "query_b49cd5e9-010f-4fda-b51b-da232434c992"
     },
     {
       "id": "fact-priya-ramanathan",
@@ -2269,11 +2269,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "thinking",
-      "latencyMs": 9858,
-      "measuredLatencyMs": 11224,
+      "latencyMs": 15921,
+      "measuredLatencyMs": 18867,
       "callCount": 2,
       "costUnits": 6,
-      "runId": "query_7a088595-8f9c-4b96-b3d5-fd2dc9d637fd"
+      "runId": "query_7dee4186-f9a1-4dcd-ab92-68b2ac9cf3dc"
     },
     {
       "id": "fact-oncall-ring0",
@@ -2363,11 +2363,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 416,
-      "measuredLatencyMs": 1744,
+      "latencyMs": 2561,
+      "measuredLatencyMs": 6139,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_fdedd18a-7a91-48a7-91ff-3296170b7e7c"
+      "runId": "query_e44608a3-f5aa-4c7a-bb10-ded576872994"
     },
     {
       "id": "fact-distractor-draft",
@@ -2503,11 +2503,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "thinking",
-      "latencyMs": 12190,
-      "measuredLatencyMs": 13549,
+      "latencyMs": 17061,
+      "measuredLatencyMs": 21334,
       "callCount": 3,
       "costUnits": 9,
-      "runId": "query_d32356c2-51de-4fe4-8e21-7dc3b188fc65"
+      "runId": "query_ef42e98d-af5c-48b5-afa3-a13c6a5196c0"
     },
     {
       "id": "fact-end-battery",
@@ -2584,11 +2584,11 @@
       "claimCitationPairCount": 2,
       "supportedClaimCitationPairCount": 2,
       "mode": "fast",
-      "latencyMs": 481,
-      "measuredLatencyMs": 2088,
+      "latencyMs": 2329,
+      "measuredLatencyMs": 5073,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_ec2cc7cc-dd2d-4cc0-aedd-55bb85d4acb0"
+      "runId": "query_44d834d1-8222-4654-9571-744b395b94eb"
     }
   ]
 }

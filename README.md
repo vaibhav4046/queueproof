@@ -49,10 +49,33 @@ benchmark page publishes failures as `REVIEW`; it does not relabel them as passe
 6. Provider writes begin as proposals. Approval and a database-backed at-most-once claim are
    required before execution.
 
-The last timestamped production acceptance run observed verified GitHub, Gmail, Linear, and
-Slack connectors, plus an indexed 346-page PDF. Those are observed receipts, not a guarantee
-of future provider availability or latency. See [connector proof](docs/CONNECTOR_PROOF.md),
-[large-PDF proof](docs/LARGE_PDF_PROOF.md), and the machine-readable artifacts in `audit/`.
+## Measured production release
+
+Release `c7cf16b3c92f66d7b2f17a90e01372b77d62235b` on `main` returned HTTP 200 on all nine
+product and owner routes and showed four verified sources: GitHub, Gmail, Linear, and Slack.
+CI passed 341/341 tests, 39/39 deterministic router cases with 331 assertions, the production
+build, and the deployment-binding check.
+
+Forced Fast and Deep runs used the same six strict questions on that release and honored the
+requested mode:
+
+| Mode | Strict cases | Facts | p50 / p95 | Calls | Mean calls | Weighted units | Cited providers |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| Fast | 4/6 | 19/19 | 2,531 / 3,316 ms | 7 | 1.17 | 7 | GitHub, Linear, Slack |
+| Deep (`thinking`) | 4/6 | 19/19 | 23,575 / 32,482 ms | 13 | 2.17 | 39 | GitHub, Gmail, Linear, Slack |
+
+Both runs measured 100% citation precision, 100% citation completeness, and 0% unsupported
+claims. Fast retained the same strict score and fact coverage while using less latency, calls,
+and relative cost. The two `REVIEW` cases remain failures under the frozen strict rubric.
+
+The same release also reran the indexed deterministic 346-page PDF suite. It passed 20/22
+cases and recovered 53/56 facts (94.6429%); beginning, middle, and end canaries all passed.
+All 84 claims were supported by 56 citations, with 100% citation precision/completeness and
+0% unsupported claims. The run measured p50 2,592 ms and p95 17,061 ms, averaged 1.8182 calls,
+used 13 Fast and 9 Deep queries, and consumed 86 weighted units. The cross-source case remains
+`REVIEW` because it found the document and GitHub but needed one more non-document provider.
+See [connector proof](docs/CONNECTOR_PROOF.md), [large-PDF proof](docs/LARGE_PDF_PROOF.md),
+and the machine-readable artifact at `evals/results/pdf-live-run.json`.
 
 ## Public and owner boundaries
 
@@ -141,7 +164,9 @@ pnpm test:e2e
 Live benchmarks are deliberately separate from CI because they query connected provider data:
 
 ```bash
-pnpm benchmark:live -- --url https://queueproof.vercel.app
+pnpm benchmark:live -- --url https://queueproof.vercel.app --mode fast
+pnpm benchmark:live -- --url https://queueproof.vercel.app --mode thinking
+pnpm benchmark:live -- --url https://queueproof.vercel.app --mode auto
 pnpm benchmark:pdf -- --url https://queueproof.vercel.app
 ```
 
@@ -165,8 +190,12 @@ invented dollar costs.
 
 - Timestamped live results are a small observed sample, not an SLA.
 - A `REVIEW` benchmark result is a failed strict requirement, not a partial pass.
+- The same-release 346-page PDF result is 20/22, not 22/22; the cross-source provider miss
+  remains `REVIEW`.
 - Public users cannot mutate credentials, connectors, uploads, tokens, or external systems.
 - A real provider write is proven only by a stored provider response identifier.
+- Repository visibility must be verified in a signed-out browser before calling the source
+  link public.
 - Credentials previously exposed outside this repository must be rotated at their source even
   when repository secret scans are clean.
 
