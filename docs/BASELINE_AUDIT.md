@@ -56,6 +56,6 @@ The current release candidate addresses those findings with:
 - versioned session claims, MCP audience enforcement, and an action integrity migration;
 - a strict fact, citation, provider, and contradiction grader.
 
-Current verified gates are 329 tests across 35 files, 13 security tests, 8 MCP tests,
+Current verified gates are 330 tests across 35 files, 13 security tests, 8 MCP tests,
 39/39 router cases with 331 fixture assertions, plus passing typecheck, lint, build, E2E,
 and deployment checks.

@@ -34,6 +34,23 @@ export function retrievalQueryVariants(plan: RetrievalPlan): Array<"text" | "hyb
   return plan.exactParallel ? ["text", "hybrid"] : [plan.queryBy];
 }
 
+/**
+ * Bounded, fixture-agnostic terms for intents whose natural-language wording
+ * is often too abstract for lexical retrieval. These phrases describe the
+ * requested state transition; they never add an entity, date, or answer that
+ * was not supplied by the user.
+ */
+export function retrievalIntentTerms(question: string): string[] {
+  const normalized = question.toLowerCase();
+  if (/\bopen\s+(?:issue|ticket)\b[^?]{0,90}\b(?:resolved|complete|completed|closed|merged|shipped|elsewhere)\b/.test(normalized)) {
+    return ["merged", "shipped", "still open", "tracked state"];
+  }
+  if (/\b(?:no|without|missing|lacks?)\b[^?]{0,60}\b(?:issue|ticket|track(?:ed|ing)?)\b/.test(normalized)) {
+    return ["no issue tracking", "not tracked"];
+  }
+  return [];
+}
+
 const FOLLOW_UP_STOP_WORDS = new Set([
   "a", "an", "and", "april", "august", "document", "february", "friday", "github",
   "gmail", "heads up", "i", "january", "july", "june", "linear", "march", "may",

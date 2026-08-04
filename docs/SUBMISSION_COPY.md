@@ -20,7 +20,7 @@ retrieval concurrently. Strong connector/resource lineage prevents evidence from
 credited merely because its provider name matches.
 
 The current deterministic benchmark passes 39/39 labelled router cases and 331
-assertions. The full release suite passes 329 tests across 35 files, including 13 security
+assertions. The full release suite passes 330 tests across 35 files, including 13 security
 and 8 MCP tests, plus typecheck, lint, production build, E2E, and deployment checks. The
 interface is verified across the release matrix with all seven destinations available
 on mobile.
@@ -50,7 +50,7 @@ closed.
 - Flagship production answer with cited GitHub, Linear, and Slack evidence in one thinking
   query.
 - 39/39 deterministic router cases; 331 assertions.
-- 329 tests across 35 files; 13 security tests; 8 MCP tests.
+- 330 tests across 35 files; 13 security tests; 8 MCP tests.
 - Zero secret-pattern matching files across the complete pre-release history and final
   release worktree.
 
