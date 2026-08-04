@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  deriveGraphFromActionProposal,
   deriveGraphFromAskResult,
+  deriveGraphFromConnectors,
   deriveGraphFromPacket,
   type GraphEdge,
   type GraphNode,
@@ -260,5 +262,165 @@ describe("deriveGraphFromAskResult", () => {
     expect(() => deriveGraphFromAskResult(result)).not.toThrow();
     const graph = deriveGraphFromAskResult(result);
     expect(nodesByType(graph.nodes, "action")).toHaveLength(0);
+  });
+});
+
+describe("deriveGraphFromConnectors", () => {
+  it("adds one connector node per row with a real state", () => {
+    const graph = deriveGraphFromConnectors(
+      [{ id: "conn-1", provider: "linear", name: "Linear (Northwind)", state: "data_verified", database: "db-1", collection: null, lastSuccessfulSyncAt: "2031-04-08T00:00:00.000Z", lastError: null }],
+      [],
+    );
+    expect(graph.nodes).toEqual([
+      expect.objectContaining({
+        id: "connector:conn-1",
+        type: "connector",
+        data: expect.objectContaining({ provider: "linear", state: "data_verified" }),
+      }),
+    ]);
+  });
+
+  it("drops an unrecognised connector state rather than trusting it verbatim", () => {
+    const graph = deriveGraphFromConnectors(
+      [{ id: "conn-1", provider: "linear", name: "Linear", state: "not_a_real_state" }],
+      [],
+    );
+    expect(graph.nodes[0]).toMatchObject({ data: expect.objectContaining({ state: null }) });
+  });
+
+  it("adds an ORIGINATED_FROM edge from a source to the connector it names", () => {
+    const graph = deriveGraphFromConnectors(
+      [{ id: "conn-1", provider: "linear", name: "Linear" }],
+      [{ id: "src-1", provider: "linear", title: "ENG-456", excerpt: "…", connectorId: "conn-1" }],
+    );
+    expect(nodesByType(graph.nodes, "source")).toHaveLength(1);
+    expect(edgesByType(graph.edges, "ORIGINATED_FROM")).toEqual([
+      { id: "edge:source:src-1->connector:conn-1", type: "ORIGINATED_FROM", source: "source:src-1", target: "connector:conn-1" },
+    ]);
+  });
+
+  it("omits the edge for a source whose connectorId does not resolve to a known connector", () => {
+    const graph = deriveGraphFromConnectors(
+      [{ id: "conn-1", provider: "linear", name: "Linear" }],
+      [
+        { id: "src-1", provider: "document", title: "Handbook.pdf", excerpt: "…", connectorId: null },
+        { id: "src-2", provider: "linear", title: "stale", excerpt: "…", connectorId: "conn-deleted" },
+      ],
+    );
+    expect(nodesByType(graph.nodes, "source")).toHaveLength(2);
+    expect(graph.edges).toHaveLength(0);
+  });
+
+  it("does not throw on malformed connector or source rows", () => {
+    expect(() => deriveGraphFromConnectors(
+      [null, "not an object", {}, { id: "conn-1" }],
+      [null, {}, { id: "src-1" }],
+    )).not.toThrow();
+    const graph = deriveGraphFromConnectors(
+      [null, "not an object", {}, { id: "conn-1" }],
+      [null, {}, { id: "src-1" }],
+    );
+    // { id: "conn-1" } has no provider, so it is dropped; only the valid source row survives.
+    expect(nodesByType(graph.nodes, "connector")).toHaveLength(0);
+    expect(nodesByType(graph.nodes, "source")).toHaveLength(1);
+  });
+});
+
+describe("deriveGraphFromActionProposal", () => {
+  it("returns an empty graph for a malformed proposal", () => {
+    expect(deriveGraphFromActionProposal(null, null, null, [])).toEqual({ nodes: [], edges: [] });
+    expect(deriveGraphFromActionProposal({ noId: true }, null, null, [])).toEqual({ nodes: [], edges: [] });
+  });
+
+  it("adds one action node with SUPPORTS edges from its cited evidence, and no approval or receipt when pending", () => {
+    const graph = deriveGraphFromActionProposal(
+      { id: "action-1", provider: "linear", actionType: "create_issue", evidenceIds: ["src-a", "src-b"], riskClass: "low", status: "proposed" },
+      null,
+      null,
+      [
+        { id: "src-a", provider: "linear", title: "ENG-456", excerpt: "…" },
+        { id: "src-b", provider: "slack", title: "thread", excerpt: "…" },
+      ],
+    );
+    expect(nodesByType(graph.nodes, "action")).toEqual([
+      expect.objectContaining({ id: "action:action-1", data: expect.objectContaining({ status: "proposed" }) }),
+    ]);
+    expect(edgesByType(graph.edges, "SUPPORTS")).toHaveLength(2);
+    expect(nodesByType(graph.nodes, "approval")).toHaveLength(0);
+    expect(nodesByType(graph.nodes, "receipt")).toHaveLength(0);
+  });
+
+  it("parses evidence_ids_json when evidenceIds is not already an array", () => {
+    const graph = deriveGraphFromActionProposal(
+      { id: "action-1", provider: "linear", actionType: "create_issue", evidenceIdsJson: JSON.stringify(["src-a"]), status: "proposed" },
+      null,
+      null,
+      [{ id: "src-a", provider: "linear", title: "ENG-456", excerpt: "…" }],
+    );
+    expect(edgesByType(graph.edges, "SUPPORTS")).toEqual([
+      expect.objectContaining({ source: "source:src-a", target: "action:action-1" }),
+    ]);
+  });
+
+  it("does not throw on unparseable evidence_ids_json", () => {
+    expect(() => deriveGraphFromActionProposal(
+      { id: "action-1", provider: "linear", actionType: "create_issue", evidenceIdsJson: "{not json", status: "proposed" },
+      null,
+      null,
+      [],
+    )).not.toThrow();
+  });
+
+  it("adds an approval node with a REQUIRES_APPROVAL edge when an approval row is present", () => {
+    const graph = deriveGraphFromActionProposal(
+      { id: "action-1", provider: "linear", actionType: "create_issue", evidenceIds: [], status: "proposed" },
+      { decision: "approved", decidedBy: "user:owner", decidedAt: "2031-04-08T00:00:00.000Z" },
+      null,
+      [],
+    );
+    expect(nodesByType(graph.nodes, "approval")).toEqual([
+      expect.objectContaining({ id: "approval:action-1", data: expect.objectContaining({ decision: "approved" }) }),
+    ]);
+    expect(edgesByType(graph.edges, "REQUIRES_APPROVAL")).toEqual([
+      { id: "edge:action:action-1->approval:action-1", type: "REQUIRES_APPROVAL", source: "action:action-1", target: "approval:action-1" },
+    ]);
+  });
+
+  it("adds a receipt node with an EXECUTED_AS edge only when execution succeeded with a provider response id", () => {
+    const graph = deriveGraphFromActionProposal(
+      { id: "action-1", provider: "linear", actionType: "create_issue", evidenceIds: [], status: "executed" },
+      { decision: "approved", decidedBy: "user:owner", decidedAt: "2031-04-08T00:00:00.000Z" },
+      { status: "succeeded", providerResponseId: "ENG-999", error: null },
+      [],
+    );
+    expect(nodesByType(graph.nodes, "receipt")).toEqual([
+      expect.objectContaining({ id: "receipt:action-1", label: "ENG-999" }),
+    ]);
+    expect(edgesByType(graph.edges, "EXECUTED_AS")).toEqual([
+      { id: "edge:action:action-1->receipt:action-1", type: "EXECUTED_AS", source: "action:action-1", target: "receipt:action-1" },
+    ]);
+  });
+
+  it.each([
+    ["a pending execution", { status: "pending", providerResponseId: null, error: null }],
+    ["a failed execution", { status: "failed", providerResponseId: null, error: "Linear execution failed." }],
+  ])("omits the receipt node for %s", (_label, execution) => {
+    const graph = deriveGraphFromActionProposal(
+      { id: "action-1", provider: "linear", actionType: "create_issue", evidenceIds: [], status: "proposed" },
+      null,
+      execution,
+      [],
+    );
+    expect(nodesByType(graph.nodes, "receipt")).toHaveLength(0);
+    expect(edgesByType(graph.edges, "EXECUTED_AS")).toHaveLength(0);
+  });
+
+  it("does not throw on malformed approval or execution rows", () => {
+    expect(() => deriveGraphFromActionProposal(
+      { id: "action-1", provider: "linear", actionType: "create_issue", evidenceIds: [], status: "proposed" },
+      "not an object",
+      42,
+      [null, "not an object", {}],
+    )).not.toThrow();
   });
 });
