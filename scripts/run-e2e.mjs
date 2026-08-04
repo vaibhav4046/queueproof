@@ -58,5 +58,13 @@ assert.ok(
   styles.includes(".evidence-orbit-stack { display: block; aspect-ratio: auto; max-height: none; }"),
   "Persisted receipt replay controls must remain in flow below the desktop Orbit and visible on mobile.",
 );
+for (const mobileOrder of [
+  ".premium-console { order: 3;",
+  ".evidence-orbit-stack { order: 4;",
+  ".retrieval-stage, .premium-results { order: 5;",
+  ".landing-proof-sections { order: 8;",
+]) {
+  assert.ok(styles.includes(mobileOrder), `Missing deterministic mobile proof order: ${mobileOrder}`);
+}
 
 console.log("PASS  live shell, seven-destination navigation, direct judge routes, public disclosure, proof-first layout, timeline, comparison, replay, citations, dialogs, and result-state contracts");

@@ -1683,11 +1683,13 @@ button.citation-chip::before { content: ""; position: absolute; inset: -8px; }
   .proof-copy > .eyebrow { order: 1; }
   .proof-copy h1 { order: 2; margin: 14px 0 19px; font-size: clamp(46px, 11vw, 72px); line-height: .84; }
   .premium-console { order: 3; margin-top: 0; }
-  .retrieval-stage, .premium-results { order: 4; }
-  .prompt-shelf { order: 5; }
-  .proof-details { order: 6; margin-top: 30px; }
-  .proof-artifact { order: 7; margin: 32px auto 24px; }
-  .connector-proof-rail { order: 8; }
+  .evidence-orbit-stack { order: 4; }
+  .retrieval-stage, .premium-results { order: 5; }
+  .prompt-shelf { order: 6; }
+  .proof-details { order: 7; margin-top: 30px; }
+  .landing-proof-sections { order: 8; }
+  .proof-artifact { order: 9; margin: 32px auto 24px; }
+  .connector-proof-rail { order: 10; }
   .proof-details > p { max-width: 680px; }
 }
 
