@@ -19,7 +19,9 @@ Release-candidate evidence: 39/39 labelled router cases, 331 assertions, and 330
 across 35 files, including 13 security and 8 MCP tests. Typecheck, lint, build, E2E, and
 deployment-binding checks pass. A fresh strict run over a 346-page PDF recovered 53/56
 required facts and passed 20/22 cases with complete supporting citations; the misses stay
-visible as REVIEW, not hidden in a vanity score.
+visible as REVIEW, not hidden in a vanity score. The final six-query production sample
+matched 19/19 required facts with complete citations and zero unsupported claims; four
+cases fully passed and two stayed REVIEW on the frozen multi-provider requirements.
 
 One answer. Every system. Proven.
 
@@ -34,9 +36,9 @@ QueueProof gives agents one defensible next action - with receipts.
 HydraDB evidence -> cited claims -> preserved conflicts -> deterministic priority ->
 approval-gated execution.
 
-39/39 router cases. 331 assertions. 330 tests. Fresh 346-page PDF: 20/22 cases, 53/56
-facts, complete citations. Public evidence sandbox; external writes stay private and
-approval-gated.
+39/39 router cases. 331 assertions. 330 tests. Live sample: 19/19 facts, 4/6 complete,
+100% citation precision/completeness. Fresh 346-page PDF: 20/22 cases, 53/56 facts.
+Public evidence sandbox; external writes stay private and approval-gated.
 
 <https://queueproof.vercel.app>
 

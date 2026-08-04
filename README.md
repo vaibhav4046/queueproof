@@ -77,12 +77,14 @@ Gmail, Linear, and Slack. The flagship question returned cited GitHub, Linear, a
 evidence in one thinking query. This is connector evidence, not a universal availability
 or latency promise. See [docs/CONNECTOR_PROOF.md](docs/CONNECTOR_PROOF.md).
 
-Final queue acceptance used a cache-busted, user-triggered evidence refresh. It created
-new packet `AE1EB62B` and returned one actionable Northwind `INC-2031` post-mortem at
-`72.58`, corroborated by GitHub and Slack. Recruiting/contract, homework, training,
-invoice, newsletter, and zero-score records were absent from that run. HydraDB retrieval
-is relevance-ranked, so this documents an observed acceptance receipt rather than a
-fixed future ordering.
+Final browser acceptance created persisted receipt
+`query_9a06859d-62d8-4468-8b77-2d5732d3685f`. The flagship answer returned 4/4 cited
+claims from GitHub, Linear, and Slack, used two HydraDB calls, preserved one contradiction,
+and compiled one approval-gated ENG-456 tracked-state action at `53.56`. The final strict
+six-query run matched 19/19 required facts, fully passed 4/6 cases, and kept two frozen
+multi-provider misses as REVIEW with 100% citation precision/completeness and zero
+unsupported claims. HydraDB retrieval is relevance-ranked, so this is an observed
+acceptance receipt rather than a promise of fixed future ordering.
 
 A fresh strict public-production run over the deterministic 346-page PDF passed 20/22
 cases and recovered 53/56 required facts with 100% citation precision/completeness and

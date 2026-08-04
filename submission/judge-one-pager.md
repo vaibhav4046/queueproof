@@ -45,7 +45,7 @@ before the provider call.
 | --- | ---: |
 | Router fixtures | 39/39 |
 | Fixture assertions | 331 |
-| Full suite | 324 tests / 32 files |
+| Full suite | 330 tests / 35 files |
 | Security / MCP | 13 / 8 tests |
 | Typecheck, lint, build, E2E, deploy check | pass |
 | Responsive viewports | 7, from 360x800 to 3840x2160 |
@@ -53,9 +53,10 @@ before the provider call.
 
 ## Honest boundary
 
-The fresh strict 346-page baseline passed 20/22 cases and recovered 53/56 facts with
-complete citations. It was measured against public production before the last unpublished
-retrieval changes, so QueueProof does not call it 22/22 or a post-release result.
+The strict 346-page baseline passed 20/22 cases and recovered 53/56 facts with complete
+citations. The final six-query production diagnostic matched 19/19 facts and fully passed
+4/6 cases; two cases remain REVIEW on frozen multi-provider requirements. QueueProof does
+not call either measurement perfect or an SLA.
 
 Live: <https://queueproof.vercel.app>
 
