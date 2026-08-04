@@ -244,7 +244,16 @@ function sentences(item: SynthesisEvidence, question: string) {
   const body = clean(raw
     .replace(/\s+(?:#{1,6}|-{3,}|={2,})\s*/g, ". ")
     .replace(/\s+[-*]\s+(?=[A-Z0-9])/g, ". "));
+  // Some operational facts are relational across adjacent sentences in one
+  // receipt: the first sentence names the work, while the second records its
+  // tracking state; or the first names an incident and a later sentence names
+  // its filer. For these narrow compound intents, a short complete receipt is
+  // the smallest evidence unit that preserves the relationship. It remains
+  // verbatim, capped, and cited to the same exact source ID.
+  const needsReceiptContext =
+    /\bno\s+(?:linear\s+)?issue\b|\bopen\s+issue\b|\bwho\s+is\b[^?]{0,100}\band\s+what\b|\bwho\s+filed\b|\bwhich\s+project\b/i.test(question);
   return [...new Set([
+    ...(needsReceiptContext && body.length <= 420 ? [body] : []),
     ...body.split(/(?<=[.!?])\s+(?=[A-Z0-9])/).map(clean),
     ...focusedWindows(question, body),
   ])].filter((sentence) => sentence.length >= 18 && sentence.length <= 420);

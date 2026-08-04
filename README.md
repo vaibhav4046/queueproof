@@ -56,7 +56,7 @@ the bounded `/api/ask` workflow remains available to judges.
 | Production build | pass |
 | End-to-end shell contract | pass |
 | Deployment binding check | pass |
-| Full test suite | 327 tests across 35 files |
+| Full test suite | 329 tests across 35 files |
 | Security suite | 13 tests |
 | MCP suite | 8 tests |
 | Offline router benchmark | 39/39 cases; 331 assertions |

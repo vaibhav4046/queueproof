@@ -15,7 +15,7 @@ The trust boundary is part of the product: the public sandbox supports shared ev
 questions, queue review, and proposals, while credentials, connector changes, uploads,
 tokens, and external writes require a private owner.
 
-Release-candidate evidence: 39/39 labelled router cases, 331 assertions, and 327 tests
+Release-candidate evidence: 39/39 labelled router cases, 331 assertions, and 329 tests
 across 35 files, including 13 security and 8 MCP tests. Typecheck, lint, build, E2E, and
 deployment-binding checks pass. A fresh strict run over a 346-page PDF recovered 53/56
 required facts and passed 20/22 cases with complete supporting citations; the misses stay
@@ -34,7 +34,7 @@ QueueProof gives agents one defensible next action - with receipts.
 HydraDB evidence -> cited claims -> preserved conflicts -> deterministic priority ->
 approval-gated execution.
 
-39/39 router cases. 331 assertions. 327 tests. Fresh 346-page PDF: 20/22 cases, 53/56
+39/39 router cases. 331 assertions. 329 tests. Fresh 346-page PDF: 20/22 cases, 53/56
 facts, complete citations. Public evidence sandbox; external writes stay private and
 approval-gated.
 

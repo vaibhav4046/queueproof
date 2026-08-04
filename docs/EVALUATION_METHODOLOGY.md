@@ -84,5 +84,5 @@ npm run benchmark:live -- --url https://queueproof.vercel.app
 npm run benchmark:pdf -- --url https://queueproof.vercel.app
 ```
 
-Release gates are independently verified with typecheck, lint, 327 tests across 35 files,
+Release gates are independently verified with typecheck, lint, 329 tests across 35 files,
 13 security tests, 8 MCP tests, production build, E2E, and deployment checks.

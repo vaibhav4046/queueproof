@@ -14,7 +14,7 @@
 ## Release evidence
 
 - Typecheck, lint, production build, E2E, and deployment check: pass.
-- Full suite: 327 tests across 35 files.
+- Full suite: 329 tests across 35 files.
 - Security suite: 13 tests.
 - MCP suite: 8 tests.
 - Router benchmark: 39/39 cases, 331 assertions.
