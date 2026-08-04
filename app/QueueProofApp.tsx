@@ -251,14 +251,17 @@ function useDialogBehavior<T extends HTMLElement>(
     const focusable = () => Array.from(dialog.querySelectorAll<HTMLElement>(focusableSelector))
       .filter((element) => !element.hidden && element.getAttribute("aria-hidden") !== "true");
 
-    const initial = dialog.querySelector<HTMLElement>("[data-dialog-initial]") ?? focusable()[0] ?? dialog;
+    const focusInitial = () => {
+      const target = dialog.querySelector<HTMLElement>("[data-dialog-initial]") ?? focusable()[0] ?? dialog;
+      target.focus({ preventScroll: true });
+    };
     // Focus once immediately and once on the next frame. Async dialogs can mount while
     // their invoking row is still re-rendering; the second pass keeps that update from
     // dropping keyboard focus back onto <body>.
-    initial.focus({ preventScroll: true });
+    focusInitial();
     const recoverFocus = () => {
       if (openDialogIds.at(-1) === dialogId && !dialog.contains(document.activeElement)) {
-        initial.focus({ preventScroll: true });
+        focusInitial();
       }
     };
     const frame = window.requestAnimationFrame(recoverFocus);
