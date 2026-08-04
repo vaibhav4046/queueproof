@@ -251,14 +251,17 @@ function useDialogBehavior<T extends HTMLElement>(
     const focusable = () => Array.from(dialog.querySelectorAll<HTMLElement>(focusableSelector))
       .filter((element) => !element.hidden && element.getAttribute("aria-hidden") !== "true");
 
-    const initial = dialog.querySelector<HTMLElement>("[data-dialog-initial]") ?? focusable()[0] ?? dialog;
+    const focusInitial = () => {
+      const target = dialog.querySelector<HTMLElement>("[data-dialog-initial]") ?? focusable()[0] ?? dialog;
+      target.focus({ preventScroll: true });
+    };
     // Focus once immediately and once on the next frame. Async dialogs can mount while
     // their invoking row is still re-rendering; the second pass keeps that update from
     // dropping keyboard focus back onto <body>.
-    initial.focus({ preventScroll: true });
+    focusInitial();
     const recoverFocus = () => {
       if (openDialogIds.at(-1) === dialogId && !dialog.contains(document.activeElement)) {
-        initial.focus({ preventScroll: true });
+        focusInitial();
       }
     };
     const frame = window.requestAnimationFrame(recoverFocus);
@@ -267,6 +270,11 @@ function useDialogBehavior<T extends HTMLElement>(
       if (openDialogIds.at(-1) !== dialogId) return;
       if (event.target instanceof Node && !dialog.contains(event.target)) recoverFocus();
     };
+    // React can replace the currently focused control while an async proof payload
+    // resolves. Browsers then fall back to <body> without emitting a new focusin event.
+    // Observe only the open dialog so that replacement is repaired without polling.
+    const focusObserver = new MutationObserver(recoverFocus);
+    focusObserver.observe(dialog, { childList: true, subtree: true });
     const onKeyDown = (event: KeyboardEvent) => {
       if (openDialogIds.at(-1) !== dialogId) return;
       if (event.key === "Escape") {
@@ -294,6 +302,7 @@ function useDialogBehavior<T extends HTMLElement>(
       recoveryTimers.forEach((timer) => window.clearTimeout(timer));
       document.removeEventListener("keydown", onKeyDown);
       document.removeEventListener("focusin", onFocusIn);
+      focusObserver.disconnect();
       const stackIndex = openDialogIds.lastIndexOf(dialogId);
       if (stackIndex >= 0) openDialogIds.splice(stackIndex, 1);
       for (const [element, previous] of inerted) element.inert = previous;
