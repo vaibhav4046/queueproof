@@ -164,9 +164,22 @@ function valuePatternsForQuestion(question: string): RegExp[] {
     patterns.push(/\bmust not be relied on[^.!?\n]{0,90}/gi);
   }
   if (anchored && /\b(impact|how long|duration)\b/i.test(question)) {
+    // These stay narrow so "how long did impact last" pulls the duration
+    // sentence itself, not every definitional mention of "customer visible
+    // impact" scattered through the handbook. The answer must carry the
+    // duration value or the "impact lasted" wording to be a value candidate.
     patterns.push(/\b\d{1,4}\s+(?:minutes?|min\b|hours?)\s+of\s+[^.!?\n]{0,90}/gi);
-    patterns.push(/\bcustomer\s+(?:impact|visible)[^.!?\n]{0,90}/gi);
-    patterns.push(/\bimpact\s+(?:lasted|window)[^.!?\n]{0,90}/gi);
+    patterns.push(/\bcustomer\s+(?:impact|visible)\s+lasted\s+[^.!?\n]{0,90}/gi);
+    patterns.push(/\bimpact\s+lasted\s+[^.!?\n]{0,90}/gi);
+    patterns.push(/\bimpact\s+window\s+[^.!?\n]{0,90}/gi);
+  }
+  // A "what happened" question about a named record wants the summary sentence
+  // itself ("INC-2031 was a Billing Migration double charge event on 8 April
+  // 2031"). The pattern embeds the record identifier, so it can only match
+  // verbatim evidence that names the same record.
+  if (anchored && /\b[A-Z][A-Z0-9]+-\d+\b/.test(question) &&
+      /\b(what happened|what was|describe|summary|occurred|record)\b/i.test(question)) {
+    patterns.push(/\b[A-Z][A-Z0-9]+-\d+\s+was\s+a\s+[^.!?\n]{0,140}/gi);
   }
   if (anchored && /\bescalat\w*/i.test(question)) {
     patterns.push(/\bescalation desk[^.!?\n]{0,60}/gi);
@@ -324,6 +337,20 @@ const normaliseClaimKey = (text: string) =>
     .trim()
     .slice(0, 140);
 
+/**
+ * Sentences long enough to act as the identity of a claim. Value windows drawn
+ * from different chunks often repeat the same fact sentence with different
+ * leading context ("Customer impact lasted 41 minutes…" appears in several
+ * windows); a shared long sentence marks the candidate as a duplicate of an
+ * already-picked claim. Headings and short chrome stay below the length gate so
+ * they never deduplicate genuinely different rows.
+ */
+const claimSentences = (text: string) =>
+  text.replace(/#+|\*+|`+|_+|>/g, " ")
+    .split(/[.!?]+\s+(?=[A-Z0-9])/)
+    .map((sentence) => sentence.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim())
+    .filter((sentence) => sentence.length >= 25);
+
 export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEvidence[]) {
   const ranked = rankEvidenceForQuestion(question, evidence);
   const valuePatterns = valuePatternsForQuestion(question);
@@ -335,13 +362,20 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
       // when its window does not repeat the question's own tokens (for example
       // "fixed in Rover SDK 4.2.1" for a question about BUG-123). It is always
       // verbatim evidence text, so promoting it cannot fabricate an answer.
+      // The matched phrase is also recorded so repeated windows of the same
+      // fact sentence from different chunks collapse into one claim.
+      let valuePhrase: string | null = null;
       const isValueCandidate = valuePatterns.some((pattern) => {
         pattern.lastIndex = 0;
-        return pattern.test(text);
+        const match = pattern.exec(text);
+        if (!match) return false;
+        valuePhrase = match[0].toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 120);
+        return true;
       });
       return {
         item,
         text,
+        valuePhrase,
         // A relevant title may break a tie, but it cannot make an unrelated
         // paragraph into a claim.
         score: (sentenceScore > 0 || isValueCandidate)
@@ -352,21 +386,29 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
   ).sort((a, b) => b.score - a.score);
 
   const picked: typeof candidates = [];
-  const seenText = new Set<string>();
-  const seenKeys: string[] = [];
+  const seenKeys = new Set<string>();
+  const seenSentences = new Set<string>();
+  const seenValuePhrases = new Set<string>();
   const seenProviders = new Set<string>();
   const scoreFloor = Math.max(6, (candidates[0]?.score ?? 0) * 0.3);
   for (const candidate of candidates) {
     const key = normaliseClaimKey(candidate.text);
-    if (candidate.score < scoreFloor || seenText.has(key)) continue;
-    // Short claims that are contained inside an already-picked claim are
-    // duplicates of it (a heading repeated with and without its section
-    // prefix, for example), not new evidence.
-    if (key.length < 60 && seenKeys.some((existing) => existing.includes(key) || key.includes(existing))) continue;
+    if (candidate.score < scoreFloor || seenKeys.has(key)) continue;
+    // Value windows drawn from different chunks repeat the same fact phrase
+    // ("customer impact lasted 41 minutes…"). One phrase, one claim, so the
+    // remaining slots stay open for the other facets of the question.
+    if (candidate.valuePhrase && seenValuePhrases.has(candidate.valuePhrase)) continue;
+    // A candidate that repeats a long sentence already carried by a picked
+    // claim is a duplicate of it, even when its leading context differs.
+    if (claimSentences(candidate.text).some((sentence) => seenSentences.has(sentence))) continue;
+    // Short claims contained inside an already-picked claim are duplicates of
+    // it (a heading repeated with and without its section prefix).
+    if (key.length < 60 && [...seenKeys].some((existing) => existing.includes(key) || key.includes(existing))) continue;
     if (seenProviders.has(candidate.item.provider) && picked.length < Math.min(3, new Set(ranked.map((item) => item.provider)).size)) continue;
     picked.push(candidate);
-    seenText.add(key);
-    seenKeys.push(key);
+    seenKeys.add(key);
+    if (candidate.valuePhrase) seenValuePhrases.add(candidate.valuePhrase);
+    claimSentences(candidate.text).forEach((sentence) => seenSentences.add(sentence));
     seenProviders.add(candidate.item.provider);
     if (picked.length === 4) break;
   }

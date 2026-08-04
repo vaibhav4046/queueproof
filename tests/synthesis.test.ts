@@ -272,6 +272,42 @@ describe("evidence-constrained synthesis", () => {
     expect(result.answer).toMatch(/customer impact/i);
   });
 
+  it("keeps the event summary when impact-window sentences repeat across chunks", () => {
+    const result = synthesiseGroundedAnswer(
+      "What happened in INC-2031 and how long did customer impact last?",
+      [
+        {
+          id: "handbook-inc-a",
+          provider: "document",
+          title: "helios-operations-handbook.pdf",
+          excerpt: "## Incident report INC-2031. Summary INC-2031 was a Billing Migration double charge event on 8 April 2031. Customer impact lasted 41 minutes, from the first duplicate write until the run was halted.",
+        },
+        {
+          id: "handbook-inc-b",
+          provider: "document",
+          title: "helios-operations-handbook.pdf",
+          excerpt: "Impact is the customer visible window, not the time the incident channel stayed open. The summary covers incidents with customer visible impact. Confirms the impact has stopped.",
+        },
+        {
+          id: "handbook-inc-c",
+          provider: "document",
+          title: "helios-operations-handbook.pdf",
+          excerpt: "Impact window is measured from the first duplicate write. Do not offer a credit before the impact window is measured. Estimated credits that later shrink cost more trust.",
+        },
+      ],
+    );
+
+    // The impact-window sentences repeat across chunks; they must collapse into
+    // one claim so the event summary keeps a slot in the four-claim answer, and
+    // definitional "customer visible window" prose must not crowd it out.
+    expect(result.answer).toMatch(/Billing Migration/i);
+    expect(result.answer).toMatch(/double charge/i);
+    expect(result.answer).toMatch(/8 April 2031/i);
+    expect(result.answer).toMatch(/41 minutes/i);
+    expect(result.answer).not.toMatch(/customer visible window, not the time/i);
+    expect(result.answer).not.toMatch(/summary covers incidents/i);
+  });
+
   it("extracts the escalation desk a named employee runs", () => {
     const result = synthesiseGroundedAnswer(
       "What is Priya Ramanathan's role at Helios Robotics and which desk does she run?",
