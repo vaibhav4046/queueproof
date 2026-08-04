@@ -27,7 +27,8 @@
  */
 import { SiGithub, SiGmail, SiLinear, SiSlack } from "react-icons/si";
 import { FileText, Pause, Play, ShieldCheck } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { usePrefersReducedMotion } from "./use-prefers-reduced-motion";
 
 export type OrbitStage =
   | "idle"
@@ -115,11 +116,7 @@ export default function EvidenceOrbit({
   const [hidden, setHidden] = useState(false);
   const [parallax, setParallax] = useState({ rx: 0, ry: 0 });
 
-  const reducedMotion = useMemo(
-    () => typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-    [],
-  );
+  const reducedMotion = usePrefersReducedMotion();
 
   const activeProviders = providerCoverage.length ? providerCoverage : [];
   const retrievalActive = stage === "retrieving" || stage === "linking" ||

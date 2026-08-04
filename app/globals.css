@@ -450,7 +450,10 @@ input, select { width: 100%; min-height: 42px; border: 1px solid var(--line); pa
 .artifact-ring { position: absolute; inset: 12%; border: 1px solid rgba(207,255,66,.16); border-radius: 50%; }.artifact-ring::after { content: ""; position: absolute; inset: 17%; border: 1px dashed rgba(240,242,232,.1); border-radius: 50%; }.ring-two { inset: 28%; border-color: rgba(207,255,66,.26); transform: rotate(34deg); }
 .artifact-core { width: 106px; height: 106px; display: grid; place-content: center; justify-items: center; gap: 4px; border: 1px solid rgba(207,255,66,.65); color: var(--acid); background: rgba(8,12,8,.9); transform: rotate(45deg); box-shadow: 0 0 0 10px rgba(207,255,66,.02), 0 0 55px rgba(207,255,66,.12); }.artifact-core > * { transform: rotate(-45deg); }.artifact-core strong { margin-top: 3px; font: 700 10px var(--mono); letter-spacing: .14em; }.artifact-core small { color: #7f877c; font: 620 7px var(--mono); letter-spacing: .12em; }
 .artifact-node { width: 57px; height: 57px; position: absolute; display: grid; grid-template-columns: auto auto; place-content: center; gap: 4px; border: 1px solid var(--line-strong); border-radius: 50%; color: #aeb5aa; background: rgba(9,13,9,.94); font: 650 8px var(--mono); box-shadow: 0 12px 35px #0009; }.artifact-node svg { color: var(--acid); }
-.node-slack { top: 5%; left: 43%; }.node-linear { top: 43%; right: 2%; }.node-github { bottom: 4%; left: 43%; }.node-doc { top: 43%; left: 2%; }
+.proof-artifact .node-slack { top: 5%; left: 43%; }
+.proof-artifact .node-linear { top: 43%; right: 2%; }
+.proof-artifact .node-github { bottom: 4%; left: 43%; }
+.proof-artifact .node-doc { top: 43%; left: 2%; }
 .proof-artifact.searching .artifact-ring { animation: proof-orbit 4s linear infinite; }.proof-artifact.searching .ring-two { animation-direction: reverse; animation-duration: 2.4s; }.proof-artifact.searching .artifact-node { animation: source-lock 1.3s ease-in-out infinite alternate; }.proof-artifact.searching .node-linear { animation-delay: .18s; }.proof-artifact.searching .node-github { animation-delay: .36s; }.proof-artifact.searching .node-doc { animation-delay: .54s; }
 
 .retrieval-stage { min-height: 92px; display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: 22px; margin-top: 22px; border: 1px solid rgba(207,255,66,.16); border-radius: 14px; padding: 16px 22px; background: rgba(207,255,66,.025); }.stage-track { height: 1px; position: relative; background: rgba(207,255,66,.18); }.stage-track i { width: 9px; height: 9px; position: absolute; top: -4px; border: 1px solid var(--acid); border-radius: 50%; background: var(--ink); animation: stage-ping 1.8s ease-in-out infinite; }.stage-track i:nth-child(1){left:0}.stage-track i:nth-child(2){left:33%;animation-delay:.25s}.stage-track i:nth-child(3){left:66%;animation-delay:.5s}.stage-track i:nth-child(4){right:0;animation-delay:.75s}.retrieval-stage > div:last-child { display: flex; flex-direction: column; gap: 7px; }.retrieval-stage strong { font: 560 12px var(--sans); }.retrieval-stage span { color: #7d857a; font-size: 10px; line-height: 1.55; }
@@ -856,10 +859,10 @@ input, select { width: 100%; min-height: 42px; border: 1px solid var(--line); pa
 }
 
 .artifact-node small { color: #a8afa5; font: 650 7px var(--mono); letter-spacing: .09em; }
-.node-slack { top: 2%; left: 41%; }
-.node-linear { top: 41%; right: -1%; }
-.node-github { bottom: 2%; left: 41%; }
-.node-gmail { top: 41%; left: -1%; }
+.proof-artifact .node-slack { top: 2%; left: 41%; }
+.proof-artifact .node-linear { top: 41%; right: -1%; }
+.proof-artifact .node-github { bottom: 2%; left: 41%; }
+.proof-artifact .node-gmail { top: 41%; left: -1%; }
 
 .proof-orbit-label {
   position: absolute;

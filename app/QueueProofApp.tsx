@@ -25,6 +25,39 @@ import { useEvidenceWorldCapability } from "./components/evidence-world-capabili
 // by every visitor to the Proof screen regardless of whether they can use it.
 const EvidenceWorld = dynamic(() => import("./components/EvidenceWorld"), { ssr: false });
 
+/**
+ * Mount the optional WebGL chunk after the SVG/DOM proof scene has painted.
+ * The parent only renders this wrapper while the capability gate is true, so
+ * losing capability unmounts it and resets `ready` without a synchronous
+ * state update inside an effect.
+ */
+function DeferredEvidenceWorld(props: OrbitProps) {
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const markReady = () => {
+      if (!cancelled) setReady(true);
+    };
+
+    if (typeof window.requestIdleCallback === "function") {
+      const handle = window.requestIdleCallback(markReady, { timeout: 2000 });
+      return () => {
+        cancelled = true;
+        window.cancelIdleCallback?.(handle);
+      };
+    }
+
+    const timeoutId = window.setTimeout(markReady, 200);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, []);
+
+  return ready ? <EvidenceWorld {...props} /> : null;
+}
+
 
 type CredentialField = {
   name: string; required?: boolean; title?: string; description?: string;
@@ -834,10 +867,12 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
   const stageRef = useRef<HTMLDivElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
   const verifiedCount = verified.length;
-  // Gates whether the optional Three.js layer even mounts (and therefore
-  // whether its dynamic import fires) — see evidence-world-capability.ts.
+  // Gates WHETHER the optional Three.js layer can ever mount — see
+  // evidence-world-capability.ts. Reactive: flips false (and unmounts
+  // EvidenceWorld, running its dispose-on-unmount cleanup) if the viewport
+  // is resized below 1024px or prefers-reduced-motion turns on mid-session.
   const canRenderEvidenceWorld = useEvidenceWorldCapability();
-
+  // DeferredEvidenceWorld controls when the chunk mounts after this gate passes.
   // Evidence Orbit stage machine — every transition is driven by a real event:
   // query accepted → routing; HydraDB calls in flight → retrieving; entity
   // linking → linking; contradiction detected → contradiction; validation done
@@ -972,8 +1007,9 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
         {/* Optional WebGL layer, strictly behind and in sync with the SVG
             scene below — same props, same stage, no separate data source.
             Only mounted (and only then does its dynamic import fire) once
-            canRenderEvidenceWorld says the device qualifies. */}
-        {canRenderEvidenceWorld && <EvidenceWorld {...orbitProps} />}
+            canRenderEvidenceWorld says the device qualifies. The wrapper
+            then defers the import until idle (or its bounded fallback). */}
+        {canRenderEvidenceWorld && <DeferredEvidenceWorld {...orbitProps} />}
         <EvidenceOrbit {...orbitProps} />
       </div>
 

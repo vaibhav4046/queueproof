@@ -171,6 +171,7 @@ export default function EvidenceWorld({ stage }: EvidenceWorldProps) {
   const [hidden, setHidden] = useState(false);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
+  const resizeCleanupRef = useRef<() => void>(() => {});
 
   // Same visibilitychange pause pattern as EvidenceOrbit.tsx: flip a hidden
   // flag, which is fed into the Canvas frameloop below so no
@@ -197,6 +198,8 @@ export default function EvidenceWorld({ stage }: EvidenceWorldProps) {
           else material?.dispose();
         });
       }
+      resizeCleanupRef.current();
+      resizeCleanupRef.current = () => {};
       rendererRef.current?.dispose();
       rendererRef.current = null;
       sceneRef.current = null;
@@ -215,30 +218,6 @@ export default function EvidenceWorld({ stage }: EvidenceWorldProps) {
   // in every browser, this observer drives sizing directly off the actual measured
   // container box and calls gl.setSize/updates camera.aspect itself, so correctness
   // does not depend on R3F's resize implementation firing at all.
-  useEffect(() => {
-    const container = containerRef.current;
-    const renderer = rendererRef.current;
-    if (!container || !renderer) return;
-    const applySize = (width: number, height: number) => {
-      if (width <= 0 || height <= 0) return;
-      renderer.setSize(width, height, false);
-      const camera = cameraRef.current;
-      if (camera) {
-        camera.aspect = width / height;
-        camera.updateProjectionMatrix();
-      }
-    };
-    const rect = container.getBoundingClientRect();
-    applySize(rect.width, rect.height);
-    const observer = new ResizeObserver(([entry]) => {
-      if (!entry) return;
-      const box = entry.contentRect;
-      applySize(box.width, box.height);
-    });
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, [capable]);
-
   if (!capable) return null;
 
   function handleCreated(state: RootState) {
@@ -248,12 +227,29 @@ export default function EvidenceWorld({ stage }: EvidenceWorldProps) {
     state.gl.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     const container = containerRef.current;
     if (container) {
-      const rect = container.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) {
-        state.gl.setSize(rect.width, rect.height, false);
+      const applySize = (width: number, height: number) => {
+        if (width <= 0 || height <= 0) return;
+        state.gl.setSize(width, height, false);
         const camera = state.camera as THREE.PerspectiveCamera;
-        camera.aspect = rect.width / rect.height;
+        camera.aspect = width / height;
         camera.updateProjectionMatrix();
+      };
+      const syncSize = () => {
+        const rect = container.getBoundingClientRect();
+        applySize(rect.width, rect.height);
+      };
+
+      syncSize();
+      resizeCleanupRef.current();
+      if (typeof ResizeObserver !== "undefined") {
+        const observer = new ResizeObserver(([entry]) => {
+          if (entry) applySize(entry.contentRect.width, entry.contentRect.height);
+        });
+        observer.observe(container);
+        resizeCleanupRef.current = () => observer.disconnect();
+      } else {
+        window.addEventListener("resize", syncSize);
+        resizeCleanupRef.current = () => window.removeEventListener("resize", syncSize);
       }
     }
   }

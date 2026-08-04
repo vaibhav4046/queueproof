@@ -1,6 +1,6 @@
 # QueueProof benchmark report
 
-Generated: 2026-08-03T23:25:25.300Z
+Generated: 2026-08-04T03:38:05.217Z
 Runner: `node scripts/run-evals.mjs`
 Fixtures: `evals/fixtures/cases.json` (39 ground truth cases, fictional company "Helios Robotics")
 
@@ -121,12 +121,24 @@ did not measure.
 - `evals/results/results.json` — full machine readable output, fixture and live kept separate
 - `evals/results/results.csv` — one row per case
 
-## Historical live connector artifact (legacy grader; not a release score)
+## Live connector run (strict grader; measured, not fixture)
 
-Target https://queueproof.vercel.app. Generated 2026-08-03T07:40:03.004Z.
-Artifact grader: `legacy-required-signal-v1`; current grader: `grounded-grader-v2`.
+Target https://queueproof.vercel.app. Connectors: github, linear, slack. Generated 2026-08-04T01:58:50.373Z. Grader: `grounded-grader-v2`.
 
-This artifact proves that a live connector run occurred, but its cases and quality figures
-are intentionally not presented as current measurements because the legacy grader is not
-comparable with the strict grounded-answer contract. Run `npm run benchmark:live` with
-explicit production authorization to generate a current strict artifact.
+| Case | Mode | Latency | Sources | Providers in evidence |
+| --- | --- | --- | --- | --- |
+| three-provider multi-hop | `thinking` | 5171 ms | 4 | github, linear, slack |
+| deadline conflict | `thinking` | 6248 ms | 3 | linear, slack |
+| untracked commitment | `fast` | 558 ms | 4 | github, slack |
+| stale tracked work | `fast` | 599 ms | 1 | github |
+| actor reconstruction | `thinking` | 4522 ms | 7 | linear, slack |
+| exact identifier plus context | `thinking` | 5188 ms | 1 | slack |
+
+Latency across 6 live questions: p50 4522 ms, p95 6248 ms, min 558 ms, max 6248 ms.
+
+Questions whose evidence spanned all three connected providers: 1/6. Routed thinking/fast: 4/2.
+
+Required-fact recall: 78.9%. Citation completeness: 100.0%. Unsupported-claim rate: 0.0%.
+
+These are real end-to-end measurements against connected providers.
+The sample is small and is not presented as a stable distribution.

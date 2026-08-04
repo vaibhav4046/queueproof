@@ -8,7 +8,7 @@
  * "fixed coordinates, no layout library" approach as EvidenceOrbit's
  * PROVIDER_NODES, just laid out left-to-right instead of along a fixed arc.
  *
- * Reused from EvidenceOrbit: prefers-reduced-motion via useMemo + matchMedia,
+ * Reused from EvidenceOrbit: a hydration-safe reduced-motion subscription,
  * a visibilitychange-driven pause, an SVG with role="img"/aria-label carrying
  * the edges, real focusable DOM buttons for every node, and a
  * role="status" aria-live="polite" summary row. There is no continuous
@@ -20,6 +20,7 @@
 import { AlertTriangle, ArrowUpRight, Link2, MessageSquareQuote, Target } from "lucide-react";
 import { useMemo, useState, useEffect, type CSSProperties } from "react";
 import type { EvidenceGraph as EvidenceGraphData, GraphNode, GraphNodeType } from "../../packages/graph/src";
+import { usePrefersReducedMotion } from "./use-prefers-reduced-motion";
 
 export type EvidenceGraphProps = { graph: EvidenceGraphData };
 
@@ -68,11 +69,7 @@ function routeBetween(from: { x: number; y: number }, to: { x: number; y: number
 
 export default function EvidenceGraphView({ graph }: EvidenceGraphProps) {
   const [hidden, setHidden] = useState(false);
-  const reducedMotion = useMemo(
-    () => typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-    [],
-  );
+  const reducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
     const onVisibility = () => setHidden(document.hidden);
