@@ -53,15 +53,18 @@ for (const forbidden of ["scheduleOrbit", "setOrbitStage", "orbitTimers"]) {
 assert.match(styles, /\.app-header\s*\{\s*position:\s*sticky/);
 assert.match(styles, /\.qp-app\s*>\s*\.toast\s*\{\s*position:\s*fixed/);
 assert.match(styles, /max-height:\s*1100px/);
-assert.match(styles, /\.mobile-nav-utility\s*\{\s*display:\s*flex\s*!important/);
+assert.match(appSource, /className="mobile-dock"\s+aria-label="Mobile navigation"/);
+assert.match(styles, /\.mobile-dock\s*\{\s*display:\s*none/);
+assert.match(styles, /@media \(max-width:\s*980px\)[\s\S]*?\.mobile-dock\s*\{[\s\S]*?position:\s*fixed/);
 assert.ok(
   styles.includes(".evidence-orbit-stack { display: block; aspect-ratio: auto; max-height: none; }"),
   "Persisted receipt replay controls must remain in flow below the desktop Orbit and visible on mobile.",
 );
 for (const mobileOrder of [
-  ".premium-console { order: 3;",
-  ".evidence-orbit-stack { order: 4;",
-  ".retrieval-stage, .premium-results { order: 5;",
+  ".proof-details { order: 3;",
+  ".premium-console { order: 4;",
+  ".evidence-orbit-stack { order: 5;",
+  ".premium-results { order: 6;",
   ".landing-proof-sections { order: 8;",
 ]) {
   assert.ok(styles.includes(mobileOrder), `Missing deterministic mobile proof order: ${mobileOrder}`);

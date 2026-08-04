@@ -70,3 +70,15 @@ Typography uses Iowan Old Style / Palatino for the editorial thesis and evidence
 - Navigation must expose all seven working destinations without page overflow.
 - No important meaning can depend on color, hover, animation, WebGL, or Three.js.
 - The SVG/DOM evidence surface remains the source of truth when WebGL is unavailable.
+
+## Institutional atelier release (6.0)
+
+- Product frame: cap working content at `1720px`; preserve a readable 60-75 character copy measure inside that frame.
+- Navigation: liquid glass is reserved for the desktop masthead, mobile dock, menus, and transient controls. Use `22px` blur, restrained saturation, a static top-edge highlight, and a solid-carbon fallback.
+- Desktop navigation labels never drop below `11px`. At 980px and below, expose all seven destinations in a top-level fixed dock with short labels and targets at least `44px` high.
+- Mobile hero order is thesis, plain-language explanation, honest metrics, primary actions, then the working console. A focused primary action may scroll the console into view.
+- Metadata floor: `11px` desktop and `9px` only for short mobile dock labels. Body copy remains `16px` on mobile.
+- Native selects stay native for keyboard and assistive-technology reliability, with explicit dark option colors, a 44px minimum height, and visible focus styling.
+- Scroll reveals are progressive enhancement only: `16px` rise, opacity, view-driven, and fully visible when unsupported. No content starts hidden in the base style.
+- Hover lift is capped at `-3px`; press feedback uses `.985`. Animate only opacity and transforms in ordinary interactions.
+- Do not promise a numeric frame rate. Keep compositor-friendly UI transitions inside a 16ms frame budget where hardware permits; retain the low-power 30fps cap for the ambient WebGL field.
