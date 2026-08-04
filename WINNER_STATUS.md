@@ -96,10 +96,12 @@ Queue regenerated with both providers present:
 Item 3 is an untracked commitment surfaced from real evidence, which is the case the
 product exists to catch.
 
-Still not connected: Gmail. Its App Password flow re-prompts for the account password,
-so it requires the owner. Nothing about it is claimed here.
+**Update, 2026-08-04**: Gmail has since reached `data_verified` in production, with 4 proven
+records, confirmed by direct inspection of https://queueproof.vercel.app. All four connectors
+(GitHub, Linear, Slack, Gmail) are now verified. The section below is left as written on
+2026-08-02 for the record of how that state was reached — it was correct when written.
 
-## Gmail: configured, authenticated, not verified
+## Gmail: configured, authenticated, not verified (as of 2026-08-02 — see update above)
 
 Status as of 2026-08-02. Recorded because the distinction matters.
 
