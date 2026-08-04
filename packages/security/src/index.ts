@@ -23,7 +23,7 @@ export function sanitiseSpreadsheetCell(value: string): string {
 }
 
 export function isPotentialPromptInjection(text: string): boolean {
-  return /(?:ignore|override|forget)\s+(?:all\s+)?(?:previous|system|developer)\s+instructions|reveal\s+(?:secrets|credentials|system prompt)|execute\s+(?:shell|command)/i.test(
+  return /(?:ignore|override|forget)\s+(?:all\s+)?(?:previous|prior|system|developer)\s+instructions|reveal\s+(?:secrets?|credentials?|system prompts?|environment variables?)|execute\s+(?:shell|command)/i.test(
     text,
   );
 }
@@ -34,9 +34,9 @@ export function isPotentialPromptInjection(text: string): boolean {
  * usable while enforcing a boundary before any provider request is issued.
  */
 export function hostileQueryReason(text: string): string | null {
-  const credential = /\b(?:secret|credential|password|api[ _-]?key|access[ _-]?token|bearer token)\b/i;
+  const credential = /\b(?:secrets?|credentials?|passwords?|api[ _-]?keys?|access[ _-]?tokens?|auth(?:entication)?[ _-]?(?:codes?|tokens?)|bearer tokens?|system prompts?|environment variables?)\b/i;
   const disclosure = /\b(?:reveal|show|print|dump|export|send|upload|transmit|exfiltrat(?:e|ion))\b/i;
-  const instructionOverride = /\b(?:ignore|override|forget)\s+(?:all\s+)?(?:previous|system|developer)\s+instructions\b/i;
+  const instructionOverride = /\b(?:ignore|override|forget)\s+(?:all\s+)?(?:previous|prior|system|developer)\s+instructions\b/i;
   if (credential.test(text) && disclosure.test(text)) return "credential disclosure or transmission";
   if (instructionOverride.test(text) && (credential.test(text) || disclosure.test(text))) return "instruction override combined with sensitive data access";
   return null;
