@@ -124,7 +124,10 @@ export async function POST(request: Request) {
           type: "knowledge",
           query_by: queryBy,
           mode,
-          max_results: 12,
+          // Document-scoped retrieval asks deeper: a 346-page handbook needs a
+          // wider net so exact-fact chunks in the middle/end are not missed by
+          // relevance ranking. Connector scopes stay at 12 to bound evidence.
+          max_results: scope.sourceIds ? 24 : 12,
           ...(scope.sourceIds ? { ids: scope.sourceIds } : {}),
           query_apps: !scope.sourceIds,
           graph_context: plan.graphContext,

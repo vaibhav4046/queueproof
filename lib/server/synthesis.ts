@@ -108,8 +108,11 @@ export function rankEvidenceForQuestion<T extends SynthesisEvidence>(question: s
     }))
     .sort((a, b) => b.score - a.score || a.index - b.index);
   const relevant = scored.filter((entry) => entry.score > 0);
+  // 16 (not 12) so deeper document retrieval can still reach an exact-fact
+  // chunk that relevance ranking placed just outside the old cut-off. The pick
+  // loop still caps the final answer at a handful of claims.
   return (relevant.length ? relevant : scored.slice(0, 3))
-    .slice(0, 12)
+    .slice(0, 16)
     .map((entry) => entry.item);
 }
 
