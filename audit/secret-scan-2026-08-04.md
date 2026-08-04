@@ -3,14 +3,14 @@
 ## Scope
 
 - Branch/ref at scan time: `codex/final-evidence`.
-- Exact HEAD at scan time: `c7cf16b3c92f66d7b2f17a90e01372b77d62235b`.
-- Tracked worktree: all 291 Git-tracked files, including 10 tracked files modified on
+- Exact HEAD at scan time: `b36b400bc547baf708569ae6f97286c30edb6449`.
+- Tracked worktree: all 291 Git-tracked files, including 2 tracked files modified on
   top of that HEAD at scan time.
-- Exact candidate-content fingerprint: `25d2869b8313c335558a8fec4a02f9b44bca32c04075bbd2889700a2546c6c66`.
+- Exact candidate-content fingerprint: `4e691602357f64baadfd58e550b6c8a6ad3567a579c35988c905fb4f1eb6bef4`.
   This is SHA-256 over sorted `path + NUL + content-SHA-256` records for every tracked
   file except this self-referential evidence report.
-- Complete reachable Git history: `git rev-list --objects --all`, covering 126
-  reachable commits and 836 unique reachable blobs across all local refs.
+- Complete reachable Git history: `git rev-list --objects --all`, covering 127
+  reachable commits and 846 unique reachable blobs across all local refs.
 - Untracked files, ignored local environment files, dependencies, and generated output
   were outside the requested tracked-worktree/history scope.
 

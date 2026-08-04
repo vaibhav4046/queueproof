@@ -256,9 +256,17 @@ function useDialogBehavior<T extends HTMLElement>(
     // their invoking row is still re-rendering; the second pass keeps that update from
     // dropping keyboard focus back onto <body>.
     initial.focus({ preventScroll: true });
-    const frame = window.requestAnimationFrame(() => {
-      if (!dialog.contains(document.activeElement)) initial.focus({ preventScroll: true });
-    });
+    const recoverFocus = () => {
+      if (openDialogIds.at(-1) === dialogId && !dialog.contains(document.activeElement)) {
+        initial.focus({ preventScroll: true });
+      }
+    };
+    const frame = window.requestAnimationFrame(recoverFocus);
+    const recoveryTimers = [250, 750].map((delay) => window.setTimeout(recoverFocus, delay));
+    const onFocusIn = (event: FocusEvent) => {
+      if (openDialogIds.at(-1) !== dialogId) return;
+      if (event.target instanceof Node && !dialog.contains(event.target)) recoverFocus();
+    };
     const onKeyDown = (event: KeyboardEvent) => {
       if (openDialogIds.at(-1) !== dialogId) return;
       if (event.key === "Escape") {
@@ -279,10 +287,13 @@ function useDialogBehavior<T extends HTMLElement>(
       }
     };
     document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("focusin", onFocusIn);
 
     return () => {
       window.cancelAnimationFrame(frame);
+      recoveryTimers.forEach((timer) => window.clearTimeout(timer));
       document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("focusin", onFocusIn);
       const stackIndex = openDialogIds.lastIndexOf(dialogId);
       if (stackIndex >= 0) openDialogIds.splice(stackIndex, 1);
       for (const [element, previous] of inerted) element.inert = previous;
