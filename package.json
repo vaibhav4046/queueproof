@@ -1,7 +1,15 @@
 {
   "name": "queueproof",
   "version": "0.1.0",
+  "description": "Evidence-backed cross-source retrieval and priority workspace powered by HydraDB.",
   "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "license": "MIT",
+  "homepage": "https://queueproof.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vaibhav4046/queueproof.git"
+  },
   "bin": {
     "queueproof": "./cli/queueproof.mjs"
   },

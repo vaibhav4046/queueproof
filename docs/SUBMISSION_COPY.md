@@ -20,10 +20,10 @@ retrieval concurrently. Strong connector/resource lineage prevents evidence from
 credited merely because its provider name matches.
 
 The current deterministic benchmark passes 39/39 labelled router cases and 331
-assertions. The full release suite passes 330 tests across 35 files, including 13 security
-and 8 MCP tests, plus typecheck, lint, production build, E2E, and deployment checks. The
-interface is verified across the release matrix with all seven destinations available
-on mobile.
+assertions. The current local candidate passes 340 tests across 37 files, including the
+security and MCP suites, plus typecheck and lint. Replace those counts with the final CI
+receipt if the candidate changes; fresh build, E2E, deployment, and responsive checks remain
+release gates.
 
 The public product is intentionally a shared evidence sandbox. It allows grounded
 questions, queue inspection, and shared proposals, but disables credential changes,
@@ -33,7 +33,7 @@ closed.
 
 **Live product:** <https://queueproof.vercel.app>
 
-**Direct judge demo:** <https://queueproof.vercel.app/demo>
+**Direct judge route:** <https://queueproof.vercel.app/>
 
 **Method and boundaries:** <https://queueproof.vercel.app/method>
 
@@ -41,7 +41,7 @@ closed.
 
 **Repository:** <https://github.com/vaibhav4046/queueproof>
 
-**Replay the deterministic benchmark:** `npm run benchmark:router`
+**Replay the deterministic benchmark:** `pnpm benchmark:router`
 
 ## Evidence to quote
 
@@ -53,7 +53,7 @@ closed.
   passes, 100% citation precision/completeness, zero unsupported claims, p50 16.294 s,
   and p95 29.877 s.
 - 39/39 deterministic router cases; 331 assertions.
-- 330 tests across 35 files; 13 security tests; 8 MCP tests.
+- Current local candidate: 340 tests across 37 files; use the final CI receipt at submission.
 - Zero secret-pattern matching files across the complete pre-release history and final
   release worktree.
 

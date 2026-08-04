@@ -1,4 +1,8 @@
-# Deployment verification
+# Deployment verification (historical release)
+
+> **Superseded verification record.** The SHA, deployment URL, screenshots, and measurements
+> below belong to the earlier `4510d3f` release. Re-run every gate against the final commit and
+> canonical deployment before submission; this file is retained only for traceability.
 
 Canonical target: <https://queueproof.vercel.app>
 

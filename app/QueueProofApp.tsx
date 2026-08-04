@@ -3,31 +3,19 @@
 import {
   Activity, ArrowRight, Bot, Braces, Check, ChevronRight, CircleAlert, CircleCheck, Clock3,
   Clipboard, Command, Database, Download, ExternalLink, Eye, FileCheck2, FileText, KeyRound,
-  Link2, LoaderCircle, LockKeyhole, Network, Play, Plus,
+  Link2, LoaderCircle, LockKeyhole, MoreHorizontal, Network, Play, Plus,
   Pause, Radio, RefreshCw, RotateCcw, Search, ShieldCheck, Sparkles, StepForward, Terminal,
   Unplug, UploadCloud, X as LucideX, Zap,
 } from "lucide-react";
 import Image from "next/image";
-import dynamic from "next/dynamic";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { SiGithub, SiGmail, SiLinear, SiSlack } from "react-icons/si";
 import { ComponentProps, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { WorkspaceView } from "../lib/server/workspace-state";
 import type { EvidenceGraph as EvidenceGraphData } from "../packages/graph/src";
 import type { LiveProofState } from "../packages/contracts/src";
-import EvidenceOrbit, { type OrbitProps } from "./components/EvidenceOrbit";
 import EvidenceGraphView from "./components/EvidenceGraph";
-
-// One dependency-free WebGL field supplies the cinematic atmosphere. The
-// evidence model itself stays SVG/DOM so proof remains readable without WebGL.
-const ShaderBackground = dynamic(
-  () => import("./components/ui/red-plasma").then((module) => module.ShaderBackground),
-  { ssr: false },
-);
-
-function TypedProofPrompt({ text }: { text: string }) {
-  return <span className="typed-proof"><span>{text}</span></span>;
-}
-
 
 type CredentialField = {
   name: string; required?: boolean; title?: string; description?: string;
@@ -86,6 +74,7 @@ type QueueItem = {
 };
 type QueueData = { generatedAt: string | null; items: QueueItem[] };
 type AskData = {
+  question?: string;
   workflow: LiveProofState;
   answer: string; evidence: Array<Evidence & { connectorId: string }>;
   claims: Array<{ text: string; citation_ids: string[]; providers: string[] }>;
@@ -134,17 +123,34 @@ export type ActiveTab = "command" | "ask" | "sources" | "lab" | "replay" | "appr
 type ReadyView = Extract<WorkspaceView, { kind: "ready" }>;
 
 const nav = [
-  { id: "ask", label: "Proof", mobileLabel: "Proof", icon: Sparkles },
-  { id: "command", label: "Queue", mobileLabel: "Queue", icon: Command },
-  { id: "sources", label: "Evidence", mobileLabel: "Sources", icon: Link2 },
+  { id: "ask", label: "Ask", mobileLabel: "Ask", icon: Sparkles },
+  { id: "command", label: "Priorities", mobileLabel: "Priorities", icon: Command },
+  { id: "sources", label: "Sources", mobileLabel: "Sources", icon: Link2 },
   { id: "lab", label: "Benchmarks", mobileLabel: "Tests", icon: Activity },
-  { id: "replay", label: "Replay", mobileLabel: "Replay", icon: RotateCcw },
+  { id: "replay", label: "History", mobileLabel: "History", icon: RotateCcw },
 ] as const;
 
 const utilityNav = [
   { id: "approvals", label: "Approvals", mobileLabel: "Review", icon: ShieldCheck },
   { id: "agent", label: "Developer", mobileLabel: "Dev", icon: Bot },
 ] as const;
+
+const routeForTab: Record<ActiveTab, string> = {
+  ask: "/",
+  command: "/queue",
+  sources: "/evidence",
+  lab: "/benchmarks",
+  replay: "/replay",
+  approvals: "/approvals",
+  agent: "/developer",
+};
+
+const tabForRoute = Object.fromEntries(
+  Object.entries(routeForTab).map(([tab, route]) => [route, tab]),
+) as Record<string, ActiveTab>;
+
+const allNav = [...nav, ...utilityNav] as const;
+const mobileNav = nav.filter(({ id }) => ["ask", "command", "sources", "lab"].includes(id));
 
 const stateCopy: Record<string, string> = {
   connector_created: "Choose scope", resources_discovered: "Choose scope",
@@ -280,12 +286,16 @@ export default function QueueProofApp({
   initialView,
   initialError,
   initialTab = "ask",
+  publicOrigin,
 }: {
   initialView: WorkspaceView | null;
   initialError: string | null;
   initialTab?: ActiveTab;
+  publicOrigin: string;
 }) {
-  const [tab, setTab] = useState<ActiveTab>(initialTab);
+  const router = useRouter();
+  const pathname = usePathname();
+  const tab = tabForRoute[pathname] ?? initialTab;
   const [commandOpen, setCommandOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   // Seeded from the server render, so the first paint is already the correct screen.
@@ -305,25 +315,17 @@ export default function QueueProofApp({
   const workspaceId = view?.kind === "ready" ? view.workspace.id : null;
 
   const navigateTab = useCallback((next: ActiveTab) => {
-    setTab(next);
-    const hash = `#${next}`;
-    if (window.location.hash !== hash) window.history.pushState({ queueproofTab: next }, "", hash);
+    const route = routeForTab[next];
+    if (window.location.pathname !== route) router.push(route);
     window.scrollTo({ top: 0, behavior: "auto" });
-  }, []);
+  }, [router]);
 
   useEffect(() => {
-    const restore = () => {
-      const candidate = window.location.hash.slice(1) as ActiveTab;
-      if ([...nav, ...utilityNav].some((item) => item.id === candidate)) setTab(candidate);
-    };
-    restore();
-    window.addEventListener("popstate", restore);
-    window.addEventListener("hashchange", restore);
-    return () => {
-      window.removeEventListener("popstate", restore);
-      window.removeEventListener("hashchange", restore);
-    };
-  }, []);
+    const legacyTab = window.location.hash.slice(1) as ActiveTab;
+    if (allNav.some((item) => item.id === legacyTab)) {
+      router.replace(routeForTab[legacyTab]);
+    }
+  }, [router]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -418,54 +420,33 @@ export default function QueueProofApp({
 
   return (
     <div className="qp-app" data-active-tab={tab}>
-      <div className="ambient-field" aria-hidden="true">
-        <ShaderBackground className="evidence-field-canvas" />
-        <i className="ambient-orb orb-acid" />
-        <i className="ambient-orb orb-mint" />
-        <i className="ambient-orb orb-violet" />
-        <i className="ambient-orb orb-ink" />
-        <span className="ambient-lattice"><i /><i /><i /></span>
-        <span className="ambient-scan" />
-      </div>
-      <div className="grain" />
       <header className="app-header">
-        <button className="brand" onClick={() => navigateTab("ask")} aria-label="QueueProof home">
+        <Link className="brand" href="/" aria-label="QueueProof home">
           <span className="brand-mark"><ShieldCheck size={17} /></span>
-          <span className="brand-lockup"><span><strong>QUEUE</strong><em>PROOF</em></span><small>EVIDENCE OS</small></span>
-        </button>
+          <span className="brand-lockup"><span><strong>QUEUE</strong><em>PROOF</em></span><small>WORKSPACE</small></span>
+        </Link>
         <nav aria-label="Primary navigation">
-          {nav.map(({ id, label, icon: Icon }) => (
-            <button key={id} className={tab === id ? "active" : ""} aria-current={tab === id ? "page" : undefined} onClick={() => navigateTab(id)}>
+          {allNav.map(({ id, label, icon: Icon }) => (
+            <Link key={id} href={routeForTab[id]} className={tab === id ? "active" : ""} aria-current={tab === id ? "page" : undefined}>
               <Icon size={14} /><span>{label}</span>
-            </button>
-          ))}
-          {utilityNav.map(({ id, label, icon: Icon }) => (
-            <button key={`mobile-${id}`} className={`mobile-nav-utility${tab === id ? " active" : ""}`} aria-current={tab === id ? "page" : undefined} onClick={() => navigateTab(id)}>
-              <Icon size={14} /><span>{label}</span>
-            </button>
+            </Link>
           ))}
         </nav>
         <div className="header-status">
-          <div className="utility-nav">
-            {utilityNav.map(({ id, label, icon: Icon }) => (
-              <button key={id} className={tab === id ? "active" : ""} aria-current={tab === id ? "page" : undefined} onClick={() => navigateTab(id)} title={label} aria-label={label}>
-                <Icon size={15} /><span>{label}</span>
-              </button>
-            ))}
-          </div>
           <button className="command-trigger" onClick={() => setCommandOpen(true)} aria-label="Open command palette"><Search size={14} /><kbd>⌘K</kbd></button>
-          <span className="demo-badge"><span className={verified.length ? "status-orb live" : "status-orb"} />{publicSandbox ? "Public sandbox" : "Live demo"}</span>
+          <span className="demo-badge"><span className={verified.length ? "status-orb live" : "status-orb"} />{publicSandbox ? "Public sandbox" : "Live workspace"}</span>
         </div>
       </header>
       <nav className="mobile-dock" aria-label="Mobile navigation">
-        {[...nav, ...utilityNav].map(({ id, label, mobileLabel, icon: Icon }) => (
-          <button key={`dock-${id}`} className={tab === id ? "active" : ""} aria-label={label} aria-current={tab === id ? "page" : undefined} onClick={() => navigateTab(id)}>
-            <Icon size={17} aria-hidden="true" /><span aria-hidden="true">{mobileLabel}</span>
-          </button>
+        {mobileNav.map(({ id, label, mobileLabel, icon: Icon }) => (
+          <Link key={`dock-${id}`} href={routeForTab[id]} className={tab === id ? "active" : ""} aria-label={label} aria-current={tab === id ? "page" : undefined}>
+            <Icon size={17} aria-hidden="true" /><span>{mobileLabel}</span>
+          </Link>
         ))}
+        <button type="button" aria-label="Open all product pages" onClick={() => { setCommandQuery(""); setCommandOpen(true); }}><MoreHorizontal size={18} aria-hidden="true" /><span>More</span></button>
       </nav>
 
-      {publicSandbox && <div className="sandbox-disclosure" role="note"><ShieldCheck size={13} /><strong>Public sandbox</strong><span>Shared evidence and proposals · credentials and external execution disabled</span></div>}
+      {publicSandbox && <div className="sandbox-disclosure" role="note"><ShieldCheck size={13} /><strong>Public sandbox</strong><span>Shared evidence and proposals · credentials and external execution disabled</span><Link href="/owner"><LockKeyhole size={12} /> Owner sign in</Link></div>}
 
       {view.storageBackend === "ephemeral" && (
         <div className="storage-banner" role="status">
@@ -501,12 +482,12 @@ export default function QueueProofApp({
         {tab === "approvals" && <ApprovalsScreen key={proposalPacket?.packet_id ?? "approvals"}
           seedPacket={proposalPacket} onSeedUsed={() => setProposalPacket(null)}
           setError={setError} setNotice={setNotice} readOnly={publicSandbox} />}
-        {tab === "agent" && <AgentScreen workspace={view} setError={setError} setNotice={setNotice} readOnly={publicSandbox} />}
+        {tab === "agent" && <AgentScreen workspace={view} setError={setError} setNotice={setNotice} readOnly={publicSandbox} publicOrigin={publicOrigin} />}
       </main>
       <footer className="app-footer">
         <span><ShieldCheck size={14} /><strong>QueueProof</strong> / evidence for every next step</span>
         <span>Verified reads <i /> cited decisions <i /> approval-gated writes</span>
-        <button onClick={() => navigateTab("lab")}>Open audit surface <ArrowRight size={12} /></button>
+        <Link href="/benchmarks">Open audit surface <ArrowRight size={12} /></Link>
       </footer>
       {selectedPacket && <PacketDrawer packet={selectedPacket} onClose={() => setSelectedPacket(null)}
         onPropose={() => { setProposalPacket(selectedPacket); setSelectedPacket(null); navigateTab("approvals"); }} />}
@@ -848,10 +829,10 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
   verified: Connector[]; connectorsLoaded: boolean; onOpenSources: () => void; onOpenLab: () => void; setError: (value: string) => void;
 }) {
   const [question, setQuestion] = useState(FLAGSHIP_QUESTION);
+  const [submittedQuestion, setSubmittedQuestion] = useState("");
   const [mode, setMode] = useState<"auto" | "fast" | "thinking">("auto");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<AskData | null>(null);
-  const [replayStep, setReplayStep] = useState<number | null>(null);
   const [citationPreview, setCitationPreview] = useState<{ evidence: Evidence; index: number } | null>(null);
   const [judgePulse, setJudgePulse] = useState<{
     status: string;
@@ -865,12 +846,30 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
   } | null>(null);
   const runPending = useRef(false);
   const requestController = useRef<AbortController | null>(null);
+  const restoredReceipt = useRef("");
   const stageRef = useRef<HTMLDivElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
   const verifiedCount = verified.length;
   // The synchronous API deliberately exposes no pseudo-live intermediate UI.
   // Its returned workflow contains the exact persisted backend events.
   useEffect(() => () => requestController.current?.abort(), []);
+
+  useEffect(() => {
+    const runId = new URLSearchParams(window.location.search).get("run");
+    if (!runId || restoredReceipt.current === runId || result || busy) return;
+    restoredReceipt.current = runId;
+    let active = true;
+    void api<{ result: AskData }>(`/api/ask/${encodeURIComponent(runId)}`)
+      .then(({ result: storedResult }) => {
+        if (!active) return;
+        setResult(storedResult);
+        setSubmittedQuestion(storedResult.question ?? "Saved investigation");
+      })
+      .catch((reason: Error) => {
+        if (active) setError(reason.message);
+      });
+    return () => { active = false; };
+  }, [busy, result, setError]);
 
   useEffect(() => {
     const target = busy ? stageRef.current : result ? resultRef.current : null;
@@ -912,8 +911,9 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
     runPending.current = true;
     const controller = new AbortController();
     requestController.current = controller;
+    setSubmittedQuestion(nextQuestion);
     setBusy(true); setError(""); setCitationPreview(null);
-    setResult(null); setReplayStep(null);
+    setResult(null);
     try {
       const data = await api<AskData>("/api/ask", {
         method: "POST",
@@ -921,6 +921,11 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
         signal: controller.signal,
       });
       setResult(data);
+      const receiptUrl = new URL(window.location.href);
+      receiptUrl.pathname = "/";
+      receiptUrl.hash = "";
+      receiptUrl.searchParams.set("run", data.retrieval_receipt.query_id);
+      window.history.replaceState({ queueproofRun: data.retrieval_receipt.query_id }, "", receiptUrl);
     } catch (reason) {
       setError(reason instanceof DOMException && reason.name === "AbortError"
         ? "You stopped waiting for this investigation. The server may still finish its audit record; check Replay before running it again."
@@ -951,41 +956,21 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
       return leftTime - rightTime;
     })
     .slice(0, 10);
-  const commitmentEvidence = result?.evidence.find((item) => /\b(commit|promise|deadline|due|before)\b/i.test(`${item.title} ${item.excerpt}`));
-  const observedEvidence = result?.evidence.find((item) => /\b(merged|shipped|deployed|completed|resolved|implemented|open)\b/i.test(`${item.title} ${item.excerpt}`));
-  const comparisonResult = result?.contradictions.length
-    ? "Conflict preserved"
-    : commitmentEvidence && observedEvidence ? "Compare both receipts" : "Evidence gap";
-
-  const replayEvent = replayStep === null ? null : result?.workflow.events[replayStep] ?? null;
-  const orbitState: LiveProofState | null = result
-    ? replayEvent
-      ? {
-        ...result.workflow,
-        stage: replayEvent.stage,
-        providers: replayEvent.providers,
-        receipt: {
-          ...result.workflow.receipt,
-          hydradb_call_count: replayEvent.callCount,
-          receipt_count: replayEvent.receiptCount,
-          timestamp: replayEvent.recordedAt,
-        },
-      }
-      : result.workflow
-    : null;
-
-  // A synchronous request shows no invented intermediate activity. Once the
-  // persisted response arrives, the orbit renders the final receipt or an
-  // explicitly controlled replay of its exact recorded events.
-  const orbitProps: OrbitProps = {
-    state: orbitState,
-    connectors: verified,
-    waitingForReceipt: busy,
-    replay: replayStep !== null,
-  };
 
   return (
     <section className="screen ask-screen proof-screen">
+      <header className="ask-intro">
+        <div>
+          <span className="eyebrow"><ShieldCheck size={13} /> Evidence-backed workspace</span>
+          <h1>What needs attention?</h1>
+          <p>Ask across your work. QueueProof returns one grounded answer, the receipts behind it, any disagreement, and the next safe action.</p>
+        </div>
+        <div className="source-readiness" aria-label="Source readiness">
+          <span className={verifiedCount ? "status-orb live" : connectorsLoaded ? "status-orb" : "status-orb indexing"} />
+          <strong>{connectorsLoaded ? `${verifiedCount} source${verifiedCount === 1 ? "" : "s"} verified` : "Checking sources"}</strong>
+          <button type="button" onClick={onOpenSources}>{verifiedCount ? "View sources" : "Connect sources"}<ArrowRight size={12} /></button>
+        </div>
+      </header>
       <div className="proof-hero">
         <div className="proof-copy">
           <span className="eyebrow"><Radio size={13} /> Live · HydraDB evidence control plane</span>
@@ -1015,33 +1000,6 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
           </div>
         </div>
       </div>
-      <div className="evidence-orbit-stack">
-        {/* The SVG/DOM scene is the evidence source of truth at every device
-            size and remains complete when the atmospheric shader is absent. */}
-        <EvidenceOrbit {...orbitProps} />
-        {busy && <div className="receipt-wait-note" role="status">
-          <LoaderCircle className="spin" size={14} />
-          <span><strong>Waiting for a verified backend receipt.</strong> This synchronous request does not simulate routing, provider activity, or receipt counts.</span>
-        </div>}
-        {result && <section className="receipt-replay-controls" aria-label="Verified backend receipt replay">
-          <div>
-            <span className="eyebrow"><ShieldCheck size={12} /> Verified backend receipt</span>
-            <strong>{result.workflow.events.length} persisted events · {result.workflow.receipt.hydradb_call_count} HydraDB calls</strong>
-            <small>Manual replay only. Every step below was stored by the backend during this query.</small>
-          </div>
-          {replayStep === null
-            ? <button type="button" className="secondary-button" onClick={() => setReplayStep(0)}>Replay verified receipt</button>
-            : <div className="receipt-replay-step">
-              <span><b>{String(replayEvent?.sequence ?? 0).padStart(2, "0")}</b><strong>{replayEvent ? replayEvent.stage.replace(/-/g, " ") : "Recorded event"}</strong><small>{replayEvent?.detail}</small></span>
-              <div>
-                <button type="button" className="secondary-button" disabled={replayStep === 0} onClick={() => setReplayStep((step) => Math.max(0, (step ?? 0) - 1))}>Previous</button>
-                <button type="button" className="secondary-button" disabled={replayStep >= result.workflow.events.length - 1} onClick={() => setReplayStep((step) => Math.min(result.workflow.events.length - 1, (step ?? 0) + 1))}>Next</button>
-                <button type="button" className="secondary-button" onClick={() => setReplayStep(null)}>Exit replay</button>
-              </div>
-            </div>}
-        </section>}
-      </div>
-
       <form className="ask-console premium-console" onSubmit={submit}>
         <div className="console-line">
           <span><span className={verifiedCount ? "status-orb live" : connectorsLoaded ? "status-orb" : "status-orb indexing"} />{connectorsLoaded ? `${verifiedCount} verified systems` : "Resolving connector proofs"}</span>
@@ -1049,18 +1007,25 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
             {(["auto", "fast", "thinking"] as const).map((value) => <button key={value} type="button" className={mode === value ? "mode active" : "mode"} aria-pressed={mode === value} onClick={() => setMode(value)}>{value === "auto" ? "Auto" : value === "thinking" ? "Deep check" : "Fast"}</button>)}
           </div>
         </div>
-        <div className="typing-cue"><Terminal size={13} /><TypedProofPrompt text="Ask one question. See every receipt." /></div>
+        <div className="typing-cue"><Terminal size={13} /><span>Ask one question. See every receipt.</span></div>
         <label className="sr-only" htmlFor="proof-question">Cross-source proof question</label>
         <textarea id="proof-question" value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); void run(); } }} placeholder="Ask what to do next, who promised what, or where systems disagree…" required maxLength={4000} />
         <div className="prompt-actions">
           <span>⌘ Enter to run</span>
-          <button className="primary-button proof-button" disabled={!connectorsLoaded || busy || !question.trim()}>{busy || !connectorsLoaded ? <LoaderCircle className="spin" size={15} /> : <Play size={15} fill="currentColor" />}{!connectorsLoaded ? "Checking sources" : busy ? "Checking the evidence" : "Run live proof"}</button>
+          <button className="primary-button proof-button" disabled={!connectorsLoaded || !verifiedCount || busy || !question.trim()}>{busy || !connectorsLoaded ? <LoaderCircle className="spin" size={15} /> : verifiedCount ? <Play size={15} fill="currentColor" /> : <Link2 size={15} />}{!connectorsLoaded ? "Checking sources" : !verifiedCount ? "Connect a source first" : busy ? "Checking the evidence" : "Run live proof"}</button>
         </div>
       </form>
 
-      <div className="prompt-shelf" aria-label="Example proof questions">
-        {proofPrompts.map((prompt, index) => <button key={prompt} onClick={() => { setQuestion(prompt); void run(prompt); }} aria-label={`Run example ${index + 1}: ${prompt}`}><span>{String(index + 1).padStart(2, "0")}</span>{prompt}<ArrowRight size={13} /></button>)}
-      </div>
+      {!result && !busy && <>
+        <div className="prompt-shelf" aria-label="Example proof questions">
+          {proofPrompts.slice(0, 3).map((prompt, index) => <button key={prompt} disabled={!connectorsLoaded || !verifiedCount} onClick={() => { setQuestion(prompt); void run(prompt); }} aria-label={`Run example ${index + 1}: ${prompt}`}><span>{String(index + 1).padStart(2, "0")}</span>{prompt}<ArrowRight size={13} /></button>)}
+        </div>
+        <div className="proof-trustline" aria-label="QueueProof safeguards">
+          <span><CircleCheck size={14} /> Every claim opens to a receipt</span>
+          <span><CircleAlert size={14} /> Disagreement stays visible</span>
+          <span><LockKeyhole size={14} /> External writes need approval</span>
+        </div>
+      </>}
 
       <section className="landing-proof-sections" aria-label="QueueProof product overview">
         <div className="landing-problem">
@@ -1114,7 +1079,8 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
         <button type="button" className="secondary-button retrieval-cancel" onClick={cancelRun}>Stop waiting</button>
       </div>}
 
-      {result && <div ref={resultRef} className={`ask-results premium-results ${resultTone}`} tabIndex={-1} aria-live="polite">
+      {result && <p className="sr-only" role="status" aria-live="polite">Answer ready with {result.validation.citedClaimCount} cited claim{result.validation.citedClaimCount === 1 ? "" : "s"}.</p>}
+      {result && <div ref={resultRef} className={`ask-results premium-results ${resultTone}`} tabIndex={-1}>
         <div className="result-telemetry">
           <span>{resultTone === "grounded" ? <ShieldCheck size={14} /> : <CircleAlert size={14} />}{resultTone}</span>
           <span><Network size={14} />{result.validation.providerCoverage.length} providers</span>
@@ -1124,18 +1090,26 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
         </div>
         <article className={`answer-surface ${resultTone}`}>
           <div className="answer-kicker"><span>{resultTone === "abstained" ? "INSUFFICIENT EVIDENCE" : resultTone === "partial" ? "PARTIAL EVIDENCE" : "GROUNDED ANSWER"}</span><button className="copy-id" onClick={() => void navigator.clipboard.writeText(result.retrieval_receipt.query_id)} title="Copy query receipt ID" aria-label="Copy query receipt ID"><code>{result.retrieval_receipt.query_id.slice(-8)}</code><Clipboard size={12} /></button></div>
-          <p className="result-question"><small>QUESTION</small>{question}</p>
+          <p className="result-question"><small>QUESTION</small>{result.question ?? submittedQuestion}</p>
           <h2><CitedAnswer text={result.answer} citations={result.citations} onOpen={(evidence, index) => setCitationPreview({ evidence, index })} /></h2>
           <div className="answer-verdict">{resultTone === "grounded" ? <CircleCheck size={17} /> : <CircleAlert size={17} />}<span><strong>{result.validation.citedClaimCount}/{result.validation.claimCount} claims cited</strong> · {resultTone === "abstained" ? "no unsupported answer was generated" : resultTone === "partial" ? "supported claims are shown, but evidence gaps remain" : "unsupported prose is blocked"}</span></div>
         </article>
 
+        {result.contradictions.length > 0 && <div className="contradiction-stack">
+          {result.contradictions.map((item, index) => <article key={`${item.summary}-${index}`}><CircleAlert size={18} /><div><span>CONTRADICTION PRESERVED</span><strong>{item.summary}</strong><small>{item.providers.join(" ↔ ")} · receipts {item.evidenceIds.map((id) => id.slice(0, 6)).join(", ")}</small></div></article>)}
+        </div>}
+
+        {missingInformation.length > 0 && <section className={`missing-information ${resultTone}`} aria-labelledby="missing-information-title"><CircleAlert size={18} /><div><span>{resultTone === "abstained" ? "ANSWER WITHHELD" : "EVIDENCE GAP"}</span><h3 id="missing-information-title">Evidence still needed</h3><ul>{missingInformation.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ul></div></section>}
+
+        <details className="technical-details">
+          <summary><Activity size={14} /> Technical details <span>{result.trace.callCount} calls · {(result.trace.latencyMs / 1000).toFixed(2)}s</span></summary>
         <section className="evidence-strength" aria-labelledby="evidence-strength-title">
           <div className="result-heading"><div><span className="eyebrow">Evidence strength</span><h3 id="evidence-strength-title">Five checks, kept separate.</h3></div></div>
           <div className="strength-grid">
             <span><small>SOURCE COVERAGE</small><strong>{result.validation.providerCoverage.length} provider{result.validation.providerCoverage.length === 1 ? "" : "s"}</strong><em>{result.validation.providerCoverage.join(" · ") || "No provider coverage"}</em></span>
             <span><small>CITATION SUPPORT</small><strong>{result.validation.citedClaimCount}/{result.validation.claimCount}</strong><em>claims linked to receipts</em></span>
             <span><small>TIMELINE</small><strong>{timelineEvidence.filter((item) => item.timestamp).length}/{timelineEvidence.length}</strong><em>receipts with timestamps</em></span>
-            <span><small>ENTITY CONFIDENCE</small><strong>{result.priority_items[0] ? `${Math.round(result.priority_items[0].confidence * 100)}%` : "Not measured"}</strong><em>{result.priority_items[0]?.normalized_entity ?? "No ranked entity"}</em></span>
+            <span><small>RECOMMENDATION CONFIDENCE</small><strong>{result.priority_items[0] ? `${Math.round(result.priority_items[0].confidence * 100)}%` : "Not measured"}</strong><em>{result.priority_items[0]?.normalized_entity ?? "No grounded recommendation"}</em></span>
             <span><small>CONTRADICTION RISK</small><strong>{result.contradictions.length ? `${result.contradictions.length} review` : "No conflict found"}</strong><em>never folded into one score</em></span>
           </div>
         </section>
@@ -1161,41 +1135,23 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, setEr
           </ol>
         </section>}
 
-        <section className="promise-actual" aria-labelledby="promise-actual-title">
-          <div className="result-heading"><div><span className="eyebrow">Promised versus actual</span><h3 id="promise-actual-title">Compare the proof without guessing.</h3></div><span className={result.contradictions.length ? "case-status fail" : "case-status pass"}>{comparisonResult}</span></div>
-          <div className="comparison-table-wrap"><table>
-            <caption>Commitment and observed outcome drawn only from retrieved receipts.</caption>
-            <thead><tr><th scope="col">Dimension</th><th scope="col">Promised</th><th scope="col">Observed</th><th scope="col">Result</th></tr></thead>
-            <tbody>
-              <tr><th scope="row">Source</th><td>{commitmentEvidence ? `${commitmentEvidence.provider} · ${commitmentEvidence.title}` : "No commitment receipt"}</td><td>{observedEvidence ? `${observedEvidence.provider} · ${observedEvidence.title}` : "No outcome receipt"}</td><td>{comparisonResult}</td></tr>
-              <tr><th scope="row">Time</th><td>{dateLabel(commitmentEvidence?.timestamp)}</td><td>{dateLabel(observedEvidence?.timestamp)}</td><td>{commitmentEvidence?.timestamp && observedEvidence?.timestamp ? "Both timestamps visible" : "Timestamp review needed"}</td></tr>
-              <tr><th scope="row">Receipt</th><td>{commitmentEvidence?.excerpt ?? "QueueProof found no supported promise in this result."}</td><td>{observedEvidence?.excerpt ?? "QueueProof found no supported outcome in this result."}</td><td>{result.contradictions.length ? "Open the conflicting receipts" : "Review before acting"}</td></tr>
-            </tbody>
-          </table></div>
-        </section>
-
-        {missingInformation.length > 0 && <section className={`missing-information ${resultTone}`} aria-labelledby="missing-information-title"><CircleAlert size={18} /><div><span>{resultTone === "abstained" ? "ANSWER WITHHELD" : "EVIDENCE GAP"}</span><h3 id="missing-information-title">Evidence still needed</h3><ul>{missingInformation.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ul></div></section>}
-
         <div className="retrieval-receipt" aria-label="Retrieval receipt">
           <span><small>ROUTING</small><strong>{result.routing_reason}</strong></span>
           <span><small>GRAPH</small><strong>{result.retrieval_receipt.graph_usage ? "Enabled" : "Not required"}</strong></span>
           <span><small>RECEIPTS</small><strong>{result.retrieval_receipt.receipt_count}</strong></span>
           <span><small>COST UNITS</small><strong>{result.retrieval_receipt.estimated_cost_units}</strong></span>
         </div>
+        <details className="trace-drawer"><summary><Terminal size={14} /> Reproducible retrieval trace <span>{result.trace.runId}</span></summary><pre>{JSON.stringify(result.trace, null, 2)}</pre></details>
+        </details>
 
         {result.priority_items[0] && <article className="priority-result">
           <div className="priority-score"><small>NEXT SAFE ACTION</small><strong>{result.priority_items[0].score}</strong><span>/100</span></div>
-          <div><span className="eyebrow"><Command size={12} /> Evidence-ranked priority</span><h3>{result.priority_items[0].title}</h3><p>{result.priority_items[0].recommended_next_safe_action}</p><div className="priority-meta"><span>{result.priority_items[0].provider_coverage.join(" · ")}</span><span>{Math.round(result.priority_items[0].confidence * 100)}% evidence completeness</span><span>{result.priority_items[0].approval_required ? "Approval gated" : "Read only"}</span></div></div>
+          <div><span className="eyebrow"><Command size={12} /> Evidence-ranked priority</span><h3>{result.priority_items[0].title}</h3><p>{result.priority_items[0].recommended_next_safe_action}</p><div className="priority-meta"><span>{result.priority_items[0].provider_coverage.join(" · ")}</span><span>{Math.round(result.priority_items[0].confidence * 100)}% recommendation confidence</span><span>{result.priority_items[0].approval_required ? "Approval gated" : "Read only"}</span></div></div>
         </article>}
-
-        {result.contradictions.length > 0 && <div className="contradiction-stack">
-          {result.contradictions.map((item, index) => <article key={`${item.summary}-${index}`}><CircleAlert size={18} /><div><span>CONTRADICTION PRESERVED</span><strong>{item.summary}</strong><small>{item.providers.join(" ↔ ")} · receipts {item.evidenceIds.map((id) => id.slice(0, 6)).join(", ")}</small></div></article>)}
-        </div>}
 
         <div className="result-heading"><div><span className="eyebrow">Ranked evidence</span><h3>Receipts behind the answer.</h3></div><button className="secondary-button" onClick={onOpenLab}>Inspect benchmark <ArrowRight size={13} /></button></div>
         <div className="evidence-grid proof-evidence">{rankedEvidence.map((item, index) => <EvidenceCard key={`${item.provider}-${item.id ?? index}`} evidence={item} index={index} />)}</div>
         {supportingEvidence.length > 0 && <details className="supporting-records"><summary>Show {supportingEvidence.length} additional retrieved record{supportingEvidence.length === 1 ? "" : "s"}</summary><div className="evidence-grid proof-evidence">{supportingEvidence.map((item, index) => <EvidenceCard key={`${item.provider}-${item.id ?? index + rankedEvidence.length}`} evidence={item} index={index + rankedEvidence.length} />)}</div></details>}
-        <details className="trace-drawer"><summary><Terminal size={14} /> Reproducible retrieval trace <span>{result.trace.runId}</span></summary><pre>{JSON.stringify(result.trace, null, 2)}</pre></details>
       </div>}
       {citationPreview && <EvidenceReceiptDialog evidence={citationPreview.evidence} index={citationPreview.index} onClose={() => setCitationPreview(null)} />}
     </section>
@@ -1390,12 +1346,12 @@ function EvidenceGraphPanel({ setError }: { setError: (value: string) => void })
   }, [setError]);
 
   return <section className="document-panel">
-    <div className="section-kicker"><span><Network size={14} /> Evidence graph</span><small>Sources · claims · contradictions · tasks</small></div>
+    <div className="section-kicker"><span><Network size={14} /> Relationships</span><small>How receipts support facts, work, and next steps</small></div>
     {loading
       ? <div className="modal-loading" role="status"><LoaderCircle className="spin" /> Deriving evidence graph…</div>
       : graph
         ? <EvidenceGraphView graph={graph} />
-        : <div className="honest-empty"><Network size={24} /><div><strong>Evidence graph unavailable.</strong><p>Generate a queue first, then check back here.</p></div></div>}
+        : <div className="honest-empty"><Network size={24} /><div><strong>No relationships available.</strong><p>Generate a priority queue first, then check back here.</p></div></div>}
   </section>;
 }
 
@@ -1564,13 +1520,13 @@ function ApprovalModal({ proposal, confirmed, setConfirmed, busy, onApprove, onC
   return <div className="modal-layer" role="presentation"><div ref={dialogRef} className="modal-card approval-modal" role="dialog" aria-modal="true" aria-labelledby="approval-modal-title" tabIndex={-1}><button className="modal-close" data-dialog-initial onClick={onClose}><X size={16} /></button><span className="eyebrow"><ShieldCheck size={13} /> Exact provider payload</span><h2 id="approval-modal-title">{complete ? "Execution receipt." : decided ? "Approval recorded." : "Review before commit."}</h2><div className="risk-banner"><span className={`risk-mark ${proposal.riskClass}`}><CircleAlert size={16} /></span><div><strong>{proposal.riskClass} risk · Linear create issue</strong><small>Proposal {proposal.id}</small></div></div><div className="payload-grid"><div><small>TITLE</small><strong>{payload.title ?? "Missing title"}</strong></div><div><small>TEAM</small><code>{payload.teamId ?? "Missing team"}</code></div>{payload.projectId && <div><small>PROJECT</small><code>{payload.projectId}</code></div>}<div className="payload-description"><small>DESCRIPTION</small><pre>{payload.description ?? "Missing description"}</pre></div></div><div className="evidence-receipts"><small>EVIDENCE RECEIPTS · {evidence.length}</small>{evidence.map((id) => <code key={id}>{id}</code>)}</div>{complete ? <div className="proof-seal"><CircleCheck size={25} /><div><strong>Provider-confirmed execution</strong><span>Linear response ID {proposal.providerResponseId ?? "recorded"} · duplicate execution is blocked</span></div></div> : decided ? <div className="proof-seal"><CircleCheck size={25} /><div><strong>Human approval recorded</strong><span>{dateLabel(proposal.decidedAt)} · execution unavailable or pending</span></div></div> : readOnly ? <div className="inline-warning"><LockKeyhole size={14} />Approval and provider execution are disabled in the public sandbox. This exact payload remains inspectable.</div> : <><label className="approval-confirm"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} /><span><strong>I reviewed this exact payload and its evidence.</strong><small>I understand QueueProof will attempt one Linear issue creation if the deployment has execution credentials.</small></span></label><button className="primary-button full" disabled={!confirmed || busy} onClick={() => void onApprove()}>{busy ? <LoaderCircle className="spin" size={14} /> : <Zap size={14} />}{busy ? "Claiming execution slot" : "Approve and execute once"}</button></>}</div></div>;
 }
 
-function AgentScreen({ workspace, setError, setNotice, readOnly }: { workspace: ReadyView; setError: (value: string) => void; setNotice: (value: string) => void; readOnly: boolean }) {
+function AgentScreen({ workspace, setError, setNotice, readOnly, publicOrigin }: { workspace: ReadyView; setError: (value: string) => void; setNotice: (value: string) => void; readOnly: boolean; publicOrigin: string }) {
   const [tokens, setTokens] = useState<McpToken[]>([]);
   const [clientType, setClientType] = useState("codex");
   const [writeScopes, setWriteScopes] = useState(false);
   const [freshToken, setFreshToken] = useState("");
   const [busy, setBusy] = useState(false);
-  const endpoint = typeof window === "undefined" ? "/mcp" : `${window.location.origin}/mcp`;
+  const endpoint = `${publicOrigin}/mcp`;
   const load = useCallback(() => api<{ tokens: McpToken[] }>("/api/mcp-tokens").then((data) => setTokens(data.tokens)), []);
   useEffect(() => { void load().catch((reason: Error) => setError(reason.message)); }, [load, setError]);
   async function createToken() {
@@ -1613,6 +1569,49 @@ type LabResults = {
     quality?: { requiredFactRecall?: number; citationPrecision?: number; citationCompleteness?: number; unsupportedClaimRate?: number; note?: string };
     rows?: BenchmarkReplayRow[];
   };
+  modeComparison?: {
+    status: string;
+    note: string;
+    comparable: boolean;
+    fast: BenchmarkModeSummary;
+    thinking: BenchmarkModeSummary;
+    deltas: null | {
+      thinkingMinusFastPasses: number;
+      thinkingMinusFastFactAccuracy: number | null;
+      thinkingMinusFastP50LatencyMs: number | null;
+      thinkingToFastP50LatencyRatio: number | null;
+      thinkingMinusFastMeanCalls: number | null;
+      thinkingMinusFastCostUnits: number | null;
+    };
+    rows: Array<{
+      id: string;
+      label: string;
+      fast: BenchmarkModeCase;
+      thinking: BenchmarkModeCase;
+    }>;
+  };
+};
+
+type BenchmarkModeSummary = {
+  status: string;
+  cases: number;
+  passed: number;
+  requiredFactAccuracy: number | null;
+  citationPrecision: number | null;
+  citationCompleteness: number | null;
+  p50LatencyMs: number | null;
+  p95LatencyMs: number | null;
+  meanCalls: number | null;
+  totalCostUnits: number | null;
+  release: { commitSha: string | null; commitRef: string | null };
+};
+
+type BenchmarkModeCase = {
+  pass: boolean;
+  requiredFactRecall: number | null;
+  latencyMs: number | null;
+  callCount: number | null;
+  costUnits: number | null;
 };
 
 function ReplayScreen({ setError }: { setError: (value: string) => void }) {
@@ -1734,6 +1733,7 @@ function LabScreen({ setError }: { setError: (value: string) => void }) {
   const router = data?.fixture?.metrics?.router;
   const perCategory = Object.entries(data?.fixture?.metrics?.perCategory ?? {});
   const live = data?.live;
+  const comparison = data?.modeComparison;
   const rows = live?.rows ?? [];
   const filteredRows = modeFilter === "all" ? rows : rows.filter((row) => row.mode === modeFilter);
   const passed = rows.filter((row) => row.pass === true).length;
@@ -1766,6 +1766,23 @@ function LabScreen({ setError }: { setError: (value: string) => void }) {
         <div className="lab-metric"><small>PROVIDER PROOF</small><strong>{live?.connectors?.length ?? "—"}</strong><span>{live?.connectors?.join(" · ") || "not recorded"}</span></div>
         <div className="lab-metric"><small>CALL EFFICIENCY</small><strong>{averageCalls === null ? "—" : averageCalls.toFixed(1)}</strong><span>average HydraDB calls per answer</span></div>
       </div>
+
+      <section className="mode-comparison" aria-labelledby="mode-comparison-title">
+        <div className="mode-comparison-heading">
+          <div><span className="eyebrow"><Zap size={13} /> Fast versus Deep check</span><h2 id="mode-comparison-title">Use more reasoning only when it earns its cost.</h2></div>
+          <span className={comparison?.comparable ? "comparison-status measured" : "comparison-status"}>{comparison?.comparable ? <CircleCheck size={14} /> : <CircleAlert size={14} />}{comparison?.comparable ? "Measured" : "Not yet comparable"}</span>
+        </div>
+        {comparison?.comparable ? <>
+          <div className="mode-comparison-grid">
+            {(["fast", "thinking"] as const).map((key) => {
+              const summary = comparison[key];
+              return <article key={key}><span>{key === "fast" ? "FAST" : "DEEP CHECK"}</span><strong>{summary.passed}/{summary.cases} passed</strong><div><small>P50</small><b>{summary.p50LatencyMs === null ? "—" : `${(summary.p50LatencyMs / 1000).toFixed(2)}s`}</b></div><div><small>AVG CALLS</small><b>{summary.meanCalls === null ? "—" : summary.meanCalls.toFixed(1)}</b></div><div><small>COST UNITS</small><b>{summary.totalCostUnits ?? "—"}</b></div></article>;
+            })}
+          </div>
+          <p className="comparison-note">{comparison.note}{comparison.deltas?.thinkingToFastP50LatencyRatio ? ` Deep check used ${comparison.deltas.thinkingToFastP50LatencyRatio.toFixed(1)}× the Fast p50 latency on this frozen set.` : ""}</p>
+          {comparison.rows.length > 0 && <details className="comparison-cases"><summary>Compare all {comparison.rows.length} matched cases</summary><div>{comparison.rows.map((row) => <span key={row.id}><strong>{row.label}</strong><small>Fast {row.fast.pass ? "pass" : "review"} · {row.fast.latencyMs === null ? "—" : `${(row.fast.latencyMs / 1000).toFixed(2)}s`}</small><small>Deep {row.thinking.pass ? "pass" : "review"} · {row.thinking.latencyMs === null ? "—" : `${(row.thinking.latencyMs / 1000).toFixed(2)}s`}</small></span>)}</div></details>}
+        </> : <div className="comparison-empty"><div><strong>The comparison has not been claimed.</strong><p>{comparison?.note ?? "Run the same frozen questions in both modes against one verified release."}</p></div><code>npm run benchmark:live -- --mode fast</code><code>npm run benchmark:live -- --mode thinking</code></div>}
+      </section>
 
       <section className="judge-lens" aria-label="Hackathon judging evidence">
         <div className="judge-lens-heading"><div><span className="eyebrow"><ShieldCheck size={13} /> Judge lens</span><h2>Every scoring claim has a receipt.</h2></div><span className={benchmarkGatesMet ? "readiness-seal ready" : "readiness-seal"}>{benchmarkGatesMet ? <CircleCheck size={15} /> : <Activity size={15} />} {benchmarkGatesMet ? "BENCHMARK GATES MET" : "EVIDENCE BUILDING"}</span></div>

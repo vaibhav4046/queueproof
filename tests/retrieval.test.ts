@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { evidenceFollowUpTerms, planRetrieval, retrievalIntentTerms, retrievalQueryVariants } from "../packages/retrieval/src";
+import {
+  evidenceFollowUpTerms,
+  focusedEvidenceFollowUpQuery,
+  planRetrieval,
+  retrievalIntentTerms,
+  retrievalQueryVariants,
+} from "../packages/retrieval/src";
 
 describe("retrieval planner", () => {
   it("runs exact identifier lookup with parallel lexical fallback", () => {
@@ -54,5 +60,30 @@ describe("evidence-derived follow-up terms", () => {
     expect(terms).not.toContain("BUG-123");
     expect(terms).not.toContain("Northwind");
     expect(terms).toEqual(expect.arrayContaining(["AuthShield", "Atlas Launch"]));
+  });
+
+  it("leads a stale-work second hop with the exact join key discovered in evidence", () => {
+    const query = focusedEvidenceFollowUpQuery(
+      "Which open issue appears to be already resolved elsewhere?",
+      ["AuthShield shipped in GitHub. The tracked Linear record is ENG-456."],
+    );
+    expect(query).toBe("ENG-456 AuthShield merged shipped still open tracked state");
+    expect(query).not.toContain("Which open issue");
+  });
+
+  it("retains an identifier from the question while adding cross-source entities", () => {
+    const query = focusedEvidenceFollowUpQuery(
+      "What is BUG-123, who filed it, and which project is it against?",
+      ["Slack says Priya Raman filed BUG-123 for the AuthShield incident against Atlas Launch at Northwind."],
+    );
+    expect(query?.split(" ").slice(0, 1)).toEqual(["BUG-123"]);
+    expect(query).toContain("Priya Raman");
+    expect(query).toContain("Atlas Launch");
+    expect(query).toContain("AuthShield");
+    expect(query).toContain("Northwind");
+  });
+
+  it("returns null when the first hop proves no usable join key", () => {
+    expect(focusedEvidenceFollowUpQuery("Summarise it", ["the and this"])).toBeNull();
   });
 });

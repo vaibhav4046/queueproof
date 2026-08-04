@@ -16,13 +16,13 @@ artifact independently verifies them against the published commit.
    billing conversion is available.
 6. **“Production-ready,” “winner,” or “perfect.”** The release is strongly tested; those
    words still overstate the evidence.
-7. **A public GitHub submission.** The repository was last verified as private. Make it
-   judge-accessible only with the owner’s explicit approval.
+7. **A public GitHub submission.** Do not claim this until the repository URL opens in a
+   signed-out browser and the submitted commit is visible.
 8. **Guaranteed multi-provider retrieval.** A fact can be correct and fully cited while
    HydraDB returns only one provider for that query. Keep the two provider-coverage REVIEW
    cases visible.
 
-Current measured release gates: 330 tests across 35 files; 39/39 router cases with 331
-fixture assertions; passing lint, typecheck, both production builds, E2E shell contract,
-and deployment checks. Canonical release identity:
+The previous published release measured 330 tests across 35 files; 39/39 router cases with
+331 fixture assertions; passing lint, typecheck, both production builds, E2E shell contract,
+and deployment checks. Its historical release identity was:
 `4510d3fe60b3c271a107f514c98c42d120c9929b`.

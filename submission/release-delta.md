@@ -1,4 +1,8 @@
-# QueueProof — 4 August 2026 release delta
+# QueueProof — 4 August 2026 release delta (historical)
+
+> **Superseded release record.** This delta describes commit `4510d3f` and the removed
+> Evidence Orbit visual generation. Retain its measurements as point-in-time evidence, but do
+> not present it as the final redesign or current deployment verification.
 
 This is the final reviewed release delta published to the canonical production URL.
 

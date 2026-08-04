@@ -1,66 +1,67 @@
 # QueueProof 60-second demo
 
-Use the direct judge route at <https://queueproof.vercel.app/demo>. Keep the public-sandbox
-disclosure visible: it permits shared evidence and proposals while disabling credentials,
-connector mutations, token administration, uploads, and external execution.
+Record the canonical product at <https://queueproof.vercel.app/>. Do not use fixtures or hide
+failed states. Before recording, confirm the visible connector count and run the flagship
+question once so provider latency cannot consume the entire take.
 
-## 0-8 seconds — the problem
+## 0–8 seconds — start in the working product
 
-Show the proof console and the verified-source count.
+**Screen:** Open Ask. Keep the source-readiness line and composer visible.
 
-> Work is scattered across messages, tickets, email, code, and documents. QueueProof
-> proves what actually happened and what the agent should do next.
+**Say:**
 
-## 8-15 seconds — ask once
+> This is QueueProof, a live workspace for deciding what needs attention from evidence across
+> connected systems. Four sources are verified here; unverified sources cannot influence an
+> answer.
 
-Run the preloaded flagship question:
+## 8–24 seconds — run a real multi-hop question
 
-> Who escalated the AuthShield outage, what did engineering commit to, and is the fix
-> already merged?
+**Screen:** Run the flagship AuthShield question. Point to the selected route while it resolves.
 
-## 15-28 seconds — follow the real route
+**Say:**
 
-Point to the automatic Deep check decision, the routing reason, the verified provider
-scope, and the HydraDB request state. When it resolves, show the actual provider coverage,
-call count, elapsed time, and retained receipt count.
+> I’ll ask who escalated this outage, what engineering committed to, and whether the fix is
+> already merged. QueueProof routes the question through HydraDB and records the mode, calls,
+> provider coverage, and elapsed time.
 
-> Fast handles direct facts. Deep check uses one bounded, evidence-derived follow-up only
-> when the question needs timeline, conflict, or multi-hop reasoning.
+## 24–39 seconds — inspect proof, not prose
 
-## 28-42 seconds — prove the answer
+**Screen:** Show the returned answer, then open one numbered citation receipt.
 
-Show the verdict and plain answer, then scroll through the evidence timeline. Open one
-receipt and point to its provider, source ID, timestamp, excerpt, and relation.
+**Say:**
 
-> Every supported claim opens to a receipt. Missing proof stays partial, and no proof
-> produces an abstention.
+> The answer is stored with the exact question. Each claim opens to its provider, timestamp,
+> source identifier, and excerpt. The Linear and GitHub disagreement remains visible instead
+> of being rewritten into false certainty.
 
-## 42-51 seconds — compare and act
+## 39–50 seconds — show the next action
 
-Show **Promised versus actual**, the preserved tracked-state disagreement, missing
-follow-up, and the recommended safe action.
+**Screen:** Close the receipt, open Priorities, and expand the top queue packet.
 
-> QueueProof keeps the promise and observed outcome side by side instead of smoothing a
-> disagreement into a confident summary.
+**Say:**
 
-## 51-60 seconds — show the receipt
+> The same evidence compiles a deterministic priority packet with score factors, constraints,
+> and a safe next action. Any provider write starts as a proposal and still requires approval.
 
-Open **Benchmarks**, point to expected versus observed, citation support, latency,
-HydraDB calls, mode, and relative cost. Open **Replay** and step once through the stored
-run.
+## 50–60 seconds — show the engineering receipt
 
-> Other systems retrieve context. QueueProof proves the answer and tells the agent what
-> to do next.
+**Screen:** Open Benchmarks. Point to the total denominator, `PASS`/`REVIEW` rows, latency,
+calls, mode, and reproducibility command.
 
-## Demo discipline
+**Say:**
 
-- Never call the six-query live sample an SLA or the router fixture live accuracy.
-- Never call the strict PDF baseline 22/22; its last accepted result is 20/22 and 53/56
-  required facts until the final deployment rerun replaces it.
-- Do not imply Gmail participated in the flagship answer unless its receipt appears.
-- Do not imply the public sandbox can configure integrations, upload, mint tokens, or
-  execute external writes.
-- If a provider is unavailable, leave the visible partial/failure state on screen. Do not
-  switch to a fixture and call it live.
-- Do not submit until the repository is judge-accessible and the exact public commit has
-  passed post-deploy acceptance.
+> Benchmarks publish expected versus observed answers, latency, calls, and failures. REVIEW is
+> never relabelled as a pass. The public repository contains the locked build, tests, and exact
+> reproduction commands.
+
+## Recording rules
+
+- Say the provider count, latency, call count, and benchmark denominator exactly as displayed
+  in the final take; do not memorize an older run.
+- Do not call the deterministic router fixture live accuracy or describe a replay as a new run.
+- Do not imply Gmail supported the flagship answer unless a Gmail citation is actually present.
+- Do not imply public visitors can configure connectors, upload documents, mint tokens, or
+  execute an external write.
+- Keep any degraded connector or `REVIEW` benchmark row visible. That honesty is part of the
+  product.
+- Stop and rerun acceptance if the health endpoint does not identify the submitted release.

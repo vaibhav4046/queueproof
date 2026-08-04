@@ -1,5 +1,17 @@
 {
   "schemaVersion": 2,
+  "artifactStatus": {
+    "state": "historical",
+    "superseded": true,
+    "archivedAt": "2026-08-04",
+    "notice": "Pre-redesign release-candidate snapshot. Do not use as current deployment, test, repository visibility, or authorization evidence.",
+    "currentSources": [
+      "README.md",
+      ".github/workflows/ci.yml",
+      "audit/",
+      "https://queueproof.vercel.app/api/health/live"
+    ]
+  },
   "generatedAt": "2026-08-04T05:57:22.5803523+01:00",
   "releaseCandidate": {
     "path": "D:\\Codex d;\\queueproof",

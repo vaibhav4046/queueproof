@@ -9,19 +9,21 @@
 | Reproducibility | 39 labelled router cases, 331 assertions, deterministic 346-page PDF, 22 questions, 56 fact groups, and a step-through measured-run replay | Open Replay, step through one stored run, then show the exact command |
 | Trust and safety | Public sandbox guard, versioned signed sessions, encrypted credentials, approval gate, at-most-once execution | Show the sandbox notice and exact proposal payload |
 | Developer experience | Same persisted packets across web/API/MCP; MCP scope, expiry, revocation, and audience enforcement | Open Developer and show the bounded contract |
-| Product quality | Proof-first first viewport, seven mobile destinations, interactive citations, evidence timeline, promised-versus-actual table, focus-managed dialogs, distinct result states | Resize to mobile and navigate without losing functionality |
+| Product quality | Composer-first workspace, real routes, compact mobile navigation, interactive citations, focus-managed dialogs, and distinct result states | Resize to mobile and navigate without losing functionality |
 
 ## Release evidence
 
-- Typecheck, lint, production build, E2E, and deployment check: pass.
-- Full suite: 330 tests across 35 files.
+- Previous published release passed typecheck, lint, production build, E2E, and deployment
+  checks; rerun them for the final redesign.
+- Current local candidate: 340 tests across 37 files; replace with final CI receipt if changed.
 - Security suite: 13 tests.
 - MCP suite: 8 tests.
 - Router benchmark: 39/39 cases, 331 assertions.
-- Responsive QA: 320x568, 375x667, 390x844, 430x932, 768x1024, 1024x768,
-  1280x800, 1440x900, 1920x1080, mobile landscape, 200% zoom, reduced motion,
-  and WebGL fallback.
-- Secret scan: zero matching files across the final worktree and complete pre-release history.
+- Final responsive QA must cover 320x568, 375x667, 390x844, 430x932, 768x1024,
+  1024x768, 1280x800, 1440x900, 1920x1080, mobile landscape, 200% zoom,
+  keyboard navigation, and reduced motion. The earlier Evidence Orbit capture is archived.
+- Previous secret scan: zero matching files across that release worktree and reachable
+  history; repeat after the final candidate is assembled.
 
 ## Differentiator
 

@@ -9,6 +9,13 @@ export type RequestActor = {
 };
 
 /**
+ * A deployment access token represents the operator of this QueueProof instance, not
+ * an arbitrary email address supplied alongside the token. Keeping a stable actor id
+ * prevents the optional display email from becoming a tenant-selection primitive.
+ */
+export const DEPLOYMENT_OWNER_ACTOR_ID = "user:deployment-owner";
+
+/**
  * Public access is intentionally useful for the evidence demo, but it must not grant
  * anonymous control over credentials, connector spend, durable bearer tokens, uploads,
  * or external provider writes. Shared in-product queue/proposal state remains available;
@@ -156,7 +163,7 @@ export async function verifySessionValue(
   if (!claims || !validSessionIdentity(claims.email, claims.expiresAt, nowMs)) return null;
 
   return {
-    id: `user:${claims.email.toLowerCase()}`,
+    id: DEPLOYMENT_OWNER_ACTOR_ID,
     email: claims.email,
     displayName: claims.email,
     localDevelopment: false,
@@ -234,16 +241,27 @@ function actorFromPublicAccess(): RequestActor | null {
   };
 }
 
+type ActorResolver = () => RequestActor | null | Promise<RequestActor | null>;
+
+/** Resolve identity sources in trust order without invoking lower-priority fallbacks. */
+export async function resolveFirstActor(resolvers: ActorResolver[]): Promise<RequestActor | null> {
+  for (const resolve of resolvers) {
+    const actor = await resolve();
+    if (actor) return actor;
+  }
+  return null;
+}
+
 export async function getRequestActor(): Promise<RequestActor | null> {
-  // Public demo mode is a deployment-wide routing decision. It intentionally wins over
-  // stale cookies so returning judges land in the same shared demo as first-time users.
-  const publicActor = actorFromPublicAccess();
-  if (publicActor) return publicActor;
-  return (
-    (await actorFromSessionCookie()) ??
-    (await actorFromTrustedGateway()) ??
-    actorFromLocalOptIn()
-  );
+  // An access-token session is the explicit owner elevation path and must be evaluated
+  // before the anonymous public-workspace fallback. The former ordering made a valid,
+  // signed owner cookie impossible to use whenever the public sandbox was enabled.
+  return resolveFirstActor([
+    actorFromSessionCookie,
+    actorFromTrustedGateway,
+    actorFromLocalOptIn,
+    actorFromPublicAccess,
+  ]);
 }
 
 export async function requireRequestActor(): Promise<RequestActor> {

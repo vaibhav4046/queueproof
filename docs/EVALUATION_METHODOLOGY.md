@@ -79,10 +79,11 @@ unsupported claims. See `docs/LARGE_PDF_PROOF.md` for the misses and provenance.
 ## Commands
 
 ```bash
-npm run benchmark:router
-npm run benchmark:live -- --url https://queueproof.vercel.app
-npm run benchmark:pdf -- --url https://queueproof.vercel.app
+pnpm benchmark:router
+pnpm benchmark:live -- --url https://queueproof.vercel.app
+pnpm benchmark:pdf -- --url https://queueproof.vercel.app
 ```
 
-Release gates are independently verified with typecheck, lint, 330 tests across 35 files,
-13 security tests, 8 MCP tests, production build, E2E, and deployment checks.
+Release gates independently verify typecheck, lint, the complete automated suite (including
+security and MCP), production build, E2E, and deployment checks. Exact totals belong to the
+CI receipt for the submitted commit.

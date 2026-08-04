@@ -1,5 +1,10 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { createSessionValue, verifySessionValue } from "../lib/server/identity";
+import {
+  DEPLOYMENT_OWNER_ACTOR_ID,
+  createSessionValue,
+  resolveFirstActor,
+  verifySessionValue,
+} from "../lib/server/identity";
 
 const TEST_KEY = "session-test-key-material-32-bytes-minimum";
 const originalKey = process.env.QUEUEPROOF_ENCRYPTION_KEY;
@@ -41,7 +46,8 @@ describe("signed session values", () => {
       expiresAt: now + 1_000,
     });
     await expect(verifySessionValue(value!, now)).resolves.toMatchObject({
-      id: "user:owner@example.com|4102444800000",
+      id: DEPLOYMENT_OWNER_ACTOR_ID,
+      email: "Owner@Example.com|4102444800000",
     });
     await expect(verifySessionValue(value!, now + 1_000)).resolves.toBeNull();
   });
@@ -68,5 +74,44 @@ describe("signed session values", () => {
     const value = await createSessionValue("owner@example.com", Date.now() + 60_000);
     const tampered = `${value!.slice(0, -1)}${value!.endsWith("0") ? "1" : "0"}`;
     await expect(verifySessionValue(tampered)).resolves.toBeNull();
+  });
+
+  it("treats the access-token session as one stable deployment owner", async () => {
+    const first = await createSessionValue("first@example.com", Date.now() + 60_000);
+    const second = await createSessionValue("second@example.com", Date.now() + 60_000);
+
+    await expect(verifySessionValue(first!)).resolves.toMatchObject({
+      id: DEPLOYMENT_OWNER_ACTOR_ID,
+      email: "first@example.com",
+    });
+    await expect(verifySessionValue(second!)).resolves.toMatchObject({
+      id: DEPLOYMENT_OWNER_ACTOR_ID,
+      email: "second@example.com",
+    });
+  });
+
+  it("selects a valid owner session before the public sandbox fallback", async () => {
+    const owner = {
+      id: DEPLOYMENT_OWNER_ACTOR_ID,
+      email: "owner@example.com",
+      displayName: "Owner",
+      localDevelopment: false,
+    };
+    const publicActor = {
+      id: "user:public-access",
+      email: "public@queueproof.local",
+      displayName: "Public workspace",
+      localDevelopment: false,
+    };
+    let publicResolverCalled = false;
+
+    await expect(resolveFirstActor([
+      async () => owner,
+      () => {
+        publicResolverCalled = true;
+        return publicActor;
+      },
+    ])).resolves.toEqual(owner);
+    expect(publicResolverCalled).toBe(false);
   });
 });

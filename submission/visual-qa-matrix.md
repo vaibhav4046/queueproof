@@ -1,4 +1,8 @@
-# QueueProof — visual QA matrix
+# QueueProof — visual QA matrix (historical capture set)
+
+> **Superseded by the final redesign.** The screenshots and commit below prove an earlier
+> Evidence Orbit release only. They must not be submitted as current product captures. Run a
+> fresh viewport, keyboard, reduced-motion, console, and network pass on the final deployment.
 
 All screenshots are real headless-Chrome captures of the running application
 (local, commit `d574e9b`), stored under `submission/screenshots/` and

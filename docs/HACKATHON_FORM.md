@@ -1,7 +1,9 @@
 # HydraDB hackathon form answers
 
-Use these answers only after the public deployment and judge-accessible repository pass
-the final verification checklist. Do not paste a video URL until the recording is public.
+Use these answers only after the public deployment and signed-out repository check pass the
+final verification checklist. The measurements below are the last accepted production
+baseline and must be replaced if the final rerun differs. Do not paste a video URL until the
+recording is public.
 
 ## Did you try ingesting huge PDFs?
 
@@ -50,7 +52,7 @@ claim. The deterministic router, live connector, and PDF artifacts stay separate
 
 ## Video demo
 
-Record the public `/demo` route using [the canonical 60-second script](DEMO_SCRIPT_60S.md).
+Record the canonical public `/` route using [the canonical 60-second script](DEMO_SCRIPT_60S.md).
 The URL is intentionally absent until the final public build and repository are verified.
 
 ## GitHub submission
@@ -67,10 +69,10 @@ final figures exact rather than rounding them upward.
 
 ## Judge testing instructions
 
-1. Open <https://queueproof.vercel.app/demo> with no account.
+1. Open <https://queueproof.vercel.app/> with no account.
 2. Run the preloaded AuthShield question.
-3. Inspect mode, route reason, provider coverage, HydraDB calls, elapsed time, timeline,
-   one citation receipt, promised versus actual, missing information, and next safe action.
+3. Inspect mode, route reason, provider coverage, HydraDB calls, elapsed time, one citation
+   receipt, preserved disagreement, missing information, and next safe action.
 4. Open **Benchmarks** to compare expected and observed output.
 5. Open **Replay** to step through one measured run and download its JSON receipt.
 6. Open <https://queueproof.vercel.app/method> for the trust and refusal boundaries.

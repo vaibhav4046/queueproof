@@ -45,10 +45,10 @@ before the provider call.
 | --- | ---: |
 | Router fixtures | 39/39 |
 | Fixture assertions | 331 |
-| Full suite | 330 tests / 35 files |
+| Full suite | 340 tests / 37 files on current local candidate; confirm final CI |
 | Security / MCP | 13 / 8 tests |
 | Typecheck, lint, build, E2E, deploy check | pass |
-| Responsive viewports | 7, from 360x800 to 3840x2160 |
+| Responsive viewports | fresh final-deployment matrix required |
 | Secret scan | 0 matching files across pre-release history + release worktree |
 
 ## Honest boundary
