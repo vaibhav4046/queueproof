@@ -2000,6 +2000,68 @@ body { min-height: 100dvh; background: var(--ink); }
   background: linear-gradient(90deg, transparent, rgba(168,121,237,.028) 50%, transparent);
 }
 
+/* The proof scene interpolates only when a persisted receipt state changes.
+   No continuous motion is used as a substitute for backend progress. */
+.evidence-orbit .core-orbit-ring,
+.evidence-orbit .core-mode-ring,
+.evidence-orbit .core-facets,
+.evidence-orbit .orbit-node-ping,
+.evidence-orbit .orbit-action-slot span,
+.evidence-orbit .orbit-mode .mode-orb,
+.evidence-orbit .orbit-pulse { animation: none !important; }
+.stage-complete .orbit-core-label strong { color: var(--acid-2); }
+.stage-checking-contradictions .orbit-core-label strong { color: var(--amber); }
+.stage-partial .orbit-core-label strong,
+.stage-abstained .orbit-core-label strong,
+.stage-failed .orbit-core-label strong { color: var(--faint); text-shadow: none; }
+
+.receipt-wait-note,
+.receipt-replay-controls {
+  width: min(1220px, calc(100% - 40px));
+  margin: 0 auto;
+  border: 1px solid rgba(242,236,244,.09);
+  background: rgba(6,6,8,.82);
+  color: var(--muted);
+}
+.receipt-wait-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px;
+  border-top: 0;
+  font: 540 11px/1.5 var(--sans);
+}
+.receipt-wait-note svg { flex: 0 0 auto; color: var(--acid); }
+.receipt-wait-note strong { color: var(--paper); }
+.receipt-replay-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  padding: 16px 18px;
+  border-top: 0;
+  border-radius: 0 0 18px 18px;
+}
+.receipt-replay-controls > div:first-child { display: grid; gap: 5px; }
+.receipt-replay-controls > div:first-child > strong { color: var(--paper); font: 650 12px var(--sans); }
+.receipt-replay-controls > div:first-child > small { color: var(--faint); font: 520 10px/1.45 var(--sans); }
+.receipt-replay-step { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: center; border-top: 1px solid rgba(242,236,244,.08); padding-top: 14px; }
+.receipt-replay-step > span { display: grid; grid-template-columns: 30px minmax(0, 1fr); align-items: center; gap: 3px 9px; }
+.receipt-replay-step b { grid-row: 1 / span 2; color: var(--acid); font: 700 11px var(--mono); }
+.receipt-replay-step strong { color: var(--paper); text-transform: capitalize; font: 650 11px var(--sans); }
+.receipt-replay-step small { color: var(--faint); font: 520 10px/1.45 var(--sans); }
+.receipt-replay-step > div { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+.receipt-replay-step .secondary-button { min-height: 40px; padding-inline: 14px; }
+@media (max-width: 680px) {
+  .receipt-wait-note,
+  .receipt-replay-controls { width: calc(100% - 32px); }
+  .receipt-replay-controls,
+  .receipt-replay-step { grid-template-columns: 1fr; }
+  .receipt-replay-controls > .secondary-button { width: 100%; }
+  .receipt-replay-step > div { justify-content: stretch; }
+  .receipt-replay-step > div .secondary-button { flex: 1 1 0; }
+}
+
 .premium-console {
   margin-top: 34px;
   border-color: rgba(168,121,237,.28);
@@ -2025,12 +2087,12 @@ body { min-height: 100dvh; background: var(--ink); }
 .typing-cue > svg { color: var(--violet); }
 .typed-proof { display: inline-flex; align-items: center; max-width: calc(100% - 22px); min-height: 14px; }
 .typed-proof > span {
-  width: 0;
+  width: auto;
   max-width: 100%;
   overflow: hidden;
   display: inline-block;
   white-space: nowrap;
-  animation: typed-reveal 1.05s steps(36, end) .22s forwards;
+  animation: none;
 }
 .typed-proof i {
   width: 1px;
