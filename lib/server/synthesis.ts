@@ -261,6 +261,9 @@ function dateParts(value: string) {
   };
 }
 
+const identifiersInText = (text: string) =>
+  [...new Set(text.match(/\b[A-Z][A-Z0-9]+-\d+\b/g) ?? [])];
+
 function contradictions(question: string, relevantEvidence: SynthesisEvidence[]) {
   const result: GroundedContradiction[] = [];
   const selected = [...new Map(relevantEvidence.map((item) => [item.id, item])).values()];
@@ -295,8 +298,13 @@ function contradictions(question: string, relevantEvidence: SynthesisEvidence[])
   const completed = selected.find((item) => /\b(merged|shipped|resolved|closed|completed)\b/i.test(`${item.title} ${item.excerpt}`));
   const open = selected.find((item) => /\b(still\s+(?:showing\s+as\s+)?open|remains?\s+open|ticket\s+still\s+open)\b/i.test(`${item.title} ${item.excerpt}`));
   if (completed && open) {
+    const stateIdentifiers = identifiersInText(`${completed.title} ${completed.excerpt} ${open.title} ${open.excerpt}`);
+    const trackedEntity = stateIdentifiers.find((id) => /^(?:ENG|BUG|INC)-/i.test(id)) ?? "tracked issue";
+    const sameReceipt = completed.id === open.id;
     result.push({
-      summary: `${completed.provider} reports the work complete while the tracked issue is still open.`,
+      summary: sameReceipt
+        ? `${completed.provider} receipt reports the code complete while ${trackedEntity} remains open in its cited tracking state.`
+        : `${completed.provider} reports the work complete while ${open.provider} reports ${trackedEntity} remains open.`,
       evidenceIds: [...new Set([completed.id, open.id])],
       providers: [...new Set([completed.provider, open.provider])],
     });

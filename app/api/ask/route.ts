@@ -14,6 +14,7 @@ import {
   type LiveProofState,
 } from "../../../packages/contracts/src";
 import { buildProofGraphView, createQueryWorkflowRecorder } from "../../../lib/server/query-workflow";
+import { compileContradictionAction } from "../../../lib/server/grounded-action";
 
 type Connector = { id: string; hydradbConnectorId: string; provider: string; database: string; collection: string | null };
 type RetrievalScope = {
@@ -333,7 +334,7 @@ export async function POST(request: Request) {
         evidence?: Array<{ sourceId?: string; id?: string; provider?: string }>;
       };
     };
-    const relatedPriority = (queue.items as unknown as PriorityQueueItem[])
+    const queuePriority = (queue.items as unknown as PriorityQueueItem[])
       .map((item) => {
         const packet = item.packet;
         const corpus = `${String(item.title ?? "")} ${String(packet.task?.objective ?? "")}`.toLowerCase();
@@ -373,11 +374,25 @@ export async function POST(request: Request) {
         deduplicated_tasks: packet.deduplicated_tasks ?? [],
         approval_required: true,
       }));
+    const derivedConflictAction = queuePriority.length
+      ? null
+      : compileContradictionAction({
+        queryId: runId,
+        evidence: deduped,
+        contradictions: synthesis.contradictions,
+      });
+    const relatedPriority = queuePriority.length
+      ? queuePriority
+      : derivedConflictAction
+        ? [derivedConflictAction]
+        : [];
     await recorder.record(
       "compiling-action",
       relatedPriority.length
-        ? "Compiled the highest-scoring safe action whose persisted packet shares exact evidence with this proof."
-        : "No ranked action shared exact evidence lineage with this proof, so no action was shown.",
+        ? queuePriority.length
+          ? "Compiled the highest-scoring safe action whose persisted packet shares exact evidence with this proof."
+          : "Compiled an approval-required contradiction follow-up from the exact returned evidence and deterministic ranking formula."
+        : "No safely grounded action shared exact evidence lineage with this proof, so no action was shown.",
       { callCount: trace.length, latencyMs: Date.now() - started },
     );
     const totalLatencyMs = Date.now() - started;

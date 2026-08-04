@@ -148,6 +148,8 @@ export const groundedPriorityItemSchema = z.object({
   approval_required: z.boolean(),
 });
 
+export type GroundedPriorityItem = z.infer<typeof groundedPriorityItemSchema>;
+
 export const retrievalReceiptSchema = z.object({
   query_id: z.string().min(1),
   hydradb_mode: z.enum(["fast", "thinking"]),

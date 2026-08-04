@@ -75,7 +75,13 @@ describe("evidence-constrained synthesis", () => {
 
   it("preserves a merged-versus-open execution-state contradiction", () => {
     const result = synthesiseGroundedAnswer("Is the AuthShield fix already merged?", evidence);
-    expect(result.contradictions.some((item) => /still open/i.test(item.summary))).toBe(true);
+    expect(result.contradictions).toEqual([
+      expect.objectContaining({
+        summary: expect.stringMatching(/github receipt.+ENG-456 remains open/i),
+        providers: ["github"],
+        evidenceIds: ["github-1"],
+      }),
+    ]);
   });
 
   it("does not promote an unrelated paragraph just because its document title is relevant", () => {
