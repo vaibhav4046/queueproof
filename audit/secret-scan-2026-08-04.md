@@ -1,26 +1,29 @@
 # Secret-scan evidence — 4 August 2026
 
 ## Scope
-- Current release worktree at commit `38f3b1f` (includes Evidence Orbit, synthesis
-  fix, and submission pack).
-- Complete reachable Git history: every commit across all refs (81 commits).
-- Pattern families: AWS access keys, GitHub tokens (ghp_/github_pat_/gho_/ghu_),
-  OpenAI keys (sk-), Slack tokens (xox[baprs]-), Linear tokens (lin_api_),
-  Stripe live keys (sk_live_), Google API keys (AIza), PEM/private-key headers.
-- Excluded: node_modules, .next, dist, coverage, *.db, *.pdf, .wrangler, .vinext,
-  public assets, evals/results (all non-source or binary surfaces).
+
+- Judge-grade release source at commit `4ea707a`.
+- Current release worktree after that commit.
+- Complete reachable Git history: every commit across all refs (104 commits).
+- Pattern families: AWS access keys, GitHub tokens, OpenAI keys, Slack tokens,
+  Linear tokens, Stripe live keys, Google API keys, PEM/private-key headers, and
+  long hexadecimal values assigned to Attio-labelled secrets.
+- Worktree exclusions: generated dependencies/build output and local runtime stores
+  (`node_modules`, `dist`, `.next`, `coverage`, `.wrangler`, and `.vinext`). The
+  history pass searched every tracked Git blob.
 
 ## Safe-output method
-The scan searched file content but emitted matching file paths only (worktree via
-ripgrep `-l`, history via `git grep -l` per commit). Candidate values were never
-printed into the terminal transcript or this report.
+
+The scan searched file contents but emitted aggregate counts only. Candidate values
+were never printed into the terminal transcript or this report. Synthetic short test
+fixtures were below real-token length thresholds and were not classified as secrets.
 
 ## Result
-| Surface | Matching files |
-| --- | ---: |
-| Worktree (commit 38f3b1f) | 0 |
-| Full reachable history (81 commits) | 0 |
 
-No matching file required quarantine or removal. This is evidence for the state
-scanned on 4 August 2026; repeat after any credential-bearing change and before
-any future visibility change.
+| Surface | Matching files or entries |
+| --- | ---: |
+| Release worktree | 0 |
+| Full reachable history (104 commits) | 0 |
+
+No matching file required quarantine or removal. Repeat this scan after any
+credential-bearing change and before any future visibility change.
