@@ -2849,6 +2849,7 @@ body {
 .replay-toolbar label,
 .evidence-graph-status,
 .fixture-diagnostics summary,
+.sandbox-disclosure,
 .app-footer { font-size: 11px; }
 .qp-app small { font-size: 11px !important; line-height: 1.4; }
 .qp-app :is(p, li, td, blockquote) { text-wrap: pretty; }
@@ -3102,6 +3103,18 @@ details > summary::marker { color: var(--acid); }
   .app-header { width: calc(100% - 16px); }
   .brand-lockup > span { font-size: 12px; }
   .demo-badge { padding-inline: 9px; font-size: 10px; }
+  .sandbox-disclosure {
+    width: calc(100% - 24px);
+    min-height: 62px;
+    gap: 8px;
+    margin-top: 18px;
+    border-radius: 16px;
+    padding: 9px 12px;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+  .sandbox-disclosure strong,
+  .sandbox-disclosure span { font-size: 11px; line-height: 1.35; }
   .mobile-dock { inset-inline: 6px; border-radius: 20px; }
   .mobile-dock button { font: 590 9px/1 var(--sans); letter-spacing: -.025em; }
   .screen { padding-inline: 16px; }
