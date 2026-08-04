@@ -134,16 +134,16 @@ export type ActiveTab = "command" | "ask" | "sources" | "lab" | "replay" | "appr
 type ReadyView = Extract<WorkspaceView, { kind: "ready" }>;
 
 const nav = [
-  { id: "ask", label: "Proof", icon: Sparkles },
-  { id: "command", label: "Queue", icon: Command },
-  { id: "sources", label: "Evidence", icon: Link2 },
-  { id: "lab", label: "Benchmarks", icon: Activity },
-  { id: "replay", label: "Replay", icon: RotateCcw },
+  { id: "ask", label: "Proof", mobileLabel: "Proof", icon: Sparkles },
+  { id: "command", label: "Queue", mobileLabel: "Queue", icon: Command },
+  { id: "sources", label: "Evidence", mobileLabel: "Sources", icon: Link2 },
+  { id: "lab", label: "Benchmarks", mobileLabel: "Tests", icon: Activity },
+  { id: "replay", label: "Replay", mobileLabel: "Replay", icon: RotateCcw },
 ] as const;
 
 const utilityNav = [
-  { id: "approvals", label: "Approvals", icon: ShieldCheck },
-  { id: "agent", label: "Developer", icon: Bot },
+  { id: "approvals", label: "Approvals", mobileLabel: "Review", icon: ShieldCheck },
+  { id: "agent", label: "Developer", mobileLabel: "Dev", icon: Bot },
 ] as const;
 
 const stateCopy: Record<string, string> = {
@@ -436,12 +436,12 @@ export default function QueueProofApp({
         <nav aria-label="Primary navigation">
           {nav.map(({ id, label, icon: Icon }) => (
             <button key={id} className={tab === id ? "active" : ""} aria-current={tab === id ? "page" : undefined} onClick={() => navigateTab(id)}>
-              <Icon size={14} />{label}
+              <Icon size={14} /><span>{label}</span>
             </button>
           ))}
           {utilityNav.map(({ id, label, icon: Icon }) => (
             <button key={`mobile-${id}`} className={`mobile-nav-utility${tab === id ? " active" : ""}`} aria-current={tab === id ? "page" : undefined} onClick={() => navigateTab(id)}>
-              <Icon size={14} />{label}
+              <Icon size={14} /><span>{label}</span>
             </button>
           ))}
         </nav>
@@ -457,6 +457,13 @@ export default function QueueProofApp({
           <span className="demo-badge"><span className={verified.length ? "status-orb live" : "status-orb"} />{publicSandbox ? "Public sandbox" : "Live demo"}</span>
         </div>
       </header>
+      <nav className="mobile-dock" aria-label="Mobile navigation">
+        {[...nav, ...utilityNav].map(({ id, label, mobileLabel, icon: Icon }) => (
+          <button key={`dock-${id}`} className={tab === id ? "active" : ""} aria-label={label} aria-current={tab === id ? "page" : undefined} onClick={() => navigateTab(id)}>
+            <Icon size={17} aria-hidden="true" /><span aria-hidden="true">{mobileLabel}</span>
+          </button>
+        ))}
+      </nav>
 
       {publicSandbox && <div className="sandbox-disclosure" role="note"><ShieldCheck size={13} /><strong>Public sandbox</strong><span>Shared evidence and proposals · credentials and external execution disabled</span></div>}
 
