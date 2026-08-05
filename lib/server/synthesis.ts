@@ -532,6 +532,19 @@ function sentences(item: SynthesisEvidence, question: string, evidence: Synthesi
   const body = clean(raw
     .replace(/\s+(?:#{1,6}|-{3,}|={2,})\s*/g, ". ")
     .replace(/\s+[-*]\s+(?=[A-Z0-9])/g, ". "));
+  // A markdown list item is an independent statement, so each one is its own
+  // unit of evidence. Rewriting the bullet to ". " is not enough: the sentence
+  // splitter below only breaks before a capital or a digit, so bullets opening
+  // with a code span or a lowercase word stayed glued to their neighbour and an
+  // ingested status document surfaced as a single run-on window. Splitting the
+  // list into units keeps every emitted claim verbatim and single-subject.
+  const listItems = raw
+    .split(/\r?\n(?=[ \t]*[-*][ \t]+)/)
+    .map((block) => clean(block.replace(/^[ \t]*[-*][ \t]+/, "")))
+    .filter(Boolean);
+  // Only treat it as a list when there is more than one item; a lone dash in
+  // otherwise ordinary prose must not change how that prose is read.
+  const units = listItems.length > 1 ? listItems : [body];
   // Some operational facts are relational across adjacent sentences in one
   // receipt: the first sentence names the work, while the second records its
   // tracking state; or the first names an incident and a later sentence names
@@ -546,8 +559,10 @@ function sentences(item: SynthesisEvidence, question: string, evidence: Synthesi
     crossSourceBridgeScore(question, body, item.provider, evidence) > 0;
   return [...new Set([
     ...((needsReceiptContext || exactBridgeNeedsReceiptContext) && body.length <= 420 ? [body] : []),
-    ...body.split(/(?<=[.!?])\s+(?=[A-Z0-9])/).map(clean),
-    ...focusedWindows(question, body),
+    ...units.flatMap((unit) => [
+      ...unit.split(/(?<=[.!?])\s+(?=[A-Z0-9])/).map(clean),
+      ...focusedWindows(question, unit),
+    ]),
   ])].filter((sentence) => sentence.length >= 18 && sentence.length <= 420);
 }
 
@@ -757,42 +772,60 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
     candidates.filter((candidate) => candidate.score >= scoreFloor).map((candidate) => candidate.item.id),
   ).size);
   const seenEvidenceIds = new Set<string>();
-  for (const candidate of candidates) {
-    const key = normaliseClaimKey(candidate.text);
-    if (candidate.score < scoreFloor || seenKeys.has(key)) continue;
-    // Once an exact, evidence-derived authority chain exists, lexical matches
-    // from records outside that chain are distractors, not additional policy
-    // evidence. Sentences in a linked receipt remain eligible even when they do
-    // not repeat its identifier (for example "neither draft permits this").
-    if (hasAuthorityChain && !candidate.authorityLinked) continue;
+  /**
+   * Content identity, independent of the diversity quotas. A candidate that
+   * repeats text an already-picked claim carries is the same claim, so it is
+   * never eligible -- not in the main pass, and not in the relaxed fallback,
+   * which previously skipped these checks and emitted the same Slack sentence
+   * three times in one answer.
+   */
+  const duplicatesPicked = (candidate: (typeof candidates)[number], key: string) => {
+    if (seenKeys.has(key)) return true;
     // Value windows drawn from different chunks repeat the same fact phrase
     // ("customer impact lasted 41 minutes…"). One phrase, one claim, so the
     // remaining slots stay open for the other facets of the question.
-    if (candidate.valuePhrase && seenValuePhrases.has(candidate.valuePhrase)) continue;
+    if (candidate.valuePhrase && seenValuePhrases.has(candidate.valuePhrase)) return true;
     // A candidate that repeats a long sentence already carried by a picked
     // claim is a duplicate of it, even when its leading context differs.
-    if (claimSentences(candidate.text).some((sentence) => seenSentences.has(sentence))) continue;
-    // Short claims contained inside an already-picked claim are duplicates of
-    // it (a heading repeated with and without its section prefix).
-    if (key.length < 60 && [...seenKeys].some((existing) => existing.includes(key) || key.includes(existing))) continue;
-    if (seenProviders.has(candidate.item.provider) && picked.length < Math.min(3, new Set(ranked.map((item) => item.provider)).size)) continue;
-    // A single verbose receipt must not consume every claim slot while other
-    // independently relevant receipts carry the replacement rule or current
-    // state. The score floor still applies, so diversity never promotes an
-    // unrelated source merely to fill a quota.
-    if (seenEvidenceIds.has(candidate.item.id) && seenEvidenceIds.size < diverseEvidenceTarget) continue;
+    if (claimSentences(candidate.text).some((sentence) => seenSentences.has(sentence))) return true;
+    // A claim wholly contained in an already-picked claim adds no fact, only
+    // repetition -- either direction, since the longer one may be picked second.
+    if ([...seenKeys].some((existing) => existing.includes(key) || key.includes(existing))) return true;
+    return false;
+  };
+  const recordPicked = (candidate: (typeof candidates)[number], key: string) => {
     picked.push(candidate);
     seenKeys.add(key);
     if (candidate.valuePhrase) seenValuePhrases.add(candidate.valuePhrase);
     claimSentences(candidate.text).forEach((sentence) => seenSentences.add(sentence));
     seenProviders.add(candidate.item.provider);
     seenEvidenceIds.add(candidate.item.id);
+  };
+  for (const candidate of candidates) {
+    const key = normaliseClaimKey(candidate.text);
+    if (candidate.score < scoreFloor || duplicatesPicked(candidate, key)) continue;
+    // Once an exact, evidence-derived authority chain exists, lexical matches
+    // from records outside that chain are distractors, not additional policy
+    // evidence. Sentences in a linked receipt remain eligible even when they do
+    // not repeat its identifier (for example "neither draft permits this").
+    if (hasAuthorityChain && !candidate.authorityLinked) continue;
+    if (seenProviders.has(candidate.item.provider) && picked.length < Math.min(3, new Set(ranked.map((item) => item.provider)).size)) continue;
+    // A single verbose receipt must not consume every claim slot while other
+    // independently relevant receipts carry the replacement rule or current
+    // state. The score floor still applies, so diversity never promotes an
+    // unrelated source merely to fill a quota.
+    if (seenEvidenceIds.has(candidate.item.id) && seenEvidenceIds.size < diverseEvidenceTarget) continue;
+    recordPicked(candidate, key);
     if (picked.length === 4) break;
   }
+  // The diversity quotas above can starve the answer when the relevant records
+  // all share a provider. Relax those quotas -- never the duplicate checks, and
+  // never the score floor.
   if (picked.length < 2) {
     for (const candidate of candidates) {
-      if (picked.includes(candidate) || candidate.score < scoreFloor) continue;
-      picked.push(candidate);
+      const key = normaliseClaimKey(candidate.text);
+      if (candidate.score < scoreFloor || duplicatesPicked(candidate, key)) continue;
+      recordPicked(candidate, key);
       if (picked.length === 3) break;
     }
   }

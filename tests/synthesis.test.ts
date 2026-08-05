@@ -835,4 +835,63 @@ describe("evidence-constrained synthesis", () => {
     expect(result.answer).toMatch(/billing reconciliation fix was deployed/i);
     expect(result.answer).not.toMatch(/Moreover/i);
   });
+
+  // Production defect: the multi-hop BUG-123 question returned three claims that
+  // were overlapping windows of one Slack message, so the same sentence appeared
+  // three times in one answer. The relaxed fallback that fills claim slots when
+  // the provider-diversity quota starves the main pass was skipping every
+  // duplicate check.
+  it("never repeats the same sentence across claims when one source dominates", () => {
+    const result = synthesiseGroundedAnswer(
+      "Who filed BUG-123, which project are they working on, and what did they say about the fix in Slack?",
+      [
+        {
+          id: "slack-1",
+          provider: "slack",
+          title: "#incident-northwind",
+          excerpt:
+            "Northwind have escalated the AuthShield authentication outage (INC-2031). "
+            + "Their whole team has been locked out since 29 July. "
+            + "Priya Raman is on it and filed BUG-123 against Atlas Launch.",
+          timestamp: "2026-07-30T09:00:00Z",
+        },
+      ],
+    );
+    const sentences = result.answer
+      .replace(/\s*\[\d+\]/g, "")
+      .split(/(?<=[.!?])\s+/)
+      .map((sentence) => sentence.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim())
+      .filter((sentence) => sentence.length >= 25);
+    expect(sentences.length).toBeGreaterThan(0);
+    expect(new Set(sentences).size).toBe(sentences.length);
+  });
+
+  // Production defect: an ingested markdown status document had bullets opening
+  // with a code span and with lowercase words, so none of them registered as a
+  // sentence boundary. The whole list became one window, hit the 420-character
+  // cap, and the answer ended on the fragment "The lo".
+  // Production defect: an ingested markdown status document had bullets opening
+  // with a code span and with lowercase words, so none of them registered as a
+  // sentence boundary. The whole list collapsed into one window and the answer
+  // surfaced a run-on that glued unrelated bullets together.
+  it("treats every markdown bullet as its own claim boundary", () => {
+    const bullets = [
+      "`/api/health/live` reports the exact commit and branch for the running deployment",
+      "real stale-state retrieval now identifies ENG-456 as merged and shipped while the ticket is still open",
+      "the longest investigation in the frozen benchmark completed in nine seconds",
+    ];
+    const excerpt = ["Release evidence", ...bullets.map((line) => `- ${line}`)].join("\n");
+    const result = synthesiseGroundedAnswer(
+      "What does the release evidence say about ENG-456?",
+      [{ id: "doc-1", provider: "document", title: "Release evidence", excerpt, timestamp: "2026-08-04T12:00:00Z" }],
+    );
+    expect(result.validation.status).not.toBe("abstained");
+    // A claim carrying the distinctive opening of two different bullets is a
+    // run-on: the list was never split, so unrelated facts read as one statement.
+    const fingerprints = ["/api/health/live", "real stale-state retrieval", "the longest investigation"];
+    for (const claim of result.claims) {
+      const spanned = fingerprints.filter((fingerprint) => claim.text.includes(fingerprint));
+      expect(spanned.length).toBeLessThan(2);
+    }
+  });
 });
