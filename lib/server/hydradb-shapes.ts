@@ -94,9 +94,26 @@ export function canonicalProvider(value: string | null): string | null {
 export function providerFromSource(source: Record<string, unknown>): string | null {
   const provider = source.app_provider ?? source.provider;
   if (provider) return canonicalProvider(String(provider));
-  const metadata = record(source.additional_metadata);
-  const nested = metadata.app_provider ?? metadata.provider;
+  // HydraDB's connector contract injects `provider` into the tenant metadata
+  // layer (`source.metadata`). `additional_metadata` is the document metadata
+  // layer and is retained as a compatibility fallback for older indexed data.
+  const tenantMetadata = record(source.metadata);
+  const documentMetadata = record(source.additional_metadata);
+  const nested = tenantMetadata.app_provider ?? tenantMetadata.provider ??
+    documentMetadata.app_provider ?? documentMetadata.provider;
   return nested ? canonicalProvider(String(nested)) : null;
+}
+
+/**
+ * HydraDB system metadata applied to every object synced by one connector.
+ *
+ * Top-level `metadata_filters` keys query tenant metadata, so this filter makes
+ * a repair/canary query connector-specific before ranking. Callers still must
+ * validate the returned source lineage because retrieval filters are not a
+ * substitute for receipt verification.
+ */
+export function connectorLineageMetadataFilter(connectorId: string): Record<string, string> {
+  return { connector_id: connectorId };
 }
 
 /** Strong connector lineage: provider equality alone is never sufficient. */
@@ -105,9 +122,12 @@ export function sourceBelongsToConnector(
   connectorId: string,
   selectedResourceIds: ReadonlySet<string>,
 ): boolean {
-  const metadata = record(source.additional_metadata);
-  const sourceConnector = source.connector_id ?? metadata.connector_id;
-  const sourceResource = source.resource_id ?? source.resourceId ?? metadata.resource_id ?? metadata.resourceId;
+  const tenantMetadata = record(source.metadata);
+  const documentMetadata = record(source.additional_metadata);
+  const sourceConnector = source.connector_id ?? tenantMetadata.connector_id ?? documentMetadata.connector_id;
+  const sourceResource = source.resource_id ?? source.resourceId ??
+    tenantMetadata.resource_id ?? tenantMetadata.resourceId ??
+    documentMetadata.resource_id ?? documentMetadata.resourceId;
   if (sourceConnector) return String(sourceConnector) === connectorId;
   if (sourceResource) return selectedResourceIds.has(String(sourceResource));
   return false;

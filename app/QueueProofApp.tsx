@@ -132,20 +132,20 @@ export type ActiveTab = "command" | "ask" | "sources" | "lab" | "replay" | "appr
 /** The only view in which the main application shell renders. */
 type ReadyView = Extract<WorkspaceView, { kind: "ready" }>;
 
-const nav = [
+const workspaceNav = [
   { id: "ask", label: "Ask", mobileLabel: "Ask", icon: Search },
   { id: "command", label: "Today", mobileLabel: "Today", icon: Command },
   { id: "sources", label: "Sources", mobileLabel: "Sources", icon: Link2 },
   { id: "replay", label: "History", mobileLabel: "History", icon: History },
+  { id: "approvals", label: "Review changes", mobileLabel: "Review", icon: ShieldCheck },
 ] as const;
 
-const labNav = [
+const trustNav = [
   { id: "lab", label: "Benchmarks", icon: Activity },
 ] as const;
 
-const utilityNav = [
-  { id: "agent", label: "Connect AI", mobileLabel: "Connect", icon: Bot },
-  { id: "approvals", label: "Review changes", mobileLabel: "Review", icon: ShieldCheck },
+const useAnywhereNav = [
+  { id: "agent", label: "Use with AI", mobileLabel: "AI setup", icon: Bot },
 ] as const;
 
 const routeForTab: Record<ActiveTab, string> = {
@@ -162,8 +162,8 @@ const tabForRoute = Object.fromEntries(
   Object.entries(routeForTab).map(([tab, route]) => [route, tab]),
 ) as Record<string, ActiveTab>;
 
-const allNav = [...nav, ...utilityNav, ...labNav] as const;
-const mobileNav = nav;
+const allNav = [...workspaceNav, ...useAnywhereNav, ...trustNav] as const;
+const mobileNav = workspaceNav.filter(({ id }) => id !== "approvals");
 const RECENT_INVESTIGATIONS_KEY = "queueproof.recent-investigations.v1";
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
@@ -475,7 +475,7 @@ export default function QueueProofApp({
         </Link>
         <nav aria-label="Primary navigation">
           <span className="sidebar-label">Workspace</span>
-          {nav.map(({ id, label, icon: Icon }) => {
+          {workspaceNav.map(({ id, label, icon: Icon }) => {
             const active = tab === id;
             return <Link key={id} href={routeForTab[id]} className={active ? "active" : ""} aria-current={active ? "page" : undefined}>
               {active && <motion.span className="nav-lamp" layoutId="desktop-nav-lamp" transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
@@ -483,14 +483,15 @@ export default function QueueProofApp({
             </Link>;
           })}
           <span className="sidebar-label sidebar-label-spaced">Use anywhere</span>
-          {utilityNav.map(({ id, label, icon: Icon }) => {
+          {useAnywhereNav.map(({ id, label, icon: Icon }) => {
             const active = tab === id;
             return <Link key={id} href={routeForTab[id]} className={active ? "active" : ""} aria-current={active ? "page" : undefined}>
               {active && <motion.span className="nav-lamp" layoutId="desktop-nav-lamp" transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
               <Icon size={15} /><span>{label}</span>
             </Link>;
           })}
-          {labNav.map(({ id, label, icon: Icon }) => {
+          <span className="sidebar-label sidebar-label-spaced">Trust</span>
+          {trustNav.map(({ id, label, icon: Icon }) => {
             const active = tab === id;
             return <Link key={id} href={routeForTab[id]} className={active ? "active" : ""} aria-current={active ? "page" : undefined}>
               {active && <motion.span className="nav-lamp" layoutId="desktop-nav-lamp" transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
@@ -501,8 +502,8 @@ export default function QueueProofApp({
         <div className="header-status sidebar-bottom">
           <button className="command-trigger" onClick={() => setCommandOpen(true)} aria-label="Open command palette"><Search size={14} /><kbd>⌘K</kbd></button>
           <span className="demo-badge"><span className={verified.length ? "status-orb live" : "status-orb"} />{verified.length} verified</span>
-          <Link className="header-utility" href="/owner" aria-label="Workspace settings"><LockKeyhole size={15} /></Link>
-          <details className="nav-menu utility-menu"><summary aria-label="Open developer and owner menu"><MoreHorizontal size={17} /></summary><div className="nav-popover nav-popover-right"><Link href="/developer"><Bot size={15} />Developer</Link><Link href="/method"><Braces size={15} />Method</Link><Link href="/owner"><LockKeyhole size={15} />Owner</Link></div></details>
+          <Link className="header-utility" href="/owner" aria-label="Owner settings"><LockKeyhole size={15} /><span>Owner</span></Link>
+          <details className="nav-menu utility-menu"><summary aria-label="Open help and developer menu"><MoreHorizontal size={17} /><span>More</span></summary><div className="nav-popover nav-popover-right"><Link href="/developer"><Bot size={15} />Use with AI</Link><Link href="/method"><Braces size={15} />How it works</Link><Link href="/owner"><LockKeyhole size={15} />Owner settings</Link></div></details>
         </div>
       </aside>
       <header className="mobile-header">
@@ -569,7 +570,15 @@ function CommandPalette({ query, setQuery, onClose, onNavigate }: {
   query: string; setQuery: (value: string) => void; onClose: () => void;
   onNavigate: (tab: ActiveTab) => void;
 }) {
-  const entries = allNav.filter((entry) => entry.label.toLowerCase().includes(query.toLowerCase()));
+  const normalizedQuery = query.trim().toLowerCase();
+  const groups = [
+    { label: "Workspace", entries: workspaceNav },
+    { label: "Use anywhere", entries: useAnywhereNav },
+    { label: "Trust", entries: trustNav },
+  ].map((group) => ({
+    ...group,
+    entries: group.entries.filter((entry) => entry.label.toLowerCase().includes(normalizedQuery)),
+  })).filter((group) => group.entries.length > 0);
   const dialogRef = useDialogBehavior<HTMLDivElement>(true, onClose);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -612,17 +621,21 @@ function CommandPalette({ query, setQuery, onClose, onNavigate }: {
           </button>
         </div>
         <div className="command-results">
-          {entries.map(({ id, label, icon: Icon }) => (
-            <button key={id} onClick={() => onNavigate(id)}>
-              <Icon size={16} />
-              <span>{label}</span>
-              <ArrowRight size={13} />
-            </button>
-          ))}
-          {!query && <>
+          {groups.map((group) => <section className="command-group" aria-label={group.label} key={group.label}>
+            <h2>{group.label}</h2>
+            {group.entries.map(({ id, label, icon: Icon }) => (
+              <button key={id} onClick={() => onNavigate(id)}>
+                <Icon size={16} />
+                <span>{label}</span>
+                <ArrowRight size={13} />
+              </button>
+            ))}
+          </section>)}
+          {!normalizedQuery && <section className="command-group" aria-label="Help and ownership">
+            <h2>Help &amp; ownership</h2>
             <Link href="/method" onClick={onClose}><Braces size={16} /><span>How it works</span><ArrowRight size={13} /></Link>
-            <Link href="/owner" onClick={onClose}><LockKeyhole size={16} /><span>Owner</span><ArrowRight size={13} /></Link>
-          </>}
+            <Link href="/owner" onClick={onClose}><LockKeyhole size={16} /><span>Owner settings</span><ArrowRight size={13} /></Link>
+          </section>}
         </div>
       </div>
     </div>
@@ -1098,12 +1111,7 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, onOpe
         <div className="ask-copy">
           <span className="eyebrow"><Sparkles size={13} /> Evidence for your work</span>
           <h1>Ask your work.<br /><em>Get the proof.</em></h1>
-          <p>One clear answer across Slack, Gmail, Linear, GitHub, and your files. See what happened, what disagrees, and what to do next.</p>
-        </div>
-        <div className="source-readiness" aria-label="Source readiness">
-          <span className={verifiedCount ? "status-orb live" : connectorsLoaded ? "status-orb" : "status-orb indexing"} />
-          <strong>{connectorsLoaded ? `${verifiedCount} source${verifiedCount === 1 ? "" : "s"} verified` : "Checking sources"}</strong>
-          <button type="button" onClick={onOpenSources}>{verifiedCount ? "See sources" : "Connect sources"}<ArrowRight size={12} /></button>
+          <p>Ask across your work. Every supported claim links to the exact proof.</p>
         </div>
       </header>
       <div className="proof-hero">
@@ -1137,7 +1145,11 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, onOpe
       </div>
       <form className="ask-console premium-console" onSubmit={submit}>
         <div className="console-line">
-          <span><span className={verifiedCount ? "status-orb live" : connectorsLoaded ? "status-orb" : "status-orb indexing"} />{connectorsLoaded ? `${verifiedCount} verified sources` : "Checking your sources"}</span>
+          <button type="button" className="console-source-status" onClick={onOpenSources} aria-label={connectorsLoaded ? `Open ${verifiedCount} verified sources` : "Open sources"}>
+            <span className={verifiedCount ? "status-orb live" : connectorsLoaded ? "status-orb" : "status-orb indexing"} />
+            {connectorsLoaded ? `${verifiedCount} verified sources` : "Checking your sources"}
+            <ArrowRight size={12} aria-hidden="true" />
+          </button>
           <div className="mode-control">
             {(["fast", "auto", "thinking"] as const).map((value) => {
               const label = value === "auto" ? "Best" : value === "thinking" ? "Investigate" : "Quick";
@@ -1349,6 +1361,9 @@ function SourcesScreen({ workspace, connectors, reloadWorkspace, reloadConnector
   const [setupOpen, setSetupOpen] = useState(false);
   const [proof, setProof] = useState<Record<string, unknown> | null>(null);
   const proofReturnFocusRef = useRef<HTMLButtonElement | null>(null);
+  const verifiedSourceCount = connectors.filter((item) => item.state === "data_verified").length;
+  const attentionSourceCount = connectors.length - verifiedSourceCount;
+  const indexedFileCount = workspace.evidence.documents.filter((item) => item.stage === "indexed").length;
 
   async function connectHydra(event: FormEvent) {
     event.preventDefault(); setBusy("hydra"); setError("");
@@ -1380,10 +1395,15 @@ function SourcesScreen({ workspace, connectors, reloadWorkspace, reloadConnector
   }
 
   return <section className="screen sources-screen">
-    <div className="screen-heading"><div><span className="eyebrow"><Database size={13} /> Connected work</span><h1>Your sources.</h1><p>QueueProof searches only sources that can return real, attributable records. Open any source to see when it last worked.</p></div>{workspace.hydradb.configured && !readOnly && <button className="primary-button" onClick={() => setSetupOpen(true)}><Plus size={15} /> Add source</button>}</div>
-    {readOnly && <div className="inline-warning"><LockKeyhole size={14} />This public workspace is read-only. You can inspect every verified source; only the owner can change connections.</div>}
+    <div className="screen-heading"><div><span className="eyebrow"><Database size={13} /> Connected work</span><h1>Your sources.</h1><p>Search only verified records. Open a source to see its latest proof.</p></div>{workspace.hydradb.configured && !readOnly && <button className="primary-button" onClick={() => setSetupOpen(true)}><Plus size={15} /> Add source</button>}</div>
+    {readOnly && <div className="inline-warning source-readonly"><LockKeyhole size={14} /><span>Read-only demo. Inspect proof here; owners manage connections.</span><Link href="/owner">Owner sign in <ArrowRight size={12} /></Link></div>}
     {!workspace.hydradb.configured ? readOnly ? <div className="honest-empty"><LockKeyhole size={24} /><div><strong>Evidence configuration is owner-only.</strong><p>This public sandbox cannot accept credentials.</p></div></div> : <form className="hydra-setup" onSubmit={connectHydra}><div className="hydra-symbol"><Database size={29} /></div><div><span className="eyebrow">Step 1 · Evidence engine</span><h2>Attach your HydraDB account.</h2><p>Use a newly generated API key. QueueProof verifies it against the authenticated database endpoint, encrypts it with AES-GCM, and never returns it.</p><label>HydraDB API key<input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder="Paste new key" autoComplete="off" required minLength={12} /></label><button className="primary-button" disabled={busy === "hydra"}>{busy === "hydra" ? <LoaderCircle className="spin" size={15} /> : <KeyRound size={15} />} Verify and encrypt</button></div></form> : <>
-      <div className="source-stats"><div><small>VERIFIED</small><strong><CircleCheck size={14} /> {connectors.filter((item) => item.state === "data_verified").length} sources</strong><span>available in answers</span></div><div><small>NEEDS ATTENTION</small><strong>{connectors.filter((item) => item.state !== "data_verified").length}</strong><span>{connectors.some((item) => item.state !== "data_verified") ? "kept out of answers" : "everything is verified"}</span></div><div><small>FILES</small><strong>{workspace.evidence.documents.filter((item) => item.stage === "indexed").length}</strong><span>ready to search</span></div><div><small>SAFETY</small><strong>Verified only</strong><span>unproven sources stay out</span></div></div>
+      <div className="source-summary" aria-label="Source readiness summary">
+        <span className="verified"><CircleCheck size={14} /><strong>{verifiedSourceCount}</strong> verified</span>
+        <span className={attentionSourceCount ? "attention" : "clear"}><CircleAlert size={14} /><strong>{attentionSourceCount}</strong> attention</span>
+        <span><FileCheck2 size={14} /><strong>{indexedFileCount}</strong> files</span>
+        <small>Only verified sources support answers.</small>
+      </div>
       {connectors.length ? <div className="connector-list">{[...connectors].sort((a, b) => Number(b.state === "data_verified") - Number(a.state === "data_verified")).map((connector) => <article className={`connector-row ${connector.state === "data_verified" ? "ready" : "needs-attention"}`} data-provider={connector.provider} key={connector.id}><span className="provider-glyph large"><ProviderIcon provider={connector.provider} size={19} /></span><div className="connector-identity"><strong>{connector.name}</strong><span>{connector.provider} · {connector.database}{connector.collection ? ` / ${connector.collection}` : ""}</span></div><div className="connector-state"><span className={connector.state === "data_verified" ? "status-orb live" : connector.state.includes("sync") ? "status-orb indexing" : "status-orb"} /><strong>{connector.state === "data_verified" ? "Verified" : "Needs reconnecting"}</strong><small>{connector.state === "data_verified" ? `${connector.canaryResultCount ?? 0} ${connector.canaryResultCount === 1 ? "item" : "items"} · proven ${dateLabel(connector.verifiedAt ?? connector.lastSuccessfulSyncAt)}` : "Kept out of answers until it works"}</small></div>{connector.state === "data_verified" ? <button className="secondary-button" onClick={(event) => void connectorAction(connector, event.currentTarget)} disabled={busy === connector.id}>{busy === connector.id ? <LoaderCircle className="spin" size={14} /> : <Eye size={14} />}Details</button> : readOnly ? <Link className="secondary-button" href="/owner"><LockKeyhole size={14} /> Sign in to reconnect</Link> : <button className="secondary-button" onClick={(event) => void connectorAction(connector, event.currentTarget)} disabled={busy === connector.id}>{busy === connector.id ? <LoaderCircle className="spin" size={14} /> : connector.state === "connector_created" || connector.state === "resources_discovered" ? <Search size={14} /> : <RefreshCw size={14} />}{connector.state === "connector_created" || connector.state === "resources_discovered" ? "Choose scope" : connector.state === "resources_selected" ? "Start sync" : "Reconnect"}</button>}</article>)}</div> : <div className="empty-source"><Unplug size={28} /><div><h2>No source connected yet.</h2><p>Add Slack, Gmail, Linear, or another source from the live catalogue.</p></div>{!readOnly && <button className="primary-button" onClick={() => setSetupOpen(true)}><Plus size={15} /> Add first source</button>}</div>}
       <DocumentsPanel initialDocuments={workspace.evidence.documents} databases={[...new Set(connectors.map((item) => item.database).filter(Boolean))]}
         setError={setError} setNotice={setNotice} readOnly={readOnly} />

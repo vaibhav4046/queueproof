@@ -1,0 +1,135 @@
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { GET as readLab } from "../app/api/lab/route";
+import { POST as publishArtifact } from "../app/api/lab/artifacts/route";
+import { requireDb } from "../lib/server/runtime";
+import { createId, ensureCoreSchema } from "../lib/server/store";
+
+const workspaceId = createId("ws_benchmark_artifact");
+const releaseSha = "a".repeat(40);
+const publishToken = "benchmark-publisher-token-that-is-long-enough";
+
+const artifact = {
+  status: "measured",
+  generatedAt: "2026-08-05T12:00:00.000Z",
+  grader: "grounded-grader-v2",
+  target: "https://queueproof.test",
+  requestedMode: "auto",
+  release: { commitSha: releaseSha, commitRef: "main", deploymentUrl: "queueproof.test" },
+  releaseVerified: true,
+  cases: 1,
+  passed: 1,
+  rows: [{ id: "case-1", apiOk: true, pass: true, mode: "fast", modeHonored: true }],
+};
+
+function request(input: unknown, token = publishToken) {
+  return new Request("http://queueproof.test/api/lab/artifacts", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-queueproof-benchmark-token": token,
+    },
+    body: JSON.stringify(input),
+  });
+}
+
+describe("release-bound benchmark artifacts", () => {
+  beforeAll(async () => {
+    await ensureCoreSchema();
+    await requireDb().batch([
+      requireDb().prepare("INSERT INTO workspaces (id, slug, name) VALUES (?, ?, ?)")
+        .bind(workspaceId, `benchmark-${workspaceId.slice(-8)}`, "Benchmark workspace"),
+    ]);
+  });
+
+  afterEach(() => vi.unstubAllEnvs());
+
+  function configure(sha = releaseSha) {
+    vi.stubEnv("QUEUEPROOF_BENCHMARK_TOKEN", publishToken);
+    vi.stubEnv("QUEUEPROOF_RELEASE_SHA", sha);
+    vi.stubEnv("QUEUEPROOF_RELEASE_REF", "main");
+    vi.stubEnv("QUEUEPROOF_PUBLIC_ACCESS", "true");
+    vi.stubEnv("QUEUEPROOF_PUBLIC_WORKSPACE_ID", workspaceId);
+    vi.stubEnv("QUEUEPROOF_ALLOW_LOCAL_IDENTITY", "false");
+    vi.stubEnv("QUEUEPROOF_TRUSTED_IDENTITY_PROXY", "");
+    vi.stubEnv("QUEUEPROOF_ENCRYPTION_KEY", "");
+  }
+
+  it("hides the publisher when the separate operator credential is wrong", async () => {
+    configure();
+    const response = await publishArtifact(request({ kind: "auto", artifact }, "wrong-token"));
+    expect(response.status).toBe(404);
+  });
+
+  it("rejects a valid artifact measured against another release", async () => {
+    configure();
+    const response = await publishArtifact(request({
+      kind: "auto",
+      artifact: { ...artifact, release: { ...artifact.release, commitSha: "b".repeat(40) } },
+    }));
+    expect(response.status).toBe(409);
+  });
+
+  it("rejects a live artifact with no measured rows", async () => {
+    configure();
+    const response = await publishArtifact(request({
+      kind: "auto",
+      artifact: { ...artifact, cases: 0, rows: [] },
+    }));
+    expect(response.status).toBe(400);
+  });
+
+  it("upserts the strict artifact and serves it as current durable evidence", async () => {
+    configure();
+    const published = await publishArtifact(request({ kind: "auto", artifact }));
+    expect(published.status).toBe(200);
+    expect(await published.json()).toMatchObject({ ok: true, kind: "auto", releaseSha });
+
+    const stored = await requireDb().prepare(
+      "SELECT kind, release_sha AS releaseSha FROM benchmark_artifacts WHERE workspace_id = ?",
+    ).bind(workspaceId).first<{ kind: string; releaseSha: string }>();
+    expect(stored).toEqual({ kind: "auto", releaseSha });
+
+    const response = await readLab();
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.results.live).toMatchObject({
+      storage: "durable",
+      grader: "grounded-grader-v2",
+      release: { commitSha: releaseSha },
+    });
+    expect(body.results.currentRelease.commitSha).toBe(releaseSha);
+  });
+
+  it("does not let an older artifact roll back a newer measurement", async () => {
+    configure();
+    const newer = { ...artifact, generatedAt: "2026-08-05T14:00:00.000Z" };
+    expect((await publishArtifact(request({ kind: "auto", artifact: newer }))).status).toBe(200);
+    const older = { ...artifact, generatedAt: "2026-08-05T13:00:00.000Z" };
+    expect((await publishArtifact(request({ kind: "auto", artifact: older }))).status).toBe(409);
+    const stored = await requireDb().prepare(
+      `SELECT generated_at AS generatedAt FROM benchmark_artifacts
+       WHERE workspace_id = ? AND kind = 'auto' AND release_sha = ?`,
+    ).bind(workspaceId, releaseSha).first<{ generatedAt: string }>();
+    expect(stored?.generatedAt).toBe(newer.generatedAt);
+  });
+
+  it("never presents a bundled artifact from another SHA as current measurement", async () => {
+    const unmeasuredSha = "c".repeat(40);
+    configure(unmeasuredSha);
+    const response = await readLab();
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.results.currentRelease.commitSha).toBe(unmeasuredSha);
+    expect(body.results.live).toMatchObject({
+      status: "awaiting_current_release_measurement",
+      storage: "none",
+      cases: 0,
+    });
+    expect(body.results.modeComparison.comparable).toBe(false);
+    expect(body.results.pdf).toMatchObject({
+      status: "awaiting_current_release_measurement",
+      storage: "none",
+      cases: null,
+    });
+  });
+});

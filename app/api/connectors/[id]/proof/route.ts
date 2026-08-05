@@ -1,13 +1,34 @@
 import { apiError, noStoreJson } from "../../../../../lib/server/api";
+import { connectorProofFreshness } from "../../../../../lib/server/connector-proof";
 import { requireRequestActor } from "../../../../../lib/server/identity";
 import { requireDb } from "../../../../../lib/server/runtime";
 import { ensureCoreSchema, requireWorkspaceForUser } from "../../../../../lib/server/store";
+
+type ConnectorResourceProof = {
+  id: string;
+  resourceType: string;
+  name: string;
+  selected: number;
+  status: string;
+  cursorHash: string | null;
+  lastSyncedAt: string | null;
+};
+
+function stringArrayFromJson(value: unknown): string[] {
+  try {
+    const parsed = JSON.parse(String(value ?? "[]"));
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
+  } catch {
+    return [];
+  }
+}
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const actor = await requireRequestActor();
     const workspace = await requireWorkspaceForUser(actor.id);
     const workspaceId = String(workspace.id);
+    const publicProof = actor.id === "user:public-access";
     const { id } = await context.params;
     await ensureCoreSchema();
     const connector = await requireDb().prepare(
@@ -30,17 +51,36 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       requireDb().prepare(
         `SELECT external_resource_id AS id, resource_type AS resourceType, display_name AS name,
                 selected, status, provider_cursor_hash AS cursorHash, last_synced_at AS lastSyncedAt
-         FROM connector_resources WHERE workspace_id = ? AND connector_id = ? ORDER BY display_name`,
-      ).bind(workspaceId, id).all(),
+         FROM connector_resources WHERE workspace_id = ? AND connector_id = ?
+         ${publicProof ? "AND selected = 1 AND status = 'verified'" : ""}
+         ORDER BY display_name`,
+      ).bind(workspaceId, id).all<ConnectorResourceProof>(),
     ]);
-    const proof = verification ? {
-      ...verification,
-      resourceIds: JSON.parse(String(verification.resourceIdsJson ?? "[]")),
-      sourceIds: JSON.parse(String(verification.sourceIdsJson ?? "[]")),
-      providerCoverage: JSON.parse(String(verification.providerCoverageJson ?? "[]")),
-      resourceIdsJson: undefined, sourceIdsJson: undefined, providerCoverageJson: undefined,
-    } : null;
-    return noStoreJson({ ok: true, connector, verification: proof, resources: resources.results });
+    const proof = verification ? (() => {
+      const resourceIds = stringArrayFromJson(verification.resourceIdsJson);
+      const visibleResourceIds = new Set(resources.results.map((resource) => resource.id));
+      return {
+        ...verification,
+        // The SQL predicate is the primary disclosure boundary. Intersecting receipt IDs
+        // with the visible rows prevents a stale or malformed receipt from naming a
+        // resource the public sandbox is not allowed to enumerate.
+        resourceIds: publicProof
+          ? resourceIds.filter((resourceId) => visibleResourceIds.has(resourceId))
+          : resourceIds,
+        sourceIds: stringArrayFromJson(verification.sourceIdsJson),
+        providerCoverage: stringArrayFromJson(verification.providerCoverageJson),
+        resourceIdsJson: undefined,
+        sourceIdsJson: undefined,
+        providerCoverageJson: undefined,
+      };
+    })() : null;
+    return noStoreJson({
+      ok: true,
+      connector,
+      verification: proof,
+      proofFreshness: connectorProofFreshness(verification?.verifiedAt),
+      resources: resources.results,
+    });
   } catch (error) {
     return apiError(error);
   }

@@ -28,6 +28,7 @@
     "test:security": "node ./node_modules/vitest/vitest.mjs run --config vitest.config.ts tests/security.test.ts",
     "test:live": "node scripts/live-acceptance.mjs",
     "benchmark:live": "node scripts/run-live-benchmark.mjs",
+    "benchmark:publish": "node scripts/publish-benchmark-artifact.mjs",
     "benchmark": "node --experimental-strip-types scripts/run-evals.mjs",
     "benchmark:router": "node --experimental-strip-types scripts/run-evals.mjs --fixture",
     "benchmark:pdf": "node scripts/run-pdf-benchmark.mjs",

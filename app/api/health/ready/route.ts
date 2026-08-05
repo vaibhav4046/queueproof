@@ -26,6 +26,11 @@ export async function GET() {
         // Kept for API compatibility. This means optional archival, not upload support.
         uploadBinding: Boolean(runtime.FILES),
         documentIngestion: "direct-to-hydradb",
+        connectorHealth: {
+          readinessGate: false,
+          endpoint: "/api/connectors",
+          detail: "Workspace-scoped provider verification is reported separately from process readiness.",
+        },
       },
     },
     { status: ready ? 200 : 503 },

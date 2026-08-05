@@ -23,6 +23,11 @@ describe("provider aliasing", () => {
     expect(providerFromSource({ additional_metadata: { app_provider: "google_mail" } })).toBe("gmail");
   });
 
+  it("reads the system provider from HydraDB tenant metadata", () => {
+    expect(providerFromSource({ metadata: { provider: "linear" } })).toBe("linear");
+    expect(providerFromSource({ metadata: { provider: "google" } })).toBe("gmail");
+  });
+
   it("returns null when no provider is present", () => {
     expect(providerFromSource({})).toBeNull();
     expect(canonicalProvider(null)).toBeNull();

@@ -13,7 +13,7 @@ if (!workspaceResponse.ok) throw new Error(`Workspace bootstrap failed: ${worksp
 const workspace = await workspaceResponse.json();
 if (workspace.ok !== true) throw new Error("Workspace bootstrap did not return an explicit success contract.");
 
-for (const destination of ["Ask", "Today", "Sources", "History", "Connect AI", "Review changes", "Benchmarks"]) {
+for (const destination of ["Ask", "Today", "Sources", "History", "Use with AI", "Review changes", "Benchmarks"]) {
   assert.ok(html.includes(destination), `Missing rendered navigation destination: ${destination}`);
 }
 assert.match(html, /aria-current="page"/, "The active product area must be exposed to assistive technology.");

@@ -1,10 +1,17 @@
 import { apiError, noStoreJson, readJson } from "../../../lib/server/api";
 import { hydraClientForWorkspace } from "../../../lib/server/hydradb-account";
-import { extractQuerySources, matchingChunks, providerFromSource, sourceBelongsToConnector } from "../../../lib/server/hydradb-shapes";
+import {
+  connectorLineageMetadataFilter,
+  extractQuerySources,
+  matchingChunks,
+  providerFromSource,
+  sourceBelongsToConnector,
+} from "../../../lib/server/hydradb-shapes";
 import { requireRequestActor } from "../../../lib/server/identity";
 import { requireDb } from "../../../lib/server/runtime";
 import { audit, createId, enforcePublicRateLimit, requireWorkspaceForUser } from "../../../lib/server/store";
 import {
+  coverageRepairProviderOrder,
   decideAutoEscalation,
   focusedEvidenceFollowUpQuery,
   planRetrieval,
@@ -34,6 +41,7 @@ type RetrievalScope = {
   collection: string | null;
   connectors: Connector[];
   sourceIds?: string[];
+  lineageMetadataFilters?: Record<string, unknown>;
 };
 type Row = Record<string, unknown>;
 type RetrievedEvidence = {
@@ -235,8 +243,9 @@ export async function POST(request: Request) {
       queryVariants: Array<"text" | "hybrid">,
       phase: "primary" | "follow_up",
       queryMode: ExecutedRetrievalMode,
+      queryScopes: RetrievalScope[] = scopes,
     ) => {
-      await Promise.all(scopes.map(async (scope) => {
+      await Promise.all(queryScopes.map(async (scope) => {
         await Promise.all(queryVariants.map(async (queryBy) => {
         if (request.signal.aborted) throw new DOMException("Request cancelled.", "AbortError");
         const queryProviders = scope.sourceIds
@@ -256,6 +265,13 @@ export async function POST(request: Request) {
           : request.signal;
         let response: Awaited<ReturnType<typeof client.query>>;
         try {
+          const effectiveMetadataFilters = {
+            ...(scope.lineageMetadataFilters ?? {}),
+            // An explicit caller scope remains authoritative. A conflicting
+            // connector/provider filter therefore yields no repair evidence;
+            // QueueProof never broadens a user's requested metadata boundary.
+            ...(payload.metadataFilters ?? {}),
+          };
           response = await client.query({
             database: scope.database,
             ...(scope.collection ? { collections: [scope.collection] } : {}),
@@ -272,8 +288,8 @@ export async function POST(request: Request) {
             graph_context: callGraphUsage,
             query_forceful_relations: callGraphUsage,
             recency_bias: plan.recencyBias,
-            ...(payload.metadataFilters && Object.keys(payload.metadataFilters).length > 0
-              ? { metadata_filters: payload.metadataFilters }
+            ...(Object.keys(effectiveMetadataFilters).length > 0
+              ? { metadata_filters: effectiveMetadataFilters }
               : {}),
           }, boundedSignal);
         } catch (error) {
@@ -393,12 +409,34 @@ export async function POST(request: Request) {
         preliminary.evidence.map((item) => `${item.title}. ${item.excerpt}`),
       );
       if (repairQuery) {
+        const repairProviders = coverageRepairProviderOrder({
+          question,
+          evidencePassages: preliminary.evidence.map((item) => `${item.title}. ${item.excerpt}`),
+          availableProviders: connectors.results.map((connector) => connector.provider),
+          evidenceProviders: preliminary.evidence.map((item) => item.provider),
+          category: plan.category,
+        }).slice(0, 3);
         await recorder.record(
           "routing",
-          "The Fast pass found only one provider for a multi-step state or identifier question; running one Fast join-key coverage repair.",
+          repairProviders.length
+            ? `The Fast pass found only one provider for a multi-step state or identifier question; checking missing connector lineage in order: ${repairProviders.join(", ")}.`
+            : "The Fast pass found only one provider, but the retained evidence did not identify a safe missing-provider repair target.",
           { callCount: trace.length, latencyMs: Date.now() - started, mode: "fast" },
         );
-        await runQueryBatch(repairQuery, ["hybrid"], "follow_up", "fast");
+        for (const targetProvider of repairProviders) {
+          const providerScopes = connectors.results
+            .filter((connector) => connector.provider.toLowerCase() === targetProvider)
+            .map((connector) => ({
+              database: connector.database,
+              collection: connector.collection,
+              connectors: [connector],
+              lineageMetadataFilters: connectorLineageMetadataFilter(connector.hydradbConnectorId),
+            } satisfies RetrievalScope));
+          if (!providerScopes.length) continue;
+          await runQueryBatch(repairQuery, ["hybrid"], "follow_up", "fast", providerScopes);
+          const repairedProviders = new Set(dedupeEvidence().map((item) => item.provider));
+          if (repairedProviders.has(targetProvider)) break;
+        }
         preliminaryEvidence = dedupeEvidence();
         preliminary = synthesiseGroundedAnswer(question, preliminaryEvidence);
       }

@@ -215,6 +215,19 @@ const schemaStatements = [
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(proposal_id)
   )`,
+  // Live benchmark evidence is written after an exact production SHA is deployed.
+  // Keeping it durable breaks the otherwise unavoidable cycle where committing a
+  // measured JSON file changes the very SHA that file claims to measure.
+  `CREATE TABLE IF NOT EXISTS benchmark_artifacts (
+    id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, kind TEXT NOT NULL,
+    release_sha TEXT NOT NULL, artifact_json TEXT NOT NULL,
+    artifact_hash TEXT NOT NULL, generated_at TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(workspace_id, kind, release_sha)
+  )`,
+  `CREATE INDEX IF NOT EXISTS benchmark_artifacts_release_idx
+    ON benchmark_artifacts(workspace_id, release_sha, kind)`,
   `CREATE TABLE IF NOT EXISTS audit_events (
     id TEXT PRIMARY KEY, workspace_id TEXT, actor_id TEXT NOT NULL,
     operation TEXT NOT NULL, operation_id TEXT NOT NULL, target_type TEXT,

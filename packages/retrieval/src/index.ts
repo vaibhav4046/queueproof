@@ -95,6 +95,49 @@ export function shouldRunFastCoverageRepair(input: {
   return input.contradictionProviders.some((providers) => new Set(providers.filter(Boolean)).size < 2);
 }
 
+const WORK_TRACKER_PROVIDER_ORDER = [
+  "linear", "jira", "shortcut", "asana", "github", "gitlab", "notion",
+];
+
+/**
+ * Order the still-missing providers for one bounded connector-scoped repair.
+ *
+ * The order comes only from the question, retained first-hop passages, and the
+ * verified connectors available to the workspace:
+ *
+ * 1. a provider explicitly referenced by the question/evidence is tried first;
+ * 2. exact operational identifiers prefer dedicated work trackers/code hosts;
+ * 3. any remaining verified provider is a fallback for identifiers that live in
+ *    mail or chat instead.
+ *
+ * This deliberately contains no fixture identifiers, people, projects, or
+ * expected answers. The route stops after the first provider that returns valid
+ * connector-lineage evidence, keeping the repair cheap in the common case.
+ */
+export function coverageRepairProviderOrder(input: {
+  question: string;
+  evidencePassages: string[];
+  availableProviders: string[];
+  evidenceProviders: string[];
+  category: QueryCategory;
+}): string[] {
+  const produced = new Set(input.evidenceProviders.map((provider) => provider.toLowerCase()));
+  const missing = [...new Set(input.availableProviders.map((provider) => provider.toLowerCase()))]
+    .filter((provider) => provider !== "document" && !produced.has(provider));
+  if (!missing.length) return [];
+
+  const referenced = providersNamedInQuestion(
+    [input.question, ...input.evidencePassages.slice(0, 16)].join("\n"),
+    missing,
+  ).map((provider) => provider.toLowerCase());
+  const trackerCandidates = input.category === "exact_identifier"
+    ? WORK_TRACKER_PROVIDER_ORDER.filter((provider) => missing.includes(provider))
+    : [];
+  const fallback = input.category === "exact_identifier" ? missing : [];
+
+  return [...new Set([...referenced, ...trackerCandidates, ...fallback])];
+}
+
 // Operational record identifiers are often namespaced (OPS-POL-14,
 // DRAFT-OPS-14), not only one-prefix IDs such as BUG-123. Keeping extraction in
 // one helper prevents the router and second-hop query from silently shortening

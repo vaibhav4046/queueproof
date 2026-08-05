@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  coverageRepairProviderOrder,
   evidenceFollowUpTerms,
   focusedEvidenceFollowUpQuery,
   planRetrieval,
@@ -64,6 +65,36 @@ describe("retrieval planner", () => {
       evidenceProviders: ["github", "linear"],
       contradictionProviders: [["github", "linear"]],
     })).toBe(false);
+  });
+
+  it("targets a missing provider named by retained evidence", () => {
+    expect(coverageRepairProviderOrder({
+      question: "Which open issue appears to be already resolved elsewhere?",
+      evidencePassages: ["The code shipped, but the tracked Linear record is ENG-456."],
+      availableProviders: ["gmail", "github", "linear", "slack"],
+      evidenceProviders: ["github"],
+      category: "single_source_fact",
+    })).toEqual(["linear"]);
+  });
+
+  it("orders exact-ID repair toward work trackers without encoding fixture entities", () => {
+    expect(coverageRepairProviderOrder({
+      question: "What is OPS-742, who filed it, and which project is it against?",
+      evidencePassages: ["A chat receipt says Morgan filed OPS-742 against Beacon."],
+      availableProviders: ["gmail", "github", "linear", "slack"],
+      evidenceProviders: ["slack"],
+      category: "exact_identifier",
+    })).toEqual(["linear", "github", "gmail"]);
+  });
+
+  it("never repairs a provider already represented by valid evidence", () => {
+    expect(coverageRepairProviderOrder({
+      question: "Compare Linear and GitHub for OPS-742.",
+      evidencePassages: ["Linear and GitHub both reference OPS-742."],
+      availableProviders: ["gmail", "github", "linear", "slack"],
+      evidenceProviders: ["linear", "github"],
+      category: "exact_identifier",
+    })).not.toEqual(expect.arrayContaining(["linear", "github"]));
   });
 });
 
