@@ -381,7 +381,11 @@ export default function QueueProofApp({
     initialView?.kind === "ready" ? initialView.evidence.connectors : [],
   );
   const [connectorsLoaded, setConnectorsLoaded] = useState(() => initialView?.kind === "ready");
-  const [queue, setQueue] = useState<QueueData>({ generatedAt: null, items: [] });
+  const [queue, setQueue] = useState<QueueData>(() =>
+    initialView?.kind === "ready"
+      ? (initialView.queue as unknown as QueueData)
+      : { generatedAt: null, items: [] },
+  );
   const [selectedPacket, setSelectedPacket] = useState<Packet | null>(null);
   const [proposalPacket, setProposalPacket] = useState<Packet | null>(null);
   const [error, setError] = useState("");
@@ -427,6 +431,7 @@ export default function QueueProofApp({
   const reloadWorkspace = useCallback(async () => {
     const payload = await api<{ view: WorkspaceView }>("/api/workspace");
     setView(payload.view);
+    if (payload.view.kind === "ready") setQueue(payload.view.queue as unknown as QueueData);
     setBootError("");
     return payload.view;
   }, []);
@@ -445,17 +450,12 @@ export default function QueueProofApp({
   useEffect(() => {
     if (!workspaceId) return;
     let active = true;
-    void Promise.all([
-      api<{ connectors: Connector[] }>("/api/connectors"),
-      api<QueueData>("/api/queue"),
-    ]).then(([connectorData, queueData]) => {
-      if (!active) return;
-      setConnectors(connectorData.connectors);
-      setConnectorsLoaded(true);
-      setQueue(queueData);
-    }).catch((reason: Error) => {
-      if (active) { setConnectorsLoaded(true); setError(reason.message); }
-    });
+    void api<{ connectors: Connector[] }>("/api/connectors")
+      .then((connectorData) => { if (!active) return; setConnectors(connectorData.connectors); setConnectorsLoaded(true); })
+      .catch((reason: Error) => { if (active) { setConnectorsLoaded(true); setError(reason instanceof Error ? reason.message : "Connectors failed to load."); } });
+    void api<QueueData>("/api/queue")
+      .then((queueData) => { if (active) setQueue(queueData); })
+      .catch(() => { /* server-rendered queue already present; keep it */ });
     return () => { active = false; };
   }, [workspaceId]);
 
@@ -933,8 +933,8 @@ function CommandScreen({ queue, verified, busy, onGenerate, onOpenSources, onSel
             <span className={`priority-band band-${band(first.finalScore).toLowerCase()}`}>{band(first.finalScore)}</span>
             <strong className="hero-score">{first.finalScore}<small>/100</small></strong>
             <h2>{first.title}</h2>
-            <p>{first.packet.task.objective}</p>
-            <div className="packet-facts"><span><small>OWNER</small>{first.owner || "Needs assignment"}</span><span><small>DEADLINE</small>{dateLabel(first.deadline)}</span><span><small>CONFIDENCE</small>{Math.round(first.packet.task.confidence * 100)}%</span></div>
+            <p>{first.packet.task?.objective ?? first.title}</p>
+            <div className="packet-facts"><span><small>OWNER</small>{first.owner || "Needs assignment"}</span><span><small>DEADLINE</small>{dateLabel(first.deadline)}</span><span><small>CONFIDENCE</small>{Math.round((first.packet.task?.confidence ?? first.confidence) * 100)}%</span></div>
             <span className="open-proof">Open action plan <ArrowRight size={14} /></span>
           </button>
           <div className="queue-list">

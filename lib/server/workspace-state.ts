@@ -2,6 +2,7 @@ import { getRequestActor, signInConfigured } from "./identity";
 import { requireDb, runtimeEnv } from "./runtime";
 import { ensureCoreSchema, workspaceForUser } from "./store";
 import { hydraAccountForWorkspace } from "./hydradb-account";
+import { listQueueForWorkspace } from "./queue";
 
 /**
  * Single source of truth for "what should the user see right now".
@@ -26,6 +27,8 @@ export type WorkspaceView =
        workspace: WorkspaceSummary;
        hydradb: HydraSummary;
        evidence: PublicEvidenceSummary;
+      /** Latest generated priority queue; keeps the /queue first paint identical to the API. */
+      queue: Awaited<ReturnType<typeof listQueueForWorkspace>>;
       /** Surfaced so an ephemeral deployment can never be mistaken for a durable one. */
       storageBackend: string;
     };
@@ -90,7 +93,7 @@ export async function loadWorkspaceView(): Promise<WorkspaceView> {
   if (!workspace) return { kind: "no_workspace", actor: actorView };
 
   const workspaceId = String(workspace.id);
-  const [account, connectorRows, documentRows] = await Promise.all([
+  const [account, connectorRows, documentRows, queue] = await Promise.all([
     hydraAccountForWorkspace(workspaceId),
     requireDb().prepare(
       `SELECT c.id, c.hydradb_connector_id AS hydradbConnectorId, c.provider, c.name, c.state, c.database, c.collection,
@@ -110,6 +113,7 @@ export async function loadWorkspaceView(): Promise<WorkspaceView> {
               processing_duration_ms AS processingDurationMs, stage, error, created_at AS createdAt
        FROM documents WHERE workspace_id = ? ORDER BY created_at DESC LIMIT 100`,
     ).bind(workspaceId).all<PublicEvidenceSummary["documents"][number]>(),
+    listQueueForWorkspace(workspaceId),
   ]);
   return {
     kind: "ready",
@@ -130,5 +134,6 @@ export async function loadWorkspaceView(): Promise<WorkspaceView> {
       fingerprint: (account?.key_fingerprint as string | undefined) ?? null,
     },
     evidence: { connectors: connectorRows.results ?? [], documents: documentRows.results ?? [] },
+    queue,
   };
 }
