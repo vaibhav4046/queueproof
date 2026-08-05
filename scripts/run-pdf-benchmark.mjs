@@ -20,6 +20,27 @@ const facts = JSON.parse(await readFile(new URL("../evals/fixtures/large-pdf-fac
 const paceMs = Number(after("--pace-ms") ?? process.env.QUEUEPROOF_BENCH_PACE_MS ?? "6000");
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+async function fetchHealth() {
+  const started = Date.now();
+  try {
+    const response = await fetch(`${target}/api/health/live`, {
+      headers: { Accept: "application/json", "Cache-Control": "no-store" },
+      signal: AbortSignal.timeout(15_000),
+    });
+    const body = await response.json().catch(() => null);
+    return { ok: response.ok, httpStatus: response.status, measuredLatencyMs: Date.now() - started, body, error: response.ok ? null : `HTTP ${response.status}` };
+  } catch (error) {
+    return { ok: false, httpStatus: 0, measuredLatencyMs: Date.now() - started, body: null, error: error instanceof Error ? error.message : "Health request failed." };
+  }
+}
+
+const health = await fetchHealth();
+const release = {
+  commitSha: typeof health.body?.release?.commitSha === "string" ? health.body.release.commitSha : null,
+  commitRef: typeof health.body?.release?.commitRef === "string" ? health.body.release.commitRef : null,
+  deploymentUrl: typeof health.body?.release?.deploymentUrl === "string" ? health.body.release.deploymentUrl : null,
+};
+
 async function ask(payload, attempt = 1) {
   const started = Date.now();
   let response;
@@ -216,6 +237,9 @@ const artifact = {
   target,
   runner: "scripts/run-pdf-benchmark.mjs",
   fixture: "evals/fixtures/large-pdf-facts.json",
+  health,
+  release,
+  releaseVerified: Boolean(release.commitSha && release.commitRef),
   document: {
     sourceId: documentSourceId,
     filename: "helios-operations-handbook.pdf",

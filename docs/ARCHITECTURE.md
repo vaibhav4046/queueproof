@@ -132,8 +132,8 @@ execution forward migration.
 
 ## 9. Product surface
 
-The app exposes real routes for Ask, Priorities, Evidence, Benchmarks, Replay, Approvals,
-and Developer. The compact mobile navigation keeps the four primary destinations visible
+The app exposes real routes labelled Ask, Today, Sources, Proof tests, History, Review actions,
+and Connect AI. The compact mobile navigation keeps the four primary destinations visible
 and puts the remaining routes behind a labelled More control. The header remains sticky,
 result status is announced accessibly, citations open receipt dialogs, and modal/drawer focus
 is contained and restored.

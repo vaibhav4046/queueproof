@@ -24,6 +24,67 @@ export type RetrievalPlan = {
   reason: string;
 };
 
+export type ExecutedRetrievalMode = "fast" | "thinking";
+export type RequestedRetrievalMode = ExecutedRetrievalMode | "auto" | undefined;
+
+export function resolveRetrievalMode(requested: RequestedRetrievalMode) {
+  return requested === "fast" || requested === "thinking"
+    ? { automatic: false, primaryMode: requested }
+    : { automatic: true, primaryMode: "fast" as const };
+}
+
+const PROVIDER_ALIASES: Record<string, string[]> = {
+  gmail: ["email"],
+  google_calendar: ["google calendar", "gcal"],
+  google_drive: ["google drive"],
+  github: ["git hub"],
+  gitlab: ["git lab"],
+};
+
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** Providers the user explicitly named, limited to providers in the retrieval scope. */
+export function providersNamedInQuestion(question: string, availableProviders: string[]): string[] {
+  return [...new Set(availableProviders)].filter((provider) => {
+    const label = provider.toLowerCase().replace(/[_-]+/g, " ");
+    const aliases = [label, ...(PROVIDER_ALIASES[provider.toLowerCase()] ?? [])];
+    return aliases.some((alias) => new RegExp(`(^|[^a-z0-9])${escapeRegExp(alias)}([^a-z0-9]|$)`, "i").test(question));
+  });
+}
+
+export function retrievalModeCost(mode: ExecutedRetrievalMode) {
+  return mode === "thinking" ? 3 : 1;
+}
+
+export function decideAutoEscalation(input: {
+  validationStatus: "grounded" | "partial" | "abstained";
+  missingInformation: string[];
+  namedProviders: string[];
+  evidenceProviders: string[];
+}) {
+  const reasons: string[] = [];
+  if (input.validationStatus === "partial") reasons.push("the Fast answer was partial");
+  if (input.validationStatus === "abstained") reasons.push("Fast retrieval could not support an answer");
+  if (input.missingInformation.length > 0) reasons.push("requested information remained unsupported");
+  const produced = new Set(input.evidenceProviders.map((provider) => provider.toLowerCase()));
+  const missingNamedProviders = input.namedProviders.filter((provider) => !produced.has(provider.toLowerCase()));
+  if (missingNamedProviders.length > 0) {
+    reasons.push(`${missingNamedProviders.join(", ")} returned no evidence`);
+  }
+  return { escalate: reasons.length > 0, reasons, missingNamedProviders };
+}
+
+// Operational record identifiers are often namespaced (OPS-POL-14,
+// DRAFT-OPS-14), not only one-prefix IDs such as BUG-123. Keeping extraction in
+// one helper prevents the router and second-hop query from silently shortening
+// a namespaced identifier to its final segment.
+const recordIdentifier = /\b[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d+\b/g;
+
+export function recordIdentifiers(value: string): string[] {
+  recordIdentifier.lastIndex = 0;
+  return value.match(recordIdentifier) ?? [];
+}
+
 /**
  * Concrete HydraDB lanes for a plan. Exact identifiers need lexical precision,
  * while the hybrid lane protects against aliases and surrounding semantic context.
@@ -79,7 +140,7 @@ export function evidenceFollowUpTerms(question: string, passages: string[]): str
   };
 
   for (const passage of passages.slice(0, 16)) {
-    for (const id of passage.match(/\b[A-Z][A-Z0-9]+-\d+\b/g) ?? []) add(id, 20);
+    for (const id of recordIdentifiers(passage)) add(id, 20);
     for (const phrase of passage.match(/\b[A-Z][A-Za-z0-9]+(?:\s+[A-Z][A-Za-z0-9]+){0,2}\b/g) ?? []) {
       const internalCapital = /[a-z][A-Z]/.test(phrase);
       add(phrase, internalCapital ? 9 : phrase.includes(" ") ? 6 : 3);
@@ -105,8 +166,8 @@ export function evidenceFollowUpTerms(question: string, passages: string[]): str
  */
 export function focusedEvidenceFollowUpQuery(question: string, passages: string[]): string | null {
   const exactIds = [
-    ...(question.match(/\b[A-Z][A-Z0-9]+-\d+\b/g) ?? []),
-    ...passages.slice(0, 16).flatMap((passage) => passage.match(/\b[A-Z][A-Z0-9]+-\d+\b/g) ?? []),
+    ...recordIdentifiers(question),
+    ...passages.slice(0, 16).flatMap(recordIdentifiers),
   ];
   const terms = [
     ...exactIds,
@@ -132,7 +193,7 @@ export function focusedEvidenceFollowUpQuery(question: string, passages: string[
   return selected.length ? selected.join(" ") : null;
 }
 
-const exactId = /\b(?:[A-Z][A-Z0-9]+-\d+|[0-9a-f]{8}-[0-9a-f-]{27,})\b/i;
+const exactId = /\b(?:[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d+|[0-9a-f]{8}-[0-9a-f-]{27,})\b/i;
 
 export function planRetrieval(query: string): RetrievalPlan {
   const normalized = query.toLowerCase();

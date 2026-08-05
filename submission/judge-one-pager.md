@@ -1,5 +1,9 @@
 # QueueProof judge one-pager
 
+> [!IMPORTANT]
+> Draft judge summary. Candidate SHA, release gates, deployment identity, and submission
+> sign-off live in [`RELEASE_EVIDENCE.md`](../RELEASE_EVIDENCE.md).
+
 ## One answer. Every system. Proven.
 
 QueueProof uses HydraDB to turn fragmented work evidence into a cited answer and a
@@ -44,12 +48,11 @@ before the provider call.
 | Evidence | Result |
 | --- | ---: |
 | Router fixtures | 39/39 |
-| Fixture assertions | 331 |
-| Full suite | 340 tests / 37 files on current local candidate; confirm final CI |
-| Security / MCP | 13 / 8 tests |
-| Typecheck, lint, build, E2E, deploy check | pass |
+| Fixture-computable assertions | 331 |
+| Full suite / security / MCP | use submitted-commit CI receipt |
+| Typecheck, lint, build, E2E, deploy check | pending in `RELEASE_EVIDENCE.md` |
 | Responsive viewports | fresh final-deployment matrix required |
-| Secret scan | 0 matching files across pre-release history + release worktree |
+| Secret scan | fresh submitted-commit receipt required |
 
 ## Honest boundary
 

@@ -21,7 +21,7 @@ for (const path of routes) {
   assert.equal(response.status, path === "/this-route-must-not-exist" ? 404 : 200, `${path} returned ${response.status}.`);
   const html = await response.text();
   assert.match(html, /QueueProof/i, `${path} did not render the QueueProof application.`);
-  if (path === "/") assert.match(html, /evidence-command-centre-v1/, "Production is missing the current design-system marker.");
+  if (path === "/") assert.match(html, /ember-assistant-v1/, "Production is missing the Ember assistant design-system marker.");
   if (path === "/this-route-must-not-exist") assert.match(html, /This route left no receipt\./, "Production is missing the branded 404.");
 }
-console.log(`PASS  production ${intendedSha} serves the command-centre marker, nine routes, and branded 404`);
+console.log(`PASS  production ${intendedSha} serves the ember-assistant-v1 marker, nine routes, and branded 404`);

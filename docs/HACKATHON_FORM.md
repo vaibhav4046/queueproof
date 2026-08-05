@@ -1,17 +1,19 @@
 # HydraDB hackathon form answers
 
 Use these answers only after the public deployment and signed-out repository check pass the
-final verification checklist. The measurements below are the last accepted production
+final verification checklist in [`RELEASE_EVIDENCE.md`](../RELEASE_EVIDENCE.md). The
+measurements below are the last accepted production
 baseline and must be replaced if the final rerun differs. Do not paste a video URL until the
 recording is public.
 
 ## Did you try ingesting huge PDFs?
 
 Yes. QueueProof generates and ingests a deterministic 346-page handbook, then asks 22
-labelled questions containing 56 frozen fact groups. The final post-deploy public run
+labelled questions containing 56 frozen fact groups. The timestamped post-deploy public run
 passed 20/22 cases and recovered 53/56 facts with 100% citation precision/completeness
 and zero unsupported claims. The two REVIEW cases and the failed cross-source provider
-threshold remain visible in `evals/results/pdf-live-run.json`.
+threshold remain visible in `evals/results/pdf-live-run.json`. That artifact does not embed a
+release SHA, so it is not same-commit evidence.
 
 ## Did you use at least three connectors?
 
@@ -44,7 +46,7 @@ retained receipt, and abstains when evidence cannot support an answer.
   contradiction, and one exact-ID answer lacked the rubric-required Linear receipt.
 - Relative cost: mean 2.17 HydraDB calls; Deep check is reported as 3 weighted units.
   No unverified USD price is invented.
-- Final strict 346-page PDF run: 20/22 cases, 53/56 facts, p50 566 ms, p95 11.852 s,
+- Final strict 346-page PDF run: 20/22 cases, 53/56 facts, p50 2.592 s, p95 17.061 s,
   complete citations, and zero unsupported claims.
 
 These numbers are different measurements and must never be merged into one accuracy
@@ -73,7 +75,8 @@ final figures exact rather than rounding them upward.
 2. Run the preloaded AuthShield question.
 3. Inspect mode, route reason, provider coverage, HydraDB calls, elapsed time, one citation
    receipt, preserved disagreement, missing information, and next safe action.
-4. Open **Benchmarks** to compare expected and observed output.
-5. Open **Replay** to step through one measured run and download its JSON receipt.
+4. Open **Proof tests** to compare expected and observed output.
+5. Open **History**, expand **Recorded proof-test replays**, step through one measured run,
+   and download its JSON receipt.
 6. Open <https://queueproof.vercel.app/method> for the trust and refusal boundaries.
 7. Clone the repository and run the verification commands in the README.

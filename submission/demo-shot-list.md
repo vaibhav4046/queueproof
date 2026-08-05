@@ -7,8 +7,8 @@ deployed commit only.
 2. **Live run, 8–24s:** flagship question and the real routing/progress state.
 3. **Answer, 24–31s:** answer with provider coverage, mode, calls, and elapsed time.
 4. **Receipt, 31–39s:** one citation dialog showing provider, timestamp, source ID, and excerpt.
-5. **Priorities, 39–50s:** top queue packet, score factors, safe action, and approval boundary.
-6. **Benchmarks, 50–60s:** denominator, PASS/REVIEW rows, latency/calls/mode, and reproduction
+5. **Today, 39–50s:** top queue packet, score factors, safe action, and approval boundary.
+6. **Proof tests, 50–60s:** denominator, PASS/REVIEW rows, latency/calls/mode, and reproduction
    command.
 
 Before recording, verify there is no horizontal overflow or console error at the capture size,

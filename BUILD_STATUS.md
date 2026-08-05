@@ -1,9 +1,10 @@
 # Build status — 2026-07-31 recovery session (historical)
 
-> **Archived 4 August 2026.** This is a before-state from the recovery process, not a current
-> build or deployment report. Its test counts, blockers, URLs, and implementation claims must
-> not be quoted as current. Use [`README.md`](README.md), `.github/workflows/ci.yml`, and the
-> newest timestamped files in `audit/` instead. The original evidence remains below.
+> [!WARNING]
+> **SUPERSEDED — HISTORICAL BUILD SNAPSHOT.** This is the 31 July recovery before-state, not a
+> current build or deployment report. Its test counts, blockers, URLs, and implementation
+> claims must not be quoted as current. Use [`RELEASE_EVIDENCE.md`](RELEASE_EVIDENCE.md) for
+> the current candidate gate receipt. The original evidence remains below for provenance.
 
 ## Current gate
 

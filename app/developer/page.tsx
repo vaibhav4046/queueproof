@@ -3,7 +3,7 @@ import QueueProofRoute from "../QueueProofRoute";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  title: "Developer",
+  title: "Connect AI",
   description: "Connect QueueProof through MCP and inspect its integration contract.",
 };
 

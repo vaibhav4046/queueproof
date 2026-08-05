@@ -13,6 +13,7 @@ of being smoothed over by the model.
 - Source: <https://github.com/vaibhav4046/queueproof>
 - Method: <https://queueproof.vercel.app/method>
 - Measured results: <https://queueproof.vercel.app/benchmarks>
+- Candidate and release receipt: [RELEASE_EVIDENCE.md](RELEASE_EVIDENCE.md)
 - 60-second walkthrough: [docs/DEMO_SCRIPT_60S.md](docs/DEMO_SCRIPT_60S.md)
 - Submission copy: [docs/SUBMISSION_COPY.md](docs/SUBMISSION_COPY.md)
 
@@ -23,16 +24,16 @@ The product has real, shareable routes rather than hash-only panels:
 | Route | Purpose |
 | --- | --- |
 | [`/`](https://queueproof.vercel.app/) | Ask a cited cross-source question |
-| [`/queue`](https://queueproof.vercel.app/queue) | Review the ranked next-action queue |
-| [`/evidence`](https://queueproof.vercel.app/evidence) | Inspect connector and document receipts |
-| [`/benchmarks`](https://queueproof.vercel.app/benchmarks) | Compare measured retrieval outcomes |
-| [`/replay`](https://queueproof.vercel.app/replay) | Replay stored, labelled benchmark artifacts |
-| [`/approvals`](https://queueproof.vercel.app/approvals) | Review proposed writes before execution |
-| [`/developer`](https://queueproof.vercel.app/developer) | Inspect MCP and integration surfaces |
+| [`/queue`](https://queueproof.vercel.app/queue) | **Today** — review the ranked next-action queue |
+| [`/evidence`](https://queueproof.vercel.app/evidence) | **Sources** — inspect connector and document receipts |
+| [`/benchmarks`](https://queueproof.vercel.app/benchmarks) | **Proof tests** — compare measured retrieval outcomes |
+| [`/replay`](https://queueproof.vercel.app/replay) | **History** — revisit questions and replay stored benchmark artifacts |
+| [`/approvals`](https://queueproof.vercel.app/approvals) | **Review actions** — inspect proposed writes before execution |
+| [`/developer`](https://queueproof.vercel.app/developer) | **Connect AI** — configure MCP clients and inspect the integration contract |
 | [`/method`](https://queueproof.vercel.app/method) | Read the evaluation and trust methodology |
 
-Start with Ask, open a citation receipt, then inspect the same source on Evidence. The
-benchmark page publishes failures as `REVIEW`; it does not relabel them as passes.
+Start with **Ask**, open a citation receipt, then inspect the same source under **Sources**.
+The **Proof tests** page publishes failures as `REVIEW`; it does not relabel them as passes.
 
 ## What is implemented
 
@@ -49,14 +50,15 @@ benchmark page publishes failures as `REVIEW`; it does not relabel them as passe
 6. Provider writes begin as proposals. Approval and a database-backed at-most-once claim are
    required before execution.
 
-## Measured production artifact
+## Stored production measurements
 
-Release `c7cf16b3c92f66d7b2f17a90e01372b77d62235b` on `main` is the release identified by the
-bundled benchmark artifacts. It returned HTTP 200 on all nine product and owner routes and
-showed four verified sources: GitHub, Gmail, Linear, and Slack. Verify `/api/health/live` before
-claiming that this remains the currently running deployment. CI then passed 341/341 tests,
-39/39 deterministic router cases with 331 assertions, the production build, and the
-deployment-binding check.
+The forced-mode live artifacts embed a successful health receipt for release
+`c7cf16b3c92f66d7b2f17a90e01372b77d62235b` on `main` and record four verified sources:
+GitHub, Gmail, Linear, and Slack. They are historical measurements, not proof that production
+still runs that release or that the current source candidate passes its gates. Verify
+`/api/health/live` and use [the release receipt](RELEASE_EVIDENCE.md) before making a current
+deployment claim. The offline router artifact separately records 39/39 labelled cases and 331
+fixture-computable assertions; it is not a live-retrieval or CI result.
 
 Forced Fast and Deep runs used the same six strict questions on that release and honored the
 requested mode:
@@ -70,12 +72,15 @@ Both runs measured 100% citation precision, 100% citation completeness, and 0% u
 claims. Fast retained the same strict score and fact coverage while using less latency, calls,
 and relative cost. The two `REVIEW` cases remain failures under the frozen strict rubric.
 
-The same release also reran the indexed deterministic 346-page PDF suite. It passed 20/22
-cases and recovered 53/56 facts (94.6429%); beginning, middle, and end canaries all passed.
+A later timestamped production artifact reran the indexed deterministic 346-page PDF suite. It
+passed 20/22 cases and recovered 53/56 facts (94.6429%); beginning, middle, and end canaries all
+passed.
 All 84 claims were supported by 56 citations, with 100% citation precision/completeness and
 0% unsupported claims. The run measured p50 2,592 ms and p95 17,061 ms, averaged 1.8182 calls,
 used 13 Fast and 9 Deep queries, and consumed 86 weighted units. The cross-source case remains
 `REVIEW` because it found the document and GitHub but needed one more non-document provider.
+Because `evals/results/pdf-live-run.json` does not embed a health receipt or release SHA, it is
+target- and timestamp-scoped rather than same-commit evidence.
 See [connector proof](docs/CONNECTOR_PROOF.md), [large-PDF proof](docs/LARGE_PDF_PROOF.md),
 and the machine-readable artifact at `evals/results/pdf-live-run.json`.
 
@@ -178,6 +183,7 @@ invented dollar costs.
 
 ## Evidence index
 
+- [Canonical release evidence and sign-off](RELEASE_EVIDENCE.md)
 - [Benchmark report](BENCHMARK_REPORT.md)
 - [Evaluation methodology](docs/EVALUATION_METHODOLOGY.md)
 - [Connector proof](docs/CONNECTOR_PROOF.md)
@@ -192,8 +198,8 @@ invented dollar costs.
 
 - Timestamped live results are a small observed sample, not an SLA.
 - A `REVIEW` benchmark result is a failed strict requirement, not a partial pass.
-- The same-release 346-page PDF result is 20/22, not 22/22; the cross-source provider miss
-  remains `REVIEW`.
+- The timestamp-scoped 346-page PDF result is 20/22, not 22/22; it is not SHA-bound and the
+  cross-source provider miss remains `REVIEW`.
 - Public users cannot mutate credentials, connectors, uploads, tokens, or external systems.
 - A real provider write is proven only by a stored provider response identifier.
 - Repository visibility must be verified in a signed-out browser before calling the source

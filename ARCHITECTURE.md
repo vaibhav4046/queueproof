@@ -1,5 +1,12 @@
 # QueueProof architecture
 
+> [!WARNING]
+> **SUPERSEDED — HISTORICAL ARCHITECTURE SNAPSHOT.** This root-level document describes an
+> earlier implementation and includes defects and missing capabilities that may since have
+> changed. It is retained for provenance, not release truth. Use
+> [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the maintained architecture and
+> [`RELEASE_EVIDENCE.md`](RELEASE_EVIDENCE.md) for candidate/deployment identity.
+
 ## Trust and data flow
 
 ```mermaid

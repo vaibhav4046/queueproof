@@ -7,6 +7,6 @@ Accessed 2026-07-31.
 - Codex: [official MCP guide](https://developers.openai.com/codex/mcp/)
 - Claude Code: [official MCP guide](https://docs.anthropic.com/en/docs/claude-code/mcp)
 - Kimi Code: [official repository](https://github.com/MoonshotAI/kimi-code)
-- Kilo Code: [official MCP configuration guide](https://kilo.ai/docs/features/mcp)
+- Kilo Code: [official MCP configuration guide](https://kilo.ai/docs/automate/mcp/using-in-kilo-code)
 
-QueueProof exposes Streamable HTTP at `/api/mcp` (`/mcp` is also available in local runtimes). Codex uses project `.codex/config.toml`; Claude Code uses `.mcp.json`; current Kimi Code uses `.kimi-code/mcp.json` and `bearerTokenEnvVar`; Kilo uses project `kilo.json`/`.kilo/kilo.json`. Installers preserve unrelated settings and back up before mutation. OAuth metadata is not advertised unless a real issuer is configured.
+QueueProof exposes Streamable HTTP at the canonical `/mcp` route. `/api/mcp` remains a compatibility alias that re-exports the same authenticated handler. Codex uses project `.codex/config.toml`; Claude Code uses `.mcp.json`; current Kimi Code uses `.kimi-code/mcp.json` and `bearerTokenEnvVar`; Kilo uses project `kilo.json`/`.kilo/kilo.json`, `type: "remote"`, and `{env:VARIABLE}` interpolation in trusted configuration. Installers preserve unrelated settings and back up before mutation. OAuth metadata is not advertised unless a real issuer is configured.

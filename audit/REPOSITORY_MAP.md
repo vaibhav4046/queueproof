@@ -1,5 +1,12 @@
 # QueueProof — Repository Map
 
+> [!WARNING]
+> **SUPERSEDED — HISTORICAL FORENSIC SNAPSHOT.** This inventory describes the 31 July 2026
+> repository and is retained for provenance. File counts, route status, line numbers, and
+> working-tree claims are not current release evidence. Use
+> [`../RELEASE_EVIDENCE.md`](../RELEASE_EVIDENCE.md) and
+> [`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md).
+
 Read-only forensic audit. Repo root: `D:\Codex d;\queueproof`. No source file was modified.
 Excluded from counts: `node_modules`, `.next`, `dist`, `build`, `pnpm-lock.yaml`.
 

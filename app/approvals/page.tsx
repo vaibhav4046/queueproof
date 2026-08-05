@@ -3,7 +3,7 @@ import QueueProofRoute from "../QueueProofRoute";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  title: "Approvals",
+  title: "Review actions",
   description: "Review evidence-linked actions before any external write.",
 };
 

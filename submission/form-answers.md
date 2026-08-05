@@ -1,5 +1,9 @@
 # QueueProof submission form answers
 
+> [!IMPORTANT]
+> Submission draft. Complete [`RELEASE_EVIDENCE.md`](../RELEASE_EVIDENCE.md) before use and
+> replace any current-release statement with the final submitted commit's recorded receipt.
+
 Retrieval, connector, and PDF measurements were taken on 4 August 2026 against release
 `c7cf16b3c92f66d7b2f17a90e01372b77d62235b` on `main`. All nine product and owner routes
 returned HTTP 200. The submitted runtime release is the current `main` SHA reported by
@@ -97,8 +101,9 @@ and a unique execution row is claimed before provider I/O.
 - Measurement release: `c7cf16b3c92f66d7b2f17a90e01372b77d62235b` on `main`.
 - Route acceptance: all nine product and owner routes returned HTTP 200.
 - Four verified sources: GitHub, Gmail, Linear, and Slack.
-- CI: 341/341 tests, 39/39 deterministic router cases, 331 assertions, production build,
-  and deployment-binding check all passed.
+- The checked-in router artifact records 39/39 deterministic cases and 331
+  fixture-computable assertions. Current CI, build, and deployment gates must be copied from
+  `RELEASE_EVIDENCE.md` after the submitted commit is immutable.
 - Forced Fast and Deep modes were honored on the same release; both matched 19/19 required
   facts with complete, supported citations and no unsupported claims.
 - Final signed-out responsive and interaction QA remains a submission gate until its fresh
@@ -121,10 +126,12 @@ MCP bearer values are hashed, scoped, expiring, revocable, and restricted to the
 QueueProof generated and indexed a deterministic 346-page, 958,096-byte PDF with 22 questions
 and 56 required-fact groups spanning beginning, middle, and end canaries.
 
-The fresh production artifact was generated at `2026-08-04T18:28:35.671Z` against release
-`c7cf16b3`. It passed 20/22 cases and recovered 53/56 facts (94.6429%). Beginning, middle,
-and end canaries all passed. All 84 claims were supported by 56 citations, with 100% citation
-precision, 100% citation completeness, and 0% unsupported claims.
+The fresh production artifact was generated at `2026-08-04T18:28:35.671Z` against
+`https://queueproof.vercel.app`. It passed 20/22 cases and recovered 53/56 facts (94.6429%).
+Beginning, middle, and end canaries all passed. All 84 claims were supported by 56 citations,
+with 100% citation precision, 100% citation completeness, and 0% unsupported claims. The
+artifact does not embed a health receipt or release SHA, so it is timestamp-scoped rather than
+same-commit evidence.
 
 The run measured p50 2,592 ms and p95 17,061 ms, averaged 1.8182 HydraDB calls per question,
 used Fast for 13 cases and Deep (`thinking`) for 9, and consumed 86 weighted units. The
@@ -137,8 +144,8 @@ non-document provider.
 - Both forced modes passed 4/6 strict cases; 19/19 fact coverage does not turn the two
   `REVIEW` rows into passes.
 - Weighted units are relative retrieval units, not invented HydraDB dollar costs.
-- The same-release PDF run passed 20/22, not 22/22; its cross-source provider miss remains
-  `REVIEW`.
+- The timestamp-scoped PDF run passed 20/22, not 22/22; its cross-source provider miss
+  remains `REVIEW`, and it must not be called same-release evidence.
 - A provider write is not described as executed without a stored provider response ID.
 - Repository visibility, signed-out QA, video upload, and social-post URLs remain external
   submission gates.
@@ -146,8 +153,8 @@ non-document provider.
 ## Hackathon form quick answers
 
 **Did you try ingesting huge PDFs?** Yes. QueueProof indexed a deterministic 346-page,
-958,096-byte PDF and evaluated 22 questions across 56 fact groups on the final release. The
-fresh production run passed 20/22 cases and recovered 53/56 facts (94.6429%), with all three
+958,096-byte PDF and evaluated 22 questions across 56 fact groups against the production
+target. The timestamped run passed 20/22 cases and recovered 53/56 facts (94.6429%), with all three
 canaries passing, 84/84 claims supported, 56 citations, complete citation precision and
 completeness, and no unsupported claims. The document-plus-GitHub cross-source row remains
 `REVIEW` because it needed one more non-document provider.

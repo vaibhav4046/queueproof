@@ -18,6 +18,20 @@ async function constantTimeEqual(left: string, right: string) {
   return difference === 0;
 }
 
+async function containsToolCall(request: Request) {
+  if (request.method !== "POST") return false;
+  try {
+    const payload = await request.clone().json() as unknown;
+    const messages = Array.isArray(payload) ? payload : [payload];
+    return messages.some((message) =>
+      Boolean(message) && typeof message === "object" &&
+      (message as { method?: unknown }).method === "tools/call"
+    );
+  } catch {
+    return false;
+  }
+}
+
 async function serve(request: Request) {
   const runtime = runtimeEnv();
   const configuredToken = runtime.QUEUEPROOF_MCP_TOKEN;
@@ -38,6 +52,7 @@ async function serve(request: Request) {
   const token = authorization?.startsWith("Bearer ") ? authorization.slice(7) : "";
   let workspaceId: string | null = null;
   let clientId = "queueproof-static-client";
+  let persistedClientId: string | null = null;
   let scopes = ["queueproof:read", "queueproof:propose", "queueproof:sync"];
   if (token && runtime.DB) {
     await ensureCoreSchema();
@@ -45,7 +60,7 @@ async function serve(request: Request) {
       `SELECT mt.workspace_id AS workspaceId, mt.client_id AS clientId, mt.scopes_json AS scopesJson
        FROM mcp_tokens mt
        WHERE mt.token_hash = ? AND mt.audience = ?
-         AND mt.revoked_at IS NULL AND mt.expires_at > CURRENT_TIMESTAMP
+         AND mt.revoked_at IS NULL AND datetime(mt.expires_at) > CURRENT_TIMESTAMP
        LIMIT 1`,
     ).bind(await sha256(token), expectedAudience).first<{
       workspaceId: string;
@@ -55,11 +70,14 @@ async function serve(request: Request) {
     if (row) {
       workspaceId = row.workspaceId;
       clientId = row.clientId;
+      persistedClientId = row.clientId;
       scopes = JSON.parse(row.scopesJson) as string[];
       await requireDb().prepare(
-        `UPDATE mcp_clients SET last_handshake_at = COALESCE(last_handshake_at, CURRENT_TIMESTAMP),
-         last_tool_call_at = CURRENT_TIMESTAMP, status = 'connected', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-      ).bind(clientId).run();
+        `UPDATE mcp_clients
+         SET last_handshake_at = COALESCE(last_handshake_at, CURRENT_TIMESTAMP),
+             status = 'connected', updated_at = CURRENT_TIMESTAMP
+         WHERE id = ? AND workspace_id = ?`,
+      ).bind(clientId, workspaceId).run();
     }
   }
   if (!workspaceId && token && configuredToken && configuredWorkspaceId && await constantTimeEqual(token, configuredToken)) {
@@ -75,6 +93,7 @@ async function serve(request: Request) {
       },
     });
   }
+  const isToolCall = await containsToolCall(request);
   const handler = createWorkspaceMcpHandler(workspaceId, scopes);
   const response = await handler.fetch(request, {
     authInfo: {
@@ -84,6 +103,13 @@ async function serve(request: Request) {
       resource: new URL(`${requestUrl.origin}${requestUrl.pathname}`),
     },
   });
+  if (runtime.DB && persistedClientId && isToolCall) {
+    await requireDb().prepare(
+      `UPDATE mcp_clients
+       SET last_tool_call_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+       WHERE id = ? AND workspace_id = ?`,
+    ).bind(persistedClientId, workspaceId).run();
+  }
   if (runtime.DB) {
     await audit({ workspaceId, actorId: `mcp:${clientId}`, operation: "mcp.request",
       targetType: "mcp_client", targetId: clientId, outcome: response.ok ? "success" : "failure",

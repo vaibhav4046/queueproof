@@ -4,6 +4,7 @@ import results from "../../../evals/results/results.json";
 import fastRun from "../../../evals/results/live-fast.json";
 import liveRun from "../../../evals/results/live-run.json";
 import thinkingRun from "../../../evals/results/live-thinking.json";
+import pdfRun from "../../../evals/results/pdf-live-run.json";
 import { compareLiveModes } from "../../../evals/lib/live-mode-comparison.mjs";
 
 /**
@@ -24,6 +25,10 @@ export async function GET() {
       results: {
         ...results,
         generatedAt: liveRun.generatedAt,
+        currentRelease: {
+          commitSha: process.env.VERCEL_GIT_COMMIT_SHA || process.env.QUEUEPROOF_RELEASE_SHA || null,
+          commitRef: process.env.VERCEL_GIT_COMMIT_REF || process.env.QUEUEPROOF_RELEASE_REF || null,
+        },
         live: strictArtifact
           ? { status: "measured", ...liveRun }
           : {
@@ -35,6 +40,7 @@ export async function GET() {
               rows: [],
             },
         modeComparison: compareLiveModes(fastRun, thinkingRun),
+        pdf: pdfRun,
       },
     });
   } catch (error) {

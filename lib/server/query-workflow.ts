@@ -127,6 +127,7 @@ export function createQueryWorkflowRecorder(input: {
 
   let sequence = 0;
   let latestCallCount = 0;
+  let latestMode = input.mode;
   const events: WorkflowEvent[] = [];
   const snapshotProviders = () => [...activities.values()]
     .map((activity) => ({ ...activity, evidenceIds: [...activity.evidenceIds] }))
@@ -136,9 +137,10 @@ export function createQueryWorkflowRecorder(input: {
   const record = async (
     stage: WorkflowStage,
     detail: string,
-    options: { callCount?: number; latencyMs?: number; errorType?: string | null } = {},
+    options: { callCount?: number; latencyMs?: number; errorType?: string | null; mode?: "fast" | "thinking" } = {},
   ) => {
     if (typeof options.callCount === "number") latestCallCount = options.callCount;
+    if (options.mode) latestMode = options.mode;
     const event: WorkflowEvent = {
       sequence: ++sequence,
       stage,
@@ -157,29 +159,31 @@ export function createQueryWorkflowRecorder(input: {
           result_count, latency_ms, status)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).bind(
-        createId("step"), input.workspaceId, input.queryId, event.sequence, stage, input.mode,
+        createId("step"), input.workspaceId, input.queryId, event.sequence, stage, latestMode,
         JSON.stringify({ detail, providers: event.providers, receiptCount: event.receiptCount }),
         event.receiptCount, options.latencyMs ?? 0, stage,
       ),
       requireDb().prepare(
-        `UPDATE query_runs SET status = ?, provider_coverage_json = ?, source_count = ?,
+        `UPDATE query_runs SET status = ?, mode = ?, provider_coverage_json = ?, source_count = ?,
          call_count = ?, latency_ms = ?, error_type = ?, updated_at = CURRENT_TIMESTAMP
          WHERE id = ? AND workspace_id = ?`,
       ).bind(
-        stage, JSON.stringify(coverage), event.receiptCount, event.callCount,
+        stage, latestMode, JSON.stringify(coverage), event.receiptCount, event.callCount,
         options.latencyMs ?? 0, options.errorType ?? null, input.queryId, input.workspaceId,
       ),
     ]);
     return event;
   };
 
-  const markQuerying = async (providers: string[], detail: string, callCount: number) => {
+  const markQuerying = async (
+    providers: string[], detail: string, callCount: number, mode: "fast" | "thinking" = latestMode,
+  ) => {
     for (const provider of providers) {
       const activity = activities.get(provider);
       if (!activity || activity.status === "not-required") continue;
       activity.status = "querying";
     }
-    return record("retrieving", detail, { callCount });
+    return record("retrieving", detail, { callCount, mode });
   };
 
   const markResponse = async (response: {
@@ -187,6 +191,7 @@ export function createQueryWorkflowRecorder(input: {
     ok: boolean;
     latencyMs: number;
     callCount: number;
+    mode?: "fast" | "thinking";
     evidenceByProvider: Map<string, string[]>;
   }) => {
     for (const provider of response.providers) {
@@ -202,7 +207,7 @@ export function createQueryWorkflowRecorder(input: {
     return record(
       "retrieving",
       response.ok ? "HydraDB returned a provider response." : "A HydraDB provider query failed.",
-      { callCount: response.callCount, latencyMs: response.latencyMs },
+      { callCount: response.callCount, latencyMs: response.latencyMs, mode: response.mode ?? latestMode },
     );
   };
 

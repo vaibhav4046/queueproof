@@ -57,9 +57,11 @@ Beginning, middle, and end canaries are keyed explicitly. The suite includes exa
 superseded policy, tables, similar people, multilingual evidence, distractors, and a
 document-plus-connectors join.
 
-The final post-deploy public-production artifact in `evals/results/pdf-live-run.json` is
-20/22 cases and 53/56 facts, with perfect citation precision/completeness and zero
-unsupported claims. See `docs/LARGE_PDF_PROOF.md` for the misses and provenance.
+The timestamped post-deploy public-production artifact in
+`evals/results/pdf-live-run.json` is 20/22 cases and 53/56 facts, with perfect citation
+precision/completeness and zero unsupported claims. It records the production target and
+timestamp but not a health receipt or release SHA, so it is not same-commit evidence. See
+`docs/LARGE_PDF_PROOF.md` for the misses and provenance.
 
 ## Metrics
 

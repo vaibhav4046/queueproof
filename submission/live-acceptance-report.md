@@ -1,5 +1,10 @@
 # Live acceptance status
 
+> [!WARNING]
+> **SUPERSEDED — HISTORICAL PRODUCTION OBSERVATION.** This report is bound to release
+> `4510d3fe60b3c271a107f514c98c42d120c9929b`, not the current candidate. Use
+> [`RELEASE_EVIDENCE.md`](../RELEASE_EVIDENCE.md) for final deployment identity and gates.
+
 Verified on 4 August 2026 for application release
 `4510d3fe60b3c271a107f514c98c42d120c9929b`:
 
@@ -26,7 +31,7 @@ REVIEW. The sample is a diagnostic, not an SLA or a general accuracy claim.
 The fresh strict 346-page PDF baseline passed 20/22 cases and matched 53/56 required facts,
 again with complete citations and zero unsupported claims; see `docs/LARGE_PDF_PROOF.md`.
 
-Current release gates are recorded in
+Historical release gates are recorded in
 [submission/requirements-matrix.md](requirements-matrix.md). The exact deployment
 identity, persisted query receipt, and benchmark artifact above provide production parity
-for the application release commit.
+for that historical application release commit only.

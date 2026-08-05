@@ -44,9 +44,11 @@ workspace also accepts at most 50 pending proposals before owner review is requi
   credential URLs, query tokens, and generic key/value credentials.
 - No real credential belongs in source, fixture, output, screenshot, or documentation.
 
-The 3 August scan found zero matching files across the final release worktree and complete
-pre-release history for AWS, GitHub, OpenAI, Slack, Linear, and private-key patterns. The
-scanner emitted paths only, never candidate values. See `audit/secret-scan-2026-08-03.md`.
+The historical 3 August scan found zero matching files across that release worktree and its
+then-reachable history for AWS, GitHub, OpenAI, Slack, Linear, and private-key patterns. The
+scanner emitted paths only, never candidate values. See `audit/secret-scan-2026-08-03.md` and
+repeat the scan for the submitted commit as required by
+[`RELEASE_EVIDENCE.md`](../RELEASE_EVIDENCE.md).
 
 ## Retrieval and ingestion
 

@@ -3,8 +3,8 @@ import QueueProofRoute from "../QueueProofRoute";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  title: "Priority queue",
-  description: "Evidence-ranked work with receipts, constraints, and the next safe action.",
+  title: "Today",
+  description: "A focused list of incidents, promises, deadlines, and work that needs a decision.",
 };
 
 export default function QueuePage() {

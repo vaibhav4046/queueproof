@@ -1,8 +1,9 @@
 # QueueProof social posts
 
 These drafts use the last accepted production measurements from 4 August 2026. Refresh the
-test count and any live benchmark number that changes, then publish only after the final
-commit is live and the repository opens in a signed-out browser.
+live benchmark numbers, then publish only after the final commit is live, the repository opens
+in a signed-out browser, and [`RELEASE_EVIDENCE.md`](../RELEASE_EVIDENCE.md) contains the
+submitted-commit gate receipts.
 
 ## LinkedIn
 
@@ -16,9 +17,9 @@ The trust boundary is part of the product: the public sandbox supports shared ev
 questions, queue review, and proposals, while credentials, connector changes, uploads,
 tokens, and external writes require a private owner.
 
-Current local candidate evidence: 39/39 labelled router cases, 331 assertions, and 340 tests
-across 37 files, including security and MCP coverage. Typecheck and lint pass locally; replace
-this sentence with the final CI, build, E2E, and deployment receipt before posting. A fresh
+The checked-in deterministic router artifact records 39/39 labelled cases and 331
+fixture-computable assertions. Add the submitted commit's final CI, build, E2E, and deployment
+receipt only after it is recorded in `RELEASE_EVIDENCE.md`. A fresh
 strict run over a 346-page PDF recovered 53/56
 required facts and passed 20/22 cases with complete supporting citations; the misses stay
 visible as REVIEW, not hidden in a vanity score. The final six-query production sample
@@ -38,7 +39,7 @@ QueueProof gives agents one defensible next action - with receipts.
 HydraDB evidence -> cited claims -> preserved conflicts -> deterministic priority ->
 approval-gated execution.
 
-39/39 router cases. 331 assertions. 340 tests on the current candidate. Live baseline: 19/19 facts, 4/6 complete,
+39/39 router cases. 331 fixture assertions. Live baseline: 19/19 facts, 4/6 complete,
 100% citation precision/completeness. Fresh 346-page PDF: 20/22 cases, 53/56 facts.
 Public evidence sandbox; external writes stay private and approval-gated.
 

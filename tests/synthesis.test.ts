@@ -451,4 +451,65 @@ describe("evidence-constrained synthesis", () => {
     expect(result.answer).toMatch(/ADR-037/i);
     expect(result.answer).toMatch(/two approvers/i);
   });
+
+  it("keeps complete policy-state wording across independently cited receipts", () => {
+    const result = synthesiseGroundedAnswer(
+      "What did OPS-POL-14 originally permit for Rover SDK field firmware flashing?",
+      [
+        {
+          id: "policy-original",
+          provider: "document",
+          title: "operations-handbook.pdf",
+          excerpt: "OPS-POL-14 Rover SDK field firmware flashing. At a depot, a single Tier 2 engineer may flash Rover SDK field firmware without a second approver, provided the rover is on a maintenance stand with the drive system isolated.",
+        },
+        {
+          id: "policy-replacement",
+          provider: "document",
+          title: "operations-handbook.pdf",
+          excerpt: "ADR-037, dated 9 September 2031, supersedes OPS-POL-14. From this date every Rover SDK field firmware flash requires two approvers, and one must be a Safety Case Owner. The single engineer permission in OPS-POL-14 is withdrawn and must not be relied on.",
+        },
+      ],
+    );
+
+    expect(result.answer).toMatch(/single Tier 2 engineer/i);
+    expect(result.answer).toMatch(/without a second approver/i);
+    expect(result.answer).toMatch(/maintenance stand/i);
+    expect(result.answer).toMatch(/permission in OPS-POL-14 is withdrawn/i);
+    expect(result.answer).not.toMatch(/permission in OPS-POL-14 is withdraw\s*\[/i);
+    expect(new Set(result.claims.flatMap((claim) => claim.evidenceIds))).toEqual(
+      new Set(["policy-original", "policy-replacement"]),
+    );
+  });
+
+  it("does not let one verbose draft receipt crowd out its binding replacement", () => {
+    const result = synthesiseGroundedAnswer(
+      "Does DRAFT-OPS-14 permit single engineer firmware flashing today?",
+      [
+        {
+          id: "draft-record",
+          provider: "document",
+          title: "operations-handbook.pdf",
+          excerpt: "DRAFT-OPS-14 was never ratified and carries no operational authority. It proposed that any engineer could flash rover firmware from a maintenance stand. It is routinely confused with OPS-POL-14, which was superseded by ADR-037. Neither the draft nor the superseded policy permits single engineer flashing today.",
+        },
+        {
+          id: "binding-record",
+          provider: "document",
+          title: "operations-handbook.pdf",
+          excerpt: "ADR-037 is the binding rule for rover firmware flashing. Every field firmware flash requires two approvers, including a Safety Case Owner.",
+        },
+        {
+          id: "historical-record",
+          provider: "document",
+          title: "operations-handbook.pdf",
+          excerpt: "OPS-POL-14 previously allowed a single Tier 2 engineer to flash firmware without a second approver while the rover was on a maintenance stand.",
+        },
+      ],
+    );
+
+    expect(result.answer).toMatch(/never ratified/i);
+    expect(result.answer).toMatch(/no operational authority/i);
+    expect(result.answer).toMatch(/ADR-037/i);
+    expect(result.answer).toMatch(/two approvers/i);
+    expect(result.claims.some((claim) => claim.evidenceIds.includes("binding-record"))).toBe(true);
+  });
 });

@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { liveProofStateSchema, workflowStageSchema } from "../packages/contracts/src";
-import { buildProofGraphView } from "../lib/server/query-workflow";
+import { buildProofGraphView, createQueryWorkflowRecorder } from "../lib/server/query-workflow";
+import { requireDb } from "../lib/server/runtime";
+import { createId, ensureCoreSchema } from "../lib/server/store";
 
 const providers = [
   { provider: "slack", connectorId: "connector-slack", status: "received" as const,
@@ -30,6 +32,10 @@ const priority = {
 };
 
 describe("verified query workflow", () => {
+  beforeAll(async () => {
+    await ensureCoreSchema();
+  });
+
   it("declares every backend stage required by the live proof contract", () => {
     expect(workflowStageSchema.options).toEqual([
       "idle", "routing", "retrieving", "linking", "checking-contradictions", "validating",
@@ -80,5 +86,45 @@ describe("verified query workflow", () => {
     } as const;
     expect(liveProofStateSchema.safeParse(workflow).success).toBe(true);
     expect(liveProofStateSchema.safeParse({ ...workflow, kind: "simulated-progress" }).success).toBe(false);
+  });
+
+  it("persists the real mode for every Fast-to-Thinking workflow step", async () => {
+    const queryId = createId("query_auto_mode");
+    const workspaceId = createId("workspace_auto_mode");
+    await requireDb().prepare(
+      `INSERT INTO query_runs
+       (id, workspace_id, actor_id, category, sanitised_query, mode, plan_json,
+        provider_coverage_json, source_count, call_count, latency_ms, status, error_type)
+       VALUES (?, ?, 'test-actor', 'multi_hop', 'redacted', 'fast', '{}', '[]', 0, 0, 0, 'routing', NULL)`,
+    ).bind(queryId, workspaceId).run();
+
+    const recorder = createQueryWorkflowRecorder({
+      queryId,
+      workspaceId,
+      mode: "fast",
+      providerSeeds: [{ provider: "slack", required: true }],
+    });
+    await recorder.record("routing", "Auto starts Fast.", { mode: "fast" });
+    await recorder.markQuerying(["slack"], "Fast primary query.", 1, "fast");
+    await recorder.markResponse({
+      providers: ["slack"], ok: true, latencyMs: 10, callCount: 1, mode: "fast",
+      evidenceByProvider: new Map([["slack", ["evidence-fast"]]]),
+    });
+    await recorder.record("routing", "Fast was partial; escalate.", { callCount: 1, mode: "thinking" });
+    await recorder.markQuerying(["slack"], "Thinking follow-up query.", 2, "thinking");
+    await recorder.markResponse({
+      providers: ["slack"], ok: true, latencyMs: 20, callCount: 2, mode: "thinking",
+      evidenceByProvider: new Map([["slack", ["evidence-thinking"]]]),
+    });
+
+    const steps = await requireDb().prepare(
+      "SELECT sequence, mode FROM query_steps WHERE query_run_id = ? ORDER BY sequence",
+    ).bind(queryId).all<{ sequence: number; mode: string }>();
+    expect(steps.results.map((step) => step.mode)).toEqual([
+      "fast", "fast", "fast", "thinking", "thinking", "thinking",
+    ]);
+    const run = await requireDb().prepare("SELECT mode, call_count FROM query_runs WHERE id = ?")
+      .bind(queryId).first<{ mode: string; call_count: number }>();
+    expect(run).toEqual(expect.objectContaining({ mode: "thinking", call_count: 2 }));
   });
 });

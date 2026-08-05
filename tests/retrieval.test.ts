@@ -3,6 +3,7 @@ import {
   evidenceFollowUpTerms,
   focusedEvidenceFollowUpQuery,
   planRetrieval,
+  recordIdentifiers,
   retrievalIntentTerms,
   retrievalQueryVariants,
 } from "../packages/retrieval/src";
@@ -85,5 +86,19 @@ describe("evidence-derived follow-up terms", () => {
 
   it("returns null when the first hop proves no usable join key", () => {
     expect(focusedEvidenceFollowUpQuery("Summarise it", ["the and this"])).toBeNull();
+  });
+
+  it("preserves the full namespaced identifier through routing and follow-up", () => {
+    expect(recordIdentifiers("Compare DRAFT-OPS-14 with OPS-POL-14 and BUG-123.")).toEqual([
+      "DRAFT-OPS-14", "OPS-POL-14", "BUG-123",
+    ]);
+    expect(planRetrieval("Is DRAFT-OPS-14 still binding?")).toMatchObject({
+      category: "exact_identifier",
+      exactParallel: true,
+    });
+    expect(focusedEvidenceFollowUpQuery(
+      "Is DRAFT-OPS-14 still binding?",
+      ["DRAFT-OPS-14 was replaced by ADR-037."],
+    )?.split(" ").slice(0, 2)).toEqual(["DRAFT-OPS-14", "ADR-037"]);
   });
 });

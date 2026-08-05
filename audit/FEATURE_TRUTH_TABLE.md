@@ -1,5 +1,12 @@
 # QueueProof — Feature Truth Table
 
+> [!WARNING]
+> **SUPERSEDED — HISTORICAL FORENSIC SNAPSHOT.** This table assesses the 31 July 2026
+> committed/deployed artifact while another recovery change was in flight. Its feature states,
+> test totals, line numbers, and deployment conclusions are not current release evidence. Use
+> [`../RELEASE_EVIDENCE.md`](../RELEASE_EVIDENCE.md) and the maintained
+> [`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md).
+
 Read-only forensic audit. No source file was modified.
 Companion to `REPOSITORY_MAP.md`.
 

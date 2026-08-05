@@ -4,6 +4,9 @@ Last observed production verification: 3 August 2026
 
 Canonical target: <https://queueproof.vercel.app>
 
+This is a timestamped observation, not current-candidate proof. Candidate and deployed release
+identity must be taken from [`RELEASE_EVIDENCE.md`](../RELEASE_EVIDENCE.md).
+
 HydraDB database: `queueproof-live`
 
 | Provider | Connector | State | Canary records | Retrieval eligible |

@@ -1,8 +1,10 @@
 # QueueProof baseline audit - historical before-state
 
-> This document records the state found at the start of the 3 August 2026 hardening pass.
-> It is intentionally not current release evidence. Use `README.md`,
-> `BENCHMARK_REPORT.md`, and the other proof documents in `docs/` for current claims.
+> [!WARNING]
+> **SUPERSEDED — HISTORICAL BASELINE SNAPSHOT.** This document records the state found at the
+> start of the 3 August 2026 hardening pass. Its feature states and gate totals are not current
+> release evidence. Use [`../RELEASE_EVIDENCE.md`](../RELEASE_EVIDENCE.md) for candidate
+> identity and [`EVALUATION_METHODOLOGY.md`](EVALUATION_METHODOLOGY.md) for measurement scope.
 
 Audit date: 3 August 2026
 

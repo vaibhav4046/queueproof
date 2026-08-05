@@ -35,8 +35,10 @@ fact placement, object references, and xref offsets.
 The REVIEW cases were the original superseded-policy question (4/5 facts) and the draft
 distractor question (3/5 facts). The cross-source extension recovered its two document
 facts and cited GitHub, but missed the required second non-document provider. This run is
-a post-deploy result against the final judge release; its misses are accepted limitations,
-not hidden successes.
+a timestamped post-deploy result against the canonical production URL; its misses are
+accepted limitations, not hidden successes. The artifact does not embed `/api/health/live`
+or a release SHA, so it is not same-commit release evidence. See
+[`RELEASE_EVIDENCE.md`](../RELEASE_EVIDENCE.md).
 
 ## Historical production artifact
 
@@ -61,7 +63,7 @@ Every one of the 22 cases now declares explicit required facts. A case passes on
 The canary map now uses `beginning_load_bearing`, `middle_load_bearing`, and
 `end_load_bearing` explicitly.
 
-## Reproduce the release measurement
+## Reproduce the measurement
 
 ```bash
 npm run generate:large-pdf

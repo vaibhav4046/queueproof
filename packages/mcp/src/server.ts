@@ -238,7 +238,8 @@ export function buildQueueProofServer(
     "queueproof_get_next_actions",
     {
       title: "Get ranked next actions",
-      description: "Return only persisted deterministic ranking items with their evidence-backed task records.",
+      description:
+        "Return persisted deterministic ranking items and the packetId needed to read each canonical execution packet.",
       inputSchema: z.object({ limit: z.number().int().min(1).max(50).default(10) }),
       outputSchema: z.object({ items: z.array(z.record(z.string(), z.unknown())) }),
       annotations: readOnly,
@@ -246,8 +247,20 @@ export function buildQueueProofServer(
     async ({ limit }) => {
       const result = await requireDb()
         .prepare(
-          `SELECT ri.*, tc.title, tc.recommended_action, tc.owner, tc.deadline
-           FROM ranking_items ri JOIN task_candidates tc ON tc.id = ri.task_id
+          `SELECT ri.*, tc.title, tc.recommended_action, tc.owner, tc.deadline,
+                  ep.id AS packetId
+           FROM ranking_items ri
+           JOIN task_candidates tc
+             ON tc.id = ri.task_id AND tc.workspace_id = ri.workspace_id
+           JOIN ranking_runs rr
+             ON rr.id = ri.ranking_run_id AND rr.workspace_id = ri.workspace_id
+           JOIN execution_packets ep ON ep.id = (
+             SELECT candidate.id FROM execution_packets candidate
+             WHERE candidate.workspace_id = ri.workspace_id
+               AND candidate.task_id = ri.task_id
+               AND candidate.policy_version = rr.policy_version
+             ORDER BY candidate.created_at DESC, candidate.id DESC LIMIT 1
+           )
            WHERE ri.workspace_id = ? AND ri.final_score > 0
              AND ri.ranking_run_id = (
                SELECT id FROM ranking_runs
@@ -266,7 +279,8 @@ export function buildQueueProofServer(
     "queueproof_get_execution_packet",
     {
       title: "Get execution packet",
-      description: "Return a structured, evidence-backed execution packet by ID.",
+      description:
+        "Return a structured, evidence-backed execution packet using packetId from queueproof_get_next_actions.",
       inputSchema: z.object({ packetId: z.string() }),
       outputSchema: z.object({ packet: z.record(z.string(), z.unknown()).nullable() }),
       annotations: readOnly,

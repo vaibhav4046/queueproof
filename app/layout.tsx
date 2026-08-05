@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import "./globals.css";
 import "./product.css";
 import "./command-centre.css";
+import "./ember-assistant.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,9 +23,9 @@ export async function generateMetadata(): Promise<Metadata> {
     requestHeaders.get("x-forwarded-proto") ??
     (host?.startsWith("localhost") || host?.startsWith("127.0.0.1") ? "http" : "https");
   const metadataBase = new URL(host ? `${protocol}://${host}` : "https://queueproof.openai.site");
-  const title = "QueueProof — One Answer. Every System. Proven.";
+  const title = "QueueProof — Ask your work. Get the proof.";
   const description =
-    "QueueProof reconstructs commitments and dependencies across workplace systems and produces defensible next actions with source-level evidence.";
+    "Ask across Slack, Gmail, Linear, GitHub, and files. Get one clear answer, the sources behind it, what disagrees, and what to do next.";
   const image = new URL("/og-v3.png", metadataBase).toString();
   return {
     metadataBase,
@@ -35,7 +36,7 @@ export async function generateMetadata(): Promise<Metadata> {
       type: "website",
       title,
       description,
-      images: [{ url: image, width: 1672, height: 941, alt: "Evidence receipts connected to grounded claims, a preserved conflict, and a verified next action" }],
+      images: [{ url: image, width: 1672, height: 941, alt: "QueueProof connects work sources to a clear, cited answer" }],
     },
     twitter: {
       card: "summary_large_image",

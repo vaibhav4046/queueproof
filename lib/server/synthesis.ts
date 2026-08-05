@@ -19,6 +19,12 @@ export type GroundedContradiction = {
   providers: string[];
 };
 
+const RECORD_IDENTIFIER = /\b[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d+\b/g;
+const recordIdentifiers = (value: string) => {
+  RECORD_IDENTIFIER.lastIndex = 0;
+  return value.match(RECORD_IDENTIFIER) ?? [];
+};
+
 const STOP_WORDS = new Set([
   "about", "after", "again", "also", "already", "and", "are", "been", "before", "being",
   "but", "can", "could", "did", "does", "for", "from", "had", "has", "have", "he", "her", "him", "how",
@@ -35,6 +41,10 @@ const GENERIC_QUESTION_TOKENS = new Set([
   "against", "answer", "appear", "commit", "committ", "context", "deadline", "disagree",
   "elsewhere", "engineer", "exact", "fil", "fix", "issue", "merge", "open",
   "project", "promi", "resolv", "source", "track", "work",
+  // Provider names describe where to look, not what constitutes a supported
+  // answer. Treating them as entity anchors let an unrelated Linear welcome
+  // document outrank the Slack receipt that actually contained BUG-123.
+  "document", "email", "github", "gmail", "jira", "linear", "notion", "slack",
 ]);
 
 const clean = (value: string) => value.replace(/\s+/g, " ").trim();
@@ -83,7 +93,7 @@ function relevance(question: string, text: string) {
     if (anchors.includes(token)) anchorMatches += 1;
   }
   let identifierScore = 0;
-  for (const identifier of question.match(/\b[A-Z][A-Z0-9]+-\d+\b/g) ?? []) {
+  for (const identifier of recordIdentifiers(question)) {
     if (text.toUpperCase().includes(identifier.toUpperCase())) identifierScore += 12;
   }
   if (/\bpromise\b/.test(q) && !/\b(promise|promised|commit|committed)\b/.test(candidate)) return 0;
@@ -122,7 +132,7 @@ export function rankEvidenceForQuestion<T extends SynthesisEvidence>(question: s
  * so a generic question can never pull a value sentence from unrelated evidence.
  */
 function hasConcreteAnchor(question: string) {
-  if (/\b[A-Z][A-Z0-9]+-\d+\b/.test(question)) return true;
+  if (recordIdentifiers(question).length > 0) return true;
   const words = question.split(/\s+/)
     .map((word) => word.replace(/[^\p{L}\p{N}'-]/gu, ""))
     .filter((word) => /^[A-Z][a-zA-Z'-]*$/.test(word));
@@ -147,7 +157,7 @@ function valuePatternsForQuestion(question: string): RegExp[] {
   // Date/version/release windows are the most likely to surface marginal text,
   // so they additionally require an exact record identifier (BUG-123, PR-8871)
   // in the question rather than any capitalised word.
-  if (anchored && /\b[A-Z][A-Z0-9]+-\d+\b/.test(question) &&
+  if (anchored && recordIdentifiers(question).length > 0 &&
       /\b(release|released|fixed in|fix was|merged on|merged|ratified|when was|when did|shipped)\b/i.test(question)) {
     patterns.push(date);
     patterns.push(version);
@@ -158,7 +168,7 @@ function valuePatternsForQuestion(question: string): RegExp[] {
   }
   if (anchored && /\b(still in force|supersed|withdrawn|single approver|binding rule|originally permit|original permission|permit|permitted|rule|policy|draft)\b/i.test(question)) {
     patterns.push(/\b(?:supersed\w*|withdrawn|no longer in force|no longer valid)[^.!?\n]{0,130}/gi);
-    patterns.push(/\btwo-?approver\w*[^.!?\n]{0,150}/gi);
+    patterns.push(/\btwo(?:-|\s+)approver\w*[^.!?\n]{0,150}/gi);
     patterns.push(/\bSafety Case Owner[^.!?\n]{0,110}/gi);
     patterns.push(/\bbinding rule[^.!?\n]{0,130}/gi);
     patterns.push(/\bmust not be relied on[^.!?\n]{0,90}/gi);
@@ -187,9 +197,9 @@ function valuePatternsForQuestion(question: string): RegExp[] {
   // itself ("INC-2031 was a Billing Migration double charge event on 8 April
   // 2031"). The pattern embeds the record identifier, so it can only match
   // verbatim evidence that names the same record.
-  if (anchored && /\b[A-Z][A-Z0-9]+-\d+\b/.test(question) &&
+  if (anchored && recordIdentifiers(question).length > 0 &&
       /\b(what happened|what was|describe|summary|occurred|record)\b/i.test(question)) {
-    patterns.push(/\b[A-Z][A-Z0-9]+-\d+\s+was\s+a\s+[^.!?\n]{0,140}/gi);
+    patterns.push(/\b[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d+\s+was\s+a\s+[^.!?\n]{0,140}/gi);
   }
   if (anchored && /\bescalat\w*|\b(?:desk|runs?)\b/i.test(question)) {
     patterns.push(/\bescalation desk[^.!?\n]{0,60}/gi);
@@ -201,8 +211,44 @@ function valuePatternsForQuestion(question: string): RegExp[] {
   return patterns;
 }
 
+/**
+ * Return complete sentence context around a match. The old fixed character
+ * slices could turn an evidence-backed state such as "permission is withdrawn"
+ * into "permission is withdraw". Besides reading badly, that changed the fact
+ * being graded. This helper stays extractive while snapping to sentence and
+ * word boundaries, and includes at most one adjacent sentence on either side.
+ */
+function completeContextWindow(body: string, index: number, matchLength: number, maxLength = 420) {
+  const sentenceStart = (offset: number) => {
+    const boundary = body.lastIndexOf(". ", Math.max(0, offset - 1));
+    return boundary < 0 ? 0 : boundary + 2;
+  };
+  const sentenceEnd = (offset: number) => {
+    const boundary = body.indexOf(". ", Math.min(body.length, offset));
+    return boundary < 0 ? body.length : boundary + 1;
+  };
+
+  let start = sentenceStart(index);
+  let end = sentenceEnd(index + matchLength);
+  const previousStart = start > 0 ? sentenceStart(Math.max(0, start - 2)) : start;
+  if (start - previousStart > 0 && end - previousStart <= maxLength) start = previousStart;
+  const followingEnd = end < body.length ? sentenceEnd(Math.min(body.length, end + 2)) : end;
+  if (followingEnd - start <= maxLength) end = followingEnd;
+
+  if (end - start > maxLength) {
+    const half = Math.floor(maxLength / 2);
+    start = Math.max(start, index - half);
+    end = Math.min(end, start + maxLength);
+    const firstSpace = body.indexOf(" ", start);
+    if (firstSpace > start && firstSpace < index) start = firstSpace + 1;
+    const lastSpace = body.lastIndexOf(" ", end);
+    if (lastSpace > index + matchLength) end = lastSpace;
+  }
+  return clean(body.slice(start, end));
+}
+
 function focusedWindows(question: string, body: string) {
-  const exactIdentifiers = question.match(/\b[A-Z][A-Z0-9]+-\d+\b/g) ?? [];
+  const exactIdentifiers = recordIdentifiers(question);
   const anchors = [...new Set([
     ...exactIdentifiers.map((value) => value.toLowerCase()),
     ...tokenise(question).filter((token) => !GENERIC_QUESTION_TOKENS.has(token) && token.length >= 4),
@@ -214,11 +260,7 @@ function focusedWindows(question: string, body: string) {
     for (let occurrence = 0; occurrence < 2; occurrence += 1) {
       const index = lower.indexOf(anchor, offset);
       if (index < 0) break;
-      const previousStop = lower.lastIndexOf(". ", index);
-      const start = previousStop >= Math.max(0, index - 170) ? previousStop + 2 : Math.max(0, index - 150);
-      const nextStop = lower.indexOf(". ", index + anchor.length);
-      const end = nextStop > index && nextStop <= index + 330 ? nextStop + 1 : Math.min(body.length, index + 300);
-      windows.push(clean(body.slice(start, end)));
+      windows.push(completeContextWindow(body, index, anchor.length));
       offset = index + anchor.length;
     }
   }
@@ -229,7 +271,7 @@ function focusedWindows(question: string, body: string) {
   for (const pattern of valuePatternsForQuestion(question)) {
     for (const match of body.matchAll(pattern)) {
       const index = match.index ?? 0;
-      windows.push(clean(body.slice(Math.max(0, index - 160), Math.min(body.length, index + 200))));
+      windows.push(completeContextWindow(body, index, match[0].length));
     }
   }
   return windows;
@@ -270,8 +312,7 @@ function dateParts(value: string) {
   };
 }
 
-const identifiersInText = (text: string) =>
-  [...new Set(text.match(/\b[A-Z][A-Z0-9]+-\d+\b/g) ?? [])];
+const identifiersInText = (text: string) => [...new Set(recordIdentifiers(text))];
 
 function contradictions(question: string, relevantEvidence: SynthesisEvidence[]) {
   const result: GroundedContradiction[] = [];
@@ -436,6 +477,10 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
   const seenValuePhrases = new Set<string>();
   const seenProviders = new Set<string>();
   const scoreFloor = Math.max(6, (candidates[0]?.score ?? 0) * 0.3);
+  const diverseEvidenceTarget = Math.min(3, new Set(
+    candidates.filter((candidate) => candidate.score >= scoreFloor).map((candidate) => candidate.item.id),
+  ).size);
+  const seenEvidenceIds = new Set<string>();
   for (const candidate of candidates) {
     const key = normaliseClaimKey(candidate.text);
     if (candidate.score < scoreFloor || seenKeys.has(key)) continue;
@@ -450,11 +495,17 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
     // it (a heading repeated with and without its section prefix).
     if (key.length < 60 && [...seenKeys].some((existing) => existing.includes(key) || key.includes(existing))) continue;
     if (seenProviders.has(candidate.item.provider) && picked.length < Math.min(3, new Set(ranked.map((item) => item.provider)).size)) continue;
+    // A single verbose receipt must not consume every claim slot while other
+    // independently relevant receipts carry the replacement rule or current
+    // state. The score floor still applies, so diversity never promotes an
+    // unrelated source merely to fill a quota.
+    if (seenEvidenceIds.has(candidate.item.id) && seenEvidenceIds.size < diverseEvidenceTarget) continue;
     picked.push(candidate);
     seenKeys.add(key);
     if (candidate.valuePhrase) seenValuePhrases.add(candidate.valuePhrase);
     claimSentences(candidate.text).forEach((sentence) => seenSentences.add(sentence));
     seenProviders.add(candidate.item.provider);
+    seenEvidenceIds.add(candidate.item.id);
     if (picked.length === 4) break;
   }
   if (picked.length < 2) {

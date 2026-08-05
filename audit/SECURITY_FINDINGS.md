@@ -1,10 +1,12 @@
 # QueueProof Security Audit — historical findings
 
-> **Point-in-time audit; not current security status.** This report describes the 31 July 2026
-> tree and five-commit history. It predates later session, identity, rate-limit, and deployment
+> [!WARNING]
+> **SUPERSEDED — HISTORICAL SECURITY SNAPSHOT.** This report describes the 31 July 2026 tree
+> and five-commit history. It predates later session, identity, rate-limit, and deployment
 > hardening, so findings may have been remediated or changed. Preserve it as before-state
-> evidence; use [`../SECURITY.md`](../SECURITY.md), current tests, CI, and a fresh secret scan
-> for release decisions.
+> evidence; use [`../RELEASE_EVIDENCE.md`](../RELEASE_EVIDENCE.md),
+> [`../docs/SECURITY.md`](../docs/SECURITY.md), current tests, CI, and a fresh secret scan for
+> release decisions.
 
 **Date:** 2026-07-31
 **Scope:** `D:\Codex d;\queueproof` working tree, full git history (all 5 commits, 288 objects), build output (`.next/`, `dist/`, `.vercel/`, `.wrangler/` incl. local D1/cache SQLite state, `.openai/`), `app/api/**`, `app/mcp/route.ts`, `lib/**`, `packages/**`. `node_modules` excluded per instructions.

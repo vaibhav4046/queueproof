@@ -1,6 +1,12 @@
 import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
+export const CANONICAL_MCP_PATH = "/mcp";
+
+export function canonicalMcpEndpoint(baseUrl) {
+  return `${String(baseUrl).replace(/\/$/, "")}${CANONICAL_MCP_PATH}`;
+}
+
 export function clientEntry(client, endpoint, tokenEnv = "QUEUEPROOF_MCP_TOKEN") {
   if (client === "codex") {
     return `[mcp_servers.queueproof]\nurl = "${endpoint}"\nbearer_token_env_var = "${tokenEnv}"\n`;
@@ -12,7 +18,16 @@ export function clientEntry(client, endpoint, tokenEnv = "QUEUEPROOF_MCP_TOKEN")
     return { mcpServers: { queueproof: { type: "http", url: endpoint, bearerTokenEnvVar: tokenEnv, allowedTools: ["queueproof_*"] } } };
   }
   if (client === "kilo") {
-    return { mcp: { queueproof: { type: "streamable-http", url: endpoint, headers: { Authorization: `Bearer \${env:${tokenEnv}}` }, alwaysAllow: ["queueproof_health"] } } };
+    return {
+      mcp: {
+        queueproof: {
+          type: "remote",
+          url: endpoint,
+          enabled: true,
+          headers: { Authorization: `Bearer {env:${tokenEnv}}` },
+        },
+      },
+    };
   }
   throw new Error(`Unsupported client: ${client}`);
 }

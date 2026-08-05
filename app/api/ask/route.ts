@@ -4,7 +4,18 @@ import { extractQuerySources, matchingChunks, providerFromSource, sourceBelongsT
 import { requireRequestActor } from "../../../lib/server/identity";
 import { requireDb } from "../../../lib/server/runtime";
 import { audit, createId, enforcePublicRateLimit, requireWorkspaceForUser } from "../../../lib/server/store";
-import { focusedEvidenceFollowUpQuery, planRetrieval, retrievalIntentTerms, retrievalQueryVariants } from "../../../packages/retrieval/src";
+import {
+  decideAutoEscalation,
+  focusedEvidenceFollowUpQuery,
+  planRetrieval,
+  providersNamedInQuestion,
+  recordIdentifiers,
+  resolveRetrievalMode,
+  retrievalIntentTerms,
+  retrievalModeCost,
+  retrievalQueryVariants,
+  type ExecutedRetrievalMode,
+} from "../../../packages/retrieval/src";
 import { hostileQueryReason, isPotentialPromptInjection, redactSecrets } from "../../../packages/security/src";
 import { synthesiseGroundedAnswer } from "../../../lib/server/synthesis";
 import { listQueueForWorkspace } from "../../../lib/server/queue";
@@ -33,6 +44,24 @@ type RetrievedEvidence = {
   timestamp: string | null;
   url: string | null;
   connectorId: string;
+};
+type RetrievalCallTrace = {
+  phase: "primary" | "follow_up";
+  mode: ExecutedRetrievalMode;
+  estimatedCostUnits: number;
+  graphUsage: boolean;
+  connectorIds: string[];
+  providers: string[];
+  database: string;
+  collection: string | null;
+  queryBy: "text" | "hybrid";
+  ok: boolean;
+  status: number;
+  sourceIds: string[];
+  requestId?: string | null;
+  queryTermCount: number;
+  latencyMs: number;
+  error?: string | null;
 };
 const record = (value: unknown): Row => typeof value === "object" && value !== null ? value as Row : {};
 
@@ -130,16 +159,21 @@ export async function POST(request: Request) {
       }
     }
     const plan = planRetrieval(question);
-    const mode = payload.mode && payload.mode !== "auto" ? payload.mode : plan.mode;
+    const requestedMode = payload.mode ?? "auto";
+    const { automatic, primaryMode } = resolveRetrievalMode(requestedMode);
+    let effectiveMode: ExecutedRetrievalMode = primaryMode;
+    let routingReason = automatic
+      ? "Auto began with Fast retrieval and will escalate only when the first grounded check proves a coverage gap."
+      : plan.reason;
     // Exact-identifier questions retrieve more precisely when the identifier
     // leads the HydraDB query text (the router already classified this query as
     // exact_identifier; this is the honest execution of that plan). Call count
     // and cost are unchanged — only the query string is anchored.
-    const identifiers = [...new Set(question.match(/\b[A-Z][A-Z0-9]+-\d+\b/g) ?? [])];
+    const identifiers = [...new Set(recordIdentifiers(question))];
     const intentTerms = retrievalIntentTerms(question);
     const retrievalQuery = [identifiers.join(" "), question, ...intentTerms].filter(Boolean).join(" ");
     const evidence: RetrievedEvidence[] = [];
-    const trace: Array<Record<string, unknown>> = [];
+    const trace: RetrievalCallTrace[] = [];
     const connectorScopes = [...connectors.results.reduce((map, connector) => {
       const key = `${connector.database}\u0000${connector.collection ?? ""}`;
       const current = map.get(key) ?? {
@@ -162,7 +196,8 @@ export async function POST(request: Request) {
         provider_coverage_json, source_count, call_count, latency_ms, status, error_type)
        VALUES (?, ?, ?, ?, ?, ?, ?, '[]', 0, 0, 0, 'routing', NULL)`,
     ).bind(
-      runId, workspaceId, actor.id, plan.category, redactSecrets(question), mode, JSON.stringify(plan),
+      runId, workspaceId, actor.id, plan.category, redactSecrets(question), primaryMode,
+      JSON.stringify({ ...plan, requestedMode, primaryMode }),
     ).run();
     const requiredProviders = new Set(scopes.flatMap((scope) =>
       scope.sourceIds ? ["document"] : scope.connectors.map((connector) => connector.provider),
@@ -170,7 +205,7 @@ export async function POST(request: Request) {
     const recorder = createQueryWorkflowRecorder({
       queryId: runId,
       workspaceId,
-      mode,
+      mode: primaryMode,
       providerSeeds: [
         ...connectors.results.map((connector) => ({
           provider: connector.provider,
@@ -181,13 +216,20 @@ export async function POST(request: Request) {
       ],
     });
     failureContext = { recorder, startedAt: started };
-    await recorder.record("routing", `Router selected ${mode} mode because ${plan.reason}`);
+    await recorder.record(
+      "routing",
+      automatic
+        ? "Auto routing selected a Fast primary pass; escalation depends on the preliminary grounded result."
+        : `Explicit ${primaryMode} mode selected. ${plan.reason}`,
+      { mode: primaryMode },
+    );
     const client = await hydraClientForWorkspace(workspaceId);
     let issuedCallCount = 0;
     const runQueryBatch = async (
       queryText: string,
       queryVariants: Array<"text" | "hybrid">,
       phase: "primary" | "follow_up",
+      queryMode: ExecutedRetrievalMode,
     ) => {
       await Promise.all(scopes.map(async (scope) => {
         await Promise.all(queryVariants.map(async (queryBy) => {
@@ -196,10 +238,12 @@ export async function POST(request: Request) {
           ? ["document"]
           : [...new Set(scope.connectors.map((item) => item.provider))];
         const callNumber = ++issuedCallCount;
+        const callGraphUsage = automatic && queryMode === "thinking" ? true : plan.graphContext;
         await recorder.markQuerying(
           queryProviders,
-          `${phase === "primary" ? "Primary" : "Evidence-derived follow-up"} ${queryBy} query issued to HydraDB.`,
+          `${phase === "primary" ? "Primary" : "Evidence-derived follow-up"} ${queryMode} ${queryBy} query issued to HydraDB.`,
           callNumber,
+          queryMode,
         );
         const callStarted = Date.now();
         const response = await client.query({
@@ -208,21 +252,22 @@ export async function POST(request: Request) {
           query: queryText,
           type: "knowledge",
           query_by: queryBy,
-          mode,
+          mode: queryMode,
           // Document-scoped retrieval asks deeper: a 346-page handbook needs a
           // wider net so exact-fact chunks in the middle/end are not missed by
           // relevance ranking. Connector scopes stay at 12 to bound evidence.
           max_results: scope.sourceIds ? 24 : 12,
           ...(scope.sourceIds ? { ids: scope.sourceIds } : {}),
           query_apps: !scope.sourceIds,
-          graph_context: plan.graphContext,
-          query_forceful_relations: plan.graphContext,
+          graph_context: callGraphUsage,
+          query_forceful_relations: callGraphUsage,
           recency_bias: plan.recencyBias,
           ...(payload.metadataFilters && Object.keys(payload.metadataFilters).length > 0
             ? { metadata_filters: payload.metadataFilters }
             : {}),
         }, request.signal);
-        trace.push({ phase, connectorIds: scope.connectors.map((item) => item.id),
+        trace.push({ phase, mode: queryMode, estimatedCostUnits: retrievalModeCost(queryMode),
+          graphUsage: callGraphUsage, connectorIds: scope.connectors.map((item) => item.id),
           providers: scope.sourceIds ? ["document"] : scope.connectors.map((item) => item.provider), database: scope.database,
           collection: scope.collection, queryBy, ok: response.ok, status: response.status,
           sourceIds: scope.sourceIds ?? [], requestId: response.requestId,
@@ -236,6 +281,7 @@ export async function POST(request: Request) {
             ok: false,
             latencyMs: callLatencyMs,
             callCount: trace.length,
+            mode: queryMode,
             evidenceByProvider: new Map(),
           });
           return;
@@ -291,25 +337,55 @@ export async function POST(request: Request) {
           ok: true,
           latencyMs: callLatencyMs,
           callCount: trace.length,
+          mode: queryMode,
           evidenceByProvider,
         });
         }));
       }));
     };
 
-    await runQueryBatch(retrievalQuery, retrievalQueryVariants(plan), "primary");
-    if (mode === "thinking") {
+    const dedupeEvidence = () => evidence.filter((item, index, all) =>
+      all.findIndex((candidate) => `${candidate.provider}:${candidate.id}` === `${item.provider}:${item.id}`) === index,
+    );
+
+    await runQueryBatch(retrievalQuery, retrievalQueryVariants(plan), "primary", primaryMode);
+    if (automatic) {
+      const preliminaryEvidence = dedupeEvidence();
+      const preliminary = synthesiseGroundedAnswer(question, preliminaryEvidence);
+      const namedProviders = providersNamedInQuestion(question, [...requiredProviders]);
+      const decision = decideAutoEscalation({
+        validationStatus: preliminary.validation.status,
+        missingInformation: preliminary.missingInformation,
+        namedProviders,
+        evidenceProviders: preliminaryEvidence.map((item) => item.provider),
+      });
+      if (decision.escalate) {
+        effectiveMode = "thinking";
+        routingReason = `Auto began in Fast, then escalated to Thinking because ${decision.reasons.join("; ")}.`;
+        await recorder.record("routing", routingReason, {
+          callCount: trace.length, latencyMs: Date.now() - started, mode: "thinking",
+        });
+        const followUpQuery = focusedEvidenceFollowUpQuery(
+          question,
+          preliminaryEvidence.map((item) => `${item.title}. ${item.excerpt}`),
+        ) ?? retrievalQuery;
+        await runQueryBatch(followUpQuery, ["hybrid"], "follow_up", "thinking");
+      } else {
+        routingReason = "Auto kept the Fast result because the preliminary answer was grounded, no requested information was missing, and every explicitly named provider returned evidence.";
+        await recorder.record("routing", routingReason, {
+          callCount: trace.length, latencyMs: Date.now() - started, mode: "fast",
+        });
+      }
+    } else if (primaryMode === "thinking") {
       const followUpQuery = focusedEvidenceFollowUpQuery(
         question,
         evidence.map((item) => `${item.title}. ${item.excerpt}`),
       );
       if (followUpQuery) {
-        await runQueryBatch(followUpQuery, ["hybrid"], "follow_up");
+        await runQueryBatch(followUpQuery, ["hybrid"], "follow_up", "thinking");
       }
     }
-    const deduped = evidence.filter((item, index, all) =>
-      all.findIndex((candidate) => `${candidate.provider}:${candidate.id}` === `${item.provider}:${item.id}`) === index,
-    );
+    const deduped = dedupeEvidence();
     await recorder.record(
       "linking",
       `Normalized ${deduped.length} attributable records and retained provider, connector, source, and evidence lineage.`,
@@ -418,7 +494,8 @@ export async function POST(request: Request) {
       { callCount: trace.length, latencyMs: Date.now() - started },
     );
     const totalLatencyMs = Date.now() - started;
-    const costUnits = trace.length * (mode === "thinking" ? 3 : 1);
+    const costUnits = trace.reduce((total, call) => total + call.estimatedCostUnits, 0);
+    const actualGraphUsage = trace.some((call) => call.graphUsage);
     const groundedContract = groundedAnswerContractSchema.parse({
       answer: synthesis.answer,
       claims: synthesis.claims.map((claim) => ({
@@ -432,18 +509,18 @@ export async function POST(request: Request) {
       missing_information: synthesis.missingInformation,
       retrieval_receipt: {
         query_id: runId,
-        hydradb_mode: mode,
-        routing_reason: plan.reason,
+        hydradb_mode: effectiveMode,
+        routing_reason: routingReason,
         hydradb_call_count: trace.length,
         total_latency_ms: totalLatencyMs,
         provider_coverage: synthesis.validation.providerCoverage,
         receipt_count: citations.length,
         metadata_filters: payload.metadataFilters ?? {},
-        graph_usage: plan.graphContext,
+        graph_usage: actualGraphUsage,
         estimated_cost_units: costUnits,
         timestamp: new Date().toISOString(),
       },
-      routing_reason: plan.reason,
+      routing_reason: routingReason,
     });
     const finalStage = synthesis.validation.status === "abstained" || !synthesis.evidence.length
       ? "abstained"
@@ -472,8 +549,8 @@ export async function POST(request: Request) {
       kind: "verified-backend-receipt",
       queryId: runId,
       stage: finalStage,
-      mode,
-      routingReason: plan.reason,
+      mode: effectiveMode,
+      routingReason,
       providers: recorder.providers(),
       graph,
       claims: groundedContract.claims,
@@ -494,19 +571,19 @@ export async function POST(request: Request) {
       trace: {
         runId,
         category: plan.category,
-        mode,
+        mode: effectiveMode,
         calls: trace,
         callCount: trace.length,
         connectorCount: connectors.results.length,
         latencyMs: totalLatencyMs,
-        routingReason: plan.reason,
+        routingReason,
         metadataFilters: payload.metadataFilters ?? {},
-        graphUsage: plan.graphContext,
+        graphUsage: actualGraphUsage,
         cost: {
           unit: "HydraDB query",
           estimatedUnits: costUnits,
           estimatedUsd: null,
-          basis: "Call-weight estimate; no public per-query HydraDB price is assumed.",
+          basis: "Call-weight estimate: Fast calls count as 1 unit and Thinking calls count as 3; no public per-query HydraDB price is assumed.",
         },
       },
     };

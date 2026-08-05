@@ -4,8 +4,8 @@ import QueueProofRoute from "./QueueProofRoute";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "QueueProof — One Answer. Every System. Proven.",
-  description: "Cross-source answers with claim-level citations, contradiction tracking, latency, and cost evidence.",
+  title: "QueueProof — Ask your work. Get the proof.",
+  description: "Ask across Slack, Gmail, Linear, GitHub, and files. Get one clear answer, open every source, see what disagrees, and know what to do next.",
 };
 
 /**

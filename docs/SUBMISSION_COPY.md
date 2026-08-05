@@ -1,5 +1,10 @@
 # Submission copy
 
+> [!IMPORTANT]
+> Draft only. Before pasting this copy, complete
+> [`RELEASE_EVIDENCE.md`](../RELEASE_EVIDENCE.md) and use only the submitted commit's recorded
+> gates plus metrics whose machine-readable artifact identifies the quoted run.
+
 ## QueueProof - One answer. Every system. Proven.
 
 QueueProof is an evidence-backed control plane for autonomous work, built on HydraDB. It
@@ -19,11 +24,10 @@ only after a canary returns attributable records. Exact identifiers run text and
 retrieval concurrently. Strong connector/resource lineage prevents evidence from being
 credited merely because its provider name matches.
 
-The current deterministic benchmark passes 39/39 labelled router cases and 331
-assertions. The current local candidate passes 345 tests across 38 files, including the
-security and MCP suites, plus typecheck and lint. Replace those counts with the final CI
-receipt if the candidate changes; fresh build, E2E, deployment, and responsive checks remain
-release gates.
+The checked-in deterministic router artifact records 39/39 labelled cases and 331
+fixture-computable assertions. It measures planner/ranking behavior only. Quote test totals,
+typecheck, lint, build, E2E, deployment, and responsive results only after the submitted
+commit's immutable receipts are recorded in `RELEASE_EVIDENCE.md`.
 
 The public product is intentionally a shared evidence sandbox. It allows grounded
 questions, queue inspection, and shared proposals, but disables credential changes,
@@ -37,7 +41,7 @@ closed.
 
 **Method and boundaries:** <https://queueproof.vercel.app/method>
 
-**Measured results and replay:** <https://queueproof.vercel.app/benchmarks>
+**Proof tests:** <https://queueproof.vercel.app/benchmarks>
 
 **Repository:** <https://github.com/vaibhav4046/queueproof>
 
@@ -52,15 +56,18 @@ closed.
 - Final six-query production sample: 19/19 required facts, four of six complete case
   passes, 100% citation precision/completeness, zero unsupported claims, p50 16.294 s,
   and p95 29.877 s.
-- 39/39 deterministic router cases; 331 assertions.
-- Current local candidate: 345 tests across 38 files; use the final CI receipt at submission.
-- Zero secret-pattern matching files across the complete pre-release history and final
-  release worktree.
+- 39/39 deterministic router cases and 331 fixture-computable assertions in
+  `evals/results/results.json`; not a live accuracy claim.
+- Current candidate gates: quote only the completed, submitted-commit receipt in
+  `RELEASE_EVIDENCE.md`.
+- Secret hygiene: quote only the fresh scan receipt for the submitted commit recorded in
+  `RELEASE_EVIDENCE.md`.
 
 ## Boundaries to quote with equal prominence
 
-- The final post-deploy strict PDF run passed 20/22 cases and recovered 53/56 facts with
-  complete citations; both REVIEW cases and the cross-source provider miss stay visible.
+- The timestamped post-deploy strict PDF run passed 20/22 cases and recovered 53/56 facts
+  with complete citations; both REVIEW cases and the cross-source provider miss stay visible.
+  Its artifact does not embed a release SHA.
 - The stored six-query live run is a small diagnostic sample, not an SLA. Two cases stay
   REVIEW because the returned receipts did not satisfy the frozen multi-provider rubric,
   even though all required answer facts were present.
