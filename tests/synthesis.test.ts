@@ -260,6 +260,12 @@ describe("evidence-constrained synthesis", () => {
   });
 
   it("keeps a short connector receipt intact for a strict exact-ID one-hop bridge", () => {
+    const documentVolume = Array.from({ length: 20 }, (_, index) => ({
+      id: `handbook-related-${index}`,
+      provider: "document",
+      title: "helios-operations-handbook.pdf",
+      excerpt: `Reference ${index}: ENG-456 is an AuthShield operator token lifetime requirement recorded in the handbook.`,
+    }));
     const result = synthesiseGroundedAnswer(
       "According to the Helios operations handbook, what does ENG-456 require, and do Slack, Linear, or GitHub show related AuthShield work?",
       [
@@ -269,6 +275,7 @@ describe("evidence-constrained synthesis", () => {
           title: "helios-operations-handbook.pdf",
           excerpt: "ENG-456 reduces the AuthShield operator token lifetime to fifteen minutes. The committed completion date is 30 June 2031.",
         },
+        ...documentVolume,
         {
           id: "github-eng-456",
           provider: "github",

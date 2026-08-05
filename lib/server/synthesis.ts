@@ -121,6 +121,15 @@ const bridgeTokens = (value: string) => new Set(
   tokenise(value).filter((token) => token.length >= 4 && !BRIDGE_GENERIC_TOKENS.has(token)),
 );
 
+const providerNamedInQuestion = (question: string, provider: string) => {
+  const canonical = provider.toLowerCase().replace(/[_-]+/g, " ");
+  const aliases = canonical === "gmail" ? [canonical, "email"] : [canonical];
+  return aliases.some((label) => new RegExp(
+    `(^|[^a-z0-9])${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z0-9]|$)`,
+    "i",
+  ).test(question));
+};
+
 /**
  * Score a conservative one-hop entity join from a directly relevant receipt to a
  * second provider. This is intentionally unavailable for ordinary broad questions:
@@ -247,12 +256,26 @@ export function rankEvidenceForQuestion<T extends SynthesisEvidence>(question: s
     }))
     .sort((a, b) => b.score - a.score || a.index - b.index);
   const relevant = scored.filter((entry) => entry.score > 0);
+  const pool = relevant.length ? relevant : scored.slice(0, 3);
+  // A deep document query can return 24 relevant chunks before connector
+  // receipts. Reserve one of the 16 synthesis slots for the best genuinely
+  // relevant receipt from each provider the user explicitly named; otherwise
+  // document volume can erase a successful, attributable connector response.
+  // Provider naming alone never qualifies evidence: the receipt must already
+  // have a positive direct/authority/strict-bridge score.
+  const namedProviderBest = [...new Set(evidence.map((item) => item.provider))]
+    .filter((provider) => providerNamedInQuestion(question, provider))
+    .map((provider) => pool.find((entry) => entry.item.provider === provider))
+    .filter((entry): entry is (typeof scored)[number] => Boolean(entry));
+  const protectedKeys = new Set(namedProviderBest.map((entry) => `${entry.item.provider}:${entry.item.id}`));
+  const selected = [
+    ...namedProviderBest,
+    ...pool.filter((entry) => !protectedKeys.has(`${entry.item.provider}:${entry.item.id}`)),
+  ].slice(0, 16).sort((left, right) => right.score - left.score || left.index - right.index);
   // 16 (not 12) so deeper document retrieval can still reach an exact-fact
   // chunk that relevance ranking placed just outside the old cut-off. The pick
   // loop still caps the final answer at a handful of claims.
-  return (relevant.length ? relevant : scored.slice(0, 3))
-    .slice(0, 16)
-    .map((entry) => entry.item);
+  return selected.map((entry) => entry.item);
 }
 
 /**
