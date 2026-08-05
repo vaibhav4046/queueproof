@@ -2,14 +2,14 @@ import { apiError, noStoreJson, readJson } from "../../../../lib/server/api";
 import { encryptSecret, secretFingerprint } from "../../../../lib/server/crypto";
 import { requirePrivateControlActor, requireRequestActor } from "../../../../lib/server/identity";
 import { requireDb } from "../../../../lib/server/runtime";
-import { audit, createId, requireWorkspaceForUser } from "../../../../lib/server/store";
+import { audit, createId, requireOwnerWorkspaceForUser } from "../../../../lib/server/store";
 import { HydraDbClient } from "../../../../packages/hydradb/src/client";
 
 export async function POST(request: Request) {
   try {
     const actor = await requireRequestActor();
     requirePrivateControlActor(actor, "HydraDB credential configuration");
-    const workspace = await requireWorkspaceForUser(actor.id);
+    const workspace = await requireOwnerWorkspaceForUser(actor.id);
     const payload = await readJson<{ apiKey?: string; baseUrl?: string }>(request);
     const apiKey = payload.apiKey?.trim() ?? "";
     if (apiKey.length < 12) {

@@ -1,7 +1,7 @@
 import { apiError, noStoreJson, readJson } from "../../../lib/server/api";
 import { requirePrivateControlActor, requireRequestActor } from "../../../lib/server/identity";
 import { requireDb, runtimeEnv } from "../../../lib/server/runtime";
-import { audit, createId, ensureCoreSchema, requireWorkspaceForUser } from "../../../lib/server/store";
+import { audit, createId, ensureCoreSchema, requireOwnerWorkspaceForUser } from "../../../lib/server/store";
 import { sha256 } from "../../../packages/security/src";
 
 const allowedScopes = new Set(["queueproof:read", "queueproof:propose", "queueproof:sync"]);
@@ -15,7 +15,8 @@ function randomToken() {
 export async function GET() {
   try {
     const actor = await requireRequestActor();
-    const workspace = await requireWorkspaceForUser(actor.id);
+    requirePrivateControlActor(actor, "MCP connection history");
+    const workspace = await requireOwnerWorkspaceForUser(actor.id);
     await ensureCoreSchema();
     const result = await requireDb().prepare(
       `SELECT mt.id, mt.client_id AS clientId, mc.client_type AS clientType,
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
   try {
     const actor = await requireRequestActor();
     requirePrivateControlActor(actor, "MCP token minting");
-    const workspace = await requireWorkspaceForUser(actor.id);
+    const workspace = await requireOwnerWorkspaceForUser(actor.id);
     const workspaceId = String(workspace.id);
     const payload = await readJson<{ clientType?: string; scopes?: string[]; expiresInDays?: number }>(request);
     const clientType = payload.clientType?.trim().toLowerCase() || "generic";
@@ -74,7 +75,7 @@ export async function DELETE(request: Request) {
   try {
     const actor = await requireRequestActor();
     requirePrivateControlActor(actor, "MCP token revocation");
-    const workspace = await requireWorkspaceForUser(actor.id);
+    const workspace = await requireOwnerWorkspaceForUser(actor.id);
     const { tokenId } = await readJson<{ tokenId?: string }>(request);
     if (!tokenId) return noStoreJson({ ok: false, error: "tokenId is required." }, { status: 400 });
     const result = await requireDb().prepare(

@@ -280,7 +280,7 @@ const REQUIRED_FACTS_BY_ID = {
     allFact("field-firmware", "The permission covered Rover SDK field firmware flashing", ["Rover SDK"], ["field firmware"], ["flash", "flashing"]),
     anyFact("without-second-approver", "No second approver was required", "without a second approver", "no second approver"),
     anyFact("maintenance-stand", "The rover had to be on a maintenance stand", "maintenance stand"),
-    anyFact("no-longer-force", "The permission is no longer in force", "no longer in force", "permission is withdrawn", "permission was withdrawn", "policy was superseded"),
+    anyFact("no-longer-force", "The permission is no longer in force", "no longer in force", "permission is withdrawn", "permission was withdrawn", "policy was superseded", "must not be relied on"),
   ],
   "fact-superseding-decision": [
     anyFact("not-in-force", "The single-approver rule is not in force", "not in force", "no longer in force", "withdrawn", "must not be relied on"),

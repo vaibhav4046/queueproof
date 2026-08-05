@@ -392,3 +392,25 @@ export async function requireWorkspaceForUser(userId: string) {
   if (!workspace) throw new Response("Create a QueueProof workspace first.", { status: 409 });
   return workspace;
 }
+
+/**
+ * Resolve the actor's workspace and require its durable owner role.
+ *
+ * `requirePrivateControlActor` separates the public demo from authenticated actors,
+ * but authentication alone is not authorization: a future collaborator delivered by
+ * the trusted identity gateway must not be able to rotate credentials, mint MCP keys,
+ * sync connectors, upload documents, or prepare provider writes. Workspace creation
+ * deliberately keeps using `requireWorkspaceForUser` because it creates this first
+ * owner membership; established control-plane routes use this guard instead.
+ */
+export async function requireOwnerWorkspaceForUser(userId: string) {
+  const workspace = await requireWorkspaceForUser(userId);
+  const membership = await requireDb()
+    .prepare(`SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ? LIMIT 1`)
+    .bind(String(workspace.id), userId)
+    .first<{ role: string }>();
+  if (membership?.role !== "owner") {
+    throw new Response("Only a workspace owner may use this control-plane operation.", { status: 403 });
+  }
+  return workspace;
+}

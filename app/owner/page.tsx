@@ -4,7 +4,7 @@ import OwnerSignIn from "./OwnerSignIn";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Owner access — QueueProof",
+  title: "Workspace owner",
   description: "Authenticate to manage QueueProof connectors, documents, approvals, and agent credentials.",
   robots: { index: false, follow: false },
 };
@@ -12,4 +12,3 @@ export const metadata: Metadata = {
 export default function OwnerPage() {
   return <OwnerSignIn />;
 }
-

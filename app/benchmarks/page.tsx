@@ -3,7 +3,7 @@ import QueueProofRoute from "../QueueProofRoute";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  title: "Proof tests",
+  title: "Benchmarks",
   description: "Expected-versus-observed QueueProof results with citations, latency, HydraDB calls, mode, and relative cost.",
 };
 

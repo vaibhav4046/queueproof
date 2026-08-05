@@ -1,7 +1,7 @@
 import { apiError, noStoreJson } from "../../../lib/server/api";
 import { requirePrivateControlActor, requireRequestActor } from "../../../lib/server/identity";
 import { requireDb } from "../../../lib/server/runtime";
-import { audit, createId, ensureCoreSchema, requireWorkspaceForUser } from "../../../lib/server/store";
+import { audit, createId, ensureCoreSchema, requireOwnerWorkspaceForUser, requireWorkspaceForUser } from "../../../lib/server/store";
 import { hydraAccountForWorkspace, hydraClientForWorkspace } from "../../../lib/server/hydradb-account";
 import {
   MAX_DOCUMENT_BYTES,
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     const actor = await requireRequestActor();
     requirePrivateControlActor(actor, "Document upload");
     await ensureCoreSchema();
-    const workspace = await requireWorkspaceForUser(actor.id);
+    const workspace = await requireOwnerWorkspaceForUser(actor.id);
     const workspaceId = String(workspace.id);
 
     const declaredLength = Number(request.headers.get("content-length") ?? "0");

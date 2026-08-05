@@ -80,7 +80,7 @@ export function compareLiveModes(fastArtifact, thinkingArtifact) {
 
   return {
     status: "measured",
-    note: "Both modes ran the same frozen cases against the same deployed release.",
+    note: "Both modes ran the same frozen cases against the same deployed release. Investigate preserves a Quick grounded baseline, then adds one bounded Thinking follow-up.",
     comparable: true,
     fast,
     thinking,

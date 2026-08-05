@@ -92,7 +92,8 @@
           "no longer in force",
           "permission is withdrawn",
           "permission was withdrawn",
-          "policy was superseded"
+          "policy was superseded",
+          "must not be relied on"
         ]
       }
     ],

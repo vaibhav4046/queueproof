@@ -3,6 +3,7 @@ import { Command } from "commander";
 import { readFile, rename } from "node:fs/promises";
 import process from "node:process";
 import { canonicalMcpEndpoint, installClientConfig, projectConfigPath } from "./config.mjs";
+import { callMcpTool, tokenSetupInstructions, verifyMcp } from "./mcp-client.mjs";
 
 const program = new Command()
   .name("queueproof")
@@ -11,6 +12,14 @@ const program = new Command()
   .option("--url <url>", "QueueProof base URL", process.env.QUEUEPROOF_URL || "http://127.0.0.1:3000");
 
 function base() { return program.opts().url.replace(/\/$/, ""); }
+function mcpOptions() {
+  return {
+    endpoint: canonicalMcpEndpoint(base()),
+    token: process.env.QUEUEPROOF_MCP_TOKEN,
+  };
+}
+function print(value) { console.log(JSON.stringify(value, null, 2)); }
+async function tool(name, args = {}) { print(await callMcpTool(mcpOptions(), name, args)); }
 async function request(path, init = {}) {
   const response = await fetch(`${base()}${path}`, init);
   const body = await response.json().catch(() => ({ error: response.statusText }));
@@ -19,7 +28,7 @@ async function request(path, init = {}) {
 }
 
 program.command("login").description("Explain secure sign-in").action(() =>
-  console.log(`Open ${base()} and use the hosted sign-in. Credentials are never accepted as CLI arguments.`));
+  console.log(`Open ${base()}/owner to create an owner session and MCP connection key.\n\n${tokenSetupInstructions()}\n\nCredentials are never accepted as CLI arguments.`));
 program.command("logout").description("Remove local session guidance").action(() =>
   console.log("QueueProof CLI stores no session or provider credential."));
 program.command("status").action(() => request("/api/health/ready"));
@@ -30,16 +39,20 @@ program.command("connect").argument("<provider>").action((provider) => {
 });
 
 const connectors = program.command("connectors");
-connectors.command("list").action(() => request("/api/connectors"));
+connectors.command("list").action(() => tool("queueproof_list_connectors"));
 connectors.command("verify").argument("<id>").action((id) =>
-  request(`/api/connectors/${encodeURIComponent(id)}/verify`, { method: "POST" }));
+  tool("queueproof_verify_connector", { connectorId: id }));
 program.command("sync").argument("<id>").action((id) =>
-  request(`/api/connectors/${encodeURIComponent(id)}/sync`, { method: "POST" }));
-program.command("ask").argument("<question...>").requiredOption("--database <database>").action((words, options) =>
-  request("/api/query", { method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query: words.join(" "), database: options.database }) }));
-program.command("next").action(() => console.log("Use the authenticated MCP tool queueproof_get_next_actions."));
-program.command("changes").action(() => console.log("Use the authenticated MCP resource queueproof://workspace/changes."));
+  tool("queueproof_sync_connector", { connectorId: id }));
+program.command("ask").argument("<question...>").requiredOption("--database <database>")
+  .option("--mode <mode>", "fast, auto, or thinking", "auto")
+  .action((words, options) => tool("queueproof_ask", {
+    query: words.join(" "), database: options.database, mode: options.mode,
+  }));
+program.command("next").option("--limit <count>", "maximum actions", "10").action((options) =>
+  tool("queueproof_get_next_actions", { limit: Number(options.limit) }));
+program.command("changes").option("--limit <count>", "maximum snapshots", "20").action((options) =>
+  tool("queueproof_list_queue_snapshots", { limit: Number(options.limit) }));
 
 const skills = program.command("skills");
 skills.command("list").action(() => console.log("Portable skills are under ./skills; hosted activation requires a workspace."));
@@ -50,9 +63,11 @@ mcp.command("serve").action(() => console.log("Run `pnpm dev`; the authenticated
 mcp.command("install").argument("<client>").action(async (client) => {
   const file = projectConfigPath[client];
   if (!file) throw new Error("Client must be codex, claude, kimi, or kilo.");
-  console.log(await installClientConfig({ client, file, endpoint: canonicalMcpEndpoint(base()) }));
+  print(await installClientConfig({ client, file, endpoint: canonicalMcpEndpoint(base()) }));
+  console.log(`\n${tokenSetupInstructions()}\nRestart ${client}, then run \`queueproof mcp verify\`.`);
 });
-mcp.command("verify").action(() => console.log(`Test ${canonicalMcpEndpoint(base())} with an MCP client and QUEUEPROOF_MCP_TOKEN.`));
+mcp.command("verify").description("Perform a real MCP handshake and list tools").action(async () =>
+  print(await verifyMcp(mcpOptions())));
 
 const client = program.command("client");
 client.command("install").argument("<client>").option("--endpoint <url>").action(async (name, options) => {

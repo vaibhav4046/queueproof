@@ -88,11 +88,11 @@ export default function OwnerSignIn() {
         </Link>
 
         <div className={styles.heading}>
-          <p>PRIVATE CONTROL PLANE</p>
-          <h1 id="owner-title">Owner access</h1>
+          <p>OWNER CONTROLS</p>
+          <h1 id="owner-title">Workspace owner</h1>
           <span>
-            The public workspace stays usable for retrieval. Sign in only to manage
-            connectors, documents, approvals, or agent credentials.
+            Sign in to connect sources, manage documents, approve changes, and create
+            AI connection keys. The public workspace remains read-only.
           </span>
         </div>
 
@@ -112,7 +112,7 @@ export default function OwnerSignIn() {
           </div>
         ) : state?.signInConfigured ? (
           <form className={styles.form} onSubmit={signIn}>
-            <label htmlFor="owner-token">Deployment access token</label>
+            <label htmlFor="owner-token">Owner key</label>
             <input
               id="owner-token"
               type="password"
@@ -122,9 +122,8 @@ export default function OwnerSignIn() {
               required
               autoComplete="current-password"
               spellCheck={false}
-              autoFocus
             />
-            <p>The token is exchanged server-side for a signed, HTTP-only 12-hour session. It is never stored in browser JavaScript.</p>
+            <p>Your token is exchanged for a secure 12-hour browser session and is never stored in page JavaScript.</p>
             <button className={styles.primary} type="submit" disabled={busy || accessToken.length < 16}>
               {busy ? "Verifying…" : "Continue as owner"}
             </button>

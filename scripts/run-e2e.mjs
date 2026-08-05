@@ -13,7 +13,7 @@ if (!workspaceResponse.ok) throw new Error(`Workspace bootstrap failed: ${worksp
 const workspace = await workspaceResponse.json();
 if (workspace.ok !== true) throw new Error("Workspace bootstrap did not return an explicit success contract.");
 
-for (const destination of ["Ask", "Today", "Sources", "History", "Connect AI", "Review actions", "Proof tests"]) {
+for (const destination of ["Ask", "Today", "Sources", "History", "Connect AI", "Review changes", "Benchmarks"]) {
   assert.ok(html.includes(destination), `Missing rendered navigation destination: ${destination}`);
 }
 assert.match(html, /aria-current="page"/, "The active product area must be exposed to assistive technology.");
@@ -30,9 +30,9 @@ for (const [path, marker] of [
   ["/evidence", "Your sources"],
   ["/benchmarks", "The benchmark is"],
   ["/replay", "Your history"],
-  ["/approvals", "Agents propose"],
+  ["/approvals", "without your approval."],
   ["/developer", "Connect QueueProof"],
-  ["/owner", "Owner access"],
+  ["/owner", "Workspace owner"],
   ["/method", "How QueueProof works"],
 ]) {
   const routeResponse = await fetch(`${base}${path}`);
@@ -71,4 +71,4 @@ assert.match(styles, /@media \(max-width:\s*820px\)[\s\S]*?\.mobile-dock\s*\{[\s
 assert.match(styles, /@media \(prefers-reduced-motion:\s*reduce\)/);
 assert.match(styles, /\.queueproof-logo[\s\S]*?opacity:\s*1/);
 
-console.log("PASS  live shell, seven-destination navigation, direct judge routes, public disclosure, proof-first layout, timeline, comparison, replay, citations, dialogs, and result-state contracts");
+console.log("PASS  live shell, seven-destination navigation, nine direct judge routes, public disclosure, proof-first layout, timeline, comparison, replay, citations, dialogs, and result-state contracts");

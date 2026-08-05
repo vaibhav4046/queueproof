@@ -14,6 +14,7 @@ import {
   retrievalIntentTerms,
   retrievalModeCost,
   retrievalQueryVariants,
+  shouldRunFastCoverageRepair,
   type ExecutedRetrievalMode,
 } from "../../../packages/retrieval/src";
 import { hostileQueryReason, isPotentialPromptInjection, redactSecrets } from "../../../packages/security/src";
@@ -63,6 +64,7 @@ type RetrievalCallTrace = {
   latencyMs: number;
   error?: string | null;
 };
+const THINKING_QUERY_TIMEOUT_MS = 16_000;
 const record = (value: unknown): Row => typeof value === "object" && value !== null ? value as Row : {};
 
 function textFrom(row: Row, keys: string[]) {
@@ -216,11 +218,14 @@ export async function POST(request: Request) {
       ],
     });
     failureContext = { recorder, startedAt: started };
+    const primaryQueryMode: ExecutedRetrievalMode = primaryMode === "thinking" ? "fast" : primaryMode;
     await recorder.record(
       "routing",
       automatic
         ? "Auto routing selected a Fast primary pass; escalation depends on the preliminary grounded result."
-        : `Explicit ${primaryMode} mode selected. ${plan.reason}`,
+        : primaryMode === "thinking"
+          ? `Investigate selected. QueueProof will preserve a Fast grounded baseline, then run one bounded Thinking follow-up. ${plan.reason}`
+          : `Explicit ${primaryMode} mode selected. ${plan.reason}`,
       { mode: primaryMode },
     );
     const client = await hydraClientForWorkspace(workspaceId);
@@ -246,26 +251,52 @@ export async function POST(request: Request) {
           queryMode,
         );
         const callStarted = Date.now();
-        const response = await client.query({
-          database: scope.database,
-          ...(scope.collection ? { collections: [scope.collection] } : {}),
-          query: queryText,
-          type: "knowledge",
-          query_by: queryBy,
-          mode: queryMode,
-          // Document-scoped retrieval asks deeper: a 346-page handbook needs a
-          // wider net so exact-fact chunks in the middle/end are not missed by
-          // relevance ranking. Connector scopes stay at 12 to bound evidence.
-          max_results: scope.sourceIds ? 24 : 12,
-          ...(scope.sourceIds ? { ids: scope.sourceIds } : {}),
-          query_apps: !scope.sourceIds,
-          graph_context: callGraphUsage,
-          query_forceful_relations: callGraphUsage,
-          recency_bias: plan.recencyBias,
-          ...(payload.metadataFilters && Object.keys(payload.metadataFilters).length > 0
-            ? { metadata_filters: payload.metadataFilters }
-            : {}),
-        }, request.signal);
+        const boundedSignal = queryMode === "thinking"
+          ? AbortSignal.any([request.signal, AbortSignal.timeout(THINKING_QUERY_TIMEOUT_MS)])
+          : request.signal;
+        let response: Awaited<ReturnType<typeof client.query>>;
+        try {
+          response = await client.query({
+            database: scope.database,
+            ...(scope.collection ? { collections: [scope.collection] } : {}),
+            query: queryText,
+            type: "knowledge",
+            query_by: queryBy,
+            mode: queryMode,
+            // Document-scoped retrieval asks deeper: a 346-page handbook needs a
+            // wider net so exact-fact chunks in the middle/end are not missed by
+            // relevance ranking. Connector scopes stay at 12 to bound evidence.
+            max_results: scope.sourceIds ? 24 : 12,
+            ...(scope.sourceIds ? { ids: scope.sourceIds } : {}),
+            query_apps: !scope.sourceIds,
+            graph_context: callGraphUsage,
+            query_forceful_relations: callGraphUsage,
+            recency_bias: plan.recencyBias,
+            ...(payload.metadataFilters && Object.keys(payload.metadataFilters).length > 0
+              ? { metadata_filters: payload.metadataFilters }
+              : {}),
+          }, boundedSignal);
+        } catch (error) {
+          if (request.signal.aborted) throw error;
+          const message = error instanceof Error ? error.message : "Bounded retrieval call failed.";
+          const callLatencyMs = Date.now() - callStarted;
+          trace.push({ phase, mode: queryMode, estimatedCostUnits: retrievalModeCost(queryMode),
+            graphUsage: callGraphUsage, connectorIds: scope.connectors.map((item) => item.id),
+            providers: scope.sourceIds ? ["document"] : scope.connectors.map((item) => item.provider), database: scope.database,
+            collection: scope.collection, queryBy, ok: false, status: 0,
+            sourceIds: scope.sourceIds ?? [], requestId: null,
+            queryTermCount: queryText.split(/\s+/).filter(Boolean).length,
+            latencyMs: callLatencyMs, error: message });
+          await recorder.markResponse({
+            providers: queryProviders,
+            ok: false,
+            latencyMs: callLatencyMs,
+            callCount: trace.length,
+            mode: queryMode,
+            evidenceByProvider: new Map(),
+          });
+          return;
+        }
         trace.push({ phase, mode: queryMode, estimatedCostUnits: retrievalModeCost(queryMode),
           graphUsage: callGraphUsage, connectorIds: scope.connectors.map((item) => item.id),
           providers: scope.sourceIds ? ["document"] : scope.connectors.map((item) => item.provider), database: scope.database,
@@ -348,10 +379,31 @@ export async function POST(request: Request) {
       all.findIndex((candidate) => `${candidate.provider}:${candidate.id}` === `${item.provider}:${item.id}`) === index,
     );
 
-    await runQueryBatch(retrievalQuery, retrievalQueryVariants(plan), "primary", primaryMode);
+    await runQueryBatch(retrievalQuery, retrievalQueryVariants(plan), "primary", primaryQueryMode);
+    let preliminaryEvidence = dedupeEvidence();
+    let preliminary = synthesiseGroundedAnswer(question, preliminaryEvidence);
+    if (shouldRunFastCoverageRepair({
+      category: plan.category,
+      plannedMode: plan.mode,
+      evidenceProviders: preliminaryEvidence.map((item) => item.provider),
+      contradictionProviders: preliminary.contradictions.map((item) => item.providers),
+    })) {
+      const repairQuery = focusedEvidenceFollowUpQuery(
+        question,
+        preliminaryEvidence.map((item) => `${item.title}. ${item.excerpt}`),
+      );
+      if (repairQuery) {
+        await recorder.record(
+          "routing",
+          "The Fast pass found only one provider for a multi-step state or identifier question; running one Fast join-key coverage repair.",
+          { callCount: trace.length, latencyMs: Date.now() - started, mode: "fast" },
+        );
+        await runQueryBatch(repairQuery, ["hybrid"], "follow_up", "fast");
+        preliminaryEvidence = dedupeEvidence();
+        preliminary = synthesiseGroundedAnswer(question, preliminaryEvidence);
+      }
+    }
     if (automatic) {
-      const preliminaryEvidence = dedupeEvidence();
-      const preliminary = synthesiseGroundedAnswer(question, preliminaryEvidence);
       const namedProviders = providersNamedInQuestion(question, [...requiredProviders]);
       const decision = decideAutoEscalation({
         validationStatus: preliminary.validation.status,
@@ -379,7 +431,7 @@ export async function POST(request: Request) {
     } else if (primaryMode === "thinking") {
       const followUpQuery = focusedEvidenceFollowUpQuery(
         question,
-        evidence.map((item) => `${item.title}. ${item.excerpt}`),
+        preliminaryEvidence.map((item) => `${item.title}. ${item.excerpt}`),
       );
       if (followUpQuery) {
         await runQueryBatch(followUpQuery, ["hybrid"], "follow_up", "thinking");

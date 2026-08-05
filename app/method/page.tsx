@@ -11,8 +11,8 @@ export const metadata: Metadata = {
 
 const steps = [
   ["01", "Verify the sources", "A source counts only after HydraDB returns attributable records and QueueProof stores the proof receipt."],
-  ["02", "Choose the route", "Direct facts use Fast. Cross-source, timeline, conflict, and changed-information questions use Deep check."],
-  ["03", "Search and follow the evidence", "Deep check uses identifiers found in the first results to form one bounded follow-up search."],
+  ["02", "Choose the route", "Direct facts use Quick. Cross-source, timeline, conflict, and changed-information questions use Investigate."],
+  ["03", "Search and follow the evidence", "Investigate preserves a Quick grounded baseline, then uses identifiers from those results for one bounded follow-up search."],
   ["04", "Compare the proof", "QueueProof matches people and projects, orders dated records, preserves conflicts, and ignores instruction-shaped source text."],
   ["05", "Cite or abstain", "Every supported claim opens to a receipt. Missing proof produces a partial result or an explicit abstention."],
   ["06", "Recommend the next safe action", "The action is linked to evidence, ranked by a versioned policy, and any external write remains approval-gated."],

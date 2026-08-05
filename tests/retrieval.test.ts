@@ -6,6 +6,7 @@ import {
   recordIdentifiers,
   retrievalIntentTerms,
   retrievalQueryVariants,
+  shouldRunFastCoverageRepair,
 } from "../packages/retrieval/src";
 
 describe("retrieval planner", () => {
@@ -40,6 +41,29 @@ describe("retrieval planner", () => {
       "merged", "shipped", "still open", "tracked state",
     ]);
     expect(retrievalIntentTerms("Show me ENG-456")).toEqual([]);
+  });
+
+  it("repairs a single-provider join before paying Thinking cost", () => {
+    expect(shouldRunFastCoverageRepair({
+      category: "exact_identifier",
+      plannedMode: "thinking",
+      evidenceProviders: ["slack"],
+      contradictionProviders: [],
+    })).toBe(true);
+    const staleWorkPlan = planRetrieval("Which open issue appears to be already resolved elsewhere?");
+    expect(staleWorkPlan).toMatchObject({ category: "single_source_fact", mode: "thinking" });
+    expect(shouldRunFastCoverageRepair({
+      category: staleWorkPlan.category,
+      plannedMode: staleWorkPlan.mode,
+      evidenceProviders: ["github"],
+      contradictionProviders: [["github"]],
+    })).toBe(true);
+    expect(shouldRunFastCoverageRepair({
+      category: "cross_source_fact",
+      plannedMode: "thinking",
+      evidenceProviders: ["github", "linear"],
+      contradictionProviders: [["github", "linear"]],
+    })).toBe(false);
   });
 });
 

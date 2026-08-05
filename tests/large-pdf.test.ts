@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import facts from "../evals/fixtures/large-pdf-facts.json";
-import { PDF_CANARY_KINDS, summarisePdfCanaries } from "../evals/lib/grounded-grader.mjs";
+import { matchRequiredFact, PDF_CANARY_KINDS, summarisePdfCanaries } from "../evals/lib/grounded-grader.mjs";
 
 type RequiredFact = { id: string; anyOf?: string[]; allOf?: string[][] };
 const factsWithRequirements = facts as unknown as Array<(typeof facts)[number] & { requiredFacts: RequiredFact[] }>;
@@ -126,6 +126,16 @@ describe("large PDF ground truth", () => {
         expect(alternatives, `${fact.id}/${required.id} has no match alternatives`).toBeGreaterThan(0);
       }
     }
+  });
+
+  it("accepts equivalent withdrawn-policy wording without weakening the fact contract", () => {
+    const policy = factsWithRequirements.find((fact) => fact.id === "fact-superseded-policy");
+    const noLongerForce = policy?.requiredFacts.find((fact) => fact.id === "no-longer-force");
+    expect(noLongerForce).toBeDefined();
+    expect(matchRequiredFact(
+      "The single engineer permission in OPS-POL-14 is withdrawn and must not be relied on.",
+      noLongerForce!,
+    )).toMatchObject({ matched: true, matchedAlternatives: ["must not be relied on"] });
   });
 
   it("uses the fixture's exact beginning, middle, and end canary kinds", () => {

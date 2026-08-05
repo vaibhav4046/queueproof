@@ -91,7 +91,7 @@ export default function EvidenceOrbit({
   const showInsufficient = stage === "partial" || stage === "abstained" || stage === "failed";
   const action = state?.priorityItems[0] ?? null;
   const receiptCount = state?.providers.reduce((total, item) => total + item.receiptCount, 0) ?? 0;
-  const modeLabel = state?.mode === "thinking" ? "Deep check" : state?.mode === "fast" ? "Fast" : "Auto";
+  const modeLabel = state?.mode === "thinking" ? "Investigate" : state?.mode === "fast" ? "Quick" : "Best";
 
   return (
     <div className={`evidence-orbit stage-${stage}${reducedMotion ? " reduced-motion" : ""}${replay ? " replay" : ""}`}>

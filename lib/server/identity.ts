@@ -18,8 +18,8 @@ export const DEPLOYMENT_OWNER_ACTOR_ID = "user:deployment-owner";
 /**
  * Public access is intentionally useful for the evidence demo, but it must not grant
  * anonymous control over credentials, connector spend, durable bearer tokens, uploads,
- * or external provider writes. Shared in-product queue/proposal state remains available;
- * control-plane mutations call this guard explicitly.
+ * proposal state, or external provider writes. Control-plane mutations call this guard
+ * explicitly.
  */
 export function requirePrivateControlActor(actor: RequestActor, operation = "This control-plane operation") {
   if (actor.id !== "user:public-access") return;

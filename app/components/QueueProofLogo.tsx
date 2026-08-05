@@ -3,11 +3,8 @@ import type { SVGProps } from "react";
 export function QueueProofSymbol({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
     <svg className={className} viewBox="0 0 36 36" fill="none" aria-hidden="true" {...props}>
-      <circle cx="18" cy="18" r="15" stroke="currentColor" strokeWidth="1.6" opacity=".48" />
-      <path d="M24.6 23.9A9.5 9.5 0 1 1 27.5 17c0 2.4-.9 4.6-2.4 6.3l4 3.8" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-      <circle cx="18" cy="17" r="4.2" fill="var(--ember, #ff6a00)" />
-      <circle cx="10.3" cy="9.7" r="1.35" fill="var(--ember-bright, #ff9a42)" />
-      <circle cx="27.1" cy="12.1" r="1.05" fill="var(--ember-soft, #ffd1aa)" opacity=".72" />
+      <path d="M25.8 25.2A10.8 10.8 0 1 0 28.8 18c0 2.8-1 5.3-2.7 7.2l4.3 4.1" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="m12.9 18.2 3.3 3.3 7-7.5" stroke="var(--ember, #ff6a00)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

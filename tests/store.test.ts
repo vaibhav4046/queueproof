@@ -1,6 +1,13 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { requireDb } from "../lib/server/runtime";
-import { audit, createId, enforcePublicRateLimit, ensureCoreSchema, workspaceForUser } from "../lib/server/store";
+import {
+  audit,
+  createId,
+  enforcePublicRateLimit,
+  ensureCoreSchema,
+  requireOwnerWorkspaceForUser,
+  workspaceForUser,
+} from "../lib/server/store";
 
 /**
  * First tests to exercise the real persistence layer.
@@ -102,6 +109,30 @@ describe("workspace ownership", () => {
     expect(alice?.name).toBe("Helios");
     expect(bob?.name).toBe("Rover");
     expect(await workspaceForUser("user:carol")).toBeNull();
+  });
+
+  it("requires the durable owner role for control-plane workspace access", async () => {
+    const db = requireDb();
+    const ownerId = "user:owner-guard";
+    const memberId = "user:member-guard";
+    const workspaceId = await createWorkspace(ownerId, "OwnerGuard");
+    await db.batch([
+      db
+        .prepare("INSERT OR IGNORE INTO users (id, email, display_name) VALUES (?, ?, ?)")
+        .bind(memberId, "member-guard@example.invalid", "Member guard"),
+      db
+        .prepare("INSERT INTO workspace_members (id, workspace_id, user_id, role) VALUES (?, ?, ?, 'member')")
+        .bind(createId("member"), workspaceId, memberId),
+    ]);
+
+    await expect(requireOwnerWorkspaceForUser(ownerId)).resolves.toMatchObject({ id: workspaceId });
+    try {
+      await requireOwnerWorkspaceForUser(memberId);
+      throw new Error("non-owner control-plane access was not rejected");
+    } catch (error) {
+      expect(error).toBeInstanceOf(Response);
+      expect((error as Response).status).toBe(403);
+    }
   });
 
   it("fails closed instead of assigning an ambiguous oldest workspace to public access", async () => {

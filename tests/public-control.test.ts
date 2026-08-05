@@ -26,6 +26,8 @@ describe("public sandbox control boundary", () => {
       "app/api/providers/route.ts",
       "app/api/workspace/route.ts",
       "app/api/documents/[id]/status/route.ts",
+      "app/api/mcp-tokens/route.ts",
+      "app/api/actions/route.ts",
     ]) {
       expect(readFileSync(join(process.cwd(), route), "utf8"), `${route} must guard public control`).toMatch(
         /requirePrivateControlActor\s*\(/,

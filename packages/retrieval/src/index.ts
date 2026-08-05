@@ -74,6 +74,26 @@ export function decideAutoEscalation(input: {
   return { escalate: reasons.length > 0, reasons, missingNamedProviders };
 }
 
+/**
+ * A fast first pass can find a complete sentence in one provider that refers to
+ * another system (for example, GitHub says ENG-456 is still open). That is useful
+ * evidence, but it is not independent provider confirmation. Run one bounded Fast
+ * join-key follow-up when the planner expected multi-step reasoning and the first
+ * result is still single-provider. This repairs coverage without paying Thinking
+ * cost for a deterministic identifier join.
+ */
+export function shouldRunFastCoverageRepair(input: {
+  category: QueryCategory;
+  plannedMode: RetrievalPlan["mode"];
+  evidenceProviders: string[];
+  contradictionProviders: string[][];
+}) {
+  const providerCount = new Set(input.evidenceProviders.filter(Boolean)).size;
+  if (input.plannedMode !== "thinking" || providerCount !== 1) return false;
+  if (input.category === "exact_identifier") return true;
+  return input.contradictionProviders.some((providers) => new Set(providers.filter(Boolean)).size < 2);
+}
+
 // Operational record identifiers are often namespaced (OPS-POL-14,
 // DRAFT-OPS-14), not only one-prefix IDs such as BUG-123. Keeping extraction in
 // one helper prevents the router and second-hop query from silently shortening

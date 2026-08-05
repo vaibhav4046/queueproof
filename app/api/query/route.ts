@@ -3,7 +3,7 @@ import { hydraClientForWorkspace } from "../../../lib/server/hydradb-account";
 import { extractQuerySources, providerFromSource } from "../../../lib/server/hydradb-shapes";
 import { requirePrivateControlActor, requireRequestActor } from "../../../lib/server/identity";
 import { requireDb } from "../../../lib/server/runtime";
-import { audit, createId, requireWorkspaceForUser } from "../../../lib/server/store";
+import { audit, createId, requireOwnerWorkspaceForUser } from "../../../lib/server/store";
 import { queryRequestSchema } from "../../../packages/contracts/src";
 import { planRetrieval, retrievalQueryVariants } from "../../../packages/retrieval/src";
 import { isPotentialPromptInjection, redactSecrets } from "../../../packages/security/src";
@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   try {
     const actor = await requireRequestActor();
     requirePrivateControlActor(actor, "Raw HydraDB queries");
-    const workspace = await requireWorkspaceForUser(actor.id);
+    const workspace = await requireOwnerWorkspaceForUser(actor.id);
     const workspaceId = String(workspace.id);
     const parsed = queryRequestSchema.safeParse(await readJson<unknown>(request));
     if (!parsed.success) {

@@ -2,13 +2,13 @@ import { apiError, noStoreJson, readJson } from "../../../../../lib/server/api";
 import { hydraClientForWorkspace } from "../../../../../lib/server/hydradb-account";
 import { requirePrivateControlActor, requireRequestActor } from "../../../../../lib/server/identity";
 import { requireDb } from "../../../../../lib/server/runtime";
-import { audit, requireWorkspaceForUser } from "../../../../../lib/server/store";
+import { audit, requireOwnerWorkspaceForUser } from "../../../../../lib/server/store";
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const actor = await requireRequestActor();
     requirePrivateControlActor(actor, "Connector configuration");
-    const workspace = await requireWorkspaceForUser(actor.id);
+    const workspace = await requireOwnerWorkspaceForUser(actor.id);
     const workspaceId = String(workspace.id);
     const { id } = await context.params;
     const payload = await readJson<{ resourceIds?: string[]; lookbackDays?: number }>(request);

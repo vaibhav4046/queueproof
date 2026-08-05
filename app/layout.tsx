@@ -26,7 +26,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const title = "QueueProof — Ask your work. Get the proof.";
   const description =
     "Ask across Slack, Gmail, Linear, GitHub, and files. Get one clear answer, the sources behind it, what disagrees, and what to do next.";
-  const image = new URL("/og-v3.png", metadataBase).toString();
+  const image = new URL("/og.png", metadataBase).toString();
   return {
     metadataBase,
     title: { default: title, template: "%s · QueueProof" },

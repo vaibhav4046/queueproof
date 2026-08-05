@@ -1,7 +1,7 @@
 import { apiError, noStoreJson, readJson } from "../../../lib/server/api";
-import { requireRequestActor } from "../../../lib/server/identity";
+import { requirePrivateControlActor, requireRequestActor } from "../../../lib/server/identity";
 import { requireDb } from "../../../lib/server/runtime";
-import { audit, createId, enforcePublicRateLimit, ensureCoreSchema, requireWorkspaceForUser } from "../../../lib/server/store";
+import { audit, createId, ensureCoreSchema, requireOwnerWorkspaceForUser, requireWorkspaceForUser } from "../../../lib/server/store";
 import {
   buildIssuePayload,
   idempotencyKeyFor,
@@ -54,24 +54,10 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const actor = await requireRequestActor();
+    requirePrivateControlActor(actor, "Action proposal creation");
     await ensureCoreSchema();
-    const workspace = await requireWorkspaceForUser(actor.id);
+    const workspace = await requireOwnerWorkspaceForUser(actor.id);
     const workspaceId = String(workspace.id);
-    await enforcePublicRateLimit({
-      actorId: actor.id, workspaceId, operation: "action.propose", limit: 8, windowMs: 10 * 60_000,
-    });
-    if (actor.id === "user:public-access") {
-      const pendingPublic = await requireDb()
-        .prepare(`SELECT COUNT(*) AS total FROM action_proposals WHERE workspace_id = ? AND status = 'proposed'`)
-        .bind(workspaceId)
-        .first<{ total: number }>();
-      if (Number(pendingPublic?.total ?? 0) >= 50) {
-        return noStoreJson(
-          { ok: false, error: "The public proposal ledger is full. A workspace owner must review it before more proposals are accepted." },
-          { status: 429 },
-        );
-      }
-    }
 
     const body = await readJson<{
       commitment?: Partial<Commitment>;
