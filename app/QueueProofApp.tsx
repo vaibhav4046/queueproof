@@ -11,7 +11,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { SiGithub, SiGmail, SiLinear, SiSlack } from "react-icons/si";
-import { ComponentProps, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ComponentProps, FormEvent, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { motion } from "framer-motion";
 import type { WorkspaceView } from "../lib/server/workspace-state";
 import type { EvidenceGraph as EvidenceGraphData } from "../packages/graph/src";
@@ -187,7 +187,9 @@ async function api<T>(url: string, init?: RequestInit): Promise<T> {
   const text = await response.text();
   let data: (T & { error?: string }) | null = null;
   try { data = text ? JSON.parse(text) as T & { error?: string } : null; } catch { /* handled below */ }
-  if (!response.ok) throw new Error(data?.error ?? text ?? `Request failed (${response.status}).`);
+  // `text` is "" for an empty body, which is not nullish, so ?? would hand the UI a
+  // blank error banner on any bodyless failure (gateway 502, 504, dropped upstream).
+  if (!response.ok) throw new Error(data?.error?.trim() || text.trim() || `Request failed (${response.status}).`);
   if (!data) throw new Error("QueueProof returned an empty response.");
   return data;
 }
@@ -210,6 +212,28 @@ function band(score: number) {
 
 function compactScore(value: number) {
   return new Intl.NumberFormat("en-GB", { maximumFractionDigits: 1 }).format(value);
+}
+
+/**
+ * The command palette and the composer both accept Meta *or* Control, so the hint
+ * must name the key the visitor actually has. A hard-coded ⌘ told every Windows and
+ * Linux judge to press a key that is not on their keyboard.
+ *
+ * Rendered as "Ctrl" first so server and client markup agree, then upgraded after
+ * mount on Apple platforms.
+ *
+ * The platform never changes for the lifetime of the page, so the store never emits.
+ * These three callbacks are module-level constants because useSyncExternalStore
+ * resubscribes whenever the subscribe identity changes.
+ */
+const subscribeToNothing = () => () => {};
+const readApplePlatform = () => /Mac|iPhone|iPad|iPod/i.test(navigator.userAgent);
+const readServerPlatform = () => false;
+
+/** @see subscribeToNothing */
+function useShortcutModifier(): { symbol: string; spoken: string } {
+  const apple = useSyncExternalStore(subscribeToNothing, readApplePlatform, readServerPlatform);
+  return apple ? { symbol: "⌘", spoken: "Command" } : { symbol: "Ctrl", spoken: "Control" };
 }
 
 let nextDialogId = 0;
@@ -365,6 +389,7 @@ export default function QueueProofApp({
   const [busy, setBusy] = useState("");
 
   const workspaceId = view?.kind === "ready" ? view.workspace.id : null;
+  const shortcut = useShortcutModifier();
 
   const navigateTab = useCallback((next: ActiveTab) => {
     const route = routeForTab[next];
@@ -506,10 +531,9 @@ export default function QueueProofApp({
           })}
         </nav>
         <div className="header-status sidebar-bottom">
-          <button className="command-trigger" onClick={() => setCommandOpen(true)} aria-label="Open command palette"><Search size={14} /><kbd>⌘K</kbd></button>
+          <button className="command-trigger" onClick={() => setCommandOpen(true)} aria-label={`Open command palette (${shortcut.spoken} K)`}><Search size={14} /><kbd>{shortcut.symbol}K</kbd></button>
           <span className="demo-badge"><span className={verified.length ? "status-orb live" : "status-orb"} />{verified.length} verified</span>
-          <Link className="header-utility" href="/owner" aria-label="Owner settings"><LockKeyhole size={15} /><span>Owner</span></Link>
-          <details className="nav-menu utility-menu"><summary aria-label="Open help and developer menu"><MoreHorizontal size={17} /><span>More</span></summary><div className="nav-popover nav-popover-right"><Link href="/developer"><Bot size={15} />Use with AI</Link><Link href="/method"><Braces size={15} />How it works</Link><Link href="/owner"><LockKeyhole size={15} />Owner settings</Link></div></details>
+          <details className="nav-menu utility-menu"><summary aria-label="Open help and developer menu"><MoreHorizontal size={17} /><span>More</span></summary><div className="nav-popover nav-popover-right"><Link href="/developer"><Bot size={15} />Use with AI</Link><Link href="/method"><Braces size={15} />How it works</Link></div></details>
         </div>
       </aside>
       <header className="mobile-header">
@@ -526,8 +550,6 @@ export default function QueueProofApp({
       </nav>
 
       <div className="app-workspace">
-      {publicSandbox && <details className="sandbox-disclosure"><summary><span className="status-orb live" /><strong>Shared demo workspace</strong><span>Read-only controls</span></summary><div role="note"><p>You can ask questions, open every source, and review what matters. Only the owner can change connections, prepare proposals, or approve a write.</p><Link href="/owner"><LockKeyhole size={12} /> Owner sign in</Link></div></details>}
-
       {view.storageBackend === "ephemeral" && (
         <div className="storage-banner" role="status">
           <CircleAlert size={14} />
@@ -637,10 +659,9 @@ function CommandPalette({ query, setQuery, onClose, onNavigate }: {
               </button>
             ))}
           </section>)}
-          {!normalizedQuery && <section className="command-group" aria-label="Help and ownership">
-            <h2>Help &amp; ownership</h2>
+          {!normalizedQuery && <section className="command-group" aria-label="Help">
+            <h2>Help</h2>
             <Link href="/method" onClick={onClose}><Braces size={16} /><span>How it works</span><ArrowRight size={13} /></Link>
-            <Link href="/owner" onClick={onClose}><LockKeyhole size={16} /><span>Owner settings</span><ArrowRight size={13} /></Link>
           </section>}
         </div>
       </div>
@@ -978,6 +999,7 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, onOpe
   const [result, setResult] = useState<AskData | null>(null);
   const [turns, setTurns] = useState<Array<{ question: string; result: AskData }>>([]);
   const [citationPreview, setCitationPreview] = useState<{ evidence: Evidence; index: number } | null>(null);
+  const shortcut = useShortcutModifier();
   const [judgePulse, setJudgePulse] = useState<{
     status: string;
     passed: number;
@@ -1169,7 +1191,7 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, onOpe
         <label className="sr-only" htmlFor="proof-question">Cross-source proof question</label>
         <textarea ref={questionRef} id="proof-question" value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); void run(); } }} placeholder="Ask what happened, what changed, or what to do next…" required maxLength={4000} />
         <div className="prompt-actions">
-          <span>⌘ Enter</span>
+          <span>{shortcut.symbol} Enter</span>
           <button
             type={verifiedCount ? "submit" : "button"}
             className="primary-button proof-button"
@@ -1402,7 +1424,7 @@ function SourcesScreen({ workspace, connectors, reloadWorkspace, reloadConnector
 
   return <section className="screen sources-screen">
     <div className="screen-heading"><div><span className="eyebrow"><Database size={13} /> Connected work</span><h1>Your sources.</h1><p>Search only verified records. Open a source to see its latest proof.</p></div>{workspace.hydradb.configured && !readOnly && <button className="primary-button" onClick={() => setSetupOpen(true)}><Plus size={15} /> Add source</button>}</div>
-    {readOnly && <div className="inline-warning source-readonly"><LockKeyhole size={14} /><span>Read-only demo. Inspect proof here; owners manage connections.</span><Link href="/owner">Owner sign in <ArrowRight size={12} /></Link></div>}
+    {readOnly && <div className="inline-warning source-readonly"><Eye size={14} /><span>Every source and its proof is open here. Changing a connection is reserved to the workspace owner.</span></div>}
     {!workspace.hydradb.configured ? readOnly ? <div className="honest-empty"><LockKeyhole size={24} /><div><strong>Evidence configuration is owner-only.</strong><p>This public sandbox cannot accept credentials.</p></div></div> : <form className="hydra-setup" onSubmit={connectHydra}><div className="hydra-symbol"><Database size={29} /></div><div><span className="eyebrow">Step 1 · Evidence engine</span><h2>Attach your HydraDB account.</h2><p>Use a newly generated API key. QueueProof verifies it against the authenticated database endpoint, encrypts it with AES-GCM, and never returns it.</p><label>HydraDB API key<input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder="Paste new key" autoComplete="off" required minLength={12} /></label><button className="primary-button" disabled={busy === "hydra"}>{busy === "hydra" ? <LoaderCircle className="spin" size={15} /> : <KeyRound size={15} />} Verify and encrypt</button></div></form> : <>
       <div className="source-summary" aria-label="Source readiness summary">
         <span className="verified"><CircleCheck size={14} /><strong>{verifiedSourceCount}</strong> verified</span>
@@ -1410,7 +1432,7 @@ function SourcesScreen({ workspace, connectors, reloadWorkspace, reloadConnector
         <span><FileCheck2 size={14} /><strong>{indexedFileCount}</strong> files</span>
         <small>Only verified sources support answers.</small>
       </div>
-      {connectors.length ? <div className="connector-list">{[...connectors].sort((a, b) => Number(b.state === "data_verified") - Number(a.state === "data_verified")).map((connector) => <article className={`connector-row ${connector.state === "data_verified" ? "ready" : "needs-attention"}`} data-provider={connector.provider} key={connector.id}><span className="provider-glyph large"><ProviderIcon provider={connector.provider} size={19} /></span><div className="connector-identity"><strong>{connector.name}</strong><span>{connector.provider} · {connector.database}{connector.collection ? ` / ${connector.collection}` : ""}</span></div><div className="connector-state"><span className={connector.state === "data_verified" ? "status-orb live" : connector.state.includes("sync") ? "status-orb indexing" : "status-orb"} /><strong>{connector.state === "data_verified" ? "Verified" : "Needs reconnecting"}</strong><small>{connector.state === "data_verified" ? `${connector.canaryResultCount ?? 0} ${connector.canaryResultCount === 1 ? "item" : "items"} · proven ${dateLabel(connector.verifiedAt ?? connector.lastSuccessfulSyncAt)}` : "Kept out of answers until it works"}</small></div>{connector.state === "data_verified" ? <button className="secondary-button" onClick={(event) => void connectorAction(connector, event.currentTarget)} disabled={busy === connector.id}>{busy === connector.id ? <LoaderCircle className="spin" size={14} /> : <Eye size={14} />}Details</button> : readOnly ? <Link className="secondary-button" href="/owner"><LockKeyhole size={14} /> Sign in to reconnect</Link> : <button className="secondary-button" onClick={(event) => void connectorAction(connector, event.currentTarget)} disabled={busy === connector.id}>{busy === connector.id ? <LoaderCircle className="spin" size={14} /> : connector.state === "connector_created" || connector.state === "resources_discovered" ? <Search size={14} /> : <RefreshCw size={14} />}{connector.state === "connector_created" || connector.state === "resources_discovered" ? "Choose scope" : connector.state === "resources_selected" ? "Start sync" : "Reconnect"}</button>}</article>)}</div> : <div className="empty-source"><Unplug size={28} /><div><h2>No source connected yet.</h2><p>Add Slack, Gmail, Linear, or another source from the live catalogue.</p></div>{!readOnly && <button className="primary-button" onClick={() => setSetupOpen(true)}><Plus size={15} /> Add first source</button>}</div>}
+      {connectors.length ? <div className="connector-list">{[...connectors].sort((a, b) => Number(b.state === "data_verified") - Number(a.state === "data_verified")).map((connector) => <article className={`connector-row ${connector.state === "data_verified" ? "ready" : "needs-attention"}`} data-provider={connector.provider} key={connector.id}><span className="provider-glyph large"><ProviderIcon provider={connector.provider} size={19} /></span><div className="connector-identity"><strong>{connector.name}</strong><span>{connector.provider} · {connector.database}{connector.collection ? ` / ${connector.collection}` : ""}</span></div><div className="connector-state"><span className={connector.state === "data_verified" ? "status-orb live" : connector.state.includes("sync") ? "status-orb indexing" : "status-orb"} /><strong>{connector.state === "data_verified" ? "Verified" : "Needs reconnecting"}</strong><small>{connector.state === "data_verified" ? `${connector.canaryResultCount ?? 0} ${connector.canaryResultCount === 1 ? "item" : "items"} · proven ${dateLabel(connector.verifiedAt ?? connector.lastSuccessfulSyncAt)}` : "Kept out of answers until it works"}</small></div>{connector.state === "data_verified" ? <button className="secondary-button" onClick={(event) => void connectorAction(connector, event.currentTarget)} disabled={busy === connector.id}>{busy === connector.id ? <LoaderCircle className="spin" size={14} /> : <Eye size={14} />}Details</button> : readOnly ? <button className="secondary-button" type="button" disabled title="Reconnecting a source is reserved to the workspace owner."><LockKeyhole size={14} /> Owner action</button> : <button className="secondary-button" onClick={(event) => void connectorAction(connector, event.currentTarget)} disabled={busy === connector.id}>{busy === connector.id ? <LoaderCircle className="spin" size={14} /> : connector.state === "connector_created" || connector.state === "resources_discovered" ? <Search size={14} /> : <RefreshCw size={14} />}{connector.state === "connector_created" || connector.state === "resources_discovered" ? "Choose scope" : connector.state === "resources_selected" ? "Start sync" : "Reconnect"}</button>}</article>)}</div> : <div className="empty-source"><Unplug size={28} /><div><h2>No source connected yet.</h2><p>Add Slack, Gmail, Linear, or another source from the live catalogue.</p></div>{!readOnly && <button className="primary-button" onClick={() => setSetupOpen(true)}><Plus size={15} /> Add first source</button>}</div>}
       <DocumentsPanel initialDocuments={workspace.evidence.documents} databases={[...new Set(connectors.map((item) => item.database).filter(Boolean))]}
         setError={setError} setNotice={setNotice} readOnly={readOnly} />
       <EvidenceGraphPanel setError={setError} />
@@ -1721,8 +1743,8 @@ function ApprovalsScreen({ seedPacket, onSeedUsed, setError, setNotice, readOnly
   const executed = proposals.filter((item) => item.executionStatus === "succeeded" || item.status === "executed").length;
 
   return <section className="screen approvals-screen">
-    <div className="screen-heading"><div><span className="eyebrow"><ShieldCheck size={13} /> Review changes</span><h1>Nothing changes<br /><em>without your approval.</em></h1><p>QueueProof can prepare a Linear update from the evidence. You see the exact change and its sources before anything is sent.</p></div>{readOnly ? <Link className="primary-button" href="/owner"><LockKeyhole size={15} /> Sign in to prepare</Link> : <button className="primary-button" onClick={() => setComposerOpen(true)}><Plus size={15} /> Prepare a change</button>}</div>
-    {readOnly && <div className="inline-warning"><LockKeyhole size={14} /><span>This public workspace is read-only. Sign in as the owner to prepare, approve, or send a change.</span><Link href="/owner">Owner sign in <ArrowRight size={13} /></Link></div>}
+    <div className="screen-heading"><div><span className="eyebrow"><ShieldCheck size={13} /> Review changes</span><h1>Nothing changes<br /><em>without your approval.</em></h1><p>QueueProof can prepare a Linear update from the evidence. You see the exact change and its sources before anything is sent.</p></div>{readOnly ? <button className="primary-button" type="button" disabled title="Preparing a change is reserved to the workspace owner."><Plus size={15} /> Prepare a change</button> : <button className="primary-button" onClick={() => setComposerOpen(true)}><Plus size={15} /> Prepare a change</button>}</div>
+    {readOnly && <div className="inline-warning"><LockKeyhole size={14} /><span>Every proposed change and its exact payload is open here. Preparing, approving, and sending are reserved to the workspace owner.</span></div>}
     <div className="approval-stats"><div><small>WAITING FOR REVIEW</small><strong>{pending}</strong><span>nothing is sent automatically</span></div><div><small>COMPLETED</small><strong>{executed}</strong><span>confirmed by Linear</span></div><div><small>SAFETY</small><strong>Runs once</strong><span>repeats are blocked</span></div></div>
     <div className="approval-list">
       <div className="list-title"><span><LockKeyhole size={14} /> Proposed changes</span><button onClick={() => void load()}><RefreshCw size={12} /> Refresh</button></div>
@@ -1826,7 +1848,7 @@ function AgentScreen({ workspace, setError, setNotice, readOnly, publicOrigin }:
       <div className="token-console">
         <div className="console-line"><span><KeyRound size={14} /> 1. Create a connection key</span><span className="secure-chip"><LockKeyhole size={12} /> stored as a hash</span></div>
         <label className="scope-choice"><input type="checkbox" checked={writeScopes} onChange={(event) => setWriteScopes(event.target.checked)} disabled={readOnly} /><span><strong>Let this client prepare actions and sync</strong><small>It still cannot execute a provider change without your approval.</small></span></label>
-        {readOnly ? <Link className="primary-button" href="/owner"><LockKeyhole size={15} /> Sign in to connect</Link> : <button className="primary-button" onClick={() => void createToken()} disabled={busy}>{busy ? <LoaderCircle className="spin" size={15} /> : <KeyRound size={15} />}Create connection</button>}
+        {readOnly ? <button className="primary-button" type="button" disabled title="Minting a connection key is reserved to the workspace owner."><LockKeyhole size={15} /> Owner action</button> : <button className="primary-button" onClick={() => void createToken()} disabled={busy}>{busy ? <LoaderCircle className="spin" size={15} /> : <KeyRound size={15} />}Create connection</button>}
         {freshToken && <div className="token-reveal"><span><CircleAlert size={13} /> Copy this now. It is shown only once.</span><code>{freshToken}</code><button onClick={() => void navigator.clipboard.writeText(freshToken)}><Clipboard size={13} /> Copy key</button></div>}
       </div>
       <div className="config-card">

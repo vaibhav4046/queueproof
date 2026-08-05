@@ -50,8 +50,16 @@ describe("production design system", () => {
     expect(app).toContain('{ id: "approvals", label: "Review changes"');
     expect(app).toContain('{ id: "agent", label: "Use with AI"');
     expect(app).toContain('className="command-group"');
-    expect(app).toContain("Help &amp; ownership");
-    expect(app).toContain("Owner settings");
+    expect(app).toContain("<h2>Help</h2>");
+  });
+
+  it("never gates a visitor behind an owner sign-in prompt", () => {
+    // Anyone opening the link gets the whole workspace. Owner-only controls render as
+    // disabled affordances with a plain reason, not as a route to a token wall.
+    expect(app).not.toContain('href="/owner"');
+    expect(app).not.toContain("Owner sign in");
+    expect(app).not.toContain("sandbox-disclosure");
+    expect(app).toContain("reserved to the workspace owner");
   });
 
   it("keeps the composer high, source truth compact, and mobile proof unobstructed", () => {

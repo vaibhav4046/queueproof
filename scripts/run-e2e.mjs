@@ -20,8 +20,9 @@ assert.match(html, /aria-current="page"/, "The active product area must be expos
 assert.match(html, /Cross-source proof question/, "The primary query field must keep a persistent accessible label.");
 
 if (workspace.view?.actor?.publicAccess === true) {
-  assert.match(html, /Shared demo workspace/);
-  assert.match(html, /Read-only controls/);
+  // A visitor who clicks the link must land in the working product, not on a token wall.
+  assert.ok(!html.includes('href="/owner"'), "The public workspace must not gate a visitor behind an owner sign-in link.");
+  assert.ok(!html.includes("Owner sign in"), "The public workspace must not advertise an owner sign-in prompt.");
 }
 
 for (const [path, marker] of [
@@ -71,4 +72,4 @@ assert.match(styles, /@media \(max-width:\s*820px\)[\s\S]*?\.mobile-dock\s*\{[\s
 assert.match(styles, /@media \(prefers-reduced-motion:\s*reduce\)/);
 assert.match(styles, /\.queueproof-logo[\s\S]*?opacity:\s*1/);
 
-console.log("PASS  live shell, seven-destination navigation, nine direct judge routes, public disclosure, proof-first layout, timeline, comparison, replay, citations, dialogs, and result-state contracts");
+console.log("PASS  live shell, seven-destination navigation, nine direct judge routes, ungated public access, proof-first layout, timeline, comparison, replay, citations, dialogs, and result-state contracts");
