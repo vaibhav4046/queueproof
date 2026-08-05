@@ -84,6 +84,12 @@ const PROVIDER_ALIASES: Record<string, string> = {
   ms_teams: "microsoft_teams",
 };
 
+// Values stored in HydraDB tenant metadata can differ from QueueProof's connector
+// catalogue label. Gmail is the known live case: connector=`gmail`, source metadata=`google`.
+const PROVIDER_FILTER_LABELS: Record<string, string> = {
+  gmail: "google",
+};
+
 /** Normalise a provider label to the name the connector is registered under. */
 export function canonicalProvider(value: string | null): string | null {
   if (!value) return null;
@@ -112,8 +118,11 @@ export function providerFromSource(source: Record<string, unknown>): string | nu
  * validate the returned source lineage because retrieval filters are not a
  * substitute for receipt verification.
  */
-export function connectorLineageMetadataFilter(connectorId: string): Record<string, string> {
-  return { connector_id: connectorId };
+export function connectorLineageMetadataFilter(connectorId: string, provider?: string): Record<string, string> {
+  const canonical = provider ? canonicalProvider(provider) : null;
+  return canonical
+    ? { connector_id: connectorId, provider: PROVIDER_FILTER_LABELS[canonical] ?? canonical }
+    : { connector_id: connectorId };
 }
 
 /**
@@ -131,6 +140,7 @@ export function sourceAttestedByScopedConnectorQuery(input: {
   connectorId: string;
   connectorProvider: string;
   scopeConnectorCount: number;
+  providerConnectorCount: number;
   purpose: "coverage_repair" | "queue";
   phase?: "primary" | "follow_up";
   lineageMetadataFilters?: Record<string, unknown>;
@@ -141,11 +151,19 @@ export function sourceAttestedByScopedConnectorQuery(input: {
 }): boolean {
   if (input.purpose === "coverage_repair" && input.phase !== "follow_up") return false;
   if (input.scopeConnectorCount !== 1) return false;
+  // A provider filter cannot distinguish two connectors for the same provider if
+  // this tenant does not index connector_id. Missing returned lineage is therefore
+  // attestable only when the workspace has one verified connector for that provider.
+  if (input.providerConnectorCount !== 1) return false;
   if (!input.responseOk || input.responseStatus < 200 || input.responseStatus >= 300) return false;
   if (!input.requestId?.trim()) return false;
   if (input.lineageMetadataFilters?.connector_id !== input.connectorId) return false;
 
   const expectedProvider = canonicalProvider(input.connectorProvider);
+  const filteredProvider = typeof input.lineageMetadataFilters?.provider === "string"
+    ? canonicalProvider(input.lineageMetadataFilters.provider)
+    : null;
+  if (!filteredProvider || filteredProvider !== expectedProvider) return false;
   const reportedProvider = providerFromSource(input.source);
   // Connector recall occasionally omits the redundant provider label while still
   // honoring the exact connector_id filter. Absence is acceptable only inside this

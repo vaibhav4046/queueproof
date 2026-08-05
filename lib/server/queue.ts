@@ -51,7 +51,10 @@ export function queueConnectorRetrievalPlans<T extends QueueRetrievalConnector>(
     queryBy: "hybrid" as const,
     mode: "fast" as const,
     maxResults: QUEUE_RETRIEVAL_MAX_RESULTS,
-    metadataFilters: connectorLineageMetadataFilter(connector.hydradb_connector_id),
+    metadataFilters: connectorLineageMetadataFilter(
+      connector.hydradb_connector_id,
+      connector.provider,
+    ),
     estimatedCostUnits: retrievalModeCost("fast"),
   }));
 }
@@ -499,23 +502,59 @@ function freshness(timestamp: string | null) {
   return 1;
 }
 
-function taskTitle(evidence: TaskEvidence) {
+const clampDisplayText = (value: string, max = 120) => {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= max) return normalized;
+  const slice = normalized.slice(0, max + 1);
+  const boundary = slice.lastIndexOf(" ");
+  return `${slice.slice(0, boundary >= Math.floor(max * 0.65) ? boundary : max).trim()}…`;
+};
+
+export function taskTitle(evidence: TaskEvidence) {
   const generic = /^(message|email|thread|record|untitled|slack|gmail|linear)(\s|$)/i;
-  if (evidence.title.length >= 8 && !generic.test(evidence.title) && !DOCUMENT_FILE_EXTENSION.test(evidence.title)) {
-    return evidence.title;
+  const title = evidence.title.replace(/\s+/g, " ").trim();
+  const taskSpan = evidence.taskSpan.replace(/\s+/g, " ").trim();
+  const clippedSourceTitle = taskSpan.length > title.length &&
+    taskSpan.toLowerCase().startsWith(title.toLowerCase()) &&
+    !/[.!?…]$/.test(title);
+  if (title.length >= 8 && !generic.test(title) && !DOCUMENT_FILE_EXTENSION.test(title)) {
+    return clampDisplayText(clippedSourceTitle ? taskSpan : title);
   }
-  return clean(evidence.taskSpan, 150) || evidence.title;
+  return clampDisplayText(taskSpan) || title;
 }
 
 function ownerFromEvidence(evidence: Evidence) {
   return firstText(evidence.metadata, ["owner_name", "assignee_name", "assignee", "author_name"]);
 }
 
-function deadlineFromEvidence(evidence: Evidence) {
+export function deadlineFromEvidence(evidence: Evidence) {
   const value = firstText(evidence.metadata, ["deadline", "due_date", "due_at"]);
-  if (!value) return null;
-  const parsed = new Date(value);
-  return Number.isFinite(parsed.getTime()) ? parsed.toISOString() : null;
+  if (value) {
+    const parsed = new Date(value);
+    if (Number.isFinite(parsed.getTime())) return parsed.toISOString();
+  }
+
+  const corpus = `${evidence.title}. ${evidence.excerpt}`;
+  const candidates: Array<{ index: number; iso: string }> = [];
+  for (const match of corpus.matchAll(/\b(\d{4})-(\d{2})-(\d{2})\b/g)) {
+    candidates.push({ index: match.index ?? 0, iso: `${match[1]}-${match[2]}-${match[3]}T00:00:00.000Z` });
+  }
+  const months: Record<string, number> = {
+    january: 0, february: 1, march: 2, april: 3, may: 4, june: 5,
+    july: 6, august: 7, september: 8, october: 9, november: 10, december: 11,
+  };
+  const evidenceYear = evidence.timestamp ? new Date(evidence.timestamp).getUTCFullYear() : NaN;
+  for (const match of corpus.matchAll(/\b(\d{1,2})\s+(January|February|March|April|May|June|July|August|September|October|November|December)(?:\s+(\d{4}))?\b/gi)) {
+    const year = Number(match[3] ?? (Number.isFinite(evidenceYear) ? evidenceYear : new Date().getUTCFullYear()));
+    const month = months[match[2]!.toLowerCase()];
+    const day = Number(match[1]);
+    if (month === undefined || !Number.isInteger(day) || day < 1 || day > 31) continue;
+    const parsed = new Date(Date.UTC(year, month, day));
+    if (parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month && parsed.getUTCDate() === day) {
+      candidates.push({ index: match.index ?? 0, iso: parsed.toISOString() });
+    }
+  }
+  return candidates.sort((left, right) => right.index - left.index)[0]?.iso ?? null;
 }
 
 /**
@@ -1065,6 +1104,8 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
           connectorId: connector.hydradb_connector_id,
           connectorProvider: connector.provider,
           scopeConnectorCount: 1,
+          providerConnectorCount: connectors.results.filter((item) =>
+            item.provider === connector.provider).length,
           purpose: "queue",
           lineageMetadataFilters: plan.metadataFilters,
           responseOk: response.ok,

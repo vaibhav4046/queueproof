@@ -358,6 +358,8 @@ export async function POST(request: Request) {
               connectorId: scopedConnector.hydradbConnectorId,
               connectorProvider: scopedConnector.provider,
               scopeConnectorCount: scope.connectors.length,
+              providerConnectorCount: connectors.results.filter((item) =>
+                item.provider === scopedConnector.provider).length,
               purpose: "coverage_repair",
               phase,
               lineageMetadataFilters: scope.lineageMetadataFilters,
@@ -453,7 +455,10 @@ export async function POST(request: Request) {
               database: connector.database,
               collection: connector.collection,
               connectors: [connector],
-              lineageMetadataFilters: connectorLineageMetadataFilter(connector.hydradbConnectorId),
+              lineageMetadataFilters: connectorLineageMetadataFilter(
+                connector.hydradbConnectorId,
+                connector.provider,
+              ),
             } satisfies RetrievalScope));
           if (!providerScopes.length) continue;
           await runQueryBatch(repairQuery, ["hybrid"], "follow_up", "fast", providerScopes);

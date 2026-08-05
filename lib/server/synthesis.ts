@@ -108,6 +108,64 @@ function relevance(question: string, text: string) {
   return overlap * 3 + anchorMatches * 2 + identifierScore + intentBoost(question, text);
 }
 
+const BRIDGE_GENERIC_TOKENS = new Set([
+  ...GENERIC_QUESTION_TOKENS,
+  "authentication", "customer", "engineering", "incident", "outage", "reported", "team",
+]);
+
+const staleBridgeQuestion = (question: string) =>
+  /\bopen\s+(?:issue|ticket)\b[^?]{0,100}\b(?:resolved|complete|completed|closed|merged|shipped|elsewhere)\b/i.test(question) ||
+  /\bappears?(?:\s+\w+){0,5}\s+resolved\s+elsewhere\b/i.test(question);
+
+const bridgeTokens = (value: string) => new Set(
+  tokenise(value).filter((token) => token.length >= 4 && !BRIDGE_GENERIC_TOKENS.has(token)),
+);
+
+/**
+ * Score a conservative one-hop entity join from a directly relevant receipt to a
+ * second provider. This is intentionally unavailable for ordinary broad questions:
+ * it is used only for an exact record lookup or an explicit open-vs-complete state
+ * check, requires a directly relevant seed from another provider, and requires one
+ * exact shared record ID plus another non-generic anchor.
+ */
+function crossSourceBridgeScore(
+  question: string,
+  candidateText: string,
+  candidateProvider: string,
+  evidence: SynthesisEvidence[],
+) {
+  const questionIds = recordIdentifiers(question);
+  const staleState = staleBridgeQuestion(question);
+  if (!questionIds.length && !staleState) return 0;
+  const candidateCorpus = clean(candidateText);
+  const relationRequired = staleState || /\bwho\s+filed\b|\bwhich\s+project\b|\bproject\b[^?]{0,80}\bagainst\b/i.test(question);
+  if (relationRequired && !/\b(?:against|filed|issue|record|ticket|track(?:ed|ing)?)\b/i.test(candidateCorpus)) {
+    return 0;
+  }
+
+  const candidateTokens = bridgeTokens(candidateCorpus);
+  const candidateIds = new Set(recordIdentifiers(candidateCorpus));
+  let best = 0;
+  for (const seed of evidence) {
+    if (seed.provider === candidateProvider) continue;
+    const seedCorpus = `${seed.title}. ${seed.excerpt}`;
+    if (relevance(question, seedCorpus) <= 0) continue;
+    if (questionIds.length && !questionIds.some((identifier) => seedCorpus.toUpperCase().includes(identifier))) {
+      continue;
+    }
+    const seedTokens = bridgeTokens(seedCorpus);
+    const shared = [...candidateTokens].filter((token) => seedTokens.has(token));
+    const sharedIds = [...candidateIds].filter((identifier) => seedCorpus.toUpperCase().includes(identifier));
+    // The bridge is an exact one-hop join, not fuzzy entity expansion. Both
+    // receipts must share a record identifier plus at least one other anchor.
+    if (sharedIds.length === 0 || shared.length < 2) continue;
+    // A bridge qualifies supporting context; it must never outrank the directly
+    // relevant receipt that introduced the join key.
+    best = Math.max(best, Math.min(10, 4 + shared.length + sharedIds.length * 2));
+  }
+  return best;
+}
+
 const AUTHORITY_QUESTION = /\b(?:authority|binding|current|draft|force|govern|original(?:ly)?|permit(?:ted)?|policy|ratif\w*|replac\w*|rule|still|supersed\w*|today|valid|withdrawn)\b/i;
 const AUTHORITY_RELATION = /\b(?:binding|controlling|current|govern\w*|must|no longer|operational authority|ratif\w*|replac\w*|requires?|shall|supersed\w*|withdrawn)\b/i;
 const STRONG_AUTHORITY_LINK = /\b(?:(?:binding|controlling|current)\s+(?:decision|policy|rule|standard)|governed\s+by|replaced\s+by|supersed\w*\s+by)\b/i;
@@ -184,7 +242,8 @@ export function rankEvidenceForQuestion<T extends SynthesisEvidence>(question: s
       item,
       index,
       score: relevance(question, `${item.title}. ${item.excerpt}`) +
-        authorityRelevance(question, `${item.title}. ${item.excerpt}`, authority),
+        authorityRelevance(question, `${item.title}. ${item.excerpt}`, authority) +
+        crossSourceBridgeScore(question, `${item.title}. ${item.excerpt}`, item.provider, evidence),
     }))
     .sort((a, b) => b.score - a.score || a.index - b.index);
   const relevant = scored.filter((entry) => entry.score > 0);
@@ -420,15 +479,27 @@ function contradictions(question: string, relevantEvidence: SynthesisEvidence[])
   const completed = selected.find((item) => /\b(merged|shipped|resolved|closed|completed)\b/i.test(`${item.title} ${item.excerpt}`));
   const open = selected.find((item) => /\b(still\s+(?:showing\s+as\s+)?open|remains?\s+open|ticket\s+still\s+open)\b/i.test(`${item.title} ${item.excerpt}`));
   if (completed && open) {
-    const stateIdentifiers = identifiersInText(`${completed.title} ${completed.excerpt} ${open.title} ${open.excerpt}`);
-    const trackedEntity = stateIdentifiers.find((id) => /^(?:ENG|BUG|INC)-/i.test(id)) ?? "tracked issue";
+    const stateCorpus = `${completed.title} ${completed.excerpt} ${open.title} ${open.excerpt}`;
+    const stateIdentifiers = identifiersInText(stateCorpus);
+    const explicitlyTracked = stateCorpus.match(/\b(?:issue|ticket)\s+([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d+)\b/i)?.[1];
+    const trackedEntity = explicitlyTracked ??
+      stateIdentifiers.find((id) => /^(?:ENG|BUG)-/i.test(id)) ??
+      stateIdentifiers.find((id) => /^INC-/i.test(id)) ??
+      "tracked issue";
     const sameReceipt = completed.id === open.id;
+    const trackedBridge = completed.id === open.id && staleBridgeQuestion(question)
+      ? selected.find((item) => item.provider !== completed.provider &&
+          /\b(?:against|filed|issue|record|ticket|track(?:ed|ing)?)\b/i.test(`${item.title} ${item.excerpt}`) &&
+          crossSourceBridgeScore(question, `${item.title}. ${item.excerpt}`, item.provider, selected) > 0)
+      : undefined;
     result.push({
       summary: sameReceipt
-        ? `${completed.provider} receipt reports the code complete while ${trackedEntity} remains open in its cited tracking state.`
+        ? trackedBridge
+          ? `${completed.provider} reports the code complete while ${trackedEntity} remains open; ${trackedBridge.provider} independently records the linked incident and tracked work.`
+          : `${completed.provider} receipt reports the code complete while ${trackedEntity} remains open in its cited tracking state.`
         : `${completed.provider} reports the work complete while ${open.provider} reports ${trackedEntity} remains open.`,
-      evidenceIds: [...new Set([completed.id, open.id])],
-      providers: [...new Set([completed.provider, open.provider])],
+      evidenceIds: [...new Set([completed.id, open.id, ...(trackedBridge ? [trackedBridge.id] : [])])],
+      providers: [...new Set([completed.provider, open.provider, ...(trackedBridge ? [trackedBridge.provider] : [])])],
     });
   }
   return result;
@@ -521,6 +592,7 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
       const evidenceAuthorityScore = authorityRelevance(
         question, `${item.title}. ${item.excerpt}`, authority,
       );
+      const bridgeScore = crossSourceBridgeScore(question, text, item.provider, evidence);
       // A value candidate carries the exact answer the question asked for even
       // when its window does not repeat the question's own tokens (for example
       // "fixed in Rover SDK 4.2.1" for a question about BUG-123). It is always
@@ -542,8 +614,8 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
         authorityLinked: evidenceAuthorityScore > 0,
         // A relevant title may break a tie, but it cannot make an unrelated
         // paragraph into a claim.
-        score: (sentenceScore > 0 || isValueCandidate || authorityScore > 0)
-          ? sentenceScore + authorityScore + (isValueCandidate ? 16 : 0) + Math.min(titleScore, 3) - sentenceIndex * 0.15 - evidenceIndex * 0.05
+        score: (sentenceScore > 0 || bridgeScore > 0 || isValueCandidate || authorityScore > 0)
+          ? sentenceScore + bridgeScore + authorityScore + (isValueCandidate ? 16 : 0) + Math.min(titleScore, 3) - sentenceIndex * 0.15 - evidenceIndex * 0.05
           : 0,
       };
     }),

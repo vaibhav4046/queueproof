@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canonicalProvider, providerFromSource } from "../lib/server/hydradb-shapes";
+import { canonicalProvider, connectorLineageMetadataFilter, providerFromSource } from "../lib/server/hydradb-shapes";
 
 /**
  * Regression test for a live failure. A Gmail connector is registered as `gmail`, but
@@ -11,6 +11,10 @@ describe("provider aliasing", () => {
     expect(providerFromSource({ app_provider: "google" })).toBe("gmail");
     expect(canonicalProvider("gmail")).toBe("gmail");
     expect(providerFromSource({ app_provider: "google" })).toBe(canonicalProvider("gmail"));
+    expect(connectorLineageMetadataFilter("hydra-gmail-1", "gmail")).toEqual({
+      connector_id: "hydra-gmail-1",
+      provider: "google",
+    });
   });
 
   it("leaves providers that already agree untouched", () => {

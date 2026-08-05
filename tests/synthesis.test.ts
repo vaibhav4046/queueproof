@@ -12,13 +12,13 @@ const evidence = [
     id: "slack-1",
     provider: "slack",
     title: "Northwind escalation",
-    excerpt: "Northwind escalated the AuthShield authentication outage. Priya Raman filed BUG-123 against Atlas Launch.",
+    excerpt: "Northwind escalated the AuthShield authentication outage (INC-2031). Priya Raman filed BUG-123 against Atlas Launch.",
   },
   {
     id: "github-1",
     provider: "github",
     title: "AuthShield fix merged",
-    excerpt: "The AuthShield authentication fix was merged. Linear issue ENG-456 is still showing as open even though the code is shipped.",
+    excerpt: "The AuthShield authentication fix for INC-2031 was merged. Linear issue ENG-456 is still showing as open even though the code is shipped.",
   },
   {
     id: "gmail-noise",
@@ -168,6 +168,21 @@ describe("evidence-constrained synthesis", () => {
     expect(result.answer).not.toContain("external risks");
   });
 
+  it("joins a stale-state receipt to the independently tracked provider context", () => {
+    const result = synthesiseGroundedAnswer(
+      "Which open issue appears to be already resolved elsewhere?",
+      [evidence[2], evidence[0]],
+    );
+
+    expect(result.validation.providerCoverage).toEqual(expect.arrayContaining(["github", "linear"]));
+    expect(result.contradictions).toEqual([
+      expect.objectContaining({
+        providers: expect.arrayContaining(["github", "linear"]),
+        evidenceIds: expect.arrayContaining(["github-1", "linear-1"]),
+      }),
+    ]);
+  });
+
   it("does not confuse filed-against prose with an exact identifier", () => {
     const result = synthesiseGroundedAnswer(
       "What is BUG-123, who filed it, and which project is it against?",
@@ -185,6 +200,17 @@ describe("evidence-constrained synthesis", () => {
     expect(result.answer).toContain("BUG-123");
     expect(result.answer).toMatch(/AuthShield.*Northwind|Northwind.*AuthShield/i);
     expect(result.answer).not.toContain("lawsuit");
+  });
+
+  it("uses shared incident entities to cite the tracker behind an exact chat identifier", () => {
+    const result = synthesiseGroundedAnswer(
+      "What is BUG-123, who filed it, and which project is it against?",
+      [evidence[1], evidence[0]],
+    );
+
+    expect(result.validation.providerCoverage).toEqual(expect.arrayContaining(["slack", "linear"]));
+    expect(result.answer).toContain("BUG-123");
+    expect(result.answer).toMatch(/Priya Raman filed this against Atlas Launch/i);
   });
 
   it("keeps the no-Linear tracking statement beside the promise it qualifies", () => {

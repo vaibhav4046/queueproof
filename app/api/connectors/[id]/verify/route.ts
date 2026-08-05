@@ -101,7 +101,10 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
         max_results: 5,
         query_apps: true,
         graph_context: false,
-        metadata_filters: connectorLineageMetadataFilter(connector.hydradb_connector_id),
+        metadata_filters: connectorLineageMetadataFilter(
+          connector.hydradb_connector_id,
+          connector.provider,
+        ),
       });
       queryRequestId = query.requestId;
       if (query.ok) {

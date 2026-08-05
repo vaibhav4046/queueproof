@@ -5,7 +5,7 @@ import {
   queueConnectorRetrievalPlans,
   queueRetrievalCostIntent,
 } from "../lib/server/queue";
-import { sourceAttestedByScopedConnectorQuery } from "../lib/server/hydradb-shapes";
+import { connectorLineageMetadataFilter, sourceAttestedByScopedConnectorQuery } from "../lib/server/hydradb-shapes";
 import { retrievalModeCost } from "../packages/retrieval/src";
 
 const connectors = [
@@ -26,7 +26,10 @@ describe("provider-scoped queue retrieval", () => {
         queryBy: "hybrid",
         maxResults: QUEUE_RETRIEVAL_MAX_RESULTS,
         estimatedCostUnits: 1,
-        metadataFilters: { connector_id: plan.connector.hydradb_connector_id },
+        metadataFilters: connectorLineageMetadataFilter(
+          plan.connector.hydradb_connector_id,
+          plan.connector.provider,
+        ),
       });
       expect(plan.query).toMatch(/Exclude examples, homework, recruitment/i);
       expect(plan.query).toMatch(/uploaded documents, and attachment prose/i);
@@ -46,6 +49,7 @@ describe("provider-scoped queue retrieval", () => {
       connectorId: plan.connector.hydradb_connector_id,
       connectorProvider: plan.connector.provider,
       scopeConnectorCount: 1,
+      providerConnectorCount: 1,
       purpose: "queue" as const,
       lineageMetadataFilters: plan.metadataFilters,
       responseOk: true,

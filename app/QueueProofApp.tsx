@@ -195,7 +195,13 @@ async function api<T>(url: string, init?: RequestInit): Promise<T> {
 function dateLabel(value?: string | null) {
   if (!value) return "Not available";
   const parsed = new Date(value);
-  return Number.isFinite(parsed.getTime()) ? parsed.toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : value;
+  return Number.isFinite(parsed.getTime())
+    ? new Intl.DateTimeFormat("en-GB", {
+        dateStyle: "medium",
+        timeStyle: "short",
+        timeZone: "UTC",
+      }).format(parsed)
+    : value;
 }
 
 function band(score: number) {
@@ -203,7 +209,7 @@ function band(score: number) {
 }
 
 function compactScore(value: number) {
-  return new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(value);
+  return new Intl.NumberFormat("en-GB", { maximumFractionDigits: 1 }).format(value);
 }
 
 let nextDialogId = 0;
@@ -1117,7 +1123,7 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, onOpe
       <div className="proof-hero">
         <div className="proof-copy">
           <span className="eyebrow"><Radio size={13} /> Live · HydraDB evidence control plane</span>
-          <h1><span>One answer.</span><br /><em>Every system.</em><br /><span className="outline-word">Proven.</span></h1>
+          <h2><span>One answer.</span><br /><em>Every system.</em><br /><span className="outline-word">Proven.</span></h2>
           <div className="proof-details">
             <p>Ask one question across Slack, Linear, GitHub, Gmail, and documents. QueueProof shows the answer, the exact sources, what disagrees, and the safest next step.</p>
             <div className="live-source-row">

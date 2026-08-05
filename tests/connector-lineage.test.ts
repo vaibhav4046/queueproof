@@ -36,8 +36,9 @@ describe("connector proof lineage", () => {
   });
 
   it("builds the top-level tenant metadata filter HydraDB expects", () => {
-    expect(connectorLineageMetadataFilter("hydra-slack-1")).toEqual({
+    expect(connectorLineageMetadataFilter("hydra-slack-1", "slack")).toEqual({
       connector_id: "hydra-slack-1",
+      provider: "slack",
     });
   });
 
@@ -53,9 +54,10 @@ describe("connector-scoped repair attestation", () => {
     connectorId: "hydra-linear-1",
     connectorProvider: "linear",
     scopeConnectorCount: 1,
+    providerConnectorCount: 1,
     purpose: "coverage_repair" as const,
     phase: "follow_up" as const,
-    lineageMetadataFilters: { connector_id: "hydra-linear-1" },
+    lineageMetadataFilters: { connector_id: "hydra-linear-1", provider: "linear" },
     callerMetadataFilters: { team: "platform" },
     responseOk: true,
     responseStatus: 200,
@@ -81,6 +83,13 @@ describe("connector-scoped repair attestation", () => {
     })).toBe(false);
   });
 
+  it("requires an exact provider filter before missing source lineage can be attested", () => {
+    expect(sourceAttestedByScopedConnectorQuery({
+      ...valid,
+      lineageMetadataFilters: { connector_id: "hydra-linear-1" },
+    })).toBe(false);
+  });
+
   it.each([
     { connector_id: "hydra-linear-2" },
     { provider: "slack" },
@@ -94,5 +103,9 @@ describe("connector-scoped repair attestation", () => {
     expect(sourceAttestedByScopedConnectorQuery({ ...valid, scopeConnectorCount: 2 })).toBe(false);
     expect(sourceAttestedByScopedConnectorQuery({ ...valid, requestId: null })).toBe(false);
     expect(sourceAttestedByScopedConnectorQuery({ ...valid, responseOk: false, responseStatus: 500 })).toBe(false);
+  });
+
+  it("does not infer exact connector ownership when two verified connectors share a provider", () => {
+    expect(sourceAttestedByScopedConnectorQuery({ ...valid, providerConnectorCount: 2 })).toBe(false);
   });
 });

@@ -4,10 +4,12 @@ import {
   canEmitQueueScore,
   canOriginateQueueTask,
   clusterTaskEvidence,
+  deadlineFromEvidence,
   extractActionableTaskSpan,
   isHydraDocumentSource,
   queueSupportingEvidence,
   selectPrimaryQueueEvidence,
+  taskTitle,
   taskClusterKey,
 } from "../lib/server/queue";
 
@@ -15,7 +17,38 @@ const evidence = (provider: string, externalId: string, title: string, excerpt: 
   provider, externalId, title, excerpt,
 });
 
+const queueEvidence = (overrides: Record<string, unknown> = {}) => ({
+  id: "source-1",
+  externalId: "external-1",
+  connectorId: "connector-1",
+  provider: "slack",
+  title: "Work item",
+  excerpt: "Engineering will ship the fix before Friday 7 August 2026.",
+  url: null,
+  timestamp: "2026-08-02T17:24:44.000Z",
+  ingestionTimestamp: null,
+  authority: "primary" as const,
+  metadata: {},
+  unsafeInstruction: false,
+  taskSpan: "Engineering will ship the fix before Friday 7 August 2026.",
+  ...overrides,
+});
+
 describe("conservative cross-source task clustering", () => {
+  it("repairs clipped source titles at a word boundary", () => {
+    expect(taskTitle(queueEvidence({
+      title: "Heads up: the Linear ticket still says the billing migration deadline moved to 1",
+      taskSpan: "Heads up: the Linear ticket still says the billing migration deadline moved to 14 August, but finance confirmed today it is staying at 7 August.",
+    }))).toBe("Heads up: the Linear ticket still says the billing migration deadline moved to 14 August, but finance confirmed today it…");
+  });
+
+  it("derives the last asserted natural-language deadline when metadata omits it", () => {
+    expect(deadlineFromEvidence(queueEvidence())).toBe("2026-08-07T00:00:00.000Z");
+    expect(deadlineFromEvidence(queueEvidence({
+      excerpt: "The deadline moved from 7 August to 14 August 2026.",
+    }))).toBe("2026-08-14T00:00:00.000Z");
+  });
+
   it("joins an exact issue identity across providers", () => {
     expect(taskClusterKey(evidence("slack", "m1", "Escalation", "Engineering is fixing BUG-123 today.")))
       .toBe(taskClusterKey(evidence("linear", "i1", "BUG-123", "Issue remains in progress.")));
