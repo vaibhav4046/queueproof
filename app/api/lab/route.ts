@@ -30,7 +30,7 @@ export async function GET() {
           commitRef: process.env.VERCEL_GIT_COMMIT_REF || process.env.QUEUEPROOF_RELEASE_REF || null,
         },
         live: strictArtifact
-          ? { status: "measured", ...liveRun }
+          ? { ...liveRun, status: "measured" }
           : {
               status: "legacy_evidence",
               note: "A strict grounded-grader-v2 production rerun is pending; legacy live rows are excluded from readiness metrics.",

@@ -108,13 +108,83 @@ function relevance(question: string, text: string) {
   return overlap * 3 + anchorMatches * 2 + identifierScore + intentBoost(question, text);
 }
 
+const AUTHORITY_QUESTION = /\b(?:authority|binding|current|draft|force|govern|original(?:ly)?|permit(?:ted)?|policy|ratif\w*|replac\w*|rule|still|supersed\w*|today|valid|withdrawn)\b/i;
+const AUTHORITY_RELATION = /\b(?:binding|controlling|current|govern\w*|must|no longer|operational authority|ratif\w*|replac\w*|requires?|shall|supersed\w*|withdrawn)\b/i;
+const STRONG_AUTHORITY_LINK = /\b(?:(?:binding|controlling|current)\s+(?:decision|policy|rule|standard)|governed\s+by|replaced\s+by|supersed\w*\s+by)\b/i;
+const NON_AUTHORITY_STATE = /\b(?:carries? no (?:operational )?authority|must not be relied on|never ratified|no longer (?:binding|in force|valid)|not (?:binding|in force|ratified|valid)|superseded|withdrawn)\b/i;
+const CURRENT_AUTHORITY_STATE = /\b(?:(?:binding|controlling|current)\s+(?:decision|policy|rule|standard)|governs?|in force|requires?|must|shall)\b/i;
+const AUTHORITY_DESIGNATION = /\b(?:binding|controlling|current)\s+(?:decision|policy|rule|standard)\b/i;
+const NORMATIVE_REQUIREMENT = /\b(?:approvals?|approvers?|requires?|must|shall)\b/i;
+const HISTORICAL_PERMISSION = /\b(?:at issue|formerly|historical|originally|previously|used to|was permitted|were permitted|allowed|could|may)\b/i;
+
+type AuthorityContext = {
+  active: boolean;
+  questionIds: Set<string>;
+  linkedIds: Set<string>;
+};
+
+/**
+ * Build a one-hop authority chain from the retrieved receipts themselves. A
+ * replacement identifier is eligible only when an exact record named by the
+ * user appears in the same receipt and authority language links the records.
+ * This makes the boost generic and evidence-derived: no policy or decision ID
+ * is known ahead of retrieval.
+ */
+function authorityContext(question: string, evidence: SynthesisEvidence[]): AuthorityContext {
+  const questionIds = new Set(recordIdentifiers(question));
+  const linkedIds = new Set(questionIds);
+  if (!questionIds.size || !AUTHORITY_QUESTION.test(question)) {
+    return { active: false, questionIds, linkedIds };
+  }
+
+  const anchorReceipts = evidence.filter((item) => {
+    const corpus = `${item.title}. ${item.excerpt}`.toUpperCase();
+    return [...questionIds].some((identifier) => corpus.includes(identifier));
+  });
+  for (const item of anchorReceipts) {
+    const segments = clean(`${item.title}. ${item.excerpt}`
+      .replace(/\s+(?:#{1,6}|-{3,}|={2,})\s*/g, ". "))
+      .split(/(?<=[.!?])\s+(?=[A-Z0-9])/);
+    for (const segment of segments) {
+      if (!AUTHORITY_RELATION.test(segment)) continue;
+      const ids = recordIdentifiers(segment);
+      if (ids.length >= 2 || (ids.length === 1 && STRONG_AUTHORITY_LINK.test(segment))) {
+        ids.forEach((identifier) => linkedIds.add(identifier));
+      }
+    }
+  }
+  return { active: true, questionIds, linkedIds };
+}
+
+function authorityRelevance(question: string, text: string, context: AuthorityContext) {
+  if (!context.active) return 0;
+  const identifiers = recordIdentifiers(text);
+  const namesQuestionRecord = identifiers.some((identifier) => context.questionIds.has(identifier));
+  const namesLinkedRecord = identifiers.some((identifier) => context.linkedIds.has(identifier));
+  if (!namesQuestionRecord && !namesLinkedRecord) return 0;
+
+  let score = namesQuestionRecord ? 6 : 10;
+  if (NON_AUTHORITY_STATE.test(text)) score += 12;
+  // When the user names a draft/current policy directly, its own ratification
+  // or authority state is the primary yes/no fact. A nearby supersession edge
+  // is valuable context, but must not crowd that direct state out.
+  if (namesQuestionRecord && NON_AUTHORITY_STATE.test(text)) score += 16;
+  if (CURRENT_AUTHORITY_STATE.test(text)) score += 12;
+  if (AUTHORITY_DESIGNATION.test(text) && NORMATIVE_REQUIREMENT.test(text)) score += 12;
+  if (/\boriginal(?:ly)?\b/i.test(question) && HISTORICAL_PERMISSION.test(text)) score += 8;
+  if (/\b(?:replac\w*|supersed\w*)\b/i.test(text)) score += 6;
+  return score;
+}
+
 /** Stable relevance order used by both the answer and its citation cards. */
 export function rankEvidenceForQuestion<T extends SynthesisEvidence>(question: string, evidence: T[]): T[] {
+  const authority = authorityContext(question, evidence);
   const scored = evidence
     .map((item, index) => ({
       item,
       index,
-      score: relevance(question, `${item.title}. ${item.excerpt}`),
+      score: relevance(question, `${item.title}. ${item.excerpt}`) +
+        authorityRelevance(question, `${item.title}. ${item.excerpt}`, authority),
     }))
     .sort((a, b) => b.score - a.score || a.index - b.index);
   const relevant = scored.filter((entry) => entry.score > 0);
@@ -176,8 +246,10 @@ function valuePatternsForQuestion(question: string): RegExp[] {
     // flash Rover SDK field firmware without a second approver…". A question
     // about what a policy originally permitted wants this sentence, not just
     // the later supersession text.
-    patterns.push(/\bsingle\s+Tier\s+\d+\s+engineer[^.!?\n]{0,150}/gi);
-    patterns.push(/\bcould\s+flash[^.!?\n]{0,130}/gi);
+    if (/\b(?:original(?:ly)?|previously|what did)\b/i.test(question)) {
+      patterns.push(/\bsingle\s+Tier\s+\d+\s+engineer[^.!?\n]{0,150}/gi);
+      patterns.push(/\bcould\s+flash[^.!?\n]{0,130}/gi);
+    }
     // A never-ratified draft carries no authority; surface its exact wording
     // for permit/still-in-force questions about drafts.
     patterns.push(/\bnever ratified[^.!?\n]{0,90}/gi);
@@ -439,11 +511,16 @@ const claimSentences = (text: string) =>
 
 export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEvidence[]) {
   const ranked = rankEvidenceForQuestion(question, evidence);
+  const authority = authorityContext(question, ranked);
   const valuePatterns = valuePatternsForQuestion(question);
   const candidates = ranked.flatMap((item, evidenceIndex) =>
     sentences(item, question).map((text, sentenceIndex) => {
       const sentenceScore = relevance(question, text);
       const titleScore = relevance(question, item.title);
+      const authorityScore = authorityRelevance(question, text, authority);
+      const evidenceAuthorityScore = authorityRelevance(
+        question, `${item.title}. ${item.excerpt}`, authority,
+      );
       // A value candidate carries the exact answer the question asked for even
       // when its window does not repeat the question's own tokens (for example
       // "fixed in Rover SDK 4.2.1" for a question about BUG-123). It is always
@@ -462,10 +539,11 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
         item,
         text,
         valuePhrase,
+        authorityLinked: evidenceAuthorityScore > 0,
         // A relevant title may break a tie, but it cannot make an unrelated
         // paragraph into a claim.
-        score: (sentenceScore > 0 || isValueCandidate)
-          ? sentenceScore + (isValueCandidate ? 16 : 0) + Math.min(titleScore, 3) - sentenceIndex * 0.15 - evidenceIndex * 0.05
+        score: (sentenceScore > 0 || isValueCandidate || authorityScore > 0)
+          ? sentenceScore + authorityScore + (isValueCandidate ? 16 : 0) + Math.min(titleScore, 3) - sentenceIndex * 0.15 - evidenceIndex * 0.05
           : 0,
       };
     }),
@@ -477,6 +555,7 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
   const seenValuePhrases = new Set<string>();
   const seenProviders = new Set<string>();
   const scoreFloor = Math.max(6, (candidates[0]?.score ?? 0) * 0.3);
+  const hasAuthorityChain = authority.active && candidates.some((candidate) => candidate.authorityLinked);
   const diverseEvidenceTarget = Math.min(3, new Set(
     candidates.filter((candidate) => candidate.score >= scoreFloor).map((candidate) => candidate.item.id),
   ).size);
@@ -484,6 +563,11 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
   for (const candidate of candidates) {
     const key = normaliseClaimKey(candidate.text);
     if (candidate.score < scoreFloor || seenKeys.has(key)) continue;
+    // Once an exact, evidence-derived authority chain exists, lexical matches
+    // from records outside that chain are distractors, not additional policy
+    // evidence. Sentences in a linked receipt remain eligible even when they do
+    // not repeat its identifier (for example "neither draft permits this").
+    if (hasAuthorityChain && !candidate.authorityLinked) continue;
     // Value windows drawn from different chunks repeat the same fact phrase
     // ("customer impact lasted 41 minutes…"). One phrase, one claim, so the
     // remaining slots stay open for the other facets of the question.

@@ -512,4 +512,72 @@ describe("evidence-constrained synthesis", () => {
     expect(result.answer).toMatch(/two approvers/i);
     expect(result.claims.some((claim) => claim.evidenceIds.includes("binding-record"))).toBe(true);
   });
+
+  it("follows a retrieved supersession edge to a current decision with different wording", () => {
+    const result = synthesiseGroundedAnswer(
+      "Does DRAFT-FIELD-82 permit solo operator calibration today?",
+      [
+        {
+          id: "draft-authority",
+          provider: "document",
+          title: "field-operations.pdf",
+          excerpt: "DRAFT-FIELD-82 was never ratified and carries no operational authority. The related POLICY-FIELD-8 was superseded by DEC-204.",
+        },
+        {
+          id: "current-authority",
+          provider: "document",
+          title: "field-operations.pdf",
+          excerpt: "DEC-204 is the current controlling decision. It requires dual authorization for every calibration change.",
+        },
+        {
+          id: "keyword-distractor",
+          provider: "document",
+          title: "training-draft.pdf",
+          excerpt: "A training exercise asks whether a draft could permit solo operator calibration today. It is not an operational record.",
+        },
+      ],
+    );
+
+    expect(result.answer).toMatch(/never ratified/i);
+    expect(result.answer).toMatch(/no operational authority/i);
+    expect(result.answer).toMatch(/DEC-204/i);
+    expect(result.answer).toMatch(/dual authorization/i);
+    expect(result.answer).not.toMatch(/training exercise/i);
+    expect(result.claims.some((claim) => claim.evidenceIds.includes("current-authority"))).toBe(true);
+  });
+
+  it("keeps historical permission and later withdrawal as separate cited authority states", () => {
+    const result = synthesiseGroundedAnswer(
+      "What did POLICY-FIELD-8 originally permit for field calibration?",
+      [
+        {
+          id: "historical-permission",
+          provider: "document",
+          title: "field-operations.pdf",
+          excerpt: "POLICY-FIELD-8 originally permitted one operator to calibrate a unit while it was isolated on a service stand.",
+        },
+        {
+          id: "superseding-decision",
+          provider: "document",
+          title: "field-operations.pdf",
+          excerpt: "DEC-204 supersedes POLICY-FIELD-8. The one-operator permission is withdrawn and must not be relied on.",
+        },
+        {
+          id: "unrelated-policy",
+          provider: "document",
+          title: "office-policy.pdf",
+          excerpt: "The current office policy permits one operator to reserve a calibration room.",
+        },
+      ],
+    );
+
+    expect(result.answer).toMatch(/one operator/i);
+    expect(result.answer).toMatch(/service stand/i);
+    expect(result.answer).toMatch(/permission is withdrawn/i);
+    expect(result.answer).toMatch(/must not be relied on/i);
+    expect(result.answer).not.toMatch(/reserve a calibration room/i);
+    expect(new Set(result.claims.flatMap((claim) => claim.evidenceIds))).toEqual(
+      new Set(["historical-permission", "superseding-decision"]),
+    );
+  });
 });

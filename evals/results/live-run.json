@@ -1,9 +1,35 @@
 {
-  "generatedAt": "2026-08-04T10:06:06.911Z",
+  "status": "measured",
+  "generatedAt": "2026-08-05T00:49:52.375Z",
   "grader": "grounded-grader-v2",
   "runner": "scripts/run-live-benchmark.mjs",
   "fixture": "evals/fixtures/live-cases.json",
   "target": "https://queueproof.vercel.app",
+  "requestedMode": "auto",
+  "command": "node scripts/run-live-benchmark.mjs --url https://queueproof.vercel.app --mode auto --out evals/results/live-run.json",
+  "health": {
+    "ok": true,
+    "httpStatus": 200,
+    "measuredLatencyMs": 304,
+    "body": {
+      "status": "live",
+      "service": "queueproof-web",
+      "time": "2026-08-05T00:49:30.600Z",
+      "release": {
+        "commitSha": "2a34ab2dcdf83e64df49e5e6f7070f2511a43fc0",
+        "commitRef": "main",
+        "target": "production",
+        "deploymentUrl": "queueproof-9ub223333-vaibhav4046s-projects.vercel.app"
+      }
+    },
+    "error": null
+  },
+  "release": {
+    "commitSha": "2a34ab2dcdf83e64df49e5e6f7070f2511a43fc0",
+    "commitRef": "main",
+    "deploymentUrl": "queueproof-9ub223333-vaibhav4046s-projects.vercel.app"
+  },
+  "releaseVerified": true,
   "connectors": [
     "github",
     "gmail",
@@ -12,30 +38,30 @@
   ],
   "cases": 6,
   "passed": 4,
-  "allThreeProviders": 2,
-  "thinking": 6,
-  "fast": 0,
+  "allThreeProviders": 3,
+  "thinking": 0,
+  "fast": 6,
   "latencyMs": {
-    "p50": 16294,
-    "p95": 29877,
-    "min": 12310,
-    "max": 29877,
+    "p50": 1807,
+    "p95": 2274,
+    "min": 1728,
+    "max": 2274,
     "fast": {
+      "count": 6,
+      "p50": 1807,
+      "p95": 2274
+    },
+    "thinking": {
       "count": 0,
       "p50": null,
       "p95": null
-    },
-    "thinking": {
-      "count": 6,
-      "p50": 16294,
-      "p95": 29877
     }
   },
   "calls": {
-    "median": 2,
-    "mean": 2.1666666666666665,
-    "min": 2,
-    "max": 3
+    "median": 1,
+    "mean": 1.1666666666666667,
+    "min": 1,
+    "max": 2
   },
   "quality": {
     "requiredFactAccuracy": 1,
@@ -62,7 +88,7 @@
       "label": "three-provider multi-hop",
       "question": "Who escalated the AuthShield outage, what did engineering commit to, and is the fix already merged?",
       "expected": "Northwind escalated AuthShield; engineering committed to ship by 7 August; GitHub reports the fix merged.",
-      "actual": "The AuthShield authentication fix for the Northwind outage (INC-2031) was merged. [1] Engineering committed to shipping the AuthShield fix before Friday 7 August 2026. [2] I have committed to Northwind that we will ship the AuthShield fix before Friday 7 August 2026. [3] Northwind have escalated the AuthShield authentication outage (INC-2031). [4]",
+      "actual": "Priya Raman filed this against Atlas Launch. Engineering committed to shipping the AuthShield fix before Friday 7 August 2026. [1] The AuthShield authentication fix for the Northwind outage (INC-2031) was merged. [2] I have committed to Northwind that we will ship the AuthShield fix before Friday 7 August 2026. [3] Northwind have escalated the AuthShield authentication outage (INC-2031). [4]",
       "pass": true,
       "apiOk": true,
       "httpStatus": 200,
@@ -173,7 +199,7 @@
         {
           "summary": "github receipt reports the code complete while ENG-456 remains open in its cited tracking state.",
           "evidenceIds": [
-            "b7cac22b810e04837baf85a9cb471eb78d1fbd13f473dddbc78a7bd3fbb13dda:chunk:0"
+            "6fbc87cfe971cbd8bf2e8597dc8751009e004cac0b7b6435d728ea00dac3e8e6:chunk:0"
           ],
           "providers": [
             "github"
@@ -189,17 +215,17 @@
       "unsupportedClaims": [],
       "citedSources": [
         {
-          "id": "b7cac22b810e04837baf85a9cb471eb78d1fbd13f473dddbc78a7bd3fbb13dda:chunk:0",
-          "provider": "github",
-          "title": "AuthShield fix merged in PR-8871 but ENG-456 still open",
-          "excerpt": "The AuthShield authentication fix for the Northwind outage (INC-2031) was merged. Linear issue ENG-456 is still showing as open even though the code is shipped. Someone should close it or explain why it is still tracked.",
-          "supported": true
-        },
-        {
           "id": "772fc4ca6eab32434a9df0b8626810c498ed652518d9228a756078ea4abf7f61:chunk:0",
           "provider": "linear",
           "title": "AuthShield authentication outage for Northwind",
           "excerpt": "INC-2031: enterprise customer Northwind reported an authentication outage on 29 July 2026. Priya Raman filed this against Atlas Launch. Engineering committed to shipping the AuthShield fix before Friday 7 August 2026.",
+          "supported": true
+        },
+        {
+          "id": "b7cac22b810e04837baf85a9cb471eb78d1fbd13f473dddbc78a7bd3fbb13dda:chunk:0",
+          "provider": "github",
+          "title": "AuthShield fix merged in PR-8871 but ENG-456 still open",
+          "excerpt": "The AuthShield authentication fix for the Northwind outage (INC-2031) was merged. Linear issue ENG-456 is still showing as open even though the code is shipped. Someone should close it or explain why it is still tracked.",
           "supported": true
         },
         {
@@ -215,26 +241,35 @@
           "title": "Northwind have escalated the AuthShield authentication outage (INC-2031). Their",
           "excerpt": "Northwind have escalated the AuthShield authentication outage (INC-2031). Their whole team has been locked out since 29 July. Priya Raman is on it and filed BUG-123 against Atlas Launch.",
           "supported": true
+        },
+        {
+          "id": "6fbc87cfe971cbd8bf2e8597dc8751009e004cac0b7b6435d728ea00dac3e8e6:chunk:0",
+          "provider": "github",
+          "title": "Preserve compound receipt context and harden stale-state retrieval",
+          "excerpt": "## Outcome - preserves complete short receipt context for narrow multi-part questions, without inventing facts - adds fixture-agnostic retrieval intent terms for abstract stale/open-vs-shipped and untracked-work questions - adds regression coverage for actor, absence, stale-state, and exact-identifier synthesis - records the first production live benchmark artifact truthfully ## Verification - 330 tests passed across 35 files - TypeScript check passed - ESLint passed - Next/Webpack production build passed - Vinext build passed - source and reachable-history secret scans: 0 realistic matches - diff whitespace check passed ## Exact preview - commit: `c2a68be06047243e751e82a0f828d609be8e1e4c` -",
+          "supported": false
         }
       ],
       "claimCount": 4,
       "supportedClaimCount": 4,
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
-      "mode": "thinking",
-      "latencyMs": 14501,
-      "measuredLatencyMs": 17583,
-      "callCount": 2,
-      "sources": 5,
-      "costUnits": 6,
-      "runId": "query_159ce3a7-df74-4b78-8364-4e4c566d559a"
+      "requestedMode": "auto",
+      "mode": "fast",
+      "modeHonored": true,
+      "latencyMs": 1908,
+      "measuredLatencyMs": 3975,
+      "callCount": 1,
+      "sources": 6,
+      "costUnits": 1,
+      "runId": "query_6e552d61-21e6-4e6a-944a-540688b0d84d"
     },
     {
       "id": "live-deadline-conflict",
       "label": "deadline conflict",
       "question": "Which sources disagree about the billing migration deadline?",
       "expected": "The answer must preserve the 7 August versus 14 August deadline disagreement and cite the sources.",
-      "actual": "The billing migration deadline moved from 7 August to 14 August 2026 after the Northwind escalation took priority. [1] Heads up: the Linear ticket still says the billing migration deadline moved to 14 August, but finance confirmed today it is staying at 7 August. [2]",
+      "actual": "The billing migration deadline moved from 7 August to 14 August 2026 after the Northwind escalation took priority. [1] Heads up: the Linear ticket still says the billing migration deadline moved to 14 August, but finance confirmed today it is staying at 7 August. [2] 6. Medical Billing Errors and Fraud Are Significantly Reduced Medical billing fraud and error collectively represent one of the largest sources of financial waste in healthcare systems. Duplicate billing, upcoding, and phantom service claims are difficult to detect when claims pass through multiple disconnected administrative systems. [3]",
       "pass": true,
       "apiOk": true,
       "httpStatus": 200,
@@ -297,10 +332,12 @@
         "slack"
       ],
       "providers": [
+        "gmail",
         "linear",
         "slack"
       ],
       "reportedProviders": [
+        "gmail",
         "linear",
         "slack"
       ],
@@ -357,26 +394,35 @@
           "title": "Heads up: the Linear ticket still says the billing migration deadline moved to 1",
           "excerpt": "Heads up: the Linear ticket still says the billing migration deadline moved to 14 August, but finance confirmed today it is staying at 7 August. Linear is out of date.",
           "supported": true
+        },
+        {
+          "id": "a4ec5a031d04130cb8e501c120c419098080cc55023299cd6472fe85ae959818:chunk:0",
+          "provider": "gmail",
+          "title": "Blockchain in Healthcare: Improving Patient Care",
+          "excerpt": "6. Medical Billing Errors and Fraud Are Significantly Reduced Medical billing fraud and error collectively represent one of the largest sources of financial waste in healthcare systems. Duplicate billing, upcoding, and phantom service claims are difficult to detect when claims pass through multiple disconnected administrative systems. Blockchain creates a shared billing ledger that insurers, providers, and regulators can all access. Smart contracts automatically cross-reference claims against verified treatment records and policy terms before payment is authorized. As a result, fraudulent and erroneous claims are rejected at the point of submission rather than recovered expensively after the",
+          "supported": true
         }
       ],
-      "claimCount": 2,
-      "supportedClaimCount": 2,
-      "claimCitationPairCount": 2,
-      "supportedClaimCitationPairCount": 2,
-      "mode": "thinking",
-      "latencyMs": 29877,
-      "measuredLatencyMs": 31561,
-      "callCount": 2,
+      "claimCount": 3,
+      "supportedClaimCount": 3,
+      "claimCitationPairCount": 3,
+      "supportedClaimCitationPairCount": 3,
+      "requestedMode": "auto",
+      "mode": "fast",
+      "modeHonored": true,
+      "latencyMs": 1728,
+      "measuredLatencyMs": 3517,
+      "callCount": 1,
       "sources": 3,
-      "costUnits": 6,
-      "runId": "query_d68d189d-0391-4a3e-b0dd-928603c45797"
+      "costUnits": 1,
+      "runId": "query_546d554e-4100-477a-b592-eee2138b3f1b"
     },
     {
       "id": "live-untracked-commitment",
       "label": "untracked commitment",
       "question": "Which promise to Northwind has no issue tracking it?",
       "expected": "The written incident post-mortem promised by 10 August is not tracked in Linear.",
-      "actual": "I promised Northwind a written incident post-mortem by 10 August. There is no Linear issue tracking that yet, someone please raise one. [1] Vaibhav promised Northwind a written incident post-mortem by 10 August 2026. Tracking it here since there is no Linear issue for it. Owner unassigned. [2] INC-2031: enterprise customer Northwind reported an authentication outage on 29 July 2026. Priya Raman filed this against Atlas Launch. Engineering committed to shipping the AuthShield fix before Friday 7 August 2026. [3] We did promise you this one last month. [4]",
+      "actual": "I promised Northwind a written incident post-mortem by 10 August. There is no Linear issue tracking that yet, someone please raise one. [1] Vaibhav promised Northwind a written incident post-mortem by 10 August 2026. Tracking it here since there is no Linear issue for it. Owner unassigned. [2] INC-2031: enterprise customer Northwind reported an authentication outage on 29 July 2026. Priya Raman filed this against Atlas Launch. Engineering committed to shipping the AuthShield fix before Friday 7 August 2026. [3]",
       "pass": true,
       "apiOk": true,
       "httpStatus": 200,
@@ -456,13 +502,11 @@
       ],
       "providers": [
         "github",
-        "gmail",
         "linear",
         "slack"
       ],
       "reportedProviders": [
         "github",
-        "gmail",
         "linear",
         "slack"
       ],
@@ -501,26 +545,21 @@
           "title": "AuthShield authentication outage for Northwind",
           "excerpt": "INC-2031: enterprise customer Northwind reported an authentication outage on 29 July 2026. Priya Raman filed this against Atlas Launch. Engineering committed to shipping the AuthShield fix before Friday 7 August 2026.",
           "supported": true
-        },
-        {
-          "id": "5de0678e3da3538141d1a9353e03b8d486dca986c6f0836ebf1af05b3d96afe2:chunk:0",
-          "provider": "gmail",
-          "title": "AI BOM Creation is live. Here's what that means for your shop.",
-          "excerpt": "READ IT HERE> 03 Reduce Quoting Errors and Delays with Cableteque's AI-Powered Quoting Too How AI-driven PDF extraction, parts intelligence, and live sourcing work together to cut a 7 to 10 day quoting cycle down to under an hour, with real numbers from shops already using it. READ IT HERE> MARKET RESEARCH State of Wire Harness Operations Where the industry actually stands right now. What manufacturers are saying about their biggest operational challenges, where digital maturity is highest and lowest, and what the data says about where the gaps are. Free Research Report COMING NEXT MONTH Next month: What happens when your senior estimator leaves? We did promise you this one last month. Hones",
-          "supported": true
         }
       ],
-      "claimCount": 4,
-      "supportedClaimCount": 4,
-      "claimCitationPairCount": 4,
-      "supportedClaimCitationPairCount": 4,
-      "mode": "thinking",
-      "latencyMs": 16294,
-      "measuredLatencyMs": 17637,
-      "callCount": 2,
-      "sources": 5,
-      "costUnits": 6,
-      "runId": "query_ab9651fc-6bed-4528-8900-0cb6f487adaf"
+      "claimCount": 3,
+      "supportedClaimCount": 3,
+      "claimCitationPairCount": 3,
+      "supportedClaimCitationPairCount": 3,
+      "requestedMode": "auto",
+      "mode": "fast",
+      "modeHonored": true,
+      "latencyMs": 1807,
+      "measuredLatencyMs": 3146,
+      "callCount": 1,
+      "sources": 3,
+      "costUnits": 1,
+      "runId": "query_66ee3ed8-3cdd-4158-aafa-247e38d239a6"
     },
     {
       "id": "live-stale-tracked-work",
@@ -639,20 +678,22 @@
       "supportedClaimCount": 2,
       "claimCitationPairCount": 2,
       "supportedClaimCitationPairCount": 2,
-      "mode": "thinking",
-      "latencyMs": 17824,
-      "measuredLatencyMs": 19272,
-      "callCount": 2,
+      "requestedMode": "auto",
+      "mode": "fast",
+      "modeHonored": true,
+      "latencyMs": 2274,
+      "measuredLatencyMs": 3504,
+      "callCount": 1,
       "sources": 2,
-      "costUnits": 6,
-      "runId": "query_0fc92332-6b8a-4a2d-ae16-3d69e2ab2fd4"
+      "costUnits": 1,
+      "runId": "query_cbff0c55-b368-4a67-bd05-e5d8c45aac6a"
     },
     {
       "id": "live-actor-reconstruction",
       "label": "actor reconstruction",
       "question": "Who is Priya Raman and what has she been working on?",
       "expected": "Priya Raman is tied to the Northwind/AuthShield incident and Atlas Launch work.",
-      "actual": "INC-2031: enterprise customer Northwind reported an authentication outage on 29 July 2026. Priya Raman filed this against Atlas Launch. Engineering committed to shipping the AuthShield fix before Friday 7 August 2026. [1] Northwind have escalated the AuthShield authentication outage (INC-2031). Their whole team has been locked out since 29 July. Priya Raman is on it and filed BUG-123 against Atlas Launch. [2]",
+      "actual": "Northwind have escalated the AuthShield authentication outage (INC-2031). Their whole team has been locked out since 29 July. Priya Raman is on it and filed BUG-123 against Atlas Launch. [1] INC-2031: enterprise customer Northwind reported an authentication outage on 29 July 2026. Priya Raman filed this against Atlas Launch. Engineering committed to shipping the AuthShield fix before Friday 7 August 2026. [2]",
       "pass": true,
       "apiOk": true,
       "httpStatus": 200,
@@ -744,17 +785,17 @@
       "unsupportedClaims": [],
       "citedSources": [
         {
-          "id": "772fc4ca6eab32434a9df0b8626810c498ed652518d9228a756078ea4abf7f61:chunk:0",
-          "provider": "linear",
-          "title": "AuthShield authentication outage for Northwind",
-          "excerpt": "INC-2031: enterprise customer Northwind reported an authentication outage on 29 July 2026. Priya Raman filed this against Atlas Launch. Engineering committed to shipping the AuthShield fix before Friday 7 August 2026.",
-          "supported": true
-        },
-        {
           "id": "ffb7a9aecb9fea364671ca67feb700561d9cd59057b134af0a595d3d845a3dac:chunk:0",
           "provider": "slack",
           "title": "Northwind have escalated the AuthShield authentication outage (INC-2031). Their",
           "excerpt": "Northwind have escalated the AuthShield authentication outage (INC-2031). Their whole team has been locked out since 29 July. Priya Raman is on it and filed BUG-123 against Atlas Launch.",
+          "supported": true
+        },
+        {
+          "id": "772fc4ca6eab32434a9df0b8626810c498ed652518d9228a756078ea4abf7f61:chunk:0",
+          "provider": "linear",
+          "title": "AuthShield authentication outage for Northwind",
+          "excerpt": "INC-2031: enterprise customer Northwind reported an authentication outage on 29 July 2026. Priya Raman filed this against Atlas Launch. Engineering committed to shipping the AuthShield fix before Friday 7 August 2026.",
           "supported": true
         }
       ],
@@ -762,20 +803,22 @@
       "supportedClaimCount": 2,
       "claimCitationPairCount": 2,
       "supportedClaimCitationPairCount": 2,
-      "mode": "thinking",
-      "latencyMs": 22022,
-      "measuredLatencyMs": 23432,
-      "callCount": 2,
-      "sources": 9,
-      "costUnits": 6,
-      "runId": "query_912d85dc-fab0-4a37-b73e-2be544d7f2ba"
+      "requestedMode": "auto",
+      "mode": "fast",
+      "modeHonored": true,
+      "latencyMs": 1784,
+      "measuredLatencyMs": 3129,
+      "callCount": 1,
+      "sources": 2,
+      "costUnits": 1,
+      "runId": "query_0bd826e3-08b8-4442-8fee-00e34fa39460"
     },
     {
       "id": "live-exact-identifier-context",
       "label": "exact identifier plus context",
       "question": "What is BUG-123, who filed it, and which project is it against?",
       "expected": "BUG-123 is the AuthShield/Northwind incident work, filed by Priya Raman against Atlas Launch.",
-      "actual": "Northwind have escalated the AuthShield authentication outage (INC-2031). Their whole team has been locked out since 29 July. Priya Raman is on it and filed BUG-123 against Atlas Launch. [1] Priya Raman is on it and filed BUG-123 against Atlas Launch. [1]",
+      "actual": "Northwind have escalated the AuthShield authentication outage (INC-2031). Their whole team has been locked out since 29 July. Priya Raman is on it and filed BUG-123 against Atlas Launch. [1] Priya Raman is on it and filed BUG-123 against Atlas Launch. [1] Their whole team has been locked out since 29 July. Priya Raman is on it and filed BUG-123 against Atlas Launch. [1]",
       "pass": false,
       "apiOk": true,
       "httpStatus": 200,
@@ -895,17 +938,19 @@
           "supported": true
         }
       ],
-      "claimCount": 2,
-      "supportedClaimCount": 2,
-      "claimCitationPairCount": 2,
-      "supportedClaimCitationPairCount": 2,
-      "mode": "thinking",
-      "latencyMs": 12310,
-      "measuredLatencyMs": 13471,
-      "callCount": 3,
+      "claimCount": 3,
+      "supportedClaimCount": 3,
+      "claimCitationPairCount": 3,
+      "supportedClaimCitationPairCount": 3,
+      "requestedMode": "auto",
+      "mode": "fast",
+      "modeHonored": true,
+      "latencyMs": 2024,
+      "measuredLatencyMs": 3455,
+      "callCount": 2,
       "sources": 1,
-      "costUnits": 9,
-      "runId": "query_db75ed2c-b26c-4d55-98c3-bc283dbe618d"
+      "costUnits": 2,
+      "runId": "query_8b11cb7a-2e46-4535-a48e-f08dd67169a4"
     }
   ]
 }
