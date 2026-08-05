@@ -782,6 +782,23 @@ describe("evidence-constrained synthesis", () => {
             "A practical guide to the techniques teams use to ship production-ready agents without a dedicated platform team.",
           timestamp: "2026-08-04T08:00:00Z",
         },
+        // These two survived the first fix: a bare past participle in ordinary
+        // prose looked like a delivery assertion.
+        {
+          id: "news-5",
+          provider: "gmail",
+          title: "India logistics letter",
+          excerpt:
+            "Instead, the container is likely trans-shipped from a nearby port in another country, as three-quarters of long-distance shipments are.",
+          timestamp: "2026-08-04T09:00:00Z",
+        },
+        {
+          id: "news-6",
+          provider: "gmail",
+          title: "Weekend hack announcement",
+          excerpt: "Whatever you ship across the weekend is released as open source.",
+          timestamp: "2026-08-04T10:00:00Z",
+        },
       ],
     );
     expect(result.validation.status).toBe("abstained");
@@ -789,6 +806,8 @@ describe("evidence-constrained synthesis", () => {
     expect(result.answer).not.toMatch(/Indian ship/i);
     expect(result.answer).not.toMatch(/staff\+/i);
     expect(result.answer).not.toMatch(/Moreover/i);
+    expect(result.answer).not.toMatch(/trans-shipped/i);
+    expect(result.answer).not.toMatch(/open source/i);
   });
 
   it("still answers the same delivery question when a real ship receipt is present", () => {

@@ -132,10 +132,22 @@ function intentBoost(question: string, text: string) {
 // answer one: the evidence has to assert the delivery, not use the word in
 // passing. Kept deliberately narrow so it matches receipts, not commentary.
 const DELIVERY_QUESTION = /\b(?:ship|shipped|shipping|release|released|deliver|delivered|launch|launched|deploy|deployed)\b/;
+// A bare past participle is far too common in ordinary prose to count as proof:
+// "is released as open source" and "likely trans-shipped from a nearby port"
+// both contain one. A delivery assertion needs the auxiliary or the temporal
+// frame that makes it a statement about something that actually shipped.
 const DELIVERY_ASSERTION =
-  /\b(?:shipped|released|deployed|merged|launched|delivered|went live|rolled out|ready to (?:ship|release|deploy)|cut the release)\b/;
+  /\b(?:was|were|has been|have been)\s+(?:successfully\s+)?(?:shipped|released|deployed|merged|launched|delivered|rolled out)\b|\bready to (?:ship|release|deploy)\b|\bwent live\b|\bcut the release\b|\b(?:shipped|released|deployed|merged|launched)\s+(?:on|in|to|last|this)\s/;
 
-function relevance(question: string, text: string) {
+// Delivery receipts live in systems of record. Mail and marketing surfaces use
+// delivery verbs constantly without recording that this team delivered anything,
+// so an unanchored "what did we ship" scan does not accept them as proof. An
+// anchored question ("did we ship the Northwind hotfix?") is unaffected.
+const DELIVERY_RECORD_PROVIDERS = new Set([
+  "github", "gitlab", "linear", "jira", "shortcut", "slack", "notion", "confluence", "document",
+]);
+
+function relevance(question: string, text: string, provider?: string) {
   const q = question.toLowerCase();
   const candidate = text.toLowerCase();
   const questionTokens = new Set(tokenise(question));
@@ -169,7 +181,8 @@ function relevance(question: string, text: string) {
   // match, since a receipt may say "deployed" where the question said "ship".
   const unanchoredDelivery =
     DELIVERY_QUESTION.test(q) && identifierScore === 0 && !hasConcreteAnchor(question);
-  const deliveryScore = unanchoredDelivery && DELIVERY_ASSERTION.test(candidate) ? 8 : 0;
+  const deliveryRecord = !provider || DELIVERY_RECORD_PROVIDERS.has(provider.toLowerCase());
+  const deliveryScore = unanchoredDelivery && deliveryRecord && DELIVERY_ASSERTION.test(candidate) ? 8 : 0;
   if (unanchoredDelivery && deliveryScore === 0) return 0;
   if (anchors.length && anchorMatches === 0 && identifierScore === 0 && deliveryScore === 0) return 0;
   if (overlap === 0 && identifierScore === 0 && deliveryScore === 0) return 0;
@@ -321,7 +334,7 @@ export function rankEvidenceForQuestion<T extends SynthesisEvidence>(question: s
   const factors = recencyQuestion(question) ? recencyFactors(evidence) : new Map<string, number>();
   const scored = evidence
     .map((item, index) => {
-      const base = relevance(question, `${item.title}. ${item.excerpt}`) +
+      const base = relevance(question, `${item.title}. ${item.excerpt}`, item.provider) +
         authorityRelevance(question, `${item.title}. ${item.excerpt}`, authority) +
         crossSourceBridgeScore(question, `${item.title}. ${item.excerpt}`, item.provider, evidence);
       const recency = base > 0 ? (factors.get(item.id) ?? 0) * RECENCY_WEIGHT : 0;
@@ -696,8 +709,8 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
   const recencyFactorsMap = recencyQuestion(question) ? recencyFactors(ranked) : new Map<string, number>();
   const candidates = ranked.flatMap((item, evidenceIndex) =>
     sentences(item, question, evidence).map((text, sentenceIndex) => {
-      const sentenceScore = relevance(question, text);
-      const titleScore = relevance(question, item.title);
+      const sentenceScore = relevance(question, text, item.provider);
+      const titleScore = relevance(question, item.title, item.provider);
       const authorityScore = authorityRelevance(question, text, authority);
       const evidenceAuthorityScore = authorityRelevance(
         question, `${item.title}. ${item.excerpt}`, authority,
