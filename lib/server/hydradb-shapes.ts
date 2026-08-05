@@ -116,6 +116,48 @@ export function connectorLineageMetadataFilter(connectorId: string): Record<stri
   return { connector_id: connectorId };
 }
 
+/**
+ * Narrow attestation fallback for a connector-scoped repair query.
+ *
+ * Some HydraDB connector results omit connector/resource lineage on the returned
+ * source even though the query was pre-filtered by the system `connector_id`
+ * tenant metadata. Provider equality alone remains insufficient. The omission is
+ * accepted only when the full request receipt proves this was one successful,
+ * single-connector follow-up with the exact connector filter and the caller did
+ * not request a conflicting connector/provider boundary.
+ */
+export function sourceAttestedByScopedConnectorQuery(input: {
+  source: Record<string, unknown>;
+  connectorId: string;
+  connectorProvider: string;
+  scopeConnectorCount: number;
+  phase: "primary" | "follow_up";
+  lineageMetadataFilters?: Record<string, unknown>;
+  callerMetadataFilters?: Record<string, unknown>;
+  responseOk: boolean;
+  responseStatus: number;
+  requestId: string | null;
+}): boolean {
+  if (input.phase !== "follow_up" || input.scopeConnectorCount !== 1) return false;
+  if (!input.responseOk || input.responseStatus < 200 || input.responseStatus >= 300) return false;
+  if (!input.requestId?.trim()) return false;
+  if (input.lineageMetadataFilters?.connector_id !== input.connectorId) return false;
+
+  const expectedProvider = canonicalProvider(input.connectorProvider);
+  if (!expectedProvider || providerFromSource(input.source) !== expectedProvider) return false;
+
+  const callerFilters = input.callerMetadataFilters ?? {};
+  if (Object.prototype.hasOwnProperty.call(callerFilters, "connector_id") &&
+      callerFilters.connector_id !== input.connectorId) return false;
+  if (Object.prototype.hasOwnProperty.call(callerFilters, "provider")) {
+    const callerProvider = typeof callerFilters.provider === "string"
+      ? canonicalProvider(callerFilters.provider)
+      : null;
+    if (callerProvider !== expectedProvider) return false;
+  }
+  return true;
+}
+
 /** Strong connector lineage: provider equality alone is never sufficient. */
 export function sourceBelongsToConnector(
   source: Record<string, unknown>,

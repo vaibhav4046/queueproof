@@ -5,6 +5,7 @@ import {
   extractQuerySources,
   matchingChunks,
   providerFromSource,
+  sourceAttestedByScopedConnectorQuery,
   sourceBelongsToConnector,
 } from "../../../lib/server/hydradb-shapes";
 import { requireRequestActor } from "../../../lib/server/identity";
@@ -341,7 +342,7 @@ export async function POST(request: Request) {
           const provider = isDocumentSource ? "document" : providerFromSource(source) ?? "unknown";
           const sourceId = String(source.id ?? source.source_id ?? source.context_id ?? `document-${sourceIndex}`);
           const documentOwned = provider === "document" && Boolean(scope.sourceIds?.includes(sourceId));
-          const owningConnector = provider === "document"
+          const strictOwningConnector = provider === "document"
             ? undefined
             : scope.connectors.find((item) =>
                 item.provider === provider && sourceBelongsToConnector(
@@ -349,6 +350,24 @@ export async function POST(request: Request) {
                   item.hydradbConnectorId,
                   resourceIdsByConnector.get(item.id) ?? new Set<string>(),
                 ));
+          const scopedConnector = scope.connectors.length === 1 ? scope.connectors[0] : undefined;
+          const owningConnector = strictOwningConnector ?? (
+            provider !== "document" && scopedConnector &&
+            sourceAttestedByScopedConnectorQuery({
+              source,
+              connectorId: scopedConnector.hydradbConnectorId,
+              connectorProvider: scopedConnector.provider,
+              scopeConnectorCount: scope.connectors.length,
+              phase,
+              lineageMetadataFilters: scope.lineageMetadataFilters,
+              callerMetadataFilters: payload.metadataFilters,
+              responseOk: response.ok,
+              responseStatus: response.status,
+              requestId: response.requestId,
+            })
+              ? scopedConnector
+              : undefined
+          );
           if (!owningConnector && !documentOwned) return;
           const sourceChunks = matchingChunks(source, extracted.chunks);
           const candidates = sourceChunks.length ? sourceChunks : [source];

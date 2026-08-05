@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   connectorLineageMetadataFilter,
+  sourceAttestedByScopedConnectorQuery,
   sourceBelongsToConnector,
 } from "../lib/server/hydradb-shapes";
 
@@ -43,5 +44,53 @@ describe("connector proof lineage", () => {
   it("rejects provider-only and foreign-connector records", () => {
     expect(sourceBelongsToConnector({ app_provider: "slack" }, "hydra-slack-1", selected)).toBe(false);
     expect(sourceBelongsToConnector({ connector_id: "hydra-slack-2" }, "hydra-slack-1", selected)).toBe(false);
+  });
+});
+
+describe("connector-scoped repair attestation", () => {
+  const valid = {
+    source: { app_provider: "linear" },
+    connectorId: "hydra-linear-1",
+    connectorProvider: "linear",
+    scopeConnectorCount: 1,
+    phase: "follow_up" as const,
+    lineageMetadataFilters: { connector_id: "hydra-linear-1" },
+    callerMetadataFilters: { team: "platform" },
+    responseOk: true,
+    responseStatus: 200,
+    requestId: "hydra-request-7",
+  };
+
+  it("retains the intended provider when the single-connector repair receipt attests it", () => {
+    expect(sourceAttestedByScopedConnectorQuery(valid)).toBe(true);
+  });
+
+  it("rejects a source from the wrong provider", () => {
+    expect(sourceAttestedByScopedConnectorQuery({
+      ...valid,
+      source: { app_provider: "slack" },
+    })).toBe(false);
+  });
+
+  it("rejects a repair whose exact connector filter does not match the scoped connector", () => {
+    expect(sourceAttestedByScopedConnectorQuery({
+      ...valid,
+      lineageMetadataFilters: { connector_id: "hydra-linear-2" },
+    })).toBe(false);
+  });
+
+  it.each([
+    { connector_id: "hydra-linear-2" },
+    { provider: "slack" },
+    { connector_id: ["hydra-linear-1"] },
+  ])("rejects a conflicting caller filter: %j", (callerMetadataFilters) => {
+    expect(sourceAttestedByScopedConnectorQuery({ ...valid, callerMetadataFilters })).toBe(false);
+  });
+
+  it("never attests an unscoped primary result or a response without a request receipt", () => {
+    expect(sourceAttestedByScopedConnectorQuery({ ...valid, phase: "primary" })).toBe(false);
+    expect(sourceAttestedByScopedConnectorQuery({ ...valid, scopeConnectorCount: 2 })).toBe(false);
+    expect(sourceAttestedByScopedConnectorQuery({ ...valid, requestId: null })).toBe(false);
+    expect(sourceAttestedByScopedConnectorQuery({ ...valid, responseOk: false, responseStatus: 500 })).toBe(false);
   });
 });
