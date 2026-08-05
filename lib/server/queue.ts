@@ -212,6 +212,14 @@ const hasDiscriminativeNonLiveMarker = (candidate: string) =>
   /\b(?:homework|question\s+\d+|academic support|academic writing|student pricing|assignment help|employment agreement|successful application|pre-contract documentation|right to work|photo identification|passport|e-?visa|national insurance|written offer|onboarding|identity documents?|payroll employment|codelabs?|mcq assessment|workshops? completed)\b/i.test(candidate);
 
 const isNonLiveSourceArtifact = (header: string, corpus: string) =>
+  (
+    /\b(?:agreement for work finding services|recruitment services agreement)\b/i.test(corpus) &&
+    /\b(?:hirer|work opportunit(?:y|ies)|candidate suitability|introduce you to)\b/i.test(corpus)
+  ) ||
+  (
+    /^(?:how (?:to\b|.+\bcan\b)|planning and reasoning\b|(?:a |the )?(?:guide|introduction) to\b|what (?:is|are)\b|why\b)/i.test(header) &&
+    /\b(?:for example|consider an?|best predictor|look for|avoid (?:vendors?|providers?)|may trigger|can (?:help|support)|tell (?:an? )?(?:assistant|ai|gemini|chatgpt|claude)|tips?\b)\b/i.test(corpus)
+  ) ||
   hasPairedContext(
     header,
     /\bpre-contract documentation\b/i,
@@ -753,6 +761,28 @@ export function clusterTaskEvidence<T extends ClusterableEvidence>(evidences: T[
       if (records[right]!.ids.size && overlaps(records[left]!.ids, records[right]!.ids)) union(left, right);
     }
   }
+
+  // Two ID-less records may still be the same task when their bounded task wording,
+  // dates, and named scopes agree. Require a unique, reciprocal cross-provider match
+  // so generic entity overlap cannot create a transitive mega-cluster.
+  const idlessWordingMatches = records.map((record, index) => {
+    if (record.ids.size) return [] as number[];
+    return records.flatMap((candidate, candidateIndex) => (
+      candidateIndex !== index &&
+      !candidate.ids.size &&
+      record.evidence.provider !== candidate.evidence.provider &&
+      sameTaskWording(record.evidence, candidate.evidence)
+        ? [candidateIndex]
+        : []
+    ));
+  });
+  idlessWordingMatches.forEach((matches, index) => {
+    if (matches.length !== 1) return;
+    const peer = matches[0]!;
+    if (idlessWordingMatches[peer]?.length === 1 && idlessWordingMatches[peer]![0] === index) {
+      union(index, peer);
+    }
+  });
 
   const exactComponents = () => {
     const components = new Map<number, { member: number; members: number[]; entities: Set<string> }>();

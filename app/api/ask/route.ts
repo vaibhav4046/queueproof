@@ -339,20 +339,20 @@ export async function POST(request: Request) {
           const metadata = record(source.additional_metadata);
           const sourceKind = textFrom({ ...metadata, ...source }, ["source_type", "type", "mime_type", "filename"]);
           const isDocumentSource = Boolean(source.filename ?? metadata.filename) || /\b(pdf|document|file)\b/i.test(sourceKind ?? "");
-          const provider = isDocumentSource ? "document" : providerFromSource(source) ?? "unknown";
+          const reportedProvider = isDocumentSource ? "document" : providerFromSource(source);
           const sourceId = String(source.id ?? source.source_id ?? source.context_id ?? `document-${sourceIndex}`);
-          const documentOwned = provider === "document" && Boolean(scope.sourceIds?.includes(sourceId));
-          const strictOwningConnector = provider === "document"
+          const documentOwned = isDocumentSource && Boolean(scope.sourceIds?.includes(sourceId));
+          const strictOwningConnector = isDocumentSource || !reportedProvider
             ? undefined
             : scope.connectors.find((item) =>
-                item.provider === provider && sourceBelongsToConnector(
+                item.provider === reportedProvider && sourceBelongsToConnector(
                   source,
                   item.hydradbConnectorId,
                   resourceIdsByConnector.get(item.id) ?? new Set<string>(),
                 ));
           const scopedConnector = scope.connectors.length === 1 ? scope.connectors[0] : undefined;
           const owningConnector = strictOwningConnector ?? (
-            provider !== "document" && scopedConnector &&
+            !isDocumentSource && scopedConnector &&
             sourceAttestedByScopedConnectorQuery({
               source,
               connectorId: scopedConnector.hydradbConnectorId,
@@ -370,6 +370,9 @@ export async function POST(request: Request) {
               : undefined
           );
           if (!owningConnector && !documentOwned) return;
+          const provider = isDocumentSource
+            ? "document"
+            : reportedProvider ?? owningConnector?.provider ?? "unknown";
           const sourceChunks = matchingChunks(source, extracted.chunks);
           const candidates = sourceChunks.length ? sourceChunks : [source];
           candidates.forEach((candidate, chunkIndex) => {

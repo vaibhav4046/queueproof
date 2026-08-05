@@ -42,6 +42,19 @@ describe("conservative cross-source task clustering", () => {
     expect(wordingGroups).toHaveLength(1);
     expect(wordingGroups[0]).toHaveLength(2);
 
+    const idlessDeadlineGroups = clusterTaskEvidence([
+      {
+        ...evidence("linear", "deadline-ticket", "Payments migration", "Tracked work."),
+        taskSpan: "Customer payments platform migration rollout deadline moved to 14 September 2026.",
+      },
+      {
+        ...evidence("slack", "deadline-message", "Payments migration", "Original message."),
+        taskSpan: "Customer payments platform migration rollout deadline moved to 14 September 2026.",
+      },
+    ]);
+    expect(idlessDeadlineGroups).toHaveLength(1);
+    expect(idlessDeadlineGroups[0]).toHaveLength(2);
+
     const wordingBeatsBroadEntityAmbiguityGroups = clusterTaskEvidence([
       {
         ...evidence("github", "issue-wording-target", "Post-mortem doc for INC-2031 Northwind outage", "Tracked work."),
@@ -432,6 +445,10 @@ describe("conservative cross-source task clustering", () => {
       "48 Hours left to complete your codelabs and MCQ assessment. Mandatory checkpoints are closing soon. Google Cloud Credits Reminder. Participants must configure their own GCP account parameters to execute remaining Codelabs.",
       "Deadline Approaching: Complete milestones before Team Formation goes live. Google Cloud Gen AI Academy progression. Complete all mandatory Codelabs and submit the MCQ Assessment to qualify for your certificate and the hackathon phase.",
       "Vol.061 - Week 7 of Going AI Native: We Stopped Building the Work Around Our Software. We committed to de-centring MYOB before we could fully diagram why it was blocking us. Come into the community; this is not an advertising channel. #AIforBusiness Sources: Primary source for this issue.",
+      "Welcome to Acme Staffing. Agreement for Work Finding Services. If there are work opportunities, we will need to confirm your identity and suitability before introducing you to a hirer.",
+      "How AI can help teams plan. Instead of wrestling with time slots, tell Gemini: I need to schedule one hour with Alex and Sam this week.",
+      "How to choose the right technology partner. Review track record and references. Past performance is your best predictor; look for relevant expertise and avoid vendors who promise every stack.",
+      "Planning and Reasoning in Agentic AI Systems. Consider an AI assistant reviewing an account. If it detects a billing dispute, reasoning may trigger escalation rather than automatic resolution.",
       "Recipients must keep this information confidential.",
       "Students need to submit the assignment by Friday.",
       "We will help your business grow.",
@@ -450,6 +467,9 @@ describe("conservative cross-source task clustering", () => {
     expect(extractActionableTaskSpan(
       "For internal use only. Engineering will ship ENG-456 by Friday.",
     )).toContain("ENG-456");
+    expect(extractActionableTaskSpan(
+      "How to resolve a customer incident. OPS-42 remains open and Priya must ship the fix by Friday.",
+    )).toContain("OPS-42");
     expect(extractActionableTaskSpan(
       `Successful Application onboarding paperwork. ${"Background material. ".repeat(80)}Engineering will ship ENG-456 by Friday.`,
     )).toContain("ENG-456");

@@ -64,6 +64,7 @@ describe("connector-scoped repair attestation", () => {
 
   it("retains the intended provider when the single-connector repair receipt attests it", () => {
     expect(sourceAttestedByScopedConnectorQuery(valid)).toBe(true);
+    expect(sourceAttestedByScopedConnectorQuery({ ...valid, source: {} })).toBe(true);
   });
 
   it("rejects a source from the wrong provider", () => {

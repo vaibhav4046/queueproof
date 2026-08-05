@@ -146,7 +146,11 @@ export function sourceAttestedByScopedConnectorQuery(input: {
   if (input.lineageMetadataFilters?.connector_id !== input.connectorId) return false;
 
   const expectedProvider = canonicalProvider(input.connectorProvider);
-  if (!expectedProvider || providerFromSource(input.source) !== expectedProvider) return false;
+  const reportedProvider = providerFromSource(input.source);
+  // Connector recall occasionally omits the redundant provider label while still
+  // honoring the exact connector_id filter. Absence is acceptable only inside this
+  // fully attested scope; an explicit conflicting label is always rejected.
+  if (!expectedProvider || (reportedProvider && reportedProvider !== expectedProvider)) return false;
 
   const callerFilters = input.callerMetadataFilters ?? {};
   if (Object.prototype.hasOwnProperty.call(callerFilters, "connector_id") &&
