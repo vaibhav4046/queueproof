@@ -1,4 +1,11 @@
-import { extractQuerySources, matchingChunks, providerFromSource, sourceBelongsToConnector } from "./hydradb-shapes";
+import {
+  connectorLineageMetadataFilter,
+  extractQuerySources,
+  matchingChunks,
+  providerFromSource,
+  sourceAttestedByScopedConnectorQuery,
+  sourceBelongsToConnector,
+} from "./hydradb-shapes";
 import { hydraClientForWorkspace } from "./hydradb-account";
 import { requireDb } from "./runtime";
 import { audit, createId, ensureCoreSchema } from "./store";
@@ -6,6 +13,7 @@ import { ACTIVE_FORMULA, DEFAULT_POLICY_VERSION, rank } from "../../packages/ran
 import { isPotentialPromptInjection, sha256 } from "../../packages/security/src";
 import { executionPacketSchema, type RankingInput } from "../../packages/contracts/src";
 import { receiptHash, whyAboveNext } from "./decision-receipt";
+import { retrievalModeCost } from "../../packages/retrieval/src";
 
 // Compatibility export for the evidence-integrity regression test and consumers that
 // historically imported the join helper from the queue module.
@@ -21,6 +29,41 @@ type VerifiedConnector = {
   collection: string | null;
   account_scope: string | null;
 };
+
+type QueueRetrievalConnector = Pick<
+  VerifiedConnector,
+  "id" | "hydradb_connector_id" | "provider" | "database" | "collection"
+>;
+
+export const QUEUE_RETRIEVAL_MAX_RESULTS = 24;
+
+const QUEUE_RETRIEVAL_QUERY = [
+  "Find current actionable company work with explicit promised actions, owned follow-ups, changed deadlines, due or still-open tracked work, unresolved customer escalations, active incidents or outages, security risks, and blockers.",
+  "Return original workplace messages, emails, issues, and threads with concrete task identity.",
+  "Exclude examples, homework, recruitment, marketing, newsletters, contract boilerplate, policies, uploaded documents, and attachment prose.",
+].join(" ");
+
+/** One bounded Fast query per verified connector; never a shared-database fanout. */
+export function queueConnectorRetrievalPlans<T extends QueueRetrievalConnector>(connectors: readonly T[]) {
+  return connectors.map((connector) => ({
+    connector,
+    query: QUEUE_RETRIEVAL_QUERY,
+    queryBy: "hybrid" as const,
+    mode: "fast" as const,
+    maxResults: QUEUE_RETRIEVAL_MAX_RESULTS,
+    metadataFilters: connectorLineageMetadataFilter(connector.hydradb_connector_id),
+    estimatedCostUnits: retrievalModeCost("fast"),
+  }));
+}
+
+export function queueRetrievalCostIntent(
+  plans: ReadonlyArray<{ estimatedCostUnits: number }>,
+) {
+  return {
+    callCount: plans.length,
+    estimatedCostUnits: plans.reduce((total, plan) => total + plan.estimatedCostUnits, 0),
+  };
+}
 
 type Evidence = {
   id: string;
@@ -938,55 +981,37 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
   ]));
 
   const client = await hydraClientForWorkspace(workspaceId);
-  const queueQueries = [
-    {
-      kind: "commitments",
-      text: "Find current company work with explicit promised actions, owned follow-ups, changed deadlines, due actions, or tracked work still open. Return original workplace messages, emails, issues, and threads with concrete task identity. Exclude examples, homework, recruitment, marketing, newsletters, contract boilerplate, policies, and attachment prose.",
-    },
-    {
-      kind: "risks",
-      text: "Find current unresolved company customer escalations, active incidents or outages, security risks, and blockers. Return original workplace messages, emails, issues, and threads with concrete task identity. Exclude examples, homework, recruitment, marketing, newsletters, contract boilerplate, policies, and attachment prose.",
-    },
-  ] as const;
   const diagnostics: Array<Record<string, unknown>> = [];
-  const scopes = [...connectors.results.reduce((map, connector) => {
-    const key = `${connector.database}\u0000${connector.collection ?? ""}`;
-    const current = map.get(key) ?? {
-      database: connector.database,
-      collection: connector.collection,
-      connectors: [] as VerifiedConnector[],
-    };
-    current.connectors.push(connector);
-    map.set(key, current);
-    return map;
-  }, new Map<string, { database: string; collection: string | null; connectors: VerifiedConnector[] }>()).values()];
-
-  const scopeResults: Evidence[][] = [];
-  // Bound expensive thinking-mode fanout to two concurrent calls per database scope.
-  // Workspaces with several scopes are processed serially instead of bursting 2 x N.
-  for (const scope of scopes) {
-    const currentScopeResults = await Promise.all(queueQueries.map(async (query) => {
+  const retrievalPlans = queueConnectorRetrievalPlans(connectors.results);
+  const retrievalCost = queueRetrievalCostIntent(retrievalPlans);
+  const scopeResults = await Promise.all(retrievalPlans.map(async (plan) => {
+      const connector = plan.connector;
       const scopeEvidence: Evidence[] = [];
       const started = Date.now();
       const response = await client.query({
-        database: scope.database,
-        ...(scope.collection ? { collections: [scope.collection] } : {}),
-        query: query.text,
+        database: connector.database,
+        ...(connector.collection ? { collections: [connector.collection] } : {}),
+        query: plan.query,
         type: "knowledge",
-        query_by: "hybrid",
-        mode: "thinking",
-        max_results: 20,
+        query_by: plan.queryBy,
+        mode: plan.mode,
+        max_results: plan.maxResults,
         query_apps: true,
-        graph_context: true,
-        query_forceful_relations: true,
+        graph_context: false,
+        query_forceful_relations: false,
         recency_bias: 0.3,
+        metadata_filters: plan.metadataFilters,
       });
       diagnostics.push({
-        connectorIds: scope.connectors.map((connector) => connector.id),
-        providers: scope.connectors.map((connector) => connector.provider),
-        database: scope.database,
-        collection: scope.collection,
-        queryKind: query.kind,
+        purpose: "queue",
+        connectorIds: [connector.id],
+        providers: [connector.provider],
+        database: connector.database,
+        collection: connector.collection,
+        mode: plan.mode,
+        queryBy: plan.queryBy,
+        maxResults: plan.maxResults,
+        estimatedCostUnits: plan.estimatedCostUnits,
         ok: response.ok,
         status: response.status,
         requestId: response.requestId,
@@ -999,33 +1024,44 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
         const sourceChunks = matchingChunks(source, extracted.chunks);
         const sourceProvider = providerFromSource(source);
         const sourceId = String(source.id ?? source.source_id ?? source.context_id ?? "");
-        const ownedDocument = ownedDocumentByScope.get(`${scope.database}\u0000${sourceId}`);
-        const connector = ownedDocument
+        const ownedDocument = ownedDocumentByScope.get(`${connector.database}\u0000${sourceId}`);
+        const strictConnectorOwned = sourceBelongsToConnector(
+          source,
+          connector.hydradb_connector_id,
+          resourceIdsByConnector.get(connector.id) ?? new Set<string>(),
+        );
+        const scopedConnectorOwned = strictConnectorOwned || sourceAttestedByScopedConnectorQuery({
+          source,
+          connectorId: connector.hydradb_connector_id,
+          connectorProvider: connector.provider,
+          scopeConnectorCount: 1,
+          purpose: "queue",
+          lineageMetadataFilters: plan.metadataFilters,
+          responseOk: response.ok,
+          responseStatus: response.status,
+          requestId: response.requestId,
+        });
+        const evidenceConnector: VerifiedConnector | undefined = ownedDocument
           ? {
-            ...scope.connectors[0]!,
+            ...connector,
             id: `document:${ownedDocument.id}`,
             hydradb_connector_id: `document:${ownedDocument.hydradb_source_id}`,
             provider: "document",
             account_scope: null,
           }
-          : scope.connectors.find((item) => sourceBelongsToConnector(
-            source,
-            item.hydradb_connector_id,
-            resourceIdsByConnector.get(item.id) ?? new Set<string>(),
-        ));
+          : scopedConnectorOwned ? connector : undefined;
         // Exact ledger membership owns uploads. File-shaped connector records still
         // follow connector lineage and are not silently discarded as pseudo-uploads.
-        if (!connector || (!ownedDocument && sourceProvider !== null && connector.provider !== sourceProvider)) return;
+        if (!evidenceConnector ||
+            (!ownedDocument && sourceProvider !== null && evidenceConnector.provider !== sourceProvider)) return;
         const chunks = sourceChunks.length ? sourceChunks : [{}];
         chunks.forEach((chunk) => {
-          const evidence = evidenceFromHydra(connector, source, chunk);
+          const evidence = evidenceFromHydra(evidenceConnector, source, chunk);
           if (evidence.excerpt || evidence.title) scopeEvidence.push(evidence);
         });
       });
       return scopeEvidence;
     }));
-    scopeResults.push(...currentScopeResults);
-  }
   const retrieved = scopeResults.flat();
 
   const safeEvidence = retrieved
@@ -1048,6 +1084,7 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
       metadata: {
         reason: "no_actionable_workplace_evidence",
         actionableSourceCount: safeEvidence.length,
+        retrieval: retrievalCost,
         diagnostics,
       },
     });
@@ -1256,6 +1293,7 @@ export async function generateQueueForWorkspace(workspaceId: string, actorId: st
           sourceCount: safeEvidence.length,
           originatingSourceCount: workplaceEvidence.length,
           corroboratingDocumentCount: safeEvidence.length - workplaceEvidence.length,
+          retrieval: retrievalCost,
           diagnostics,
         },
   });

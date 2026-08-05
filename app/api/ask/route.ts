@@ -358,6 +358,7 @@ export async function POST(request: Request) {
               connectorId: scopedConnector.hydradbConnectorId,
               connectorProvider: scopedConnector.provider,
               scopeConnectorCount: scope.connectors.length,
+              purpose: "coverage_repair",
               phase,
               lineageMetadataFilters: scope.lineageMetadataFilters,
               callerMetadataFilters: payload.metadataFilters,

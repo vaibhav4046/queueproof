@@ -163,8 +163,8 @@ body { min-width: 320px; overflow-x: hidden; color: var(--paper); background: va
 .app-sidebar .header-status.sidebar-bottom {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: 7px;
+  grid-template-columns: minmax(78px, 1fr) auto auto;
+  gap: 5px;
   padding-top: 13px;
   border-top: 1px solid var(--hairline);
 }
@@ -188,25 +188,27 @@ body { min-width: 320px; overflow-x: hidden; color: var(--paper); background: va
   display: flex;
   justify-content: flex-start;
   border: 0;
-  padding: 0 10px;
+  gap: 6px;
+  padding: 0 7px;
   color: var(--paper-secondary);
   background: transparent;
+  white-space: nowrap;
 }
 .app-sidebar .header-utility,
 .app-sidebar .utility-menu > summary {
-  min-width: 64px;
+  min-width: 60px;
   min-height: 42px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
   border-color: var(--hairline);
-  padding: 0 9px;
+  padding: 0 7px;
   color: var(--paper-secondary);
   background: rgba(255,255,255,.025);
   font-size: 11px;
 }
-.app-sidebar .header-utility { min-width: 68px; text-decoration: none; }
+.app-sidebar .header-utility { min-width: 62px; text-decoration: none; }
 .app-sidebar .utility-menu { position: static; }
 .app-sidebar .nav-popover { inset: auto 14px 14px; width: calc(100% - 28px); }
 .mobile-header { display: none; }
@@ -493,6 +495,17 @@ body { min-width: 320px; overflow-x: hidden; color: var(--paper); background: va
   background: var(--panel);
   box-shadow: -30px 0 100px rgba(0,0,0,.44);
   animation: sheet-in 260ms cubic-bezier(.2,.8,.2,1) both;
+}
+.source-proof-sheet .modal-close {
+  border-color: var(--hairline-strong);
+  color: var(--ember-bright);
+  background: var(--raised);
+  box-shadow: inset 0 1px rgba(255,255,255,.035);
+}
+.source-proof-sheet .modal-close:hover {
+  border-color: var(--ember-bright);
+  color: var(--paper);
+  background: rgba(255,106,0,.13);
 }
 .proof-provider { width: 44px; height: 44px; display: grid; place-items: center; margin-bottom: 22px; border: 1px solid rgba(255,106,0,.2); border-radius: 13px; }
 .source-proof-sheet h2 { margin: 7px 44px 24px 0; font: 640 34px/1.1 var(--sans); letter-spacing: -.04em; }
@@ -841,9 +854,10 @@ body { min-width: 320px; overflow-x: hidden; color: var(--paper); background: va
   .source-summary > small { grid-column: 1 / -1; margin: 0 2px; }
   .connector-row { min-height: 84px; display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 7px 10px; padding: 11px 12px; }
   .connector-identity { grid-column: 2; }
-  .connector-state { width: auto; grid-column: 2; }
-  .connector-row > button { min-width: 44px; grid-column: 3; grid-row: 1 / 3; padding-inline: 12px; }
-  .connector-row > a.secondary-button { width: auto; min-width: 0; grid-column: 2 / 4; padding-inline: 12px; }
+  .connector-state { width: auto; grid-column: 2 / 4; grid-row: 2; }
+  .connector-state small { overflow: visible; white-space: normal; text-overflow: clip; overflow-wrap: anywhere; }
+  .connector-row > button { min-width: 44px; grid-column: 3; grid-row: 1; padding-inline: 12px; }
+  .connector-row > a.secondary-button { width: auto; min-width: 0; grid-column: 2 / 4; grid-row: 3; padding-inline: 12px; }
   .integration-promise { grid-template-columns: 1fr; gap: 12px; }
   .integration-promise > svg { display: none; }
   .agent-grid,

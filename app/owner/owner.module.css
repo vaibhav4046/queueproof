@@ -80,7 +80,13 @@
   border-color: rgba(255, 106, 0, .72);
   box-shadow: 0 0 0 3px rgba(255, 106, 0, .13);
 }
+.form input::placeholder { color: #7f746d; }
 .form p { margin: -3px 0 5px; font-size: 12px; }
+.form code {
+  color: #ffb579;
+  font-family: var(--font-geist-mono), "Geist Mono", monospace;
+  font-size: .94em;
+}
 
 .primary,
 .secondary {

@@ -109,7 +109,7 @@ export async function GET() {
           : {
               status: "awaiting_current_release_measurement",
               storage: "none",
-              note: "No strict artifact is bound to the running commit. Historical bundled rows are excluded from current-release metrics.",
+              note: "No benchmark results have been recorded for this deployed release. Run the published command to measure it.",
               target: bundledLive.target,
               generatedAt: null,
               cases: 0,
@@ -125,7 +125,7 @@ export async function GET() {
           : {
               status: "awaiting_current_release_measurement",
               storage: "none",
-              note: "No large-document artifact is bound to the running commit. Historical metrics are withheld.",
+              note: "No large-document benchmark has been recorded for this deployed release. Run the published PDF benchmark command to measure it.",
               target: bundledPdf.target,
               generatedAt: null,
               document: bundledPdf.document,

@@ -1,83 +1,71 @@
 # QueueProof submission copy
 
 > [!IMPORTANT]
-> Draft for the final evidence build. The measured production runtime is commit
-> `aed027879150e3e324b54c5ec2194d4d715c501e` on `main`. The forthcoming package is the
-> current main evidence build; verify its exact deployed identity through `/api/health/live`
-> and `RELEASE_EVIDENCE.md`. The measurements below describe the measured runtime, not the
-> evidence build, unless that build is deployed and the measurements are repeated. The
-> repository is still private and the video URL is still pending.
+> This copy is release-relative. Immediately before submission, verify the running SHA with
+> `/api/health/live` and copy measurements only from the matching `/api/lab` or **Proof tests**
+> response. Repository publication and the video URL are still **PENDING**.
 
 ## Ask your work. Get the proof.
 
-QueueProof turns work scattered across GitHub, Linear, Slack, Gmail, and documents into one
-cited answer and one evidence-backed Task brief. It preserves disagreements instead of
-averaging them away, shows exactly which sources support each claim, and keeps every external
-change behind human approval.
+QueueProof is a daily evidence workspace for work scattered across GitHub, Linear, Slack,
+Gmail, and documents. Ask one plain-language question and get a concise answer whose claims
+open to retained source receipts. QueueProof preserves conflicting source states, makes missing
+evidence explicit, and turns the result into a reviewable next-action brief.
 
-HydraDB is the evidence layer. QueueProof verifies connectors with attributable canary
-records, retrieves exact identifiers through text and hybrid lanes, merges evidence without
-collapsing unrelated entities, and records mode, provider coverage, calls, latency, relative
-cost, and citations with the answer.
+HydraDB is the cross-source evidence layer. QueueProof verifies connectors with attributable
+records, retrieves exact identifiers through lexical and hybrid lanes, merges evidence without
+collapsing unrelated entities, and records the selected mode, provider coverage, calls,
+latency, weighted query units, and citations with every answer.
 
-The same evidence contract is available in the web product and through MCP. In the UI the
-modes are **Quick**, **Best**, and **Investigate**; their measured counterparts are forced
-Fast, Auto, and Thinking/Deep check.
+The same read contract is exposed through MCP so an AI client can use the product as part of a
+daily workflow. Credentials, connector control, document upload, proposal history, approvals,
+token administration, and external execution remain owner-only. Writes require explicit
+approval and count as executed only after a provider response ID is stored.
 
 **Live product:** <https://queueproof.vercel.app>
 
-**Method and boundaries:** <https://queueproof.vercel.app/method>
+**Method:** <https://queueproof.vercel.app/method>
 
 **Proof tests:** <https://queueproof.vercel.app/benchmarks>
 
-**Repository:** <https://github.com/vaibhav4046/queueproof> — private until the publication
-gate is completed.
+**Repository:** <https://github.com/vaibhav4046/queueproof> — **PUBLICATION PENDING**
 
-**Video:** pending final recording and upload.
+**Video:** **PENDING**
 
-## Measured production evidence
+## What judges can verify in two minutes
 
-All results in this section were generated against runtime
-`aed027879150e3e324b54c5ec2194d4d715c501e` on `main`.
+1. Run the AuthShield question from the Ask page.
+2. Open a numbered claim receipt and follow its original-source link.
+3. Inspect ready and degraded connector receipts under **Sources**.
+4. Inspect the current-release Fast/Thinking comparison and visible `REVIEW` rows under
+   **Proof tests**.
+5. Inspect the 346-page document checksum, HydraDB source ID, and same-release PDF benchmark.
+6. Open **Connect AI** to inspect the MCP resource and approval boundary.
 
-| Run | Strict cases | Required facts | p50 / p95 | HydraDB calls / units | Result boundary |
-| --- | ---: | ---: | ---: | ---: | --- |
-| Best / Auto | 4/6 | 19/19 | 2,155 / 2,392 ms | 7 / 7 | All six queries resolved as Fast |
-| Quick / forced Fast | 4/6 | 19/19 | 1,833 / 2,446 ms | 7 / 7 | Two provider-requirement rows remain REVIEW |
-| Investigate / forced Thinking | 2/6 | 13/19 | 26,329 / 40,003 ms | 10 / 30 | One timeout; this run did not match Fast coverage |
+## Release evidence block — fill from the deployed product
 
-The six-question benchmark is a diagnostic, not an SLA. A correct fact does not convert a
-provider-coverage failure into a pass. REVIEW rows remain visible.
+Do not prefill or memorize this block. Paste exact values only after the two SHAs match and the
+relevant results report `measured`.
 
-The deterministic 346-page PDF evaluation passed **21/22** core cases and recovered
-**55/56** fact groups. It measured p50 **1,823 ms** and p95 **2,382 ms**, used **31 calls / 31
-relative units**, and routed all 22 core questions through Fast. Beginning, middle, and end
-canaries passed; **84/84 claims** were supported by **69 citations**.
+```text
+Running release: <health.release.commitSha> on <health.release.commitRef>
+Fast: <passed>/<cases> strict cases; <fact accuracy>; <p50>/<p95> ms; <calls>; <units>
+Thinking: <passed>/<cases> strict cases; <fact accuracy>; <p50>/<p95> ms; <calls>; <units>
+Mode comparison: comparable=<true|false>; <visible delta summary or "not comparable">
+Large PDF: <passed>/<cases>; <fact recall>; <canary result>; <p50>/<p95> ms; <calls>/<units>
+```
 
-The separate cross-source extension remains **REVIEW**. It found both required facts and
-cited the document plus GitHub, but missed the rubric's additional non-document provider. It
-measured **29,676 ms** and used **6 calls / 18 relative units**. It is not part of the 21/22
-core denominator.
-
-The checked-in deterministic router artifact records 39/39 labelled cases and 331
-fixture-computable assertions. That measures planner and ranking behavior only; it is not a
-live retrieval-accuracy claim.
-
-## Product and safety boundary
-
-The public URL is a shared, read-only evidence workspace. Visitors can ask questions, inspect
-receipts, review Task briefs, and prepare proposals. Credential changes, connector control,
-uploads, MCP token administration, approval, and external execution require a private owner.
-An action counts as executed only after a provider response identifier is persisted.
-
-Relative retrieval units are reported because no verified HydraDB dollar conversion is
-available. No USD cost is invented.
+The live sample is a release diagnostic, not an SLA. `REVIEW` is a failed strict requirement,
+even when some facts were recovered. Weighted query units compare retrieval work and are not
+USD.
 
 ## Final publication gates
 
-- Record the committed current main evidence-build SHA in `RELEASE_EVIDENCE.md`.
-- Complete the submitted-commit gates in [`RELEASE_EVIDENCE.md`](../RELEASE_EVIDENCE.md).
-- Make the repository public and verify it from a signed-out browser.
-- Add the public video URL.
-- If the evidence build changes runtime behavior, deploy it and repeat every quoted
-  production measurement before calling those metrics submitted-release evidence.
+- All required CI and build checks pass for the submitted commit.
+- `/api/health/live` names the submitted production SHA.
+- `/api/lab` contains measured same-SHA live and PDF artifacts.
+- Fast/Thinking claims are made only when `modeComparison.comparable` is `true`.
+- At least three providers are ready with attributable records.
+- Complete an authenticated MCP client smoke test before naming that client in the demo.
+- Make the repository public and verify it in a signed-out browser.
+- Upload the 60-second video publicly and replace **PENDING** with its URL.

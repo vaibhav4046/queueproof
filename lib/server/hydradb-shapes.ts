@@ -123,22 +123,24 @@ export function connectorLineageMetadataFilter(connectorId: string): Record<stri
  * source even though the query was pre-filtered by the system `connector_id`
  * tenant metadata. Provider equality alone remains insufficient. The omission is
  * accepted only when the full request receipt proves this was one successful,
- * single-connector follow-up with the exact connector filter and the caller did
- * not request a conflicting connector/provider boundary.
+ * single-connector coverage repair or queue query with the exact connector
+ * filter and the caller did not request a conflicting connector/provider boundary.
  */
 export function sourceAttestedByScopedConnectorQuery(input: {
   source: Record<string, unknown>;
   connectorId: string;
   connectorProvider: string;
   scopeConnectorCount: number;
-  phase: "primary" | "follow_up";
+  purpose: "coverage_repair" | "queue";
+  phase?: "primary" | "follow_up";
   lineageMetadataFilters?: Record<string, unknown>;
   callerMetadataFilters?: Record<string, unknown>;
   responseOk: boolean;
   responseStatus: number;
   requestId: string | null;
 }): boolean {
-  if (input.phase !== "follow_up" || input.scopeConnectorCount !== 1) return false;
+  if (input.purpose === "coverage_repair" && input.phase !== "follow_up") return false;
+  if (input.scopeConnectorCount !== 1) return false;
   if (!input.responseOk || input.responseStatus < 200 || input.responseStatus >= 300) return false;
   if (!input.requestId?.trim()) return false;
   if (input.lineageMetadataFilters?.connector_id !== input.connectorId) return false;

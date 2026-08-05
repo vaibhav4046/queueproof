@@ -2,66 +2,58 @@
 
 ## Judge scorecard
 
-| Criterion | Runtime-A evidence | Fast demo check |
+| Criterion | Evidence in the product | Fast judge check |
 | --- | --- | --- |
-| Correctness and grounding | Auto and forced Fast recovered **19/19 required facts**; every strict miss remains a REVIEW instead of being rounded into a pass | Run the flagship question and open one numbered receipt |
-| Cross-source reasoning | Four declared connectors; the flagship answer joins attributable GitHub, Linear, and Slack evidence and preserves disagreement | Point to provider coverage and the conflicting tracked state |
-| Difficult retrieval | Identity matching, temporal ordering, actor attribution, exact IDs, changed state, contradiction handling, and large-document retrieval are frozen in the graders | Inspect the question, route reason, and missing-evidence state |
-| Large-document ingestion | SHA-bound 346-page PDF: **21/22 cases, 55/56 facts, 84/84 claims supported, 69 citations**; beginning/middle/end canaries pass | Open the PDF result under **Proof tests** |
-| Latency and cost | Auto: **2,155/2,392 ms p50/p95, 7 calls/7 units**. Fast: **1,833/2,446 ms, 7/7**. Thinking: **26,329/40,003 ms, 10/30, one timeout** | Compare modes without hiding the failed Thinking run |
-| Reproducibility | Runtime SHA/ref embedded in every live artifact; router **39/39 cases, 331 assertions**; PDF fixture has 22 questions and 56 fact groups | Match the UI figures to `RELEASE_EVIDENCE.md` and JSON receipts |
-| Security and trust | Security suite **14 tests**; evidence-first answers, explicit missing information, and approval-gated writes | Show the receipt and approval boundary |
-| Developer experience and MCP | MCP suite **12 tests**; **Connect AI** exposes the bounded client configuration | Open **Connect AI** and show Codex/Claude setup |
-| Engineering quality | Typecheck, lint, **39 files/364 tests**, two production build paths, built-app E2E, deploy bindings, and production identity all passed | Show the SHA-bound release receipt |
+| Correctness and grounding | Claim-level citations resolve to retained receipts; missing requirements remain `REVIEW` | Run the flagship question and open one numbered receipt |
+| Cross-source reasoning | The flagship answer joins GitHub, Linear, and Slack evidence while preserving conflicting states | Inspect provider coverage and the cited disagreement |
+| Difficult retrieval | Frozen cases cover exact IDs, actors, time, changed state, contradictions, multilingual context, and multi-hop joins | Inspect a row's requirements and grounded result |
+| Large-document ingestion | A 346-page document retains checksum, page count, HydraDB source ID, canaries, and a strict labelled suite | Open the PDF result under **Proof tests** |
+| Latency and cost | Same-release artifacts retain latency, HydraDB calls, and weighted units per mode | Read exact current values from **Proof tests** |
+| Reproducibility | Health identifies the running SHA; `/api/lab` publishes only matching release artifacts | Match the SHA in both endpoints |
+| Security and trust | Public reads expose evidence; credentials, proposals, approvals, tokens, and writes are owner-only | Open a receipt, then inspect the approval boundary |
+| Developer experience and MCP | **Connect AI** exposes MCP resource metadata and client configuration | Inspect the endpoint and auth instructions |
+| Engineering quality | CI runs typecheck, lint, tests, router benchmark, build, and deployment checks | Open the submitted commit's CI receipt |
 
 ## Hackathon requirement compliance
 
-| Requirement | Status | Evidence |
+| Requirement | Status | Acceptance evidence |
 | --- | --- | --- |
-| At least three working connectors | **PASS** | GitHub, Gmail, Linear, and Slack are identified in runtime-A receipts; the flagship uses three providers |
-| Large-document ingestion | **PASS** | 346 pages, document SHA-256 and source ID, 22 questions, 56 fact groups, and page-range canaries |
-| Difficult cross-source questions | **PASS** | Flagship GitHub + Linear + Slack investigation with preserved disagreement |
-| Expected versus actual answers | **PASS** | Machine-readable rows retain expected facts, observed facts, strict status, citations, mode, calls, and latency |
-| Fast versus Thinking evaluation | **PASS, WITH FAILURE VISIBLE** | Auto/Fast recovered 19/19 facts; forced Thinking recovered 13/19 and timed out once |
-| Accuracy, latency, calls, mode, cost | **PASS** | All fields are retained in SHA-bound JSON artifacts |
-| Reproducible release | **PASS FOR RUNTIME A** | Exact SHA/ref, immutable deployment, release gate, and commands are recorded |
-| Public repository access | **PENDING** | Repository is currently **PRIVATE** |
-| 60-second public video | **PENDING** | Record from the final public build, then add the URL |
+| At least three working connectors | **VERIFY LIVE** | At least three Sources cards are ready with attributable records; degraded entries do not count |
+| Large-document ingestion | **IMPLEMENTED; VERIFY CURRENT RESULT** | 346-page document provenance plus a measured same-release PDF artifact |
+| Difficult cross-source questions | **IMPLEMENTED** | Flagship GitHub + Linear + Slack investigation with cited disagreement |
+| Expected versus actual answers | **IMPLEMENTED** | Machine-readable rows retain requirements, observed facts, status, citations, mode, calls, and latency |
+| Fast versus Thinking evaluation | **VERIFY COMPARABLE** | `/api/lab.results.modeComparison.comparable` is `true` for the submitted release |
+| Accuracy, latency, calls, mode, cost | **IMPLEMENTED** | Same-release measured artifacts expose each field; units are not dollars |
+| Reproducible release | **VERIFY SHA** | `/api/health/live` and `/api/lab` identify the same production commit |
+| Public repository access | **PENDING** | Signed-out browser must open the repository |
+| 60-second public video | **PENDING** | Upload the final current-release recording and add its URL |
 
-## Release evidence
+## Release evidence rule
 
-- Measured runtime A: `aed027879150e3e324b54c5ec2194d4d715c501e` on `main`.
-- Immutable deployment:
-  <https://queueproof-7hvdge426-vaibhav4046s-projects.vercel.app>.
-- Canonical URL: <https://queueproof.vercel.app>.
-- Evidence build B is the current `main` commit containing this receipt; verify its exact
-  deployed SHA via `/api/health/live`. Unless B is deployed and rerun, the measurements
-  continue to describe runtime A.
-- Canonical receipt: [`RELEASE_EVIDENCE.md`](../RELEASE_EVIDENCE.md).
+The only current release identity is the value returned by
+[`/api/health/live`](https://queueproof.vercel.app/api/health/live). The only submission-safe
+live and large-PDF values are results returned by
+[`/api/lab`](https://queueproof.vercel.app/api/lab) for that same SHA.
 
-The exact runtime-A gate passed typecheck, lint, 39 files / 364 tests, 14 security tests,
-12 MCP tests, 39/39 router cases with 331 assertions, Vinext and Next/Webpack production
-builds, built-app E2E, deployment bindings, and production SHA/ref verification.
+If an artifact is older, missing, empty, incompatible, or says
+`awaiting_current_release_measurement`, no number may be copied from it. The recorder reads the
+values visibly shown in [Proof tests](https://queueproof.vercel.app/benchmarks).
 
 ## Differentiator
 
 Search products return snippets. QueueProof turns fragmented work into an inspectable decision:
 
-`connected evidence -> supported claims -> preserved conflict -> next safe action -> approval`
+`connected evidence → supported claims → preserved conflict → next safe action → approval`
 
-The receipt is the product contract. It shows what supports the answer, what remains unknown,
-which mode ran, what it cost in relative query units, and what permission is required before a
-write.
+The receipt is the product contract: what supports the answer, what remains unknown, which mode
+ran, what it cost in relative query work, and what permission is required before a write.
 
 ## Honest limits judges can verify
 
-- Auto and forced Fast passed 4/6 strict cases despite recovering 19/19 facts; strict provider
-  and contradiction misses remain REVIEW.
-- Forced Thinking passed 2/6, recovered 13/19 facts, and timed out once. This sample does not
-  support a claim that Thinking improved quality.
-- The PDF core passed 21/22 and 55/56. Its separate cross-source extension found 2/2 facts but
-  failed the required provider threshold.
-- The six-question runs are release diagnostics, not an SLA.
-- Weighted units compare relative query cost and are not dollars.
-- The repository is **PRIVATE** and the video is **PENDING** until those submission steps are
-  completed.
+- A `REVIEW` row is a failed strict case, not a partial pass.
+- Fast and Thinking are compared only on the same cases and same deployed release.
+- Live samples are release diagnostics, not an SLA.
+- Weighted units are not USD.
+- Historical artifacts are provenance only and cannot populate current-release claims.
+- A named MCP client is described as working only after an authenticated smoke test.
+- Repository and video publication remain **PENDING**.

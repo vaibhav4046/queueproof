@@ -1,35 +1,37 @@
 # QueueProof social posts
 
 > [!IMPORTANT]
-> Drafts for the current main evidence build, whose exact deployed identity must be verified
-> through `/api/health/live`. The quoted measurements belong to production runtime
-> `aed027879150e3e324b54c5ec2194d4d715c501e` on `main`. Publish only after the repository
-> is public, signed-out access is verified, the final video is live, and
-> [`RELEASE_EVIDENCE.md`](../RELEASE_EVIDENCE.md) records the evidence-build gates.
+> Publish only after the repository opens in a signed-out browser, the video is public, and
+> `/api/health/live` matches the current-release results in `/api/lab`. Replace bracketed fields
+> with values visible in **Proof tests**; delete any metric whose artifact is not measured.
 
 ## LinkedIn
 
 **Ask your work. Get the proof.**
 
-QueueProof uses HydraDB to turn fragmented work across GitHub, Linear, Slack, Gmail, and
-documents into one cited answer and one evidence-backed Task brief.
+QueueProof turns work scattered across GitHub, Linear, Slack, Gmail, and documents into one
+cited answer and an evidence-backed next-action brief.
 
-Every supported claim opens to a source receipt. Disagreements stay visible. Every proposed
-external change remains behind human approval. The same evidence contract is available in
-the web product and through MCP.
+Every supported claim opens to a source receipt. Conflicting source states stay visible.
+Credentials, proposals, approvals, and external changes stay behind the owner boundary. The
+same read contract is available through MCP for daily AI workflows.
 
-Measured on production runtime `aed02787`:
+On the release running at `[SHORT_SHA]`:
 
-- Best/Auto: 4/6 strict cases, 19/19 facts, 2.155 s p50, 7 calls.
-- Quick/Fast: 4/6 strict cases, 19/19 facts, 1.833 s p50, 7 calls.
-- Investigate/Thinking: 2/6 strict cases, 13/19 facts, 26.329 s p50, 10 calls, with one timeout.
-- 346-page PDF core: 21/22 cases, 55/56 facts, 84/84 supported claims, 69 citations, and all
-  beginning/middle/end canaries passed.
+- Fast: `[PASSES/CASES]` strict cases, `[FACT_ACCURACY]` fact accuracy, `[P50] ms` median,
+  `[CALLS]` calls, `[UNITS]` weighted units.
+- Thinking: `[PASSES/CASES]` strict cases, `[FACT_ACCURACY]` fact accuracy, `[P50] ms` median,
+  `[CALLS]` calls, `[UNITS]` weighted units.
+- 346-page PDF: `[PASSES/CASES]`, `[FACT_RECALL]`, `[CANARY_RESULT]`.
 
-The failed rows stay REVIEW. The separate PDF cross-source extension found both facts and
-the document plus GitHub, but missed one additional non-document provider.
+Those modes are listed together only because the deployed comparison says they are comparable.
+Strict failures remain `REVIEW`; weighted units are not dollars.
 
-<https://queueproof.vercel.app>
+Product: <https://queueproof.vercel.app>
+
+Demo: `[PUBLIC_VIDEO_URL]`
+
+Source: <https://github.com/vaibhav4046/queueproof>
 
 #HydraDB #AIAgents #RAG #DeveloperTools #AISafety
 
@@ -37,25 +39,26 @@ the document plus GitHub, but missed one additional non-document provider.
 
 Ask your work. Get the proof.
 
-QueueProof turns HydraDB evidence into a cited answer + Task brief, preserves conflicts, and
-keeps writes behind human approval.
+QueueProof turns evidence across work tools + documents into a cited answer and a reviewable
+next action. Conflicts stay visible. Writes stay approval-gated. The same read contract works
+through MCP.
 
-Measured runtime `aed02787`: Quick 4/6 + 19/19 facts at 1.833 s p50. 346-page PDF: 21/22,
-55/56 facts, 84/84 supported claims. REVIEW stays visible.
+Release `[SHORT_SHA]`: Fast `[PASSES/CASES]` at `[P50] ms` p50. 346-page PDF
+`[PASSES/CASES]`. `REVIEW` stays visible.
 
 <https://queueproof.vercel.app>
 
+Demo: `[PUBLIC_VIDEO_URL]`
+
 ## Demo/video caption
 
-One real question across work systems. Every supported claim opens to a receipt. QueueProof
-then turns the same evidence into a Task brief, while every external change waits for human
-approval.
+One live question across work systems. Every supported claim opens to a receipt. QueueProof
+keeps disagreements visible, records retrieval cost and latency, and turns the same evidence
+into a safe next-action brief.
 
 Ask your work. Get the proof.
 
 ## Accuracy note
 
-The production measurements above describe runtime `aed02787`, not the forthcoming evidence
-build unless the latter is deployed and rerun. The six-query sample is not an SLA. Relative
-units are not dollars. The PDF core is 21/22 and 55/56; the separate cross-source extension
-remains REVIEW.
+The reported values describe only the SHA named by the deployed health endpoint. The live
+sample is not an SLA. `REVIEW` is a failed strict requirement, and relative units are not USD.

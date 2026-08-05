@@ -118,12 +118,18 @@ export default function OwnerSignIn() {
               type="password"
               value={accessToken}
               onChange={(event) => setAccessToken(event.target.value)}
+              placeholder="Paste QUEUEPROOF_ACCESS_TOKEN"
+              aria-describedby="owner-token-help"
               minLength={16}
               required
               autoComplete="current-password"
               spellCheck={false}
             />
-            <p>Your token is exchanged for a secure 12-hour browser session and is never stored in page JavaScript.</p>
+            <p id="owner-token-help">
+              Find <code>QUEUEPROOF_ACCESS_TOKEN</code> in your hosting project&apos;s
+              Environment Variables. To rotate it, replace the value, redeploy, and use
+              the new key here. It creates a secure 12-hour browser session.
+            </p>
             <button className={styles.primary} type="submit" disabled={busy || accessToken.length < 16}>
               {busy ? "Verifying…" : "Continue as owner"}
             </button>

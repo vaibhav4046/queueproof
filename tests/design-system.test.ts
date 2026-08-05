@@ -7,6 +7,8 @@ describe("production design system", () => {
   const ember = readFileSync(join(process.cwd(), "app/ember-assistant.css"), "utf8");
   const css = `${readFileSync(join(process.cwd(), "app/command-centre.css"), "utf8")}\n${ember}`;
   const logo = readFileSync(join(process.cwd(), "app/components/QueueProofLogo.tsx"), "utf8");
+  const owner = readFileSync(join(process.cwd(), "app/owner/OwnerSignIn.tsx"), "utf8");
+  const labRoute = readFileSync(join(process.cwd(), "app/api/lab/route.ts"), "utf8");
 
   it("ships the explicit Ember Assistant marker and black-orange tokens", () => {
     expect(app).toContain('data-design-system="ember-assistant-v1"');
@@ -67,5 +69,27 @@ describe("production design system", () => {
     expect(ember).toContain("font-size: 11px !important");
     expect(ember).toMatch(/\.connector-state small \{[^}]*font-size:\s*11px/);
     expect(ember).toMatch(/\.source-readonly \{[^}]*font-size:\s*12px/);
+  });
+
+  it("keeps owner access self-explanatory without exposing a secret", () => {
+    expect(owner).toContain('placeholder="Paste QUEUEPROOF_ACCESS_TOKEN"');
+    expect(owner).toContain('aria-describedby="owner-token-help"');
+    expect(owner).toContain("Environment Variables");
+    expect(owner).toContain("replace the value, redeploy");
+  });
+
+  it("keeps mobile source proof readable and on the ember palette", () => {
+    expect(ember).toMatch(/\.connector-state small \{[^}]*white-space:\s*normal/);
+    expect(ember).toMatch(/\.source-proof-sheet \.modal-close \{[^}]*color:\s*var\(--ember-bright\)/);
+    expect(ember).toMatch(/\.app-sidebar \.demo-badge \{[^}]*white-space:\s*nowrap/);
+  });
+
+  it("uses plain language when current benchmark results are missing", () => {
+    expect(app).toContain('"No current results"');
+    expect(app).toContain('"Run the live benchmark"');
+    expect(labRoute).toContain("No benchmark results have been recorded for this deployed release");
+    for (const jargon of ["artifact unbound", "strict artifact", "running commit", "Historical bundled rows", "unmeasured build"]) {
+      expect(`${app}\n${labRoute}`).not.toContain(jargon);
+    }
   });
 });

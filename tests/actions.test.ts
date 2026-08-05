@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   ProviderError,
   buildIssuePayload,
@@ -160,6 +160,8 @@ describe("execution is claimed at most once", () => {
 });
 
 describe("action routes", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
   it("reject unauthenticated callers", async () => {
     const { GET, POST } = await import("../app/api/actions/route");
     expect((await GET()).status).toBe(401);
@@ -174,5 +176,38 @@ describe("action routes", () => {
         )
       ).status,
     ).toBe(401);
+  });
+
+  it("rejects public proposal-history reads without exposing stored payloads", async () => {
+    await ensureCoreSchema();
+    const workspaceId = createId("ws_public_action_guard");
+    const proposalId = createId("action_public_guard");
+    const privateMarker = "PRIVATE-ACTION-PAYLOAD-MUST-NOT-LEAK";
+    const db = requireDb();
+    await db.batch([
+      db.prepare("INSERT INTO workspaces (id, slug, name) VALUES (?, ?, ?)")
+        .bind(workspaceId, `public-action-${workspaceId.slice(-8)}`, "Public action guard"),
+      db.prepare(
+        `INSERT INTO action_proposals
+         (id, workspace_id, provider, action_type, payload_json, evidence_ids_json,
+          risk_class, idempotency_key, status)
+         VALUES (?, ?, 'linear', 'create_issue', ?, '["source-private"]', 'high', ?, 'proposed')`,
+      ).bind(proposalId, workspaceId, JSON.stringify({ title: privateMarker }), `key_${proposalId}`),
+    ]);
+
+    vi.stubEnv("QUEUEPROOF_ENCRYPTION_KEY", "");
+    vi.stubEnv("QUEUEPROOF_TRUSTED_IDENTITY_PROXY", "");
+    vi.stubEnv("QUEUEPROOF_ALLOW_LOCAL_IDENTITY", "false");
+    vi.stubEnv("QUEUEPROOF_PUBLIC_ACCESS", "true");
+    vi.stubEnv("QUEUEPROOF_PUBLIC_WORKSPACE_ID", workspaceId);
+
+    const { GET } = await import("../app/api/actions/route");
+    const response = await GET();
+    const body = await response.text();
+
+    expect(response.status).toBe(403);
+    expect(body).toMatch(/disabled in the public sandbox/i);
+    expect(body).not.toContain(privateMarker);
+    expect(body).not.toContain(proposalId);
   });
 });

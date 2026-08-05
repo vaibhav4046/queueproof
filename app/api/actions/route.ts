@@ -1,7 +1,7 @@
 import { apiError, noStoreJson, readJson } from "../../../lib/server/api";
 import { requirePrivateControlActor, requireRequestActor } from "../../../lib/server/identity";
 import { requireDb } from "../../../lib/server/runtime";
-import { audit, createId, ensureCoreSchema, requireOwnerWorkspaceForUser, requireWorkspaceForUser } from "../../../lib/server/store";
+import { audit, createId, ensureCoreSchema, requireOwnerWorkspaceForUser } from "../../../lib/server/store";
 import {
   buildIssuePayload,
   idempotencyKeyFor,
@@ -18,8 +18,9 @@ const MAX_EVIDENCE_IDS = 50;
 export async function GET() {
   try {
     const actor = await requireRequestActor();
+    requirePrivateControlActor(actor, "Action proposal history");
     await ensureCoreSchema();
-    const workspace = await requireWorkspaceForUser(actor.id);
+    const workspace = await requireOwnerWorkspaceForUser(actor.id);
     const rows = await requireDb()
       .prepare(
         `SELECT ap.id, ap.provider, ap.action_type AS actionType, ap.payload_json AS payloadJson,

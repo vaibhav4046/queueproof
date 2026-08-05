@@ -9,7 +9,9 @@ export async function GET(request: Request) {
       ...(issuer ? { authorization_servers: [issuer] } : {}),
       scopes_supported: ["queueproof:read", "queueproof:propose", "queueproof:sync"],
       bearer_methods_supported: ["header"],
-      resource_documentation: `${origin}/docs/mcp`,
+      // The public developer screen is the canonical, maintained setup contract. Pointing
+      // at a non-existent /docs/mcp route made standards-based discovery advertise a 404.
+      resource_documentation: `${origin}/developer`,
     },
     {
       status: issuer ? 200 : 503,
@@ -17,4 +19,3 @@ export async function GET(request: Request) {
     },
   );
 }
-

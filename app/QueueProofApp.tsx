@@ -2084,6 +2084,14 @@ function LabScreen({ setError }: { setError: (value: string) => void }) {
   const measuredReleaseSha = live?.release?.commitSha ?? comparison?.fast.release.commitSha ?? null;
   const currentReleaseSha = data?.currentRelease?.commitSha ?? null;
   const artifactMatchesRelease = Boolean(measuredReleaseSha && currentReleaseSha && measuredReleaseSha === currentReleaseSha);
+  const benchmarkRunAt = live?.generatedAt ?? data?.generatedAt ?? null;
+  const benchmarkRunState = artifactMatchesRelease ? "Current results" : measuredReleaseSha ? "Previous results" : "No current results";
+  const benchmarkRunTitle = measuredReleaseSha ? `Benchmark run ${measuredReleaseSha.slice(0, 8)}` : "Run the live benchmark";
+  const benchmarkRunSummary = artifactMatchesRelease
+    ? "These results were recorded against this deployed release."
+    : measuredReleaseSha
+      ? "These results belong to a different release. Run the published command again to measure this deployment."
+      : "Run the published command to measure this deployment. Until then, the live metrics stay empty.";
   const benchmarkGatesMet = (router?.total ?? 0) >= 30 && graded > 0 && passed === graded
     && typeof live?.quality?.requiredFactRecall === "number" && live.quality.requiredFactRecall >= .9
     && typeof live?.quality?.citationCompleteness === "number" && live.quality.citationCompleteness >= .95
@@ -2101,9 +2109,9 @@ function LabScreen({ setError }: { setError: (value: string) => void }) {
       </div>
 
       {!loading && data && <div className="artifact-identity" role="status">
-        <span className={artifactMatchesRelease ? "artifact-state current" : "artifact-state"}>{artifactMatchesRelease ? <CircleCheck size={13} /> : <History size={13} />}{artifactMatchesRelease ? "Current release" : "Measured release"}</span>
-        <div><strong>Cross-source artifact {measuredReleaseSha ? measuredReleaseSha.slice(0, 8) : "unbound"}</strong><small>Recorded {dateLabel(live?.generatedAt ?? data?.generatedAt)}{currentReleaseSha && !artifactMatchesRelease ? ` · current app ${currentReleaseSha.slice(0, 8)}` : ""}</small></div>
-        <p>{artifactMatchesRelease ? "This benchmark was recorded against this deployed release." : "This is a timestamped measurement, not a claim about an unmeasured build. Run the published command to refresh it."}</p>
+        <span className={artifactMatchesRelease ? "artifact-state current" : "artifact-state"}>{artifactMatchesRelease ? <CircleCheck size={13} /> : <History size={13} />}{benchmarkRunState}</span>
+        <div><strong>{benchmarkRunTitle}</strong><small>{benchmarkRunAt ? `Run ${dateLabel(benchmarkRunAt)}` : "No live run recorded yet"}{currentReleaseSha && measuredReleaseSha && !artifactMatchesRelease ? ` · deployed release ${currentReleaseSha.slice(0, 8)}` : ""}</small></div>
+        <p>{benchmarkRunSummary}</p>
       </div>}
 
       {loading && <p className="muted">Loading evaluation results…</p>}

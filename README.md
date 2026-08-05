@@ -50,45 +50,37 @@ The **Proof tests** page publishes failures as `REVIEW`; it does not relabel the
 6. Provider writes begin as proposals. Approval and a database-backed at-most-once claim are
    required before execution.
 
-## Stored production measurements
+## Current-release measurements
 
-The canonical artifacts embed a successful production health receipt for commit
-`aed027879150e3e324b54c5ec2194d4d715c501e` on `main`, deployed as
-`queueproof-7hvdge426-vaibhav4046s-projects.vercel.app`. Results below are bound to that exact
-runtime. The offline router artifact separately records 39/39 labelled cases and 331
-fixture-computable assertions; it is not a live-retrieval or deployment result.
+QueueProof never carries benchmark numbers forward from an older deployment. The running
+release identifies itself at [`/api/health/live`](https://queueproof.vercel.app/api/health/live),
+and [`/api/lab`](https://queueproof.vercel.app/api/lab) publishes results only when an artifact
+is verified against that exact commit SHA.
 
-The same six strict live questions were run in Auto, forced Fast, and forced Thinking modes:
+A result is submission-safe only when all of these are true:
 
-| Requested mode | Strict cases | Facts | p50 / p95 | Calls | Weighted units | Observed execution |
-| --- | ---: | ---: | ---: | ---: | ---: | --- |
-| Auto | 4/6 | 19/19 | 2,155 / 2,392 ms | 7 | 7 | All 6 returned Fast; four cited providers across the run |
-| Forced Fast | 4/6 | 19/19 | 1,833 / 2,446 ms | 7 | 7 | All 6 returned Fast |
-| Forced Thinking | 2/6 | 13/19 | 26,329 / 40,003 ms | 10 | 30 | Five returned Thinking; one timed out with mode unknown |
+1. `health.release.commitSha` is present and `health.release.target` is `production`.
+2. `lab.results.currentRelease.commitSha` equals the health SHA.
+3. The relevant result has `status: "measured"`, contains non-empty cases, and identifies the
+   same release.
+4. Fast versus Thinking is quoted only when `modeComparison.comparable` is `true`.
 
-Auto and forced Fast measured 100% citation precision, 100% citation completeness, and 0%
-unsupported claims. Their two `REVIEW` cases remain failures because each lacked the required
-Linear-backed provider evidence, even though all answer facts were present. Forced Thinking is
-not described as parity: it passed only 2/6 cases, and its timed-out case contributed no answer.
+If a current-release artifact is missing, the product says
+`awaiting_current_release_measurement` instead of displaying a historical score. Judges and
+recorders should read exact pass counts, fact recall, latency, calls, and weighted units from
+**Proof tests** on the deployed release. `REVIEW` remains a failed strict requirement.
 
-The SHA-bound 346-page PDF core suite passed 21/22 cases and recovered 55/56 required facts.
-Beginning, middle, and end canaries passed. All 84 claims were supported, across 69 citations,
-with 100% citation precision/completeness and 0% unsupported claims. All 22 cases returned Fast;
-the run measured p50/p95 latency of 1,823/2,382 ms and used 31 HydraDB calls / 31 weighted units.
-
-The separate document-plus-connectors extension remains `REVIEW`. It recovered both required
-facts and cited the document plus GitHub, but the strict contract required one additional
-non-document provider. It measured 29,676 ms, 6 calls, and 18 weighted units. This extension is
-reported separately and is not counted as a 22nd core-suite pass.
-See [connector proof](docs/CONNECTOR_PROOF.md), [large-PDF proof](docs/LARGE_PDF_PROOF.md),
-and the machine-readable artifact at `evals/results/pdf-live-run.json`.
+The deterministic router suite is intentionally separate from live retrieval. Weighted units
+compare relative query work; they are not dollars. See [connector proof](docs/CONNECTOR_PROOF.md),
+[large-PDF proof](docs/LARGE_PDF_PROOF.md), and the
+[evaluation methodology](docs/EVALUATION_METHODOLOGY.md).
 
 ## Public and owner boundaries
 
 The public deployment is a shared, read-oriented evidence workspace. Visitors can inspect
-receipts, ask bounded questions, review queue packets, and inspect proposed actions. Credential
-configuration, connector mutation, document uploads, MCP token management, and external writes
-require a signed owner session.
+receipts, ask bounded questions, and review queue packets. Proposal history, approvals,
+credential configuration, connector mutation, document uploads, MCP token management, and
+external writes require a signed owner session.
 
 The deployment owner signs in at [`/owner`](https://queueproof.vercel.app/owner) with the
 server-configured `QUEUEPROOF_ACCESS_TOKEN`. The token is exchanged for a signed, `httpOnly`
@@ -197,8 +189,8 @@ invented dollar costs.
 
 - Timestamped live results are a small observed sample, not an SLA.
 - A `REVIEW` benchmark result is a failed strict requirement, not a partial pass.
-- The SHA-bound 346-page PDF core result is 21/22, not 22/22. Its separate cross-source
-  extension also remains `REVIEW` because one required non-document provider was absent.
+- Live and large-document metrics are quoted only when `/api/lab` marks a same-release
+  artifact as measured; otherwise the honest result is "awaiting measurement."
 - Public users cannot mutate credentials, connectors, uploads, tokens, or external systems.
 - A real provider write is proven only by a stored provider response identifier.
 - Repository visibility must be verified in a signed-out browser before calling the source

@@ -53,6 +53,7 @@ describe("connector-scoped repair attestation", () => {
     connectorId: "hydra-linear-1",
     connectorProvider: "linear",
     scopeConnectorCount: 1,
+    purpose: "coverage_repair" as const,
     phase: "follow_up" as const,
     lineageMetadataFilters: { connector_id: "hydra-linear-1" },
     callerMetadataFilters: { team: "platform" },
