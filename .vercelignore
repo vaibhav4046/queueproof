@@ -1,0 +1,28 @@
+# Vercel builds from source, so local build output and runtime state never need
+# to be uploaded. Reading them also breaks the upload on Windows: a dev server
+# or a finished build can still hold a handle on .next/.wrangler, which surfaces
+# as "EBUSY: resource busy or locked, read" during `vercel deploy`.
+node_modules
+.git
+.next
+.vinext
+.wrangler
+dist
+out
+coverage
+.tmp-audit
+outputs
+work
+
+# Local runtime state and logs
+*.log
+.dev-server.log
+.dev-server.err
+*.sqlite
+*.sqlite3
+*.db
+
+# Local secrets (already gitignored; never upload them either)
+.env
+.env.local
+.env.*.local
