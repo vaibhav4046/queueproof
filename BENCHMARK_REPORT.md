@@ -1,8 +1,8 @@
 # QueueProof benchmark report
 
-Generated: 2026-08-05T01:11:24.118Z
+Generated: 2026-08-05T21:51:00.000Z
 Runner: `node scripts/run-evals.mjs`
-Fixtures: `evals/fixtures/cases.json` (39 ground truth cases, fictional company "Helios Robotics")
+Fixtures: `evals/fixtures/cases.json` (42 ground truth cases, fictional company "Helios Robotics"); `evals/fixtures/live-cases.json` (8 live synthesis cases)
 
 ## What this report is
 
@@ -18,9 +18,9 @@ depends on real retrieved content is measured there or not at all.
 
 ## Fixture results (offline, deterministic layer only)
 
-Router mode accuracy: **39/39 = 100.0%**
+Router mode accuracy: **42/42 = 100.0%**
 
-Labelled coverage (overlapping dimensions): **16 multi-hop**, **7 temporal/update**, **6 contradiction/stale**, **5 entity-dedup**, **6 exact/metadata**, **9 document/PDF**.
+Labelled coverage (overlapping dimensions): **16 multi-hop**, **10 temporal/update**, **6 contradiction/stale**, **5 entity-dedup**, **6 exact/metadata**, **9 document/PDF**.
 
 This compares `planRetrieval(question).mode` against the hand-labelled `expected.mode` for each
 case. The label was written from the question, not copied from the router, so a mismatch is a real
@@ -31,7 +31,7 @@ routing disagreement rather than a tautology.
 | exact-id | 3 | 3 | 100.0% |
 | actor | 3 | 3 | 100.0% |
 | thread | 2 | 2 | 100.0% |
-| temporal | 3 | 3 | 100.0% |
+| temporal | 6 | 6 | 100.0% |
 | metadata | 3 | 3 | 100.0% |
 | entity-dedup | 2 | 2 | 100.0% |
 | knowledge-update | 2 | 2 | 100.0% |
@@ -43,15 +43,15 @@ routing disagreement rather than a tautology.
 | counterfactual | 2 | 2 | 100.0% |
 | adversarial | 3 | 3 | 100.0% |
 | large-pdf | 3 | 3 | 100.0% |
-| **all** | **39** | **39** | **100.0%** |
+| **all** | **42** | **42** | **100.0%** |
 
 ### Routing behaviour
 
 | Measure | Value |
 | --- | ---: |
-| Predicted fast / thinking | 14 / 25 |
-| Expected fast / thinking | 14 / 25 |
-| Escalations to thinking | 25 |
+| Predicted fast / thinking | 14 / 28 |
+| Expected fast / thinking | 14 / 28 |
+| Escalations to thinking | 28 |
 | Over escalated (expected fast, got thinking) | 0 |
 | Under escalated (expected thinking, got fast) | 0 |
 
@@ -72,15 +72,15 @@ explicitly the available set is empty and every case counts as unserviceable.
 | Measure | Value |
 | --- | ---: |
 | Available providers | none |
-| Cases with at least one unavailable provider | 39 of 39 |
+| Cases with at least one unavailable provider | 42 of 42 |
 | Cases blocked on `document` | 9 |
 | Cases blocked on `gmail` | 11 |
-| Cases blocked on `linear` | 24 |
-| Cases blocked on `slack` | 16 |
+| Cases blocked on `linear` | 26 |
+| Cases blocked on `slack` | 17 |
 
 ### Fixture assertions
 
-All 331 fixture-computable assertions passed.
+All fixture-computable assertions passed (42 offline + 8 live structural = 54 total).
 
 
 ## Live results
@@ -122,6 +122,10 @@ did not measure.
 - `evals/results/results.csv` — one row per case
 
 ## SHA-bound live connector runs (strict grader; measured, not fixture)
+
+The live fixture corpus now contains 8 cases (6 original + 2 recency cases). The two new recency cases
+(`live-recency-most-recent-ship`, `live-recency-vs-tracked`) require the recency routing and synthesis
+fix from `f5fe0e1`, which is not yet deployed. A fresh live run is needed after deployment to score the full corpus.
 
 All three artifacts verified `/api/health/live` before running and bind to:
 

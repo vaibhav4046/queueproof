@@ -77,5 +77,32 @@
     ],
     "requiredProviders": ["linear", "slack"],
     "requiresContradiction": false
+  },
+  {
+    "id": "live-recency-most-recent-ship",
+    "label": "most recent shipped item",
+    "question": "What is the most recent thing we shipped?",
+    "expected": "The most recent shipped work is the AuthShield authentication fix for the Northwind outage (INC-2031).",
+    "requiredFacts": [
+      { "id": "most-recent", "label": "The answer names the most recent item", "allOf": [["most recent", "newest", "latest"]], "recency": true },
+      { "id": "authshield", "label": "The most recent shipped work is the AuthShield fix", "allOf": [["authshield"], ["inc-2031"]] },
+      { "id": "shipped", "label": "The fix is shipped or merged", "anyOf": ["merged", "shipped", "released"] }
+    ],
+    "requiredProviders": ["github"],
+    "requiresContradiction": false
+  },
+  {
+    "id": "live-recency-vs-tracked",
+    "label": "recent ship versus open tracker",
+    "question": "What did we ship most recently, and does the tracker still show that work as open?",
+    "expected": "The AuthShield fix is the most recently shipped item, but Linear issue ENG-456 still shows it as open.",
+    "requiredFacts": [
+      { "id": "most-recent", "label": "The answer names the most recent item", "allOf": [["most recent", "newest", "latest"]], "recency": true },
+      { "id": "authshield", "label": "The most recent shipped work is the AuthShield fix", "allOf": [["authshield"], ["inc-2031"]] },
+      { "id": "merged", "label": "The fix is merged or shipped", "anyOf": ["merged", "shipped", "released"] },
+      { "id": "tracked-open", "label": "ENG-456 still shows the work as open", "allOf": [["eng-456"], ["open", "still open", "not closed"]] }
+    ],
+    "requiredProviders": ["github", "linear"],
+    "requiresContradiction": true
   }
 ]

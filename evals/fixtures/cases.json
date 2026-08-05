@@ -817,5 +817,54 @@
       "evidenceFacts": ["a long document and a short email must be weighed against each other"]
     },
     "rankingCandidates": []
+  },
+  {
+    "id": "temporal-04",
+    "category": "temporal",
+    "question": "What did we ship most recently?",
+    "query": "What did we ship most recently?",
+    "requiredProviders": ["github"],
+    "expectedCategory": "temporal_reasoning",
+    "expected": {
+      "mode": "thinking",
+      "evidenceFacts": [
+        "the answer must name the newest merged item, not the lexically closest one",
+        "recency ordering is required; a stale but textually similar receipt must not win"
+      ]
+    },
+    "rankingCandidates": []
+  },
+  {
+    "id": "temporal-05",
+    "category": "temporal",
+    "question": "Which issue was updated newest in Linear?",
+    "query": "Which issue was updated newest in Linear?",
+    "requiredProviders": ["linear"],
+    "expectedCategory": "temporal_reasoning",
+    "expected": {
+      "mode": "thinking",
+      "evidenceFacts": [
+        "newest means the most recently modified record",
+        "the answer must surface the item with the latest timestamp"
+      ]
+    },
+    "rankingCandidates": []
+  },
+  {
+    "id": "recency-vs-relevance-01",
+    "category": "temporal",
+    "question": "What is the latest decision on the Atlas firmware rollout and do all sources agree?",
+    "query": "What is the latest decision on the Atlas firmware rollout and do all sources agree?",
+    "requiredProviders": ["slack", "linear"],
+    "expectedCategory": "temporal_reasoning",
+    "expected": {
+      "mode": "thinking",
+      "conflict": "the latest Slack statement may differ from the Linear issue status",
+      "evidenceFacts": [
+        "the most recent source must be cited first",
+        "if Slack and Linear disagree, the contradiction must be called out explicitly"
+      ]
+    },
+    "rankingCandidates": []
   }
 ]
