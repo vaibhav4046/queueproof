@@ -21,30 +21,38 @@ fact placement, object references, and xref offsets.
 
 ## Fresh strict public-production baseline
 
-`evals/results/pdf-live-run.json` was generated on 4 August 2026 against
-`https://queueproof.vercel.app` with `grounded-grader-v2`:
+`evals/results/pdf-live-run.json` was generated on 5 August 2026 against
+`https://queueproof.vercel.app` with `grounded-grader-v2`. Its pre-run health receipt binds the
+measurement to commit `aed027879150e3e324b54c5ec2194d4d715c501e` on `main`, production
+deployment `queueproof-7hvdge426-vaibhav4046s-projects.vercel.app`:
 
-- 20/22 cases passed;
-- 53/56 required facts recovered (94.64%);
+- 21/22 core cases passed;
+- 55/56 required facts recovered (98.21%);
 - beginning, middle, and end canaries passed;
 - citation precision and completeness were both 100%;
 - unsupported-claim rate was 0%;
-- p50/p95 request latency was 2,592/17,061 ms; and
-- median/mean HydraDB calls were 2/1.82.
+- all 84 claims were supported across 69 citations;
+- all 22 core cases returned Fast;
+- p50/p95 request latency was 1,823/2,382 ms; and
+- total HydraDB calls / weighted units were 31/31.
 
-The REVIEW cases were the original superseded-policy question (4/5 facts) and the draft
-distractor question (3/5 facts). The cross-source extension recovered its two document
-facts and cited GitHub, but missed the required second non-document provider. This run is
-a timestamped post-deploy result against the canonical production URL; its misses are
-accepted limitations, not hidden successes. The artifact does not embed `/api/health/live`
-or a release SHA, so it is not same-commit release evidence. See
-[`RELEASE_EVIDENCE.md`](../RELEASE_EVIDENCE.md).
+The remaining core `REVIEW` is `fact-superseded-policy`. It recovered 4/5 facts: the original
+single-engineer permission, Rover SDK field-firmware scope, absence of a second approver, and
+maintenance-stand condition. It missed the grader's explicit “permission is no longer in
+force” phrase group. This remains a failed case rather than being inferred from nearby
+supersession wording.
+
+The document-plus-connectors extension is recorded separately from the 22 core questions. It
+recovered 2/2 facts and cited the document plus GitHub, but the strict provider rule required
+two non-document providers. With only one, the extension remains `REVIEW`. Its receipt records
+29,676 ms, 6 calls, and 18 weighted units. See
+[`RELEASE_EVIDENCE.md`](../RELEASE_EVIDENCE.md) for the wider release receipt.
 
 ## Historical production artifact
 
 `audit/pdf-live-final.json` retains the earlier strict baseline for provenance. The
 canonical submission result is the newer `evals/results/pdf-live-run.json` artifact above.
-Neither artifact supports a 21/22 or 22/22 claim under the final strict grader.
+The historical artifact is not used to fill or average the current release-bound result.
 
 ## Current strict acceptance contract
 

@@ -22,8 +22,21 @@ connector, answer quality, latency, or cost.
 
 The live runner sends stable questions to a deployment with verified connectors and
 records answer text, claims, citations, provider coverage, mode, request IDs, HydraDB call
-count, and latency. The stored six-question sample in `BENCHMARK_REPORT.md` is historical
-and small; it is not an SLA.
+count, weighted query units, and latency. Before any questions run, the runner captures
+`/api/health/live` and requires the artifact's release receipt to match the intended commit.
+
+The canonical Auto, forced Fast, and forced Thinking artifacts all bind to commit
+`aed027879150e3e324b54c5ec2194d4d715c501e` on `main`, deployment
+`queueproof-7hvdge426-vaibhav4046s-projects.vercel.app`. Their six-question results are:
+
+| Requested mode | Cases | Facts | p50 / p95 | Calls / units | Returned mode |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Auto | 4/6 | 19/19 | 2,155 / 2,392 ms | 7 / 7 | 6 Fast |
+| Forced Fast | 4/6 | 19/19 | 1,833 / 2,446 ms | 7 / 7 | 6 Fast |
+| Forced Thinking | 2/6 | 13/19 | 26,329 / 40,003 ms | 10 / 30 | 5 Thinking; 1 timeout/unknown |
+
+The sample is small and is not an SLA. Mode comparison is descriptive: the final artifacts
+do not support a Fast/Thinking parity claim.
 
 No fixture metric is substituted when a live dependency is unavailable. Missing live
 authorization or source data produces a named skip/failure.
@@ -45,10 +58,8 @@ token overlap. It checks:
 A reported provider that lacks a supporting cited claim is exposed separately. A claim
 with a citation label but no resolved, supporting receipt fails.
 
-The current artifact contract is `grounded-grader-v2`. Earlier live evidence is labelled
-`legacy-required-signal-v1`; the retained PDF evidence is labelled
-`legacy-token-recall-v1`. Legacy artifacts prove that a run occurred, but their quality
-figures are never promoted into current strict results.
+The canonical live and PDF artifacts use `grounded-grader-v2`. Earlier retained artifacts
+remain provenance only; their figures are not substituted into the final release-bound results.
 
 ## 4. Large-PDF suite
 
@@ -57,11 +68,17 @@ Beginning, middle, and end canaries are keyed explicitly. The suite includes exa
 superseded policy, tables, similar people, multilingual evidence, distractors, and a
 document-plus-connectors join.
 
-The timestamped post-deploy public-production artifact in
-`evals/results/pdf-live-run.json` is 20/22 cases and 53/56 facts, with perfect citation
-precision/completeness and zero unsupported claims. It records the production target and
-timestamp but not a health receipt or release SHA, so it is not same-commit evidence. See
-`docs/LARGE_PDF_PROOF.md` for the misses and provenance.
+The release-bound public-production artifact in `evals/results/pdf-live-run.json` is 21/22
+core cases and 55/56 required facts. It records 69 citations, 84/84 supported claims, perfect
+citation precision/completeness, zero unsupported claims, and passing beginning/middle/end
+canaries. All 22 core rows returned Fast. The measured p50/p95 was 1,823/2,382 ms, with
+31 HydraDB calls and 31 weighted units.
+
+The document-plus-connectors question is a separate extension, not a 23rd core pass. It
+recovered 2/2 facts and cited the document plus GitHub, but remains `REVIEW` because only one
+of the required two non-document providers was supported. Its receipt records 29,676 ms,
+6 calls, and 18 weighted units. See `docs/LARGE_PDF_PROOF.md` for the remaining core miss and
+full provenance.
 
 ## Metrics
 
@@ -82,7 +99,9 @@ timestamp but not a health receipt or release SHA, so it is not same-commit evid
 
 ```bash
 pnpm benchmark:router
-pnpm benchmark:live -- --url https://queueproof.vercel.app
+pnpm benchmark:live -- --url https://queueproof.vercel.app --mode auto
+pnpm benchmark:live -- --url https://queueproof.vercel.app --mode fast
+pnpm benchmark:live -- --url https://queueproof.vercel.app --mode thinking
 pnpm benchmark:pdf -- --url https://queueproof.vercel.app
 ```
 

@@ -1,65 +1,71 @@
 # QueueProof judge one-pager
 
 > [!IMPORTANT]
-> Draft judge summary. Candidate SHA, release gates, deployment identity, and submission
-> sign-off live in [`RELEASE_EVIDENCE.md`](../RELEASE_EVIDENCE.md).
+> Production metrics were measured on runtime
+> `aed027879150e3e324b54c5ec2194d4d715c501e`. The forthcoming package is the current main
+> evidence build; verify its exact identity through `/api/health/live`. Repository publication
+> and the video URL remain pending.
 
-## One answer. Every system. Proven.
+## Ask your work. Get the proof.
 
-QueueProof uses HydraDB to turn fragmented work evidence into a cited answer and a
-deterministic next-action packet. It closes the gap between retrieval and safe execution:
+QueueProof uses HydraDB to turn fragmented work evidence into one cited answer and one
+evidence-backed Task brief:
 
-`verified evidence -> grounded claims -> deterministic priority -> approval-gated write`
+`verified evidence -> grounded claims -> deterministic priority -> approval-gated proposal`
 
 ## The demo in one question
 
-> Who escalated the AuthShield outage, what did engineering commit to, and is the fix
-> already merged?
+> Who escalated the AuthShield outage, what did engineering commit to, and is the fix already
+> merged?
 
-The last production observation returned cited GitHub, Linear, and Slack evidence in one
-thinking query. The answer exposed its receipt IDs, provider coverage, call count, elapsed
-time, and a tracked-state disagreement. Open any citation to inspect the supporting
-excerpt.
+Run it in **Quick**. The answer exposes provider coverage, HydraDB calls, elapsed time,
+numbered receipts, and any tracked-state disagreement. Open a citation to inspect its source
+excerpt, provider, identifier, and timestamp.
 
 ## Why HydraDB matters
 
-- Four last-observed connectors were `data_verified`: GitHub, Gmail, Linear, and Slack.
-- Verification requires a canary with source IDs attributable to connector/resource
-  lineage; a saved credential is not enough.
-- Exact identifiers run text and hybrid lanes concurrently, then merge and deduplicate.
-- Documents and provider records participate in the same grounded evidence contract.
+- The public workspace last showed four verified sources: GitHub, Gmail, Linear, and Slack.
+- Verification requires attributable connector/resource lineage, not a saved credential.
+- Exact identifiers use text and hybrid retrieval lanes before deduplication.
+- Provider records and a 346-page document participate in the same receipt contract.
 
-## Why the queue is defensible
+## Why the Task brief is defensible
 
-Conflict-aware clustering avoids merging records with disjoint exact IDs. A pure,
-versioned ranking policy produces the order. Each Execution Packet contains evidence,
-score components, penalties, constraints, dependencies, acceptance criteria, missing
-information, permissions, and a receipt hash.
+Conflict-aware clustering avoids merging records with disjoint IDs. A versioned ranking policy
+produces the order. Each Task brief includes evidence, score components, penalties,
+constraints, dependencies, acceptance criteria, missing information, permissions, and a
+receipt hash.
 
-## Why the write is safe
+## Why external action is safe
 
-The public sandbox supports shared evidence and proposals but denies credentials,
-connectors, uploads, token administration, and external execution. A private action still
-requires the exact proposal, explicit approval, and a unique database execution claim
-before the provider call.
+The public workspace can prepare a proposal but cannot change credentials, control
+connectors, mint MCP tokens, approve, or execute. A private action requires the exact proposal,
+explicit approval, and one uniquely claimed execution row before provider I/O.
 
-## Reproducible evidence
+## Measured runtime evidence
 
-| Evidence | Result |
-| --- | ---: |
-| Router fixtures | 39/39 |
-| Fixture-computable assertions | 331 |
-| Full suite / security / MCP | use submitted-commit CI receipt |
-| Typecheck, lint, build, E2E, deploy check | pending in `RELEASE_EVIDENCE.md` |
-| Responsive viewports | fresh final-deployment matrix required |
-| Secret scan | fresh submitted-commit receipt required |
+| Run | Strict cases | Facts | p50 / p95 | Calls / units |
+| --- | ---: | ---: | ---: | ---: |
+| Best / Auto | 4/6 | 19/19 | 2,155 / 2,392 ms | 7 / 7 |
+| Quick / Fast | 4/6 | 19/19 | 1,833 / 2,446 ms | 7 / 7 |
+| Investigate / Thinking | 2/6 | 13/19 | 26,329 / 40,003 ms | 10 / 30 |
+| 346-page PDF core | 21/22 | 55/56 | 1,823 / 2,382 ms | 31 / 31 |
 
-## Honest boundary
+The Thinking run had one timeout. PDF core questions all resolved as Fast; beginning, middle,
+and end canaries passed, 84/84 claims were supported, and 69 citations resolved. The separate
+PDF cross-source extension remains REVIEW: 2/2 facts, document plus GitHub, one additional
+non-document provider missing, 29,676 ms, 6 calls / 18 units.
 
-The strict 346-page baseline passed 20/22 cases and recovered 53/56 facts with complete
-citations. The final six-query production diagnostic matched 19/19 facts and fully passed
-4/6 cases; two cases remain REVIEW on frozen multi-provider requirements. QueueProof does
-not call either measurement perfect or an SLA.
+The six-query benchmark is not an SLA. REVIEW means the frozen requirement failed.
+
+## Reproducibility boundary
+
+- Runtime measured: `aed027879150e3e324b54c5ec2194d4d715c501e`.
+- Evidence build: current main; exact SHA pending commit and `/api/health/live` verification.
+- Router fixture: 39/39 labelled cases and 331 deterministic assertions; not live accuracy.
+- Submitted-build CI, security, MCP, build, E2E, deployment, responsive, and secret-scan
+  receipts must come from `RELEASE_EVIDENCE.md`.
+- Repository: currently private. Video: pending.
 
 Live: <https://queueproof.vercel.app>
 

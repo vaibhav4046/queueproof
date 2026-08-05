@@ -1,6 +1,6 @@
 {
   "status": "measured",
-  "generatedAt": "2026-08-05T00:54:15.816Z",
+  "generatedAt": "2026-08-05T01:33:28.698Z",
   "grader": "grounded-grader-v2",
   "runner": "scripts/run-live-benchmark.mjs",
   "fixture": "evals/fixtures/live-cases.json",
@@ -10,24 +10,24 @@
   "health": {
     "ok": true,
     "httpStatus": 200,
-    "measuredLatencyMs": 289,
+    "measuredLatencyMs": 232,
     "body": {
       "status": "live",
       "service": "queueproof-web",
-      "time": "2026-08-05T00:51:22.150Z",
+      "time": "2026-08-05T01:30:30.860Z",
       "release": {
-        "commitSha": "2a34ab2dcdf83e64df49e5e6f7070f2511a43fc0",
+        "commitSha": "aed027879150e3e324b54c5ec2194d4d715c501e",
         "commitRef": "main",
         "target": "production",
-        "deploymentUrl": "queueproof-9ub223333-vaibhav4046s-projects.vercel.app"
+        "deploymentUrl": "queueproof-7hvdge426-vaibhav4046s-projects.vercel.app"
       }
     },
     "error": null
   },
   "release": {
-    "commitSha": "2a34ab2dcdf83e64df49e5e6f7070f2511a43fc0",
+    "commitSha": "aed027879150e3e324b54c5ec2194d4d715c501e",
     "commitRef": "main",
-    "deploymentUrl": "queueproof-9ub223333-vaibhav4046s-projects.vercel.app"
+    "deploymentUrl": "queueproof-7hvdge426-vaibhav4046s-projects.vercel.app"
   },
   "releaseVerified": true,
   "connectors": [
@@ -36,29 +36,29 @@
     "slack"
   ],
   "cases": 6,
-  "passed": 3,
+  "passed": 2,
   "allThreeProviders": 1,
-  "thinking": 4,
+  "thinking": 5,
   "fast": 0,
   "latencyMs": {
-    "p50": 25843,
-    "p95": 40018,
-    "min": 13539,
-    "max": 40018,
+    "p50": 26329,
+    "p95": 40003,
+    "min": 22641,
+    "max": 40003,
     "fast": {
       "count": 0,
       "p50": null,
       "p95": null
     },
     "thinking": {
-      "count": 4,
-      "p50": 17806,
-      "p95": 27923
+      "count": 5,
+      "p50": 26329,
+      "p95": 27065
     }
   },
   "calls": {
     "median": 2,
-    "mean": 1.5,
+    "mean": 1.6666666666666667,
     "min": 0,
     "max": 3
   },
@@ -68,8 +68,8 @@
     "citationPrecision": 1,
     "citationCompleteness": 1,
     "unsupportedClaimRate": 0,
-    "providerRequirementPasses": 3,
-    "contradictionRequirementPasses": 1,
+    "providerRequirementPasses": 2,
+    "contradictionRequirementPasses": 0,
     "contradictionRequirementCases": 2,
     "zeroKnowinglyUnsupportedClaims": true,
     "note": "Required facts are explicit frozen groups. Citation metrics require IDs to resolve and claim text to occur in a same-provider cited excerpt."
@@ -256,20 +256,20 @@
       "requestedMode": "thinking",
       "mode": "thinking",
       "modeHonored": true,
-      "latencyMs": 13539,
-      "measuredLatencyMs": 15603,
+      "latencyMs": 26965,
+      "measuredLatencyMs": 29190,
       "callCount": 2,
-      "sources": 7,
+      "sources": 5,
       "costUnits": 6,
-      "runId": "query_55b7d415-fb74-4862-8e25-dce1db46b3df"
+      "runId": "query_d977942b-815b-4b5e-b417-e87a9550a56a"
     },
     {
       "id": "live-deadline-conflict",
       "label": "deadline conflict",
       "question": "Which sources disagree about the billing migration deadline?",
       "expected": "The answer must preserve the 7 August versus 14 August deadline disagreement and cite the sources.",
-      "actual": "The billing migration deadline moved from 7 August to 14 August 2026 after the Northwind escalation took priority. [1] Heads up: the Linear ticket still says the billing migration deadline moved to 14 August, but finance confirmed today it is staying at 7 August. [2]",
-      "pass": true,
+      "actual": "Insufficient evidence. QueueProof will not invent an answer.",
+      "pass": false,
       "apiOk": true,
       "httpStatus": 200,
       "error": null,
@@ -296,116 +296,67 @@
           ]
         }
       ],
-      "matchedFacts": [
+      "matchedFacts": [],
+      "missingFacts": [
         {
           "id": "billing-migration",
           "label": "Billing Migration is the subject",
-          "matched": true,
-          "matchedAlternatives": [
-            "billing migration"
-          ]
+          "matched": false,
+          "matchedAlternatives": []
         },
         {
           "id": "first-deadline",
           "label": "One source says 7 August",
-          "matched": true,
-          "matchedAlternatives": [
-            "7 august"
-          ]
+          "matched": false,
+          "matchedAlternatives": []
         },
         {
           "id": "second-deadline",
           "label": "Another source says 14 August",
-          "matched": true,
-          "matchedAlternatives": [
-            "14 august"
-          ]
+          "matched": false,
+          "matchedAlternatives": []
         }
       ],
-      "missingFacts": [],
-      "matchedFactCount": 3,
+      "matchedFactCount": 0,
       "requiredFactCount": 3,
-      "requiredFactRecall": 1,
+      "requiredFactRecall": 0,
       "requiredProviders": [
         "linear",
         "slack"
       ],
-      "providers": [
+      "providers": [],
+      "reportedProviders": [],
+      "missingProviders": [
         "linear",
         "slack"
       ],
-      "reportedProviders": [
-        "linear",
-        "slack"
-      ],
-      "missingProviders": [],
       "reportedWithoutSupportingCitation": [],
       "citedButUnreportedProviders": [],
-      "providerPass": true,
+      "providerPass": false,
       "requiresContradiction": true,
-      "contradictionPass": true,
-      "contradictions": [
-        {
-          "summary": "The cited records contain different dates: linear says 14 August 2026; slack says 7 August.",
-          "evidenceIds": [
-            "22c77303332a462af0fce84884ba26c4c0cb8b3a02ea8323ea173027c07cb41a:chunk:0",
-            "e8142efbc628db7a7ac8a8e6166f0c6e3430be8a3892a6b4acf5033072297a55:chunk:0"
-          ],
-          "providers": [
-            "linear",
-            "slack"
-          ]
-        }
-      ],
-      "supportedContradictions": [
-        {
-          "index": 0,
-          "summary": "The cited records contain different dates: linear says 14 August 2026; slack says 7 August.",
-          "evidenceIds": [
-            "22c77303332a462af0fce84884ba26c4c0cb8b3a02ea8323ea173027c07cb41a:chunk:0",
-            "e8142efbc628db7a7ac8a8e6166f0c6e3430be8a3892a6b4acf5033072297a55:chunk:0"
-          ],
-          "providers": [
-            "linear",
-            "slack"
-          ]
-        }
-      ],
-      "citationPass": true,
-      "citationPrecision": 1,
-      "citationCompleteness": 1,
-      "unsupportedClaimRate": 0,
+      "contradictionPass": false,
+      "contradictions": [],
+      "supportedContradictions": [],
+      "citationPass": false,
+      "citationPrecision": null,
+      "citationCompleteness": null,
+      "unsupportedClaimRate": null,
       "invalidCitationIds": [],
       "unsupportedClaims": [],
-      "citedSources": [
-        {
-          "id": "22c77303332a462af0fce84884ba26c4c0cb8b3a02ea8323ea173027c07cb41a:chunk:0",
-          "provider": "linear",
-          "title": "Billing migration deadline moved to 14 August",
-          "excerpt": "The billing migration deadline moved from 7 August to 14 August 2026 after the Northwind escalation took priority.",
-          "supported": true
-        },
-        {
-          "id": "e8142efbc628db7a7ac8a8e6166f0c6e3430be8a3892a6b4acf5033072297a55:chunk:0",
-          "provider": "slack",
-          "title": "Heads up: the Linear ticket still says the billing migration deadline moved to 1",
-          "excerpt": "Heads up: the Linear ticket still says the billing migration deadline moved to 14 August, but finance confirmed today it is staying at 7 August. Linear is out of date.",
-          "supported": true
-        }
-      ],
-      "claimCount": 2,
-      "supportedClaimCount": 2,
-      "claimCitationPairCount": 2,
-      "supportedClaimCitationPairCount": 2,
+      "citedSources": [],
+      "claimCount": 0,
+      "supportedClaimCount": 0,
+      "claimCitationPairCount": 0,
+      "supportedClaimCitationPairCount": 0,
       "requestedMode": "thinking",
       "mode": "thinking",
       "modeHonored": true,
-      "latencyMs": 27923,
-      "measuredLatencyMs": 29265,
-      "callCount": 2,
-      "sources": 2,
-      "costUnits": 6,
-      "runId": "query_2d84632e-b30d-4ed4-a007-f0cc2e5a4f6a"
+      "latencyMs": 22641,
+      "measuredLatencyMs": 24246,
+      "callCount": 1,
+      "sources": 0,
+      "costUnits": 3,
+      "runId": "query_c5a1ac21-7ed9-4d74-8911-915686ba1035"
     },
     {
       "id": "live-untracked-commitment",
@@ -509,8 +460,8 @@
       "requestedMode": "thinking",
       "mode": "unknown",
       "modeHonored": true,
-      "latencyMs": 40018,
-      "measuredLatencyMs": 40018,
+      "latencyMs": 40003,
+      "measuredLatencyMs": 40003,
       "callCount": 0,
       "sources": 0,
       "costUnits": null,
@@ -521,11 +472,11 @@
       "label": "stale tracked work",
       "question": "Which open issue appears to be already resolved elsewhere?",
       "expected": "The AuthShield fix is merged or shipped while its tracked issue remains open.",
-      "actual": "",
+      "actual": "The AuthShield authentication fix for the Northwind outage (INC-2031) was merged. Linear issue ENG-456 is still showing as open even though the code is shipped. Someone should close it or explain why it is still tracked. [1] Linear issue ENG-456 is still showing as open even though the code is shipped. [1]",
       "pass": false,
-      "apiOk": false,
-      "httpStatus": 0,
-      "error": "The operation was aborted due to timeout",
+      "apiOk": true,
+      "httpStatus": 200,
+      "error": null,
       "requiredFacts": [
         {
           "id": "authshield",
@@ -554,38 +505,47 @@
           ]
         }
       ],
-      "matchedFacts": [],
-      "missingFacts": [
+      "matchedFacts": [
         {
           "id": "authshield",
           "label": "The work is the AuthShield fix",
-          "matched": false,
-          "matchedAlternatives": []
+          "matched": true,
+          "matchedAlternatives": [
+            "authshield"
+          ]
         },
         {
           "id": "completed-elsewhere",
           "label": "The fix is complete elsewhere",
-          "matched": false,
-          "matchedAlternatives": []
+          "matched": true,
+          "matchedAlternatives": [
+            "merged"
+          ]
         },
         {
           "id": "tracked-open",
           "label": "The tracked issue remains open",
-          "matched": false,
-          "matchedAlternatives": []
+          "matched": true,
+          "matchedAlternatives": [
+            "showing as open"
+          ]
         }
       ],
-      "matchedFactCount": 0,
+      "missingFacts": [],
+      "matchedFactCount": 3,
       "requiredFactCount": 3,
-      "requiredFactRecall": 0,
+      "requiredFactRecall": 1,
       "requiredProviders": [
         "github",
         "linear"
       ],
-      "providers": [],
-      "reportedProviders": [],
+      "providers": [
+        "github"
+      ],
+      "reportedProviders": [
+        "github"
+      ],
       "missingProviders": [
-        "github",
         "linear"
       ],
       "reportedWithoutSupportingCitation": [],
@@ -593,28 +553,46 @@
       "providerPass": false,
       "requiresContradiction": true,
       "contradictionPass": false,
-      "contradictions": [],
+      "contradictions": [
+        {
+          "summary": "github receipt reports the code complete while ENG-456 remains open in its cited tracking state.",
+          "evidenceIds": [
+            "b7cac22b810e04837baf85a9cb471eb78d1fbd13f473dddbc78a7bd3fbb13dda:chunk:0"
+          ],
+          "providers": [
+            "github"
+          ]
+        }
+      ],
       "supportedContradictions": [],
-      "citationPass": false,
-      "citationPrecision": null,
-      "citationCompleteness": null,
-      "unsupportedClaimRate": null,
+      "citationPass": true,
+      "citationPrecision": 1,
+      "citationCompleteness": 1,
+      "unsupportedClaimRate": 0,
       "invalidCitationIds": [],
       "unsupportedClaims": [],
-      "citedSources": [],
-      "claimCount": 0,
-      "supportedClaimCount": 0,
-      "claimCitationPairCount": 0,
-      "supportedClaimCitationPairCount": 0,
+      "citedSources": [
+        {
+          "id": "b7cac22b810e04837baf85a9cb471eb78d1fbd13f473dddbc78a7bd3fbb13dda:chunk:0",
+          "provider": "github",
+          "title": "AuthShield fix merged in PR-8871 but ENG-456 still open",
+          "excerpt": "The AuthShield authentication fix for the Northwind outage (INC-2031) was merged. Linear issue ENG-456 is still showing as open even though the code is shipped. Someone should close it or explain why it is still tracked.",
+          "supported": true
+        }
+      ],
+      "claimCount": 2,
+      "supportedClaimCount": 2,
+      "claimCitationPairCount": 2,
+      "supportedClaimCitationPairCount": 2,
       "requestedMode": "thinking",
-      "mode": "unknown",
+      "mode": "thinking",
       "modeHonored": true,
-      "latencyMs": 40007,
-      "measuredLatencyMs": 40007,
-      "callCount": 0,
-      "sources": 0,
-      "costUnits": null,
-      "runId": null
+      "latencyMs": 27065,
+      "measuredLatencyMs": 29016,
+      "callCount": 2,
+      "sources": 4,
+      "costUnits": 6,
+      "runId": "query_c3b13ded-7bf5-449c-87f3-3922ef5a04b0"
     },
     {
       "id": "live-actor-reconstruction",
@@ -734,12 +712,12 @@
       "requestedMode": "thinking",
       "mode": "thinking",
       "modeHonored": true,
-      "latencyMs": 25843,
-      "measuredLatencyMs": 28390,
+      "latencyMs": 26329,
+      "measuredLatencyMs": 28099,
       "callCount": 2,
       "sources": 7,
       "costUnits": 6,
-      "runId": "query_9c880547-c03c-447e-87be-4766567c057e"
+      "runId": "query_16a2bfdf-7635-4a65-96ce-bed7b4f98dc0"
     },
     {
       "id": "live-exact-identifier-context",
@@ -873,12 +851,12 @@
       "requestedMode": "thinking",
       "mode": "thinking",
       "modeHonored": true,
-      "latencyMs": 17806,
-      "measuredLatencyMs": 19327,
+      "latencyMs": 24824,
+      "measuredLatencyMs": 26248,
       "callCount": 3,
       "sources": 1,
       "costUnits": 9,
-      "runId": "query_5d7d9e40-29c7-4394-b4ae-459aa30a0668"
+      "runId": "query_fbf9b7dd-af14-4573-ae76-42939af7b436"
     }
   ]
 }

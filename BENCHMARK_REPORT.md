@@ -121,24 +121,73 @@ did not measure.
 - `evals/results/results.json` — full machine readable output, fixture and live kept separate
 - `evals/results/results.csv` — one row per case
 
-## Live connector run (strict grader; measured, not fixture)
+## SHA-bound live connector runs (strict grader; measured, not fixture)
 
-Target https://queueproof.vercel.app. Connectors: github, gmail, linear, slack. Generated 2026-08-05T00:49:52.375Z. Grader: `grounded-grader-v2`.
+All three artifacts verified `/api/health/live` before running and bind to:
 
-| Case | Mode | Latency | Sources | Providers in evidence |
-| --- | --- | --- | --- | --- |
-| three-provider multi-hop | `fast` | 1908 ms | 6 | github, linear, slack |
-| deadline conflict | `fast` | 1728 ms | 3 | gmail, linear, slack |
-| untracked commitment | `fast` | 1807 ms | 3 | github, linear, slack |
-| stale tracked work | `fast` | 2274 ms | 2 | github |
-| actor reconstruction | `fast` | 1784 ms | 2 | linear, slack |
-| exact identifier plus context | `fast` | 2024 ms | 1 | slack |
+- commit: `aed027879150e3e324b54c5ec2194d4d715c501e`;
+- ref: `main`;
+- production deployment: `queueproof-7hvdge426-vaibhav4046s-projects.vercel.app`;
+- canonical target: <https://queueproof.vercel.app>;
+- grader: `grounded-grader-v2`; and
+- connectors cited across Auto: GitHub, Gmail, Linear, and Slack.
 
-Latency across 6 live questions: p50 1807 ms, p95 2274 ms, min 1728 ms, max 2274 ms.
+| Requested mode | Passed | Required facts | p50 / p95 | Calls | Weighted units | Returned modes |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| Auto (`live-run.json`) | 4/6 | 19/19 | 2,155 / 2,392 ms | 7 | 7 | 6 Fast |
+| Forced Fast (`live-fast.json`) | 4/6 | 19/19 | 1,833 / 2,446 ms | 7 | 7 | 6 Fast |
+| Forced Thinking (`live-thinking.json`) | 2/6 | 13/19 | 26,329 / 40,003 ms | 10 | 30 | 5 Thinking, 1 timeout/unknown |
 
-Questions whose evidence spanned all three connected providers: 3/6. Routed thinking/fast: 0/6.
+Auto and forced Fast both measured 100% citation precision, 100% citation completeness,
+and 0% unsupported claims. This is not Fast/Thinking parity: forced Thinking passed only 2/6,
+recovered 13/19 facts, and one request timed out before returning a mode or answer.
 
-Required-fact recall: 100.0%. Citation completeness: 100.0%. Unsupported-claim rate: 0.0%.
+### Auto case receipts
 
-These are real end-to-end measurements against connected providers.
-The sample is small and is not presented as a stable distribution.
+| Case | Result | Returned mode | Latency | Calls / units | Sources | Cited providers |
+| --- | --- | --- | ---: | ---: | ---: | --- |
+| three-provider multi-hop | PASS | `fast` | 2,155 ms | 1 / 1 | 6 | github, linear, slack |
+| deadline conflict | PASS | `fast` | 2,173 ms | 1 / 1 | 3 | gmail, linear, slack |
+| untracked commitment | PASS | `fast` | 2,007 ms | 1 / 1 | 3 | github, linear, slack |
+| stale tracked work | REVIEW | `fast` | 2,277 ms | 1 / 1 | 2 | github |
+| actor reconstruction | PASS | `fast` | 2,392 ms | 1 / 1 | 2 | linear, slack |
+| exact identifier plus context | REVIEW | `fast` | 2,121 ms | 2 / 2 | 1 | slack |
+
+Both Auto `REVIEW` rows contained every labelled answer fact. They failed the strict provider
+contract because no supporting Linear citation was returned. A `REVIEW` is a failure; fact
+coverage does not override missing required-provider evidence.
+
+### Forced Thinking failures
+
+- `deadline conflict` returned HTTP 200 but no supported answer facts or cited providers.
+- `untracked commitment` timed out at 40,003 ms; mode is recorded as `unknown`, with zero
+  completed HydraDB calls and no weighted cost asserted for that row.
+- `stale tracked work` and `exact identifier plus context` recovered their required facts but
+  still failed the required-provider contract.
+
+These are six observed production questions, not an SLA or a universal accuracy claim.
+
+## SHA-bound large-PDF run
+
+`evals/results/pdf-live-run.json` verified the same release before running the deterministic
+346-page handbook suite:
+
+- core cases: **21/22**;
+- required facts: **55/56**;
+- latency p50/p95: **1,823/2,382 ms**;
+- HydraDB calls / weighted units: **31/31**;
+- returned mode: **Fast for all 22 core cases**;
+- citations: **69**;
+- supported claims: **84/84**;
+- citation precision/completeness: **100% / 100%**;
+- unsupported-claim rate: **0%**; and
+- beginning, middle, and end canaries: **PASS**.
+
+The remaining core `REVIEW` is `fact-superseded-policy`: it matched 4/5 required facts and
+missed the grader's explicit “permission is no longer in force” phrase group. It remains a
+failure in the artifact.
+
+The document-plus-connectors extension is recorded separately from the 22 core cases. It
+recovered 2/2 facts and cited `document` plus `github`, but remained `REVIEW` because the
+contract required two non-document providers and only one was supported. It measured 29,676 ms,
+6 HydraDB calls, and 18 weighted units.

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-05T00:58:43.520Z",
+  "generatedAt": "2026-08-05T01:37:56.170Z",
   "grader": "grounded-grader-v2",
   "target": "https://queueproof.vercel.app",
   "runner": "scripts/run-pdf-benchmark.mjs",
@@ -7,24 +7,24 @@
   "health": {
     "ok": true,
     "httpStatus": 200,
-    "measuredLatencyMs": 355,
+    "measuredLatencyMs": 238,
     "body": {
       "status": "live",
       "service": "queueproof-web",
-      "time": "2026-08-05T00:54:35.561Z",
+      "time": "2026-08-05T01:33:41.833Z",
       "release": {
-        "commitSha": "2a34ab2dcdf83e64df49e5e6f7070f2511a43fc0",
+        "commitSha": "aed027879150e3e324b54c5ec2194d4d715c501e",
         "commitRef": "main",
         "target": "production",
-        "deploymentUrl": "queueproof-9ub223333-vaibhav4046s-projects.vercel.app"
+        "deploymentUrl": "queueproof-7hvdge426-vaibhav4046s-projects.vercel.app"
       }
     },
     "error": null
   },
   "release": {
-    "commitSha": "2a34ab2dcdf83e64df49e5e6f7070f2511a43fc0",
+    "commitSha": "aed027879150e3e324b54c5ec2194d4d715c501e",
     "commitRef": "main",
-    "deploymentUrl": "queueproof-9ub223333-vaibhav4046s-projects.vercel.app"
+    "deploymentUrl": "queueproof-7hvdge426-vaibhav4046s-projects.vercel.app"
   },
   "releaseVerified": true,
   "document": {
@@ -34,17 +34,17 @@
     "sha256": "c047a3d09c45ecf97e3ed8e2115eda08ea0f6152206237955030f4304fa2ed93"
   },
   "cases": 22,
-  "passed": 20,
+  "passed": 21,
   "canaries": {
     "beginning": true,
     "middle": true,
     "end": true
   },
   "latencyMs": {
-    "p50": 1785,
-    "p95": 2811,
-    "min": 1435,
-    "max": 2836
+    "p50": 1823,
+    "p95": 2382,
+    "min": 1575,
+    "max": 2537
   },
   "calls": {
     "median": 1,
@@ -53,7 +53,7 @@
     "max": 2
   },
   "quality": {
-    "requiredFactAccuracy": 0.9642857142857143,
+    "requiredFactAccuracy": 0.9821428571428571,
     "citationPrecision": 1,
     "citationCompleteness": 1,
     "unsupportedClaimRate": 0,
@@ -168,11 +168,11 @@
     "claimCount": 4,
     "supportedClaimCount": 4,
     "mode": "thinking",
-    "latencyMs": 24466,
-    "measuredLatencyMs": 27167,
+    "latencyMs": 29676,
+    "measuredLatencyMs": 31561,
     "callCount": 6,
     "costUnits": 18,
-    "runId": "query_699a131d-843c-4572-b122-3381d879f100"
+    "runId": "query_ffbddb54-e971-4de5-be51-002b9201b8ba"
   },
   "rows": [
     {
@@ -263,11 +263,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 1631,
-      "measuredLatencyMs": 3908,
+      "latencyMs": 1577,
+      "measuredLatencyMs": 3689,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_82b469c7-99bf-4563-a75c-8548a00afff3"
+      "runId": "query_fb227592-d9df-457a-a0ea-cc9bd2b55f29"
     },
     {
       "id": "fact-charter-id",
@@ -365,11 +365,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 1729,
-      "measuredLatencyMs": 3644,
+      "latencyMs": 1689,
+      "measuredLatencyMs": 3731,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_1b3f4160-df09-4ae7-967f-87641e1ff85b"
+      "runId": "query_c04c658a-5b10-4120-9dff-4eafddb1794e"
     },
     {
       "id": "fact-superseded-policy",
@@ -431,7 +431,7 @@
       "apiOk": true,
       "httpStatus": 200,
       "error": null,
-      "answer": "ADR-037, dated 9 September 2031, supersedes OPS-POL-14. From this date every Rover SDK field firmware flash requires two approvers, and one of them must be a Safety Case Owner. [1] ## OPS-POL-14 Rover SDK field firmware flashing. Owner: Field Operations Effective: 3 February 2031 Status at issue: binding. Rule At a depot, a single Tier 2 engineer may flash Rover SDK field firmware without a second approver, provided the rover is on a maintenance stand with the drive system isolated and the depot console shows the rover out of service.. [2] It proposed that any engineer, at any tier, could flash rover firmware provided a photograph of the maintenance stand was attached to the ticket. It is routinely confused with OPS-POL-14, which was a real policy and which was itself superseded by ADR-037. Neither the draft nor the superseded policy permits single engineer flashing today.. [3] Architecture Decision Records. ## ADR-037 Two approvers for Rover SDK firmware flashing. [4]",
+      "answer": "ADR-037, dated 9 September 2031, supersedes OPS-POL-14. From this date every Rover SDK field firmware flash requires two approvers, and one of them must be a Safety Case Owner. The single engineer permission in OPS-POL-14 is withdrawn and must not be relied on, whatever the depot staffing situation.. [1] It proposed that any engineer, at any tier, could flash rover firmware provided a photograph of the maintenance stand was attached to the ticket. It is routinely confused with OPS-POL-14, which was a real policy and which was itself superseded by ADR-037. Neither the draft nor the superseded policy permits single engineer flashing today.. [2] ## OPS-POL-14 Rover SDK field firmware flashing. Owner: Field Operations Effective: 3 February 2031 Status at issue: binding. Rule At a depot, a single Tier 2 engineer may flash Rover SDK field firmware without a second approver, provided the rover is on a maintenance stand with the drive system isolated and the depot console shows the rover out of service.. [3] Architecture Decision Records. ## ADR-037 Two approvers for Rover SDK firmware flashing. [4]",
       "pass": false,
       "exactIdPass": true,
       "documentReceipt": true,
@@ -506,17 +506,17 @@
           "supported": true
         },
         {
-          "id": "f64d374d1899f3057707528f77703f3f:chunk:2",
-          "provider": "document",
-          "title": "helios-operations-handbook.pdf",
-          "excerpt": "----- Helios Robotics Operations Handbook, Revision 7 | Part I - Operating Policies --- ## OPS-POL-14 Rover SDK field firmware flashing --- Owner: Field Operations Effective: 3 February 2031 Status at issue: binding ### Rule At a depot, a single Tier 2 engineer may flash Rover SDK field firmware without a second approver, provided the rover is on a maintenance stand with the drive system isolated and the depot console shows the rover out of service. ### Why the rule was written this way Depots run thin on the night shift. Requiring a second approver for a routine flash meant either waking a second engineer or leaving the rover out of service until morning. The maintenance stand was treated a",
-          "supported": true
-        },
-        {
           "id": "f64d374d1899f3057707528f77703f3f:chunk:3",
           "provider": "document",
           "title": "helios-operations-handbook.pdf",
           "excerpt": "### DRAFT-OPS-14 DRAFT-OPS-14 was never ratified and carries no operational authority. It proposed that any engineer, at any tier, could flash rover firmware provided a photograph of the maintenance stand was attached to the ticket. It is routinely confused with OPS-POL-14, which was a real policy and which was itself superseded by ADR-037. Neither the draft nor the superseded policy permits single engineer flashing today. ### DRAFT-ESC-9 A proposal to let the escalation desk issue credits up to a fixed limit without ledger access. Withdrawn after the Billing Migration parallel run showed that a credit issued without ledger access cannot be reconciled. ### DRAFT-RB-2 A runbook draft for rest",
+          "supported": true
+        },
+        {
+          "id": "f64d374d1899f3057707528f77703f3f:chunk:2",
+          "provider": "document",
+          "title": "helios-operations-handbook.pdf",
+          "excerpt": "----- Helios Robotics Operations Handbook, Revision 7 | Part I - Operating Policies --- ## OPS-POL-14 Rover SDK field firmware flashing --- Owner: Field Operations Effective: 3 February 2031 Status at issue: binding ### Rule At a depot, a single Tier 2 engineer may flash Rover SDK field firmware without a second approver, provided the rover is on a maintenance stand with the drive system isolated and the depot console shows the rover out of service. ### Why the rule was written this way Depots run thin on the night shift. Requiring a second approver for a routine flash meant either waking a second engineer or leaving the rover out of service until morning. The maintenance stand was treated a",
           "supported": true
         },
         {
@@ -533,11 +533,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 1741,
-      "measuredLatencyMs": 3915,
+      "latencyMs": 1897,
+      "measuredLatencyMs": 4264,
       "callCount": 2,
       "costUnits": 2,
-      "runId": "query_f5f5a88a-3984-4434-a97f-6fc250c7d911"
+      "runId": "query_823a1f4f-3fcb-4d15-91a6-b1d6a4cf6a2b"
     },
     {
       "id": "fact-superseding-decision",
@@ -603,7 +603,7 @@
       "apiOk": true,
       "httpStatus": 200,
       "error": null,
-      "answer": "From this date every Rover SDK field firmware flash requires two approvers, and one of them must be a Safety Case Owner. The single engineer permission in OPS-POL-14 is withdrawn and must not be relied on, whatever the depot staffing situation.. Context OPS-POL-14 assumed the maintenance stand was sufficient protection, on the argument that an isolated rover cannot move. [1] It proposed that any engineer, at any tier, could flash rover firmware provided a photograph of the maintenance stand was attached to the ticket. It is routinely confused with OPS-POL-14, which was a real policy and which was itself superseded by ADR-037. Neither the draft nor the superseded policy permits single engineer flashing today.. [2] ## ADR-037 Two approvers for Rover SDK firmware flashing. Status: Accepted Decided: 9 September 2031 Author: Kenji Sato Supersedes: OPS-POL-14. Decision [3] Rule At a depot, a single Tier 2 engineer may flash Rover SDK field firmware without a second approver, provided the rover is on a maintenance stand with the drive system isolated and the depot console shows the rover out of service.. [4]",
+      "answer": "ADR-037, dated 9 September 2031, supersedes OPS-POL-14. From this date every Rover SDK field firmware flash requires two approvers, and one of them must be a Safety Case Owner. The single engineer permission in OPS-POL-14 is withdrawn and must not be relied on, whatever the depot staffing situation.. [1] It proposed that any engineer, at any tier, could flash rover firmware provided a photograph of the maintenance stand was attached to the ticket. It is routinely confused with OPS-POL-14, which was a real policy and which was itself superseded by ADR-037. Neither the draft nor the superseded policy permits single engineer flashing today.. [2] Architecture Decision Records. ## ADR-037 Two approvers for Rover SDK firmware flashing. [3] ### DRAFT-OPS-14 DRAFT-OPS-14 was never ratified and carries no operational authority. [2]",
       "pass": true,
       "exactIdPass": true,
       "documentReceipt": true,
@@ -693,31 +693,24 @@
           "supported": true
         },
         {
-          "id": "f64d374d1899f3057707528f77703f3f:chunk:19",
+          "id": "f64d374d1899f3057707528f77703f3f:chunk:0",
           "provider": "document",
           "title": "helios-operations-handbook.pdf",
-          "excerpt": "### Procedure - Confirm the failure on the depot console. A single failed probe is not enough. - Capture the diagnostics bundle before restarting anything. Restarting first destroys the evidence. - Drain the charge dock controller and wait for in flight work to finish, up to 34 seconds. - Restart the service and watch the probe for two consecutive passes. - If the probe fails again, stop and escalate rather than restarting a third time. ### Verification The recovery is complete when the probe has passed twice, the dispatch queue depth is falling, and an operator at Rotterdam confirms live status is moving again. Record the diagnostics bundle reference on the ticket even when the restart work",
-          "supported": true
-        },
-        {
-          "id": "f64d374d1899f3057707528f77703f3f:chunk:1",
-          "provider": "document",
-          "title": "helios-operations-handbook.pdf",
-          "excerpt": "----- Helios Robotics Operations Handbook, Revision 7 | Part I - Operating Policies --- ## OPS-POL-14 Rover SDK field firmware flashing --- Owner: Field Operations Effective: 3 February 2031 Status at issue: binding ### Rule At a depot, a single Tier 2 engineer may flash Rover SDK field firmware without a second approver, provided the rover is on a maintenance stand with the drive system isolated and the depot console shows the rover out of service. ### Why the rule was written this way Depots run thin on the night shift. Requiring a second approver for a routine flash meant either waking a second engineer or leaving the rover out of service until morning. The maintenance stand was treated a",
+          "excerpt": "### Procedure - Confirm the failure on the depot console. A single failed probe is not enough. - Capture the diagnostics bundle before restarting anything. Restarting first destroys the evidence. - Drain the field diagnostics bundle and wait for in flight work to finish, up to 103 seconds. - Restart the service and watch the probe for two consecutive passes. - If the probe fails again, stop and escalate rather than restarting a third time. ### Verification The recovery is complete when the probe has passed twice, the dispatch queue depth is falling, and an operator at Manchester confirms live status is moving again. Record the diagnostics bundle reference on the ticket even when the restart ",
           "supported": true
         }
       ],
-      "citationCount": 4,
+      "citationCount": 3,
       "claimCount": 4,
       "supportedClaimCount": 4,
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 1785,
-      "measuredLatencyMs": 3747,
+      "latencyMs": 2067,
+      "measuredLatencyMs": 4356,
       "callCount": 2,
       "costUnits": 2,
-      "runId": "query_7f10caf3-dc23-4a44-9748-b73346a59096"
+      "runId": "query_01db4c12-d36c-4d04-a214-fc5907156914"
     },
     {
       "id": "fact-escalation-sev1",
@@ -830,11 +823,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 2237,
-      "measuredLatencyMs": 4722,
+      "latencyMs": 2537,
+      "measuredLatencyMs": 5183,
       "callCount": 2,
       "costUnits": 2,
-      "runId": "query_1a0d75a6-e34b-4a87-8a27-712dcbadfe42"
+      "runId": "query_ad14b40c-06f0-4246-b9d1-70ca8dd05b2f"
     },
     {
       "id": "fact-alias-rover-sdk",
@@ -947,11 +940,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 1993,
-      "measuredLatencyMs": 4276,
+      "latencyMs": 1762,
+      "measuredLatencyMs": 4308,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_15468e2e-658f-4083-9bc6-ccbfdc5317af"
+      "runId": "query_d45f56ab-23ae-4f83-be97-27c85539f8dd"
     },
     {
       "id": "fact-atlas-deadline",
@@ -1034,11 +1027,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 1617,
-      "measuredLatencyMs": 3505,
+      "latencyMs": 1579,
+      "measuredLatencyMs": 3553,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_577648d8-4a1e-4e04-a1e6-d2471777c9fd"
+      "runId": "query_649cef5c-6b8e-4d30-938f-14800f25a679"
     },
     {
       "id": "fact-eng-456",
@@ -1170,11 +1163,11 @@
       "claimCitationPairCount": 2,
       "supportedClaimCitationPairCount": 2,
       "mode": "fast",
-      "latencyMs": 1815,
-      "measuredLatencyMs": 3580,
+      "latencyMs": 1820,
+      "measuredLatencyMs": 3566,
       "callCount": 2,
       "costUnits": 2,
-      "runId": "query_2863b165-601c-45e2-bdaa-6873b1ddaae9"
+      "runId": "query_175c41ec-1190-4818-90c7-e72a5cc97390"
     },
     {
       "id": "fact-hindi-commitment",
@@ -1301,11 +1294,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 1435,
-      "measuredLatencyMs": 3281,
+      "latencyMs": 1778,
+      "measuredLatencyMs": 3525,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_37db7069-3ef3-4162-a934-564da3e16525"
+      "runId": "query_006a9ca8-b0fd-4326-a51b-771e5231c88c"
     },
     {
       "id": "fact-billing-cutover",
@@ -1388,11 +1381,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 1443,
-      "measuredLatencyMs": 3594,
+      "latencyMs": 2382,
+      "measuredLatencyMs": 4911,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_c1925e9e-9c6b-446a-b5bd-295ca50cb0cf"
+      "runId": "query_ce80fe87-ee4d-4238-92c3-c96ef24e4f71"
     },
     {
       "id": "fact-rover-freeze",
@@ -1475,11 +1468,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 1932,
-      "measuredLatencyMs": 4801,
+      "latencyMs": 1870,
+      "measuredLatencyMs": 4074,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_9018f3a8-b002-4d9b-8857-35cb89690da9"
+      "runId": "query_9d0dd3d1-2d1b-4457-a819-7e50566a93b4"
     },
     {
       "id": "fact-bug-123",
@@ -1598,11 +1591,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 1923,
-      "measuredLatencyMs": 3968,
+      "latencyMs": 1823,
+      "measuredLatencyMs": 3745,
       "callCount": 2,
       "costUnits": 2,
-      "runId": "query_f4e23c1b-be8f-475c-88ef-4ad765da8578"
+      "runId": "query_b5ad50b0-fac5-44b0-9a83-7d66b543fffe"
     },
     {
       "id": "fact-pr-8871",
@@ -1713,11 +1706,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 1959,
-      "measuredLatencyMs": 4061,
+      "latencyMs": 1997,
+      "measuredLatencyMs": 4095,
       "callCount": 2,
       "costUnits": 2,
-      "runId": "query_49c23942-ef1d-43a7-ba31-8909405dc175"
+      "runId": "query_af11eece-ca6f-43e9-85d1-5b1c7b04fc21"
     },
     {
       "id": "fact-middle-beacon",
@@ -1793,11 +1786,11 @@
       "claimCitationPairCount": 3,
       "supportedClaimCitationPairCount": 3,
       "mode": "fast",
-      "latencyMs": 1711,
-      "measuredLatencyMs": 3651,
+      "latencyMs": 1643,
+      "measuredLatencyMs": 3829,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_e02e8686-9f81-4fbd-87e1-71281a75f20d"
+      "runId": "query_fef2c737-1f0f-4190-b5a6-8f04553fae6e"
     },
     {
       "id": "fact-middle-buffer",
@@ -1887,11 +1880,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 2226,
-      "measuredLatencyMs": 4027,
+      "latencyMs": 1669,
+      "measuredLatencyMs": 3668,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_e5da70da-fcec-4be1-9e61-7be467817b5b"
+      "runId": "query_e0f5d0c6-c216-4d4a-836c-183a9cc061d8"
     },
     {
       "id": "fact-inc-2031",
@@ -2026,11 +2019,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 1924,
-      "measuredLatencyMs": 4057,
+      "latencyMs": 2272,
+      "measuredLatencyMs": 5038,
       "callCount": 2,
       "costUnits": 2,
-      "runId": "query_89967282-3ac0-490d-8806-34607aaf55f0"
+      "runId": "query_ddb7b3c0-cd13-4155-aa11-6fb4b1eef26a"
     },
     {
       "id": "fact-incident-table",
@@ -2130,11 +2123,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 2836,
-      "measuredLatencyMs": 4900,
+      "latencyMs": 2231,
+      "measuredLatencyMs": 4465,
       "callCount": 2,
       "costUnits": 2,
-      "runId": "query_7b2bfb55-f0d6-4024-a64e-0b8c9c19033e"
+      "runId": "query_cd777a29-da7f-4ad3-bfb4-abd702e56e42"
     },
     {
       "id": "fact-priya-raman",
@@ -2260,11 +2253,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 2157,
-      "measuredLatencyMs": 4213,
+      "latencyMs": 2086,
+      "measuredLatencyMs": 4257,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_3673e120-0f2d-424d-b8f0-fe582482a6ae"
+      "runId": "query_45fa932f-9444-4ba1-b33b-09b5128fe495"
     },
     {
       "id": "fact-priya-ramanathan",
@@ -2383,11 +2376,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 1720,
-      "measuredLatencyMs": 3529,
+      "latencyMs": 1931,
+      "measuredLatencyMs": 3990,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_95062e09-6c1f-4a72-b904-72268b5ae9de"
+      "runId": "query_f4cfb477-77a4-435c-9850-782e4faa7f29"
     },
     {
       "id": "fact-oncall-ring0",
@@ -2470,11 +2463,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 1572,
-      "measuredLatencyMs": 3509,
+      "latencyMs": 1575,
+      "measuredLatencyMs": 3380,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_bbcbeac5-2340-4011-8a3e-cec34687d3db"
+      "runId": "query_415245a3-a656-46b4-aa4c-ce7dd23626c7"
     },
     {
       "id": "fact-distractor-draft",
@@ -2526,8 +2519,8 @@
       "apiOk": true,
       "httpStatus": 200,
       "error": null,
-      "answer": "### DRAFT-OPS-14 DRAFT-OPS-14 was never ratified and carries no operational authority. It proposed that any engineer, at any tier, could flash rover firmware provided a photograph of the maintenance stand was attached to the ticket. [1] Neither the draft nor the superseded policy permits single engineer flashing today.. [2] Rule At a depot, a single Tier 2 engineer may flash Rover SDK field firmware without a second approver, provided the rover is on a maintenance stand with the drive system isolated and the depot console shows the rover out of service.. [3] From this date every Rover SDK field firmware flash requires two approvers, and one of them must be a Safety Case Owner. The single engineer permission in OPS-POL-14 is withdrawn and must not be relied on, whatever the depot staffing situation.. Context OPS-POL-14 assumed the maintenance stand was sufficient protection, on the argument that an isolated rover cannot move. [4]",
-      "pass": false,
+      "answer": "### DRAFT-OPS-14 DRAFT-OPS-14 was never ratified and carries no operational authority. It proposed that any engineer, at any tier, could flash rover firmware provided a photograph of the maintenance stand was attached to the ticket. It is routinely confused with OPS-POL-14, which was a real policy and which was itself superseded by ADR-037. [1] ADR-037, dated 9 September 2031, supersedes OPS-POL-14. From this date every Rover SDK field firmware flash requires two approvers, and one of them must be a Safety Case Owner. The single engineer permission in OPS-POL-14 is withdrawn and must not be relied on, whatever the depot staffing situation.. [2] Neither the draft nor the superseded policy permits single engineer flashing today.. [3] Architecture Decision Records. ## ADR-037 Two approvers for Rover SDK firmware flashing. [4]",
+      "pass": true,
       "exactIdPass": true,
       "documentReceipt": true,
       "matchedFacts": [
@@ -2556,6 +2549,14 @@
           ]
         },
         {
+          "id": "binding-rule",
+          "label": "ADR-037 is the binding rule",
+          "matched": true,
+          "matchedAlternatives": [
+            "ADR-037"
+          ]
+        },
+        {
           "id": "two-approvers",
           "label": "The binding rule requires two approvers",
           "matched": true,
@@ -2564,17 +2565,10 @@
           ]
         }
       ],
-      "missingFacts": [
-        {
-          "id": "binding-rule",
-          "label": "ADR-037 is the binding rule",
-          "matched": false,
-          "matchedAlternatives": []
-        }
-      ],
-      "matchedFactCount": 4,
+      "missingFacts": [],
+      "matchedFactCount": 5,
       "requiredFactCount": 5,
-      "requiredFactRecall": 0.8,
+      "requiredFactRecall": 1,
       "providerPass": true,
       "providers": [
         "document"
@@ -2599,6 +2593,13 @@
           "supported": true
         },
         {
+          "id": "f64d374d1899f3057707528f77703f3f:chunk:3",
+          "provider": "document",
+          "title": "helios-operations-handbook.pdf",
+          "excerpt": "ADR-037, dated 9 September 2031, supersedes OPS-POL-14. From this date every Rover SDK field firmware flash requires two approvers, and one of them must be a Safety Case Owner. The single engineer permission in OPS-POL-14 is withdrawn and must not be relied on, whatever the depot staffing situation. ### Context OPS-POL-14 assumed the maintenance stand was sufficient protection, on the argument that an isolated rover cannot move. Two near misses showed the argument was too narrow. A flash that fails part way can leave the safety interlock in an undefined state, and the rover leaves the stand later with nobody aware. ### Consequences - Night shift flashes now wait for a second approver, and so",
+          "supported": true
+        },
+        {
           "id": "f64d374d1899f3057707528f77703f3f:chunk:1",
           "provider": "document",
           "title": "helios-operations-handbook.pdf",
@@ -2606,17 +2607,10 @@
           "supported": true
         },
         {
-          "id": "f64d374d1899f3057707528f77703f3f:chunk:4",
+          "id": "f64d374d1899f3057707528f77703f3f:chunk:2",
           "provider": "document",
           "title": "helios-operations-handbook.pdf",
-          "excerpt": "----- Helios Robotics Operations Handbook, Revision 7 | Part I - Operating Policies --- ## OPS-POL-14 Rover SDK field firmware flashing --- Owner: Field Operations Effective: 3 February 2031 Status at issue: binding ### Rule At a depot, a single Tier 2 engineer may flash Rover SDK field firmware without a second approver, provided the rover is on a maintenance stand with the drive system isolated and the depot console shows the rover out of service. ### Why the rule was written this way Depots run thin on the night shift. Requiring a second approver for a routine flash meant either waking a second engineer or leaving the rover out of service until morning. The maintenance stand was treated a",
-          "supported": true
-        },
-        {
-          "id": "f64d374d1899f3057707528f77703f3f:chunk:3",
-          "provider": "document",
-          "title": "helios-operations-handbook.pdf",
-          "excerpt": "ADR-037, dated 9 September 2031, supersedes OPS-POL-14. From this date every Rover SDK field firmware flash requires two approvers, and one of them must be a Safety Case Owner. The single engineer permission in OPS-POL-14 is withdrawn and must not be relied on, whatever the depot staffing situation. ### Context OPS-POL-14 assumed the maintenance stand was sufficient protection, on the argument that an isolated rover cannot move. Two near misses showed the argument was too narrow. A flash that fails part way can leave the safety interlock in an undefined state, and the rover leaves the stand later with nobody aware. ### Consequences - Night shift flashes now wait for a second approver, and so",
+          "excerpt": "### Procedure - Confirm the failure on the depot console. A single failed probe is not enough. - Capture the diagnostics bundle before restarting anything. Restarting first destroys the evidence. - Drain the field diagnostics bundle and wait for in flight work to finish, up to 103 seconds. - Restart the service and watch the probe for two consecutive passes. - If the probe fails again, stop and escalate rather than restarting a third time. ### Verification The recovery is complete when the probe has passed twice, the dispatch queue depth is falling, and an operator at Manchester confirms live status is moving again. Record the diagnostics bundle reference on the ticket even when the restart ",
           "supported": true
         }
       ],
@@ -2626,11 +2620,11 @@
       "claimCitationPairCount": 4,
       "supportedClaimCitationPairCount": 4,
       "mode": "fast",
-      "latencyMs": 2811,
-      "measuredLatencyMs": 5076,
+      "latencyMs": 2195,
+      "measuredLatencyMs": 4065,
       "callCount": 2,
       "costUnits": 2,
-      "runId": "query_847c0151-8b6c-4e24-ae2d-fc0249ca383f"
+      "runId": "query_ad2321cf-aaa6-44a3-8138-9b11c9c6d69c"
     },
     {
       "id": "fact-end-battery",
@@ -2707,11 +2701,11 @@
       "claimCitationPairCount": 3,
       "supportedClaimCitationPairCount": 3,
       "mode": "fast",
-      "latencyMs": 1680,
-      "measuredLatencyMs": 3624,
+      "latencyMs": 1757,
+      "measuredLatencyMs": 3926,
       "callCount": 1,
       "costUnits": 1,
-      "runId": "query_a1cdb70c-0788-491f-8067-edb08751c6f1"
+      "runId": "query_96a451d7-192d-4d07-9f6b-eee365253091"
     }
   ]
 }

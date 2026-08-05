@@ -2,5 +2,6 @@
 
 Use [docs/SOCIAL_POSTS.md](../docs/SOCIAL_POSTS.md).
 
-That file includes the current verified metrics, the public-sandbox boundary, and the
-required warning not to present the 20/22 strict baseline as 22/22.
+That file preserves the measured-runtime boundary, reports the 21/22 and 55/56 PDF core
+result, discloses the weaker Thinking run and separate cross-source REVIEW, and keeps
+repository publication plus the video URL as pending gates.

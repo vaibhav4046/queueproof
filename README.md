@@ -52,35 +52,34 @@ The **Proof tests** page publishes failures as `REVIEW`; it does not relabel the
 
 ## Stored production measurements
 
-The forced-mode live artifacts embed a successful health receipt for release
-`c7cf16b3c92f66d7b2f17a90e01372b77d62235b` on `main` and record four verified sources:
-GitHub, Gmail, Linear, and Slack. They are historical measurements, not proof that production
-still runs that release or that the current source candidate passes its gates. Verify
-`/api/health/live` and use [the release receipt](RELEASE_EVIDENCE.md) before making a current
-deployment claim. The offline router artifact separately records 39/39 labelled cases and 331
-fixture-computable assertions; it is not a live-retrieval or CI result.
+The canonical artifacts embed a successful production health receipt for commit
+`aed027879150e3e324b54c5ec2194d4d715c501e` on `main`, deployed as
+`queueproof-7hvdge426-vaibhav4046s-projects.vercel.app`. Results below are bound to that exact
+runtime. The offline router artifact separately records 39/39 labelled cases and 331
+fixture-computable assertions; it is not a live-retrieval or deployment result.
 
-Forced Fast and Deep runs used the same six strict questions on that release and honored the
-requested mode:
+The same six strict live questions were run in Auto, forced Fast, and forced Thinking modes:
 
-| Mode | Strict cases | Facts | p50 / p95 | Calls | Mean calls | Weighted units | Cited providers |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| Fast | 4/6 | 19/19 | 2,531 / 3,316 ms | 7 | 1.17 | 7 | GitHub, Linear, Slack |
-| Deep (`thinking`) | 4/6 | 19/19 | 23,575 / 32,482 ms | 13 | 2.17 | 39 | GitHub, Gmail, Linear, Slack |
+| Requested mode | Strict cases | Facts | p50 / p95 | Calls | Weighted units | Observed execution |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| Auto | 4/6 | 19/19 | 2,155 / 2,392 ms | 7 | 7 | All 6 returned Fast; four cited providers across the run |
+| Forced Fast | 4/6 | 19/19 | 1,833 / 2,446 ms | 7 | 7 | All 6 returned Fast |
+| Forced Thinking | 2/6 | 13/19 | 26,329 / 40,003 ms | 10 | 30 | Five returned Thinking; one timed out with mode unknown |
 
-Both runs measured 100% citation precision, 100% citation completeness, and 0% unsupported
-claims. Fast retained the same strict score and fact coverage while using less latency, calls,
-and relative cost. The two `REVIEW` cases remain failures under the frozen strict rubric.
+Auto and forced Fast measured 100% citation precision, 100% citation completeness, and 0%
+unsupported claims. Their two `REVIEW` cases remain failures because each lacked the required
+Linear-backed provider evidence, even though all answer facts were present. Forced Thinking is
+not described as parity: it passed only 2/6 cases, and its timed-out case contributed no answer.
 
-A later timestamped production artifact reran the indexed deterministic 346-page PDF suite. It
-passed 20/22 cases and recovered 53/56 facts (94.6429%); beginning, middle, and end canaries all
-passed.
-All 84 claims were supported by 56 citations, with 100% citation precision/completeness and
-0% unsupported claims. The run measured p50 2,592 ms and p95 17,061 ms, averaged 1.8182 calls,
-used 13 Fast and 9 Deep queries, and consumed 86 weighted units. The cross-source case remains
-`REVIEW` because it found the document and GitHub but needed one more non-document provider.
-Because `evals/results/pdf-live-run.json` does not embed a health receipt or release SHA, it is
-target- and timestamp-scoped rather than same-commit evidence.
+The SHA-bound 346-page PDF core suite passed 21/22 cases and recovered 55/56 required facts.
+Beginning, middle, and end canaries passed. All 84 claims were supported, across 69 citations,
+with 100% citation precision/completeness and 0% unsupported claims. All 22 cases returned Fast;
+the run measured p50/p95 latency of 1,823/2,382 ms and used 31 HydraDB calls / 31 weighted units.
+
+The separate document-plus-connectors extension remains `REVIEW`. It recovered both required
+facts and cited the document plus GitHub, but the strict contract required one additional
+non-document provider. It measured 29,676 ms, 6 calls, and 18 weighted units. This extension is
+reported separately and is not counted as a 22nd core-suite pass.
 See [connector proof](docs/CONNECTOR_PROOF.md), [large-PDF proof](docs/LARGE_PDF_PROOF.md),
 and the machine-readable artifact at `evals/results/pdf-live-run.json`.
 
@@ -189,7 +188,7 @@ invented dollar costs.
 - [Connector proof](docs/CONNECTOR_PROOF.md)
 - [Large-PDF proof](docs/LARGE_PDF_PROOF.md)
 - [Security model](docs/SECURITY.md)
-- [Secret-scan evidence](audit/secret-scan-2026-08-04.md)
+- [Secret-scan evidence](audit/secret-scan-2026-08-05.md)
 - [Dependency audit](audit/dependency-audit-2026-08-04.md)
 - [Judging matrix](docs/JUDGING_MATRIX.md)
 - [Hackathon form answers](docs/HACKATHON_FORM.md)
@@ -198,8 +197,8 @@ invented dollar costs.
 
 - Timestamped live results are a small observed sample, not an SLA.
 - A `REVIEW` benchmark result is a failed strict requirement, not a partial pass.
-- The timestamp-scoped 346-page PDF result is 20/22, not 22/22; it is not SHA-bound and the
-  cross-source provider miss remains `REVIEW`.
+- The SHA-bound 346-page PDF core result is 21/22, not 22/22. Its separate cross-source
+  extension also remains `REVIEW` because one required non-document provider was absent.
 - Public users cannot mutate credentials, connectors, uploads, tokens, or external systems.
 - A real provider write is proven only by a stored provider response identifier.
 - Repository visibility must be verified in a signed-out browser before calling the source

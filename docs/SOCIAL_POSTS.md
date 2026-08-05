@@ -1,60 +1,61 @@
 # QueueProof social posts
 
-These drafts use the last accepted production measurements from 4 August 2026. Refresh the
-live benchmark numbers, then publish only after the final commit is live, the repository opens
-in a signed-out browser, and [`RELEASE_EVIDENCE.md`](../RELEASE_EVIDENCE.md) contains the
-submitted-commit gate receipts.
+> [!IMPORTANT]
+> Drafts for the current main evidence build, whose exact deployed identity must be verified
+> through `/api/health/live`. The quoted measurements belong to production runtime
+> `aed027879150e3e324b54c5ec2194d4d715c501e` on `main`. Publish only after the repository
+> is public, signed-out access is verified, the final video is live, and
+> [`RELEASE_EVIDENCE.md`](../RELEASE_EVIDENCE.md) records the evidence-build gates.
 
 ## LinkedIn
 
-Agents can execute. The harder problem is proving what deserves execution next.
+**Ask your work. Get the proof.**
 
-QueueProof is an evidence-backed control plane built on HydraDB. It retrieves across
-GitHub, Linear, Slack, Gmail, and documents; turns the evidence into cited claims;
-preserves disagreements; and compiles a deterministic next-action packet with a receipt.
+QueueProof uses HydraDB to turn fragmented work across GitHub, Linear, Slack, Gmail, and
+documents into one cited answer and one evidence-backed Task brief.
 
-The trust boundary is part of the product: the public sandbox supports shared evidence,
-questions, queue review, and proposals, while credentials, connector changes, uploads,
-tokens, and external writes require a private owner.
+Every supported claim opens to a source receipt. Disagreements stay visible. Every proposed
+external change remains behind human approval. The same evidence contract is available in
+the web product and through MCP.
 
-The checked-in deterministic router artifact records 39/39 labelled cases and 331
-fixture-computable assertions. Add the submitted commit's final CI, build, E2E, and deployment
-receipt only after it is recorded in `RELEASE_EVIDENCE.md`. A fresh
-strict run over a 346-page PDF recovered 53/56
-required facts and passed 20/22 cases with complete supporting citations; the misses stay
-visible as REVIEW, not hidden in a vanity score. The final six-query production sample
-matched 19/19 required facts with complete citations and zero unsupported claims; four
-cases fully passed and two stayed REVIEW on the frozen multi-provider requirements.
+Measured on production runtime `aed02787`:
 
-One answer. Every system. Proven.
+- Best/Auto: 4/6 strict cases, 19/19 facts, 2.155 s p50, 7 calls.
+- Quick/Fast: 4/6 strict cases, 19/19 facts, 1.833 s p50, 7 calls.
+- Investigate/Thinking: 2/6 strict cases, 13/19 facts, 26.329 s p50, 10 calls, with one timeout.
+- 346-page PDF core: 21/22 cases, 55/56 facts, 84/84 supported claims, 69 citations, and all
+  beginning/middle/end canaries passed.
+
+The failed rows stay REVIEW. The separate PDF cross-source extension found both facts and
+the document plus GitHub, but missed one additional non-document provider.
 
 <https://queueproof.vercel.app>
 
-#HydraDB #AIagents #RAG #DeveloperTools #AISafety
+#HydraDB #AIAgents #RAG #DeveloperTools #AISafety
 
 ## X / Twitter
 
-QueueProof gives agents one defensible next action - with receipts.
+Ask your work. Get the proof.
 
-HydraDB evidence -> cited claims -> preserved conflicts -> deterministic priority ->
-approval-gated execution.
+QueueProof turns HydraDB evidence into a cited answer + Task brief, preserves conflicts, and
+keeps writes behind human approval.
 
-39/39 router cases. 331 fixture assertions. Live baseline: 19/19 facts, 4/6 complete,
-100% citation precision/completeness. Fresh 346-page PDF: 20/22 cases, 53/56 facts.
-Public evidence sandbox; external writes stay private and approval-gated.
+Measured runtime `aed02787`: Quick 4/6 + 19/19 facts at 1.833 s p50. 346-page PDF: 21/22,
+55/56 facts, 84/84 supported claims. REVIEW stays visible.
 
 <https://queueproof.vercel.app>
 
 ## Demo/video caption
 
-One question across GitHub, Linear, and Slack. Every claim opens to a receipt. The queue
-shows its score math. The public sandbox can propose, but it cannot change credentials or
-execute an external write.
+One real question across work systems. Every supported claim opens to a receipt. QueueProof
+then turns the same evidence into a Task brief, while every external change waits for human
+approval.
 
-QueueProof - One answer. Every system. Proven.
+Ask your work. Get the proof.
 
 ## Accuracy note
 
-The strict public-production PDF baseline is 20/22 cases and 53/56 facts. It was measured
-after the final judge deployment with complete citations and zero unsupported claims.
-Never present it as 22/22.
+The production measurements above describe runtime `aed02787`, not the forthcoming evidence
+build unless the latter is deployed and rerun. The six-query sample is not an SLA. Relative
+units are not dollars. The PDF core is 21/22 and 55/56; the separate cross-source extension
+remains REVIEW.

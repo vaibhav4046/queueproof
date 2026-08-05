@@ -1,75 +1,83 @@
-# Submission copy
+# QueueProof submission copy
 
 > [!IMPORTANT]
-> Draft only. Before pasting this copy, complete
-> [`RELEASE_EVIDENCE.md`](../RELEASE_EVIDENCE.md) and use only the submitted commit's recorded
-> gates plus metrics whose machine-readable artifact identifies the quoted run.
+> Draft for the final evidence build. The measured production runtime is commit
+> `aed027879150e3e324b54c5ec2194d4d715c501e` on `main`. The forthcoming package is the
+> current main evidence build; verify its exact deployed identity through `/api/health/live`
+> and `RELEASE_EVIDENCE.md`. The measurements below describe the measured runtime, not the
+> evidence build, unless that build is deployed and the measurements are repeated. The
+> repository is still private and the video URL is still pending.
 
-## QueueProof - One answer. Every system. Proven.
+## Ask your work. Get the proof.
 
-QueueProof is an evidence-backed control plane for autonomous work, built on HydraDB. It
-connects work evidence across GitHub, Linear, Slack, Gmail, and uploaded documents;
-retrieves the minimum context needed; preserves conflicts; and produces a cited answer
-plus a deterministic next-action packet.
+QueueProof turns work scattered across GitHub, Linear, Slack, Gmail, and documents into one
+cited answer and one evidence-backed Task brief. It preserves disagreements instead of
+averaging them away, shows exactly which sources support each claim, and keeps every external
+change behind human approval.
 
-Every claim resolves to a receipt. Every retrieval exposes its routing reason, provider
-coverage, HydraDB calls, and elapsed time. Every queue item exposes the versioned score
-components, evidence, constraints, permissions, missing information, and receipt hash.
-Agents can read the same packet through MCP, while an external write remains an exact
-proposal until a human approves it and the database grants the one execution claim.
+HydraDB is the evidence layer. QueueProof verifies connectors with attributable canary
+records, retrieves exact identifiers through text and hybrid lanes, merges evidence without
+collapsing unrelated entities, and records mode, provider coverage, calls, latency, relative
+cost, and citations with the answer.
 
-HydraDB is the evidence layer, not a logo integration. QueueProof discovers provider
-contracts, scopes connectors, waits for sync, and promotes a connector to `data_verified`
-only after a canary returns attributable records. Exact identifiers run text and hybrid
-retrieval concurrently. Strong connector/resource lineage prevents evidence from being
-credited merely because its provider name matches.
-
-The checked-in deterministic router artifact records 39/39 labelled cases and 331
-fixture-computable assertions. It measures planner/ranking behavior only. Quote test totals,
-typecheck, lint, build, E2E, deployment, and responsive results only after the submitted
-commit's immutable receipts are recorded in `RELEASE_EVIDENCE.md`.
-
-The public product is intentionally a shared evidence sandbox. It allows grounded
-questions, queue inspection, and shared proposals, but disables credential changes,
-connector control, uploads, MCP token administration, and external execution. The exact
-public workspace is selected by configuration and ambiguous multi-workspace state fails
-closed.
+The same evidence contract is available in the web product and through MCP. In the UI the
+modes are **Quick**, **Best**, and **Investigate**; their measured counterparts are forced
+Fast, Auto, and Thinking/Deep check.
 
 **Live product:** <https://queueproof.vercel.app>
-
-**Direct judge route:** <https://queueproof.vercel.app/>
 
 **Method and boundaries:** <https://queueproof.vercel.app/method>
 
 **Proof tests:** <https://queueproof.vercel.app/benchmarks>
 
-**Repository:** <https://github.com/vaibhav4046/queueproof>
+**Repository:** <https://github.com/vaibhav4046/queueproof> — private until the publication
+gate is completed.
 
-**Replay the deterministic benchmark:** `pnpm benchmark:router`
+**Video:** pending final recording and upload.
 
-## Evidence to quote
+## Measured production evidence
 
-- Four last-observed production connectors at `data_verified`: GitHub, Gmail, Linear,
-  and Slack.
-- Flagship production answer with cited GitHub, Linear, and Slack evidence in one thinking
-  query.
-- Final six-query production sample: 19/19 required facts, four of six complete case
-  passes, 100% citation precision/completeness, zero unsupported claims, p50 16.294 s,
-  and p95 29.877 s.
-- 39/39 deterministic router cases and 331 fixture-computable assertions in
-  `evals/results/results.json`; not a live accuracy claim.
-- Current candidate gates: quote only the completed, submitted-commit receipt in
-  `RELEASE_EVIDENCE.md`.
-- Secret hygiene: quote only the fresh scan receipt for the submitted commit recorded in
-  `RELEASE_EVIDENCE.md`.
+All results in this section were generated against runtime
+`aed027879150e3e324b54c5ec2194d4d715c501e` on `main`.
 
-## Boundaries to quote with equal prominence
+| Run | Strict cases | Required facts | p50 / p95 | HydraDB calls / units | Result boundary |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Best / Auto | 4/6 | 19/19 | 2,155 / 2,392 ms | 7 / 7 | All six queries resolved as Fast |
+| Quick / forced Fast | 4/6 | 19/19 | 1,833 / 2,446 ms | 7 / 7 | Two provider-requirement rows remain REVIEW |
+| Investigate / forced Thinking | 2/6 | 13/19 | 26,329 / 40,003 ms | 10 / 30 | One timeout; this run did not match Fast coverage |
 
-- The timestamped post-deploy strict PDF run passed 20/22 cases and recovered 53/56 facts
-  with complete citations; both REVIEW cases and the cross-source provider miss stay visible.
-  Its artifact does not embed a release SHA.
-- The stored six-query live run is a small diagnostic sample, not an SLA. Two cases stay
-  REVIEW because the returned receipts did not satisfy the frozen multi-provider rubric,
-  even though all required answer facts were present.
-- Relative cost units are reported; no HydraDB USD cost is invented.
-- External execution is considered proven only after a provider response ID is persisted.
+The six-question benchmark is a diagnostic, not an SLA. A correct fact does not convert a
+provider-coverage failure into a pass. REVIEW rows remain visible.
+
+The deterministic 346-page PDF evaluation passed **21/22** core cases and recovered
+**55/56** fact groups. It measured p50 **1,823 ms** and p95 **2,382 ms**, used **31 calls / 31
+relative units**, and routed all 22 core questions through Fast. Beginning, middle, and end
+canaries passed; **84/84 claims** were supported by **69 citations**.
+
+The separate cross-source extension remains **REVIEW**. It found both required facts and
+cited the document plus GitHub, but missed the rubric's additional non-document provider. It
+measured **29,676 ms** and used **6 calls / 18 relative units**. It is not part of the 21/22
+core denominator.
+
+The checked-in deterministic router artifact records 39/39 labelled cases and 331
+fixture-computable assertions. That measures planner and ranking behavior only; it is not a
+live retrieval-accuracy claim.
+
+## Product and safety boundary
+
+The public URL is a shared, read-only evidence workspace. Visitors can ask questions, inspect
+receipts, review Task briefs, and prepare proposals. Credential changes, connector control,
+uploads, MCP token administration, approval, and external execution require a private owner.
+An action counts as executed only after a provider response identifier is persisted.
+
+Relative retrieval units are reported because no verified HydraDB dollar conversion is
+available. No USD cost is invented.
+
+## Final publication gates
+
+- Record the committed current main evidence-build SHA in `RELEASE_EVIDENCE.md`.
+- Complete the submitted-commit gates in [`RELEASE_EVIDENCE.md`](../RELEASE_EVIDENCE.md).
+- Make the repository public and verify it from a signed-out browser.
+- Add the public video URL.
+- If the evidence build changes runtime behavior, deploy it and repeat every quoted
+  production measurement before calling those metrics submitted-release evidence.

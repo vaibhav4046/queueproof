@@ -1,6 +1,6 @@
 {
   "status": "measured",
-  "generatedAt": "2026-08-05T00:50:46.024Z",
+  "generatedAt": "2026-08-05T01:30:17.989Z",
   "grader": "grounded-grader-v2",
   "runner": "scripts/run-live-benchmark.mjs",
   "fixture": "evals/fixtures/live-cases.json",
@@ -10,24 +10,24 @@
   "health": {
     "ok": true,
     "httpStatus": 200,
-    "measuredLatencyMs": 280,
+    "measuredLatencyMs": 460,
     "body": {
       "status": "live",
       "service": "queueproof-web",
-      "time": "2026-08-05T00:50:23.779Z",
+      "time": "2026-08-05T01:29:54.951Z",
       "release": {
-        "commitSha": "2a34ab2dcdf83e64df49e5e6f7070f2511a43fc0",
+        "commitSha": "aed027879150e3e324b54c5ec2194d4d715c501e",
         "commitRef": "main",
         "target": "production",
-        "deploymentUrl": "queueproof-9ub223333-vaibhav4046s-projects.vercel.app"
+        "deploymentUrl": "queueproof-7hvdge426-vaibhav4046s-projects.vercel.app"
       }
     },
     "error": null
   },
   "release": {
-    "commitSha": "2a34ab2dcdf83e64df49e5e6f7070f2511a43fc0",
+    "commitSha": "aed027879150e3e324b54c5ec2194d4d715c501e",
     "commitRef": "main",
-    "deploymentUrl": "queueproof-9ub223333-vaibhav4046s-projects.vercel.app"
+    "deploymentUrl": "queueproof-7hvdge426-vaibhav4046s-projects.vercel.app"
   },
   "releaseVerified": true,
   "connectors": [
@@ -42,14 +42,14 @@
   "thinking": 0,
   "fast": 6,
   "latencyMs": {
-    "p50": 1914,
-    "p95": 2061,
-    "min": 1646,
-    "max": 2061,
+    "p50": 1833,
+    "p95": 2446,
+    "min": 1825,
+    "max": 2446,
     "fast": {
       "count": 6,
-      "p50": 1914,
-      "p95": 2061
+      "p50": 1833,
+      "p95": 2446
     },
     "thinking": {
       "count": 0,
@@ -257,12 +257,12 @@
       "requestedMode": "fast",
       "mode": "fast",
       "modeHonored": true,
-      "latencyMs": 2061,
-      "measuredLatencyMs": 4304,
+      "latencyMs": 1833,
+      "measuredLatencyMs": 4012,
       "callCount": 1,
       "sources": 6,
       "costUnits": 1,
-      "runId": "query_54c58484-52a4-4deb-a5a3-1d0a9662b093"
+      "runId": "query_2835d0b3-56ec-41e3-ab26-9250318528f6"
     },
     {
       "id": "live-deadline-conflict",
@@ -410,12 +410,12 @@
       "requestedMode": "fast",
       "mode": "fast",
       "modeHonored": true,
-      "latencyMs": 1911,
-      "measuredLatencyMs": 3982,
+      "latencyMs": 2446,
+      "measuredLatencyMs": 3775,
       "callCount": 1,
       "sources": 3,
       "costUnits": 1,
-      "runId": "query_dcfb2221-7410-4960-a0b4-1f7f2d1ed0af"
+      "runId": "query_e282ce95-7ae7-42cc-9739-6a4b5b0dee67"
     },
     {
       "id": "live-untracked-commitment",
@@ -554,12 +554,12 @@
       "requestedMode": "fast",
       "mode": "fast",
       "modeHonored": true,
-      "latencyMs": 1943,
-      "measuredLatencyMs": 3651,
+      "latencyMs": 1826,
+      "measuredLatencyMs": 3190,
       "callCount": 1,
       "sources": 3,
       "costUnits": 1,
-      "runId": "query_71a23862-3638-4ba4-aa5b-1566eb087bca"
+      "runId": "query_49129ab4-3440-4c6f-9922-9ddddcee0ba9"
     },
     {
       "id": "live-stale-tracked-work",
@@ -681,12 +681,12 @@
       "requestedMode": "fast",
       "mode": "fast",
       "modeHonored": true,
-      "latencyMs": 1914,
-      "measuredLatencyMs": 3132,
+      "latencyMs": 2174,
+      "measuredLatencyMs": 3499,
       "callCount": 1,
       "sources": 2,
       "costUnits": 1,
-      "runId": "query_0a201bf4-ffa7-4db9-8b07-24f44a20341c"
+      "runId": "query_c89aead1-538f-4601-a595-3c55c5056129"
     },
     {
       "id": "live-actor-reconstruction",
@@ -806,12 +806,12 @@
       "requestedMode": "fast",
       "mode": "fast",
       "modeHonored": true,
-      "latencyMs": 1646,
-      "measuredLatencyMs": 2980,
+      "latencyMs": 1825,
+      "measuredLatencyMs": 3424,
       "callCount": 1,
       "sources": 2,
       "costUnits": 1,
-      "runId": "query_ddcebb32-cff0-4e80-ade7-f8f65c8e2368"
+      "runId": "query_6c825bc9-aae7-4471-87e8-eecbf73bb393"
     },
     {
       "id": "live-exact-identifier-context",
@@ -945,12 +945,12 @@
       "requestedMode": "fast",
       "mode": "fast",
       "modeHonored": true,
-      "latencyMs": 1915,
-      "measuredLatencyMs": 3144,
+      "latencyMs": 2277,
+      "measuredLatencyMs": 4047,
       "callCount": 2,
       "sources": 1,
       "costUnits": 2,
-      "runId": "query_aeab9e4e-2f34-4175-b911-281524af05e8"
+      "runId": "query_c6d976f5-17f4-4da8-9e1e-4deb26340af4"
     }
   ]
 }

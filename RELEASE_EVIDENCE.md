@@ -1,107 +1,109 @@
 # QueueProof release evidence
 
 > [!IMPORTANT]
-> **Canonical judge-facing release receipt.** This file is the only place that should call a
-> source commit the current release candidate. Update it after the final commit, rerun every
-> required gate, and verify the deployed SHA before copying claims into submission material.
+> **Canonical judge-facing receipt.** The measurements in this document belong to deployed
+> runtime A. Evidence build B packages the receipts and submission documents, but it does not
+> retroactively change what was measured.
 
-## Candidate identity captured on 5 August 2026
+## Release identity
 
-| Field | Captured value |
+| Field | Value |
 | --- | --- |
-| Source commit (`git rev-parse HEAD`) | `cc815172c7249771f1acd6de37a2db799e9ad330` |
-| Branch | `codex/dialog-autofocus` |
-| Canonical production URL | <https://queueproof.vercel.app> |
-| Production SHA for this candidate | **NOT VERIFIED** |
-| Repository visibility | **NOT VERIFIED IN A SIGNED-OUT SESSION** |
-| Working-tree state at capture | **DIRTY** — uncommitted candidate work existed and is not part of the source commit above |
+| Measured runtime A commit | `aed027879150e3e324b54c5ec2194d4d715c501e` |
+| Measured runtime A ref | `main` |
+| Immutable runtime A deployment | <https://queueproof-7hvdge426-vaibhav4046s-projects.vercel.app> |
+| Canonical product URL | <https://queueproof.vercel.app> |
+| Evidence build B identity | The current `main` commit containing this receipt; verify its exact deployed SHA via `/api/health/live` |
+| Repository | <https://github.com/vaibhav4046/queueproof> — **PRIVATE** |
+| Video | **PENDING** |
 
-This is a source-identity snapshot, not a release approval. If the commit or working tree
-changes, recapture this section before submission. A production claim is valid only when
-`/api/health/live` reports the submitted commit SHA and ref.
+The checked-in live artifacts called `/api/health/live` before measuring and verified runtime
+A's exact SHA, ref, and deployment. Evidence build B is the current `main` commit containing
+this receipt; verify its exact deployed SHA via `/api/health/live`. B packages these receipts
+and documents. Unless B is deployed and the measurements are rerun, every metric below
+describes A, not B.
 
-## Release gates for this candidate
+## Exact release gate
 
-No complete release-gate run is recorded for the candidate above. Do not carry test totals or
-pass states forward from an earlier commit.
+The final local release gate for runtime A passed:
 
-| Gate | Required command or check | Status for this candidate |
-| --- | --- | --- |
-| Typecheck | `pnpm typecheck` | **NOT RECORDED** |
-| Lint | `pnpm lint` | **NOT RECORDED** |
-| Full automated suite | `pnpm test` | **NOT RECORDED** |
-| Security suite | `pnpm test:security` | **NOT RECORDED** |
-| MCP suite | `pnpm test:mcp` | **NOT RECORDED** |
-| Deterministic router | `pnpm benchmark:router` | **NOT RECORDED** |
-| Production build | `pnpm build` | **NOT RECORDED** |
-| Deployment bindings | `pnpm deploy:check` | **NOT RECORDED** |
-| Built-app acceptance | `pnpm test:e2e` against `pnpm start` | **NOT RECORDED** |
-| Secret scan | current worktree and reachable history | **NOT RECORDED** |
-| Responsive, keyboard, zoom, reduced-motion QA | final deployed build | **NOT RECORDED** |
-| Production identity | compare `/api/health/live` with submitted SHA | **NOT RECORDED** |
-| Signed-out repository access | open the submitted GitHub URL without authentication | **NOT RECORDED** |
+| Gate | Result |
+| --- | --- |
+| Typecheck | **PASS** |
+| Lint | **PASS** |
+| Full automated suite | **PASS — 39 files, 364 tests** |
+| Security suite | **PASS — 14 tests** |
+| MCP suite | **PASS — 12 tests** |
+| Deterministic router benchmark | **PASS — 39/39 cases, 331 assertions** |
+| Vinext production build | **PASS** |
+| Next/Webpack production build | **PASS** |
+| Built-app end-to-end acceptance | **PASS** |
+| Deployment-binding verification | **PASS** |
+| Production identity | **PASS — runtime A SHA/ref matched** |
+| Responsive and keyboard browser QA | **PASS — [production receipt](audit/UI_QA_2026-08-05.md)** |
+| Production console check | **PASS — 0 warnings/errors observed** |
 
-Record exact command output, CI run URL, deployment receipt, and timestamps here after the
-final candidate is immutable. Test totals belong to that receipt; they are not evergreen
-product facts.
+These are runtime-A release receipts, not evergreen totals. A later source change needs its own
+gate and deployment receipt.
 
-## Checked-in measurement ledger
+## SHA-bound measurement ledger
 
-The files below prove only the run they contain. Their internal timestamp, target, grader,
-requested mode, and release identity take precedence over prose elsewhere.
+All live rows below target <https://queueproof.vercel.app> and embed runtime A's verified
+release identity.
 
-| Evidence | What it measures | Embedded identity | Relationship to current candidate |
-| --- | --- | --- | --- |
-| [`evals/results/live-fast.json`](evals/results/live-fast.json) | Six-question forced Fast live run | `grounded-grader-v2`; generated `2026-08-04T18:15:50.348Z`; target `https://queueproof.vercel.app`; release-verified `c7cf16b3c92f66d7b2f17a90e01372b77d62235b` on `main` | **Historical; not current-HEAD evidence** |
-| [`evals/results/live-thinking.json`](evals/results/live-thinking.json) | Six-question forced thinking live run | `grounded-grader-v2`; generated `2026-08-04T18:19:06.514Z`; target `https://queueproof.vercel.app`; release-verified `c7cf16b3c92f66d7b2f17a90e01372b77d62235b` on `main` | **Historical; not current-HEAD evidence** |
-| [`evals/results/live-run.json`](evals/results/live-run.json) | Earlier six-question live sample | Generated `2026-08-04T10:06:06.911Z`; target recorded, but no embedded health/release receipt | **Historical and not SHA-bound** |
-| [`evals/results/pdf-live-run.json`](evals/results/pdf-live-run.json) | Strict 346-page PDF run | `grounded-grader-v2`; generated `2026-08-04T18:28:35.671Z`; target recorded, but no embedded health/release receipt | **Historical, timestamp-scoped, and not SHA-bound** |
-| [`evals/results/results.json`](evals/results/results.json) and [`results.csv`](evals/results/results.csv) | Offline deterministic router/ranking fixtures | Generated `2026-08-04T22:46:16.720Z`; requested mode `fixture`; live phase `not_requested`; no commit identity | **Historical and not SHA-bound** |
-| [`BENCHMARK_REPORT.md`](BENCHMARK_REPORT.md) | Human-readable index of stored fixture and live measurements | Carries per-section timestamps; machine-readable JSON remains authoritative | **Reference only** |
+| Artifact | Strict result | Latency p50 / p95 | HydraDB calls / weighted units | Routing |
+| --- | --- | --- | --- | --- |
+| [`evals/results/live-run.json`](evals/results/live-run.json) | Auto: **4/6 cases; 19/19 required facts** | **2,155 / 2,392 ms** | **7 / 7** | **6/6 Fast** |
+| [`evals/results/live-fast.json`](evals/results/live-fast.json) | Forced Fast: **4/6 cases; 19/19 required facts** | **1,833 / 2,446 ms** | **7 / 7** | **6/6 Fast** |
+| [`evals/results/live-thinking.json`](evals/results/live-thinking.json) | Forced Thinking: **2/6 cases; 13/19 required facts; one timeout** | **26,329 / 40,003 ms** | **10 / 30** | Forced Thinking |
+| [`evals/results/pdf-live-run.json`](evals/results/pdf-live-run.json) | 346-page PDF core: **21/22 cases; 55/56 facts; 84/84 claims supported** | **1,823 / 2,382 ms** | **31 / 31** | **22/22 Fast** |
 
-The PDF artifact does **not** embed a release SHA or health receipt. It may be quoted as a
-timestamped production measurement, but it must not be described as a same-commit result
-without a new SHA-bound run. The offline fixture, live connector, and PDF results are separate
-measurements and must never be merged into one accuracy claim.
+The PDF core run contains **69 citations**, passed the beginning, middle, and end canaries, and
+recorded the document SHA-256 and HydraDB source ID. Its separate cross-source extension found
+**2/2 required facts** with document and GitHub evidence, but is correctly marked **REVIEW**
+because it missed one additional required non-document provider. That extension took
+**29,676 ms**, **6 calls**, and **18 weighted units**. It is not included in the PDF core
+21/22 denominator.
 
-## Evidence required before submission
+The 4/6 live case score and the 19/19 fact score answer different questions. Both Auto and
+forced Fast recovered every frozen fact, while two cases failed stricter provider or
+contradiction requirements. Forced Thinking did not improve this sample and timed out once.
+QueueProof keeps those failures visible.
 
-1. Commit every intended source and documentation change; ensure the working tree is clean.
-2. Replace the candidate SHA and branch above with the submitted commit.
-3. Run every release gate and link the immutable CI receipt.
-4. Deploy that commit and record the immutable deployment URL.
-5. Verify `/api/health/live` reports the exact submitted SHA and ref.
-6. Re-run forced Fast, forced thinking, and PDF measurements if they will be presented as
-   current-release evidence. The runners must store the production health/release identity.
-7. Capture connector proof, owner-only boundary checks, MCP client acceptance, and responsive
-   interaction QA against that deployed SHA.
-8. Open the repository and live product in signed-out sessions before calling either public.
+The offline router result, connector live samples, and large-PDF run are separate measurements.
+The six-question samples are release diagnostics, not an SLA. Weighted units are a relative
+query-cost model, not dollars.
 
-## Claim rules for judges and marketing
+## Connector and developer evidence
 
-- A `REVIEW` row is a failed strict requirement, not a partial pass.
-- A fixture result proves deterministic routing/ranking only, not connector or answer quality.
-- A small live sample is a diagnostic, not an SLA or general accuracy estimate.
-- Relative query units are not dollars.
-- A connector is working only when an attributable canary receipt proves provider data.
-- An external action is executed only when a provider response identifier is persisted.
-- A historical audit may explain provenance, but it cannot override this receipt or a
-  machine-readable artifact.
+- Runtime A's live receipts declare four connectors: GitHub, Gmail, Linear, and Slack.
+- The flagship query requires and returns attributable GitHub, Linear, and Slack evidence.
+- A connector counts as ready only after a provider canary returns attributable records; a
+  saved credential alone is not proof.
+- The MCP gate passed 12 tests. The product's **Connect AI** surface exposes the bounded MCP
+  configuration for supported clients; external writes remain approval-gated.
 
-## Final sign-off fields
+## Claim rules
+
+- `REVIEW` means a strict requirement failed, even when every requested fact was found.
+- A citation must resolve to a retained receipt that supports the nearby claim.
+- A fixture proves deterministic planning and ranking only, not live connector quality.
+- A provider action is executed only when its response identifier is persisted.
+- The repository is not public while its visibility is **PRIVATE**. Judges need explicit access
+  or the repository must be made public before submission.
+- The demo is not complete until a public video URL replaces **PENDING**.
+
+## Final sign-off
 
 | Sign-off | Evidence |
 | --- | --- |
-| Submitted commit | `PENDING` |
-| Clean working tree | `PENDING` |
-| CI run | `PENDING` |
-| Immutable deployment | `PENDING` |
-| `/api/health/live` SHA/ref match | `PENDING` |
-| Fast artifact | `PENDING` |
-| Thinking artifact | `PENDING` |
-| PDF artifact | `PENDING` |
-| Connector receipt timestamp | `PENDING` |
-| MCP acceptance receipt | `PENDING` |
-| Responsive/accessibility QA receipt | `PENDING` |
-| Signed-out GitHub check | `PENDING` |
-| Video URL | `PENDING` |
+| Measured runtime A identity | **PASS** — `aed027879150e3e324b54c5ec2194d4d715c501e` on `main` |
+| Runtime A immutable deployment | **PASS** — <https://queueproof-7hvdge426-vaibhav4046s-projects.vercel.app> |
+| Runtime A exact release gate | **PASS** |
+| Auto artifact | **PASS — SHA-bound** |
+| Forced Fast artifact | **PASS — SHA-bound** |
+| Forced Thinking artifact | **RECORDED WITH ONE TIMEOUT** |
+| Large-PDF artifact | **PASS — SHA-bound; one core REVIEW and one cross-source REVIEW retained** |
+| Evidence build B | Current `main` commit containing this receipt; verify its exact deployed SHA via `/api/health/live` |
+| Repository access | **PRIVATE — judge access/public visibility still required** |
+| Video URL | **PENDING** |
