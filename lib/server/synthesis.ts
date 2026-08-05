@@ -128,6 +128,13 @@ function intentBoost(question: string, text: string) {
   return score;
 }
 
+// A question about what was delivered. Mentioning the verb is not enough to
+// answer one: the evidence has to assert the delivery, not use the word in
+// passing. Kept deliberately narrow so it matches receipts, not commentary.
+const DELIVERY_QUESTION = /\b(?:ship|shipped|shipping|release|released|deliver|delivered|launch|launched|deploy|deployed)\b/;
+const DELIVERY_ASSERTION =
+  /\b(?:shipped|released|deployed|merged|launched|delivered|went live|rolled out|ready to (?:ship|release|deploy)|cut the release)\b/;
+
 function relevance(question: string, text: string) {
   const q = question.toLowerCase();
   const candidate = text.toLowerCase();
@@ -152,9 +159,21 @@ function relevance(question: string, text: string) {
     const hasCompletionState = /\b(merged|shipped|resolved|closed|completed|complete)\b/.test(candidate);
     if (!hasTrackedState || !hasCompletionState) return 0;
   }
-  if (anchors.length && anchorMatches === 0 && identifierScore === 0) return 0;
-  if (overlap === 0 && identifierScore === 0) return 0;
-  return overlap * 3 + anchorMatches * 2 + identifierScore + intentBoost(question, text);
+  // "What did we ship most recently?" names no record and no person, so the only
+  // lexical hook it offers is the verb itself. Newsletter prose shares that verb
+  // without attesting to anything ("safe to ship code at that speed", "developers
+  // who do not ship code that compiles"), which is how four unrelated Gmail
+  // fragments were once assembled into a confidently grounded answer. When a
+  // delivery question carries no concrete anchor, the candidate must actually
+  // state that something was delivered -- and that assertion is itself the topical
+  // match, since a receipt may say "deployed" where the question said "ship".
+  const unanchoredDelivery =
+    DELIVERY_QUESTION.test(q) && identifierScore === 0 && !hasConcreteAnchor(question);
+  const deliveryScore = unanchoredDelivery && DELIVERY_ASSERTION.test(candidate) ? 8 : 0;
+  if (unanchoredDelivery && deliveryScore === 0) return 0;
+  if (anchors.length && anchorMatches === 0 && identifierScore === 0 && deliveryScore === 0) return 0;
+  if (overlap === 0 && identifierScore === 0 && deliveryScore === 0) return 0;
+  return overlap * 3 + anchorMatches * 2 + identifierScore + deliveryScore + intentBoost(question, text);
 }
 
 const BRIDGE_GENERIC_TOKENS = new Set([
@@ -342,7 +361,13 @@ function hasConcreteAnchor(question: string) {
   const words = question.split(/\s+/)
     .map((word) => word.replace(/[^\p{L}\p{N}'-]/gu, ""))
     .filter((word) => /^[A-Z][a-zA-Z'-]*$/.test(word));
-  return words.some((word) => word.length >= 4 && !GENERIC_QUESTION_TOKENS.has(word.toLowerCase()));
+  // A sentence-initial interrogative is capitalised by grammar, not because it
+  // names anything. Without the stop-word check "What"/"Which"/"Where" all
+  // counted as concrete anchors, so every question looked anchored.
+  return words.some((word) => {
+    const lower = word.toLowerCase();
+    return word.length >= 4 && !STOP_WORDS.has(lower) && !GENERIC_QUESTION_TOKENS.has(lower);
+  });
 }
 
 /**

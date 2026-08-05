@@ -741,4 +741,79 @@ describe("evidence-constrained synthesis", () => {
     expect(ranked[0].id).toBe("github-new");
     expect(ranked.every((item) => item.id !== "noise")).toBe(true);
   });
+
+  // Regression: production returned HTTP 200 with validation.status "grounded" for
+  // this question, stitching four unrelated Gmail newsletters that each merely used
+  // the word "ship". The excerpts below are synthetic but reproduce the exact shape
+  // of the fragments that were wrongly promoted.
+  it("abstains instead of stitching newsletters that only mention the word ship", () => {
+    const result = synthesiseGroundedAnswer(
+      "What did we ship most recently and what proves it?",
+      [
+        {
+          id: "news-1",
+          provider: "gmail",
+          title: "The staff+ engineer digest",
+          excerpt:
+            "This first-person take explores how the staff+ engineer role changes once you are no longer the person who writes most of the code.",
+          timestamp: "2026-08-01T08:00:00Z",
+        },
+        {
+          id: "news-2",
+          provider: "gmail",
+          title: "Trade and freight briefing",
+          excerpt:
+            "Withholding tax treatment for chartering an Indian ship remains unchanged for the current assessment year.",
+          timestamp: "2026-08-02T08:00:00Z",
+        },
+        {
+          id: "news-3",
+          provider: "gmail",
+          title: "Engineering productivity roundup",
+          excerpt:
+            "Moreover, there are still developers who do not ship code that compiles, and reviewers absorb the cost.",
+          timestamp: "2026-08-03T08:00:00Z",
+        },
+        {
+          id: "news-4",
+          provider: "gmail",
+          title: "Agent techniques roundup",
+          excerpt:
+            "A practical guide to the techniques teams use to ship production-ready agents without a dedicated platform team.",
+          timestamp: "2026-08-04T08:00:00Z",
+        },
+      ],
+    );
+    expect(result.validation.status).toBe("abstained");
+    expect(result.answer).toMatch(/^Insufficient evidence\./i);
+    expect(result.answer).not.toMatch(/Indian ship/i);
+    expect(result.answer).not.toMatch(/staff\+/i);
+    expect(result.answer).not.toMatch(/Moreover/i);
+  });
+
+  it("still answers the same delivery question when a real ship receipt is present", () => {
+    const result = synthesiseGroundedAnswer(
+      "What did we ship most recently and what proves it?",
+      [
+        {
+          id: "news-3",
+          provider: "gmail",
+          title: "Engineering productivity roundup",
+          excerpt:
+            "Moreover, there are still developers who do not ship code that compiles, and reviewers absorb the cost.",
+          timestamp: "2026-08-03T08:00:00Z",
+        },
+        {
+          id: "release",
+          provider: "github",
+          title: "Billing reconciliation release",
+          excerpt: "The billing reconciliation fix was deployed to production on 2 August 2026.",
+          timestamp: "2026-08-02T09:00:00Z",
+        },
+      ],
+    );
+    expect(result.validation.status).not.toBe("abstained");
+    expect(result.answer).toMatch(/billing reconciliation fix was deployed/i);
+    expect(result.answer).not.toMatch(/Moreover/i);
+  });
 });
