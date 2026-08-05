@@ -46,7 +46,7 @@ describe("retrieval planner", () => {
   it("repairs a single-provider join before paying Thinking cost", () => {
     expect(shouldRunFastCoverageRepair({
       category: "exact_identifier",
-      plannedMode: "thinking",
+      plannedMode: "fast",
       evidenceProviders: ["slack"],
       contradictionProviders: [],
     })).toBe(true);

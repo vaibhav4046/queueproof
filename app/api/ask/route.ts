@@ -385,12 +385,12 @@ export async function POST(request: Request) {
     if (shouldRunFastCoverageRepair({
       category: plan.category,
       plannedMode: plan.mode,
-      evidenceProviders: preliminaryEvidence.map((item) => item.provider),
+      evidenceProviders: preliminary.evidence.map((item) => item.provider),
       contradictionProviders: preliminary.contradictions.map((item) => item.providers),
     })) {
       const repairQuery = focusedEvidenceFollowUpQuery(
         question,
-        preliminaryEvidence.map((item) => `${item.title}. ${item.excerpt}`),
+        preliminary.evidence.map((item) => `${item.title}. ${item.excerpt}`),
       );
       if (repairQuery) {
         await recorder.record(
@@ -409,7 +409,7 @@ export async function POST(request: Request) {
         validationStatus: preliminary.validation.status,
         missingInformation: preliminary.missingInformation,
         namedProviders,
-        evidenceProviders: preliminaryEvidence.map((item) => item.provider),
+        evidenceProviders: preliminary.evidence.map((item) => item.provider),
       });
       if (decision.escalate) {
         effectiveMode = "thinking";
@@ -419,7 +419,7 @@ export async function POST(request: Request) {
         });
         const followUpQuery = focusedEvidenceFollowUpQuery(
           question,
-          preliminaryEvidence.map((item) => `${item.title}. ${item.excerpt}`),
+          preliminary.evidence.map((item) => `${item.title}. ${item.excerpt}`),
         ) ?? retrievalQuery;
         await runQueryBatch(followUpQuery, ["hybrid"], "follow_up", "thinking");
       } else {
@@ -431,7 +431,7 @@ export async function POST(request: Request) {
     } else if (primaryMode === "thinking") {
       const followUpQuery = focusedEvidenceFollowUpQuery(
         question,
-        preliminaryEvidence.map((item) => `${item.title}. ${item.excerpt}`),
+        preliminary.evidence.map((item) => `${item.title}. ${item.excerpt}`),
       );
       if (followUpQuery) {
         await runQueryBatch(followUpQuery, ["hybrid"], "follow_up", "thinking");

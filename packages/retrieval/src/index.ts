@@ -78,9 +78,9 @@ export function decideAutoEscalation(input: {
  * A fast first pass can find a complete sentence in one provider that refers to
  * another system (for example, GitHub says ENG-456 is still open). That is useful
  * evidence, but it is not independent provider confirmation. Run one bounded Fast
- * join-key follow-up when the planner expected multi-step reasoning and the first
- * result is still single-provider. This repairs coverage without paying Thinking
- * cost for a deterministic identifier join.
+ * join-key follow-up when an exact identifier or a planned multi-step state check
+ * is still single-provider. This repairs coverage without paying Thinking cost for
+ * a deterministic identifier join.
  */
 export function shouldRunFastCoverageRepair(input: {
   category: QueryCategory;
@@ -89,8 +89,9 @@ export function shouldRunFastCoverageRepair(input: {
   contradictionProviders: string[][];
 }) {
   const providerCount = new Set(input.evidenceProviders.filter(Boolean)).size;
-  if (input.plannedMode !== "thinking" || providerCount !== 1) return false;
+  if (providerCount !== 1) return false;
   if (input.category === "exact_identifier") return true;
+  if (input.plannedMode !== "thinking") return false;
   return input.contradictionProviders.some((providers) => new Set(providers.filter(Boolean)).size < 2);
 }
 
