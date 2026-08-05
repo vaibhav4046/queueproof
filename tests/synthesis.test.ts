@@ -259,6 +259,67 @@ describe("evidence-constrained synthesis", () => {
     expect(result.answer).toMatch(/fifteen minutes|30 June 2031/i);
   });
 
+  it("keeps a short connector receipt intact for a strict exact-ID one-hop bridge", () => {
+    const result = synthesiseGroundedAnswer(
+      "According to the Helios operations handbook, what does ENG-456 require, and do Slack, Linear, or GitHub show related AuthShield work?",
+      [
+        {
+          id: "handbook-eng-456",
+          provider: "document",
+          title: "helios-operations-handbook.pdf",
+          excerpt: "ENG-456 reduces the AuthShield operator token lifetime to fifteen minutes. The committed completion date is 30 June 2031.",
+        },
+        {
+          id: "github-eng-456",
+          provider: "github",
+          title: "AuthShield fix merged in PR-8871 but ENG-456 still open",
+          excerpt: "The AuthShield authentication fix for the Northwind outage (INC-2031) was merged. Linear issue ENG-456 is still showing as open even though the code is shipped.",
+        },
+        {
+          id: "linear-inc-2031",
+          provider: "linear",
+          title: "AuthShield authentication outage for Northwind",
+          excerpt: "INC-2031: Northwind reported an authentication outage. Priya Raman filed this against Atlas Launch. Engineering committed to shipping the AuthShield fix before Friday 7 August 2026.",
+        },
+      ],
+    );
+
+    expect(result.validation.providerCoverage).toEqual(
+      expect.arrayContaining(["document", "github", "linear"]),
+    );
+    expect(result.claims).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        providers: ["linear"],
+        evidenceIds: ["linear-inc-2031"],
+      }),
+    ]));
+    expect(result.answer).toMatch(/operator token lifetime.*fifteen minutes/i);
+    expect(result.answer).toMatch(/INC-2031.*AuthShield|AuthShield.*INC-2031/i);
+  });
+
+  it("does not promote an unrelated short receipt merely for provider diversity", () => {
+    const result = synthesiseGroundedAnswer(
+      "According to the handbook, what does ENG-456 require, and does Slack show related AuthShield work?",
+      [
+        {
+          id: "handbook-eng-456",
+          provider: "document",
+          title: "helios-operations-handbook.pdf",
+          excerpt: "ENG-456 reduces the AuthShield operator token lifetime to fifteen minutes.",
+        },
+        {
+          id: "slack-no-join-key",
+          provider: "slack",
+          title: "Credential training workshop",
+          excerpt: "Northwind asked about a credential training session. The workshop is unrelated to any tracked incident or engineering delivery.",
+        },
+      ],
+    );
+
+    expect(result.validation.providerCoverage).toEqual(["document"]);
+    expect(result.answer).not.toMatch(/workshop|training session/i);
+  });
+
   it("keeps a compact query-focused window for punctuation-free table evidence", () => {
     const result = synthesiseGroundedAnswer(
       "Who is the Ring 0 on call contact for the Bengaluru depot?",

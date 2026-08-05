@@ -67,6 +67,28 @@ describe("retrieval planner", () => {
     })).toBe(false);
   });
 
+  it("does not count a scoped document as a second connector receipt", () => {
+    expect(shouldRunFastCoverageRepair({
+      category: "exact_identifier",
+      plannedMode: "thinking",
+      evidenceProviders: ["document", "github"],
+      contradictionProviders: [],
+    })).toBe(true);
+    expect(shouldRunFastCoverageRepair({
+      category: "exact_identifier",
+      plannedMode: "thinking",
+      evidenceProviders: ["document", "github", "linear"],
+      contradictionProviders: [],
+    })).toBe(false);
+    expect(shouldRunFastCoverageRepair({
+      category: "exact_identifier",
+      plannedMode: "thinking",
+      evidenceProviders: ["document", "github", "linear"],
+      contradictionProviders: [],
+      namedProviders: ["github", "linear", "slack"],
+    })).toBe(true);
+  });
+
   it("targets a missing provider named by retained evidence", () => {
     expect(coverageRepairProviderOrder({
       question: "Which open issue appears to be already resolved elsewhere?",

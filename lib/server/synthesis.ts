@@ -408,7 +408,7 @@ function focusedWindows(question: string, body: string) {
   return windows;
 }
 
-function sentences(item: SynthesisEvidence, question: string) {
+function sentences(item: SynthesisEvidence, question: string, evidence: SynthesisEvidence[]) {
   const raw = item.excerpt || item.title;
   // Markdown headings and horizontal rules often sit between otherwise normal
   // sentences. Convert those boundaries before splitting so a useful sentence
@@ -425,8 +425,12 @@ function sentences(item: SynthesisEvidence, question: string) {
   // verbatim, capped, and cited to the same exact source ID.
   const needsReceiptContext =
     /\bno\s+(?:linear\s+)?issue\b|\bopen\s+issue\b|\bwho\s+is\b[^?]{0,100}\band\s+what\b|\bwho\s+filed\b|\bwhich\s+project\b/i.test(question);
+  const exactBridgeNeedsReceiptContext = item.provider !== "document" && body.length <= 420 &&
+    // The emitted claim is the receipt body, so the body itself—not a helpful
+    // title—must carry the exact join key and secondary anchor.
+    crossSourceBridgeScore(question, body, item.provider, evidence) > 0;
   return [...new Set([
-    ...(needsReceiptContext && body.length <= 420 ? [body] : []),
+    ...((needsReceiptContext || exactBridgeNeedsReceiptContext) && body.length <= 420 ? [body] : []),
     ...body.split(/(?<=[.!?])\s+(?=[A-Z0-9])/).map(clean),
     ...focusedWindows(question, body),
   ])].filter((sentence) => sentence.length >= 18 && sentence.length <= 420);
@@ -585,7 +589,7 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
   const authority = authorityContext(question, ranked);
   const valuePatterns = valuePatternsForQuestion(question);
   const candidates = ranked.flatMap((item, evidenceIndex) =>
-    sentences(item, question).map((text, sentenceIndex) => {
+    sentences(item, question, evidence).map((text, sentenceIndex) => {
       const sentenceScore = relevance(question, text);
       const titleScore = relevance(question, item.title);
       const authorityScore = authorityRelevance(question, text, authority);

@@ -423,11 +423,16 @@ export async function POST(request: Request) {
     await runQueryBatch(retrievalQuery, retrievalQueryVariants(plan), "primary", primaryQueryMode);
     let preliminaryEvidence = dedupeEvidence();
     let preliminary = synthesiseGroundedAnswer(question, preliminaryEvidence);
+    const namedConnectorProviders = providersNamedInQuestion(
+      question,
+      connectors.results.map((connector) => connector.provider),
+    );
     if (shouldRunFastCoverageRepair({
       category: plan.category,
       plannedMode: plan.mode,
       evidenceProviders: preliminary.evidence.map((item) => item.provider),
       contradictionProviders: preliminary.contradictions.map((item) => item.providers),
+      namedProviders: namedConnectorProviders,
     })) {
       const repairQuery = focusedEvidenceFollowUpQuery(
         question,
@@ -448,7 +453,15 @@ export async function POST(request: Request) {
             : "The Fast pass found only one provider, but the retained evidence did not identify a safe missing-provider repair target.",
           { callCount: trace.length, latencyMs: Date.now() - started, mode: "fast" },
         );
+        const missingNamedProviders = new Set(namedConnectorProviders.filter((provider) =>
+          !preliminary.evidence.some((item) => item.provider === provider),
+        ));
+        const hasNamedRepairTargets = missingNamedProviders.size > 0;
         for (const targetProvider of repairProviders) {
+          // An explicitly scoped question should query only those named missing
+          // providers. Do not spend a fallback call on an unrelated connector if
+          // one named lane legitimately returns no matching receipt.
+          if (hasNamedRepairTargets && !missingNamedProviders.has(targetProvider)) continue;
           const providerScopes = connectors.results
             .filter((connector) => connector.provider.toLowerCase() === targetProvider)
             .map((connector) => ({
@@ -463,7 +476,13 @@ export async function POST(request: Request) {
           if (!providerScopes.length) continue;
           await runQueryBatch(repairQuery, ["hybrid"], "follow_up", "fast", providerScopes);
           const repairedProviders = new Set(dedupeEvidence().map((item) => item.provider));
-          if (repairedProviders.has(targetProvider)) break;
+          missingNamedProviders.delete(targetProvider);
+          // When the user named providers, check every still-missing named lane.
+          // Otherwise preserve the original cheap repair: stop after the first
+          // independently attributable connector receipt.
+          if (hasNamedRepairTargets) {
+            if (missingNamedProviders.size === 0) break;
+          } else if (repairedProviders.has(targetProvider)) break;
         }
         preliminaryEvidence = dedupeEvidence();
         preliminary = synthesiseGroundedAnswer(question, preliminaryEvidence);

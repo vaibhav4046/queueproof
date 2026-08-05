@@ -87,9 +87,23 @@ export function shouldRunFastCoverageRepair(input: {
   plannedMode: RetrievalPlan["mode"];
   evidenceProviders: string[];
   contradictionProviders: string[][];
+  namedProviders?: string[];
 }) {
-  const providerCount = new Set(input.evidenceProviders.filter(Boolean)).size;
-  if (providerCount !== 1) return false;
+  // Document evidence proves the uploaded-file lane, but it is not an
+  // independent connector receipt. A document + one connector is therefore
+  // still a single-connector answer and needs the same bounded exact-ID repair
+  // as a connector-only result. Counting `document` here caused a real
+  // cross-source query to stop after the handbook and GitHub, even though the
+  // question explicitly asked for the corresponding Linear/Slack state.
+  const providerCount = new Set(
+    input.evidenceProviders.filter((provider) => provider && provider !== "document"),
+  ).size;
+  const produced = new Set(input.evidenceProviders.map((provider) => provider.toLowerCase()));
+  const namedConnectorMissing = (input.namedProviders ?? []).some((provider) =>
+    provider !== "document" && !produced.has(provider.toLowerCase()),
+  );
+  if (input.category === "exact_identifier" && namedConnectorMissing) return true;
+  if (providerCount > 1) return false;
   if (input.category === "exact_identifier") return true;
   if (input.plannedMode !== "thinking") return false;
   return input.contradictionProviders.some((providers) => new Set(providers.filter(Boolean)).size < 2);
