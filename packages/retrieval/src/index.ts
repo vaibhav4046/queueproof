@@ -284,7 +284,7 @@ export function planRetrieval(query: string): RetrievalPlan {
   // question — "Who filed BUG-123, which project are they working on, and what did they
   // say about the fix in Slack?" — took that path and could never have been answered
   // correctly, because it needs an actor, a project and a Slack thread across providers.
-  const temporal = /\b(since|before|after|changed|yesterday|today|latest|timeline|since monday|this week)\b/.test(normalized) ||
+  const temporal = /\b(since|before|after|changed|yesterday|today|latest|newest|timeline|most\s+recent(?:ly)?|since monday|this week)\b/.test(normalized) ||
     /\b(desde|antes|despu[eé]s|cambi[oó]|lunes|hoy|ayer)\b/.test(normalized);
   const explicitConflictSignal = /\b(conflict(?:ing|ed|s)?|contradict(?:ory|ing|ed|s)?|disagree(?:ment|ments|d|s)?|inconsistent|inconsistency)\b/.test(normalized);
   const conflictSignal = explicitConflictSignal ||

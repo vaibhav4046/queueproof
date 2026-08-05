@@ -57,6 +57,55 @@ function tokenise(value: string) {
     .map((token) => token.replace(/(?:ing|ed|es|s)$/i, ""));
 }
 
+/** Parsed epoch millis for a source timestamp, or null when absent/unparseable. */
+const evidenceTime = (timestamp?: string | null): number | null => {
+  if (!timestamp) return null;
+  const time = Date.parse(timestamp);
+  return Number.isNaN(time) ? null : time;
+};
+
+/**
+ * A question that explicitly asks for the newest item rather than any item.
+ * Pure lexical scoring cannot answer these; the pool must be re-ranked by
+ * source timestamp. "Most recently" was a real miss — it read as an ordinary
+ * single-source fact, so an older but lexically closer receipt won the slot.
+ */
+const recencyQuestion = (question: string) =>
+  /\b(?:most\s+recent(?:ly)?|latest|newest)\b/i.test(question);
+
+/**
+ * Per-item recency factor in [0, 1] keyed by evidence id, using min-max
+ * normalisation across the dated pool. The newest dated item is 1, the oldest
+ * is 0, so relative gaps within a small window stay meaningful (a plain
+ * epoch ratio would compress July-vs-June into ~0.99 and never reorder).
+ * Absent, unparseable, or single-valued timestamps yield no ordering signal,
+ * so an empty map is returned and callers skip recency work entirely.
+ */
+const recencyFactors = (evidence: readonly SynthesisEvidence[]): Map<string, number> => {
+  const times = new Map<string, number>();
+  let minTime = Number.POSITIVE_INFINITY;
+  let maxTime = 0;
+  for (const item of evidence) {
+    const time = evidenceTime(item.timestamp);
+    if (time == null) continue;
+    times.set(item.id, time);
+    if (time < minTime) minTime = time;
+    if (time > maxTime) maxTime = time;
+  }
+  const factors = new Map<string, number>();
+  if (times.size > 1 && maxTime > minTime) {
+    for (const [id, time] of times) factors.set(id, (time - minTime) / (maxTime - minTime));
+  }
+  return factors;
+};
+
+/**
+ * Bonus awarded to the newest relevant item in a recency-ordered pool. Large
+ * enough to reorder equal or near-equal lexical matches, small enough that a
+ * genuinely irrelevant fragment still loses to real relevance.
+ */
+const RECENCY_WEIGHT = 28;
+
 function intentBoost(question: string, text: string) {
   const q = question.toLowerCase();
   const candidate = text.toLowerCase();
@@ -246,14 +295,19 @@ function authorityRelevance(question: string, text: string, context: AuthorityCo
 /** Stable relevance order used by both the answer and its citation cards. */
 export function rankEvidenceForQuestion<T extends SynthesisEvidence>(question: string, evidence: T[]): T[] {
   const authority = authorityContext(question, evidence);
+  // A recency question must surface the newest item, not the lexically closest
+  // one. The boost only applies to entries that already scored positive on the
+  // lexical/authority/bridge pass, so a fresh but unrelated receipt can never
+  // be promoted into relevance just because it is recent.
+  const factors = recencyQuestion(question) ? recencyFactors(evidence) : new Map<string, number>();
   const scored = evidence
-    .map((item, index) => ({
-      item,
-      index,
-      score: relevance(question, `${item.title}. ${item.excerpt}`) +
+    .map((item, index) => {
+      const base = relevance(question, `${item.title}. ${item.excerpt}`) +
         authorityRelevance(question, `${item.title}. ${item.excerpt}`, authority) +
-        crossSourceBridgeScore(question, `${item.title}. ${item.excerpt}`, item.provider, evidence),
-    }))
+        crossSourceBridgeScore(question, `${item.title}. ${item.excerpt}`, item.provider, evidence);
+      const recency = base > 0 ? (factors.get(item.id) ?? 0) * RECENCY_WEIGHT : 0;
+      return { item, index, score: base + recency };
+    })
     .sort((a, b) => b.score - a.score || a.index - b.index);
   const relevant = scored.filter((entry) => entry.score > 0);
   const pool = relevant.length ? relevant : scored.slice(0, 3);
@@ -611,6 +665,10 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
   const ranked = rankEvidenceForQuestion(question, evidence);
   const authority = authorityContext(question, ranked);
   const valuePatterns = valuePatternsForQuestion(question);
+  // `ranked` is already recency-ordered for a recency question; the same
+  // factor reinforces that order at sentence level so the newest item's
+  // sentences out-compete older items' lexically closer sentences.
+  const recencyFactorsMap = recencyQuestion(question) ? recencyFactors(ranked) : new Map<string, number>();
   const candidates = ranked.flatMap((item, evidenceIndex) =>
     sentences(item, question, evidence).map((text, sentenceIndex) => {
       const sentenceScore = relevance(question, text);
@@ -642,7 +700,9 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
         // A relevant title may break a tie, but it cannot make an unrelated
         // paragraph into a claim.
         score: (sentenceScore > 0 || bridgeScore > 0 || isValueCandidate || authorityScore > 0)
-          ? sentenceScore + bridgeScore + authorityScore + (isValueCandidate ? 16 : 0) + Math.min(titleScore, 3) - sentenceIndex * 0.15 - evidenceIndex * 0.05
+          ? sentenceScore + bridgeScore + authorityScore + (isValueCandidate ? 16 : 0) + Math.min(titleScore, 3)
+            + (recencyFactorsMap.get(item.id) ?? 0) * RECENCY_WEIGHT * 0.5
+            - sentenceIndex * 0.15 - evidenceIndex * 0.05
           : 0,
       };
     }),

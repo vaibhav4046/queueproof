@@ -674,4 +674,71 @@ describe("evidence-constrained synthesis", () => {
       new Set(["historical-permission", "superseding-decision"]),
     );
   });
+
+  it("returns the newest shipped item first for a most-recently question and excludes unrelated recent records", () => {
+    const result = synthesiseGroundedAnswer(
+      "What did we ship most recently?",
+      [
+        {
+          id: "old-ship",
+          provider: "slack",
+          title: "Telemetry pipeline deployment",
+          excerpt: "The telemetry pipeline is ready to ship. Engineering prepared it in January.",
+          timestamp: "2026-01-20T08:00:00Z",
+        },
+        {
+          id: "new-ship",
+          provider: "github",
+          title: "Northwind hotfix release",
+          excerpt: "The authentication hotfix for Northwind is ready to ship this week.",
+          timestamp: "2026-07-28T09:00:00Z",
+        },
+        {
+          id: "newsletter",
+          provider: "gmail",
+          title: "Weekly browser tips",
+          excerpt: "This newsletter describes browser testing and developer productivity.",
+          timestamp: "2026-08-04T10:00:00Z",
+        },
+      ],
+    );
+
+    expect(result.validation.status).toBe("grounded");
+    // The newest shipped item must rank first in the evidence list.
+    expect(result.evidence[0].id).toBe("new-ship");
+    // The answer's opening sentence must be the newest ship receipt.
+    expect(result.answer).toMatch(/authentication hotfix for Northwind/);
+    // The unrelated newsletter (newest overall but base relevance 0) must not appear.
+    expect(result.answer).not.toMatch(/newsletter/i);
+    expect(result.answer).not.toMatch(/browser testing/i);
+  });
+
+  it("ranks the newest relevant evidence first for a latest-question via rankEvidenceForQuestion", () => {
+    const evidence = [
+      {
+        id: "linear-old",
+        provider: "linear",
+        title: "Billing reconciliation",
+        excerpt: "The billing reconciliation fix is ready to ship to production.",
+        timestamp: "2026-03-01T10:00:00Z",
+      },
+      {
+        id: "github-new",
+        provider: "github",
+        title: "Reporting dashboard release",
+        excerpt: "The customer-facing reporting dashboard is ready to ship after QA sign-off.",
+        timestamp: "2026-07-30T14:00:00Z",
+      },
+      {
+        id: "noise",
+        provider: "gmail",
+        title: "Team lunch invitation",
+        excerpt: "Join us for the August team lunch next Thursday.",
+        timestamp: "2026-08-04T09:00:00Z",
+      },
+    ];
+    const ranked = rankEvidenceForQuestion("What did we ship latest?", evidence);
+    expect(ranked[0].id).toBe("github-new");
+    expect(ranked.every((item) => item.id !== "noise")).toBe(true);
+  });
 });
