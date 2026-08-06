@@ -8,6 +8,7 @@ const actor = (id: string): RequestActor => ({
   email: `${id.replace(/[^a-z]/gi, "")}@example.test`,
   displayName: id,
   localDevelopment: false,
+  authType: "legacy",
 });
 
 describe("public sandbox control boundary", () => {
@@ -46,5 +47,13 @@ describe("public sandbox control boundary", () => {
     expect(app).toMatch(/useEffect\(\(\) => \{\s*\/\/ Proposal payloads are owner-only[\s\S]*?if \(readOnly\) return;[\s\S]*?api<\{ proposals: ActionProposal\[\] \}>\("\/api\/actions"\)/);
     expect(app).toContain("Proposal history is private.");
     expect(app).toContain("Public visitors cannot read, prepare, approve, or send changes.");
+  });
+
+  it("offers Auth0 entry points and namespaces browser history by workspace", () => {
+    expect(app).toContain('href="/auth/login"');
+    expect(app).toContain('href="/auth/login?screen_hint=signup"');
+    expect(app).toContain('"queueproof.recent-investigations.v2"');
+    expect(app).toContain("`${RECENT_INVESTIGATIONS_KEY_PREFIX}:${workspaceId}`");
+    expect(app).not.toContain('"queueproof.recent-investigations"');
   });
 });

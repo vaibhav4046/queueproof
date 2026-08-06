@@ -13,6 +13,26 @@ export const users = sqliteTable("users", {
   ...timestamps,
 });
 
+export const authIdentities = sqliteTable(
+  "auth_identities",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    issuer: text("issuer").notNull(),
+    subject: text("subject").notNull(),
+    email: text("email"),
+    emailVerified: integer("email_verified", { mode: "boolean" }).notNull().default(false),
+    displayName: text("display_name"),
+    avatarUrl: text("avatar_url"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("auth_identities_issuer_subject_uq").on(table.issuer, table.subject),
+    uniqueIndex("auth_identities_user_uq").on(table.userId),
+    index("auth_identities_email_idx").on(table.email),
+  ],
+);
+
 export const workspaces = sqliteTable("workspaces", {
   id: text("id").primaryKey(),
   slug: text("slug").notNull().unique(),
@@ -550,6 +570,10 @@ export const mcpClients = sqliteTable("mcp_clients", {
   lastHandshakeAt: text("last_handshake_at"),
   lastToolCallAt: text("last_tool_call_at"),
   status: text("status").notNull().default("configured"),
+  authMethod: text("auth_method"),
+  authIssuer: text("auth_issuer"),
+  externalClientId: text("external_client_id"),
+  userId: text("user_id"),
   ...timestamps,
 });
 

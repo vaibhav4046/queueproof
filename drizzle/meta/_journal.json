@@ -22,6 +22,13 @@
       "when": 1785828683793,
       "tag": "0002_sudden_callisto",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1786058400000,
+      "tag": "0003_auth0_tenancy",
+      "breakpoints": true
     }
   ]
 }

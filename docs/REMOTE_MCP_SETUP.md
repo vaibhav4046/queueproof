@@ -7,8 +7,8 @@
 | Canonical endpoint | `https://queueproof.vercel.app/mcp` |
 | Compatibility alias | `https://queueproof.vercel.app/api/mcp` |
 | Transport | Streamable HTTP / JSON-RPC, with JSON or SSE responses |
-| Authentication | `Authorization: Bearer <token>` |
-| Default audience | `queueproof-mcp` |
+| Authentication | Auth0 OAuth access token or legacy QueueProof bearer token |
+| OAuth resource/audience | `https://queueproof.vercel.app/mcp` |
 | Scopes | `queueproof:read`, `queueproof:propose`, `queueproof:sync` |
 | Resource metadata | `/.well-known/oauth-protected-resource/mcp` |
 
@@ -17,9 +17,16 @@ coverage, but an authenticated production handshake is not claimed until a real 
 is supplied and a current smoke-test receipt is recorded.
 
 OAuth is conditional, not assumed. Protected-resource metadata returns a successful discovery
-document only when `QUEUEPROOF_OAUTH_ISSUER` is configured. QueueProof currently implements
-workspace-bound bearer validation; it does not itself implement an authorization server, browser
-consent flow, PKCE exchange, or refresh-token issuance.
+document only when the complete Auth0 configuration and canonical resource are present. A Vercel
+production Marketplace install defaults to `hybrid`; operators can explicitly select
+`opaque|hybrid|auth0` with `QUEUEPROOF_MCP_AUTH_MODE`. QueueProof is the OAuth resource server; Auth0 owns
+authorization, consent, PKCE, token issuance, and revocation.
+
+Create an Auth0 API whose identifier is exactly `https://queueproof.vercel.app/mcp` and add
+`queueproof:read`, `queueproof:propose`, and `queueproof:sync`. ChatGPT must use its own OAuth
+client (CIMD is preferred; DCR or a separately registered client are alternatives), never the
+first-party QueueProof web application. Start with read-only consent. The web app and ChatGPT may
+share the Auth0 tenant, but they are separate clients of separate surfaces.
 
 ## Create a connection key
 
@@ -64,6 +71,7 @@ token.
 | --- | --- |
 | `queueproof_health` | Read-only durable-storage probe |
 | `queueproof_list_connectors` | Read connector rows for the token workspace |
+| `queueproof_list_documents` | Read document ingestion records for the token workspace |
 | `queueproof_verify_connector` | Read a stored verification receipt |
 | `queueproof_search`, `queueproof_ask` | Run observable HydraDB retrieval |
 | `queueproof_get_next_actions` | Read the latest positive-score ranked actions |
@@ -101,10 +109,10 @@ unknown tokens fail with HTTP 401. A deployment with neither durable token stora
 static fallback returns 503. Cross-origin browser requests are rejected unless their origin matches
 the MCP endpoint.
 
-If discovery returns 503, that means no OAuth issuer is configured; it does not make a valid bearer
-token invalid. If a named client requires browser OAuth and cannot accept an authorization header,
-do not claim that client is supported until a compatible authorization server is deployed and
-tested.
+If discovery returns 503, OAuth mode is intentionally incomplete or disabled; it does not make a
+valid legacy token invalid in `opaque` or `hybrid` mode. Do not claim a named ChatGPT connection
+until OAuth consent, `initialize`, `tools/list`, and one harmless read-only production tool call
+have all succeeded against the same deployed release.
 
-See [MCP security](MCP_SECURITY.md), [Claude workflow](CLAUDE_QUEUEPROOF_WORKFLOW.md), and
-[Codex workflow](CODEX_QUEUEPROOF_WORKFLOW.md).
+See [ChatGPT setup](CHATGPT_MCP_SETUP.md), [MCP security](MCP_SECURITY.md),
+[Claude workflow](CLAUDE_QUEUEPROOF_WORKFLOW.md), and [Codex workflow](CODEX_QUEUEPROOF_WORKFLOW.md).

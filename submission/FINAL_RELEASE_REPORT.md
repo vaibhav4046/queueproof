@@ -119,6 +119,8 @@ deduction and mark a category release-blocking when its official requirement is 
 ## Submission
 
 - Ready-to-paste copy: [HACKATHON_SUBMISSION.md](HACKATHON_SUBMISSION.md)
+- Primary two-to-three-minute script: [VIDEO_SCRIPT_2_3_MINUTES.md](VIDEO_SCRIPT_2_3_MINUTES.md)
+- Supademo shot and voice plan: [VIDEO_VOICE_SEGMENTS.md](VIDEO_VOICE_SEGMENTS.md)
 - 60-second script: [VIDEO_SCRIPT_60_SECONDS.md](VIDEO_SCRIPT_60_SECONDS.md)
 - Four-minute script: [VIDEO_SCRIPT_4_MINUTES.md](VIDEO_SCRIPT_4_MINUTES.md)
 - Demo runbook: [DEMO_RUNBOOK.md](DEMO_RUNBOOK.md)

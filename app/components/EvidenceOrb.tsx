@@ -1,11 +1,10 @@
 type EvidenceOrbProps = {
   state?: "idle" | "ready" | "searching" | "answered" | "partial";
-  size?: "hero" | "compact";
 };
 
-export function EvidenceOrb({ state = "idle", size = "hero" }: EvidenceOrbProps) {
+export function EvidenceOrb({ state = "idle" }: EvidenceOrbProps) {
   return (
-    <div className={`evidence-orb evidence-orb-${state} evidence-orb-${size}`} aria-hidden="true">
+    <div className={`evidence-orb evidence-orb-${state}`} aria-hidden="true">
       <span className="orb-halo" />
       <span className="orb-shell orb-shell-one" />
       <span className="orb-shell orb-shell-two" />

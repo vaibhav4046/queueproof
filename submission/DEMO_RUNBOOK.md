@@ -57,11 +57,15 @@ pending. Anonymous 401 is not proof of an authenticated workflow.
 1. Close notifications, disable password managers, and use a clean browser profile with no private
    tabs or account avatars visible.
 2. Open the five canonical tabs in shot-list order.
-3. Record one continuous 60-second take using [VIDEO_SCRIPT_60_SECONDS.md](VIDEO_SCRIPT_60_SECONDS.md).
-4. Record a four-minute backup using [VIDEO_SCRIPT_4_MINUTES.md](VIDEO_SCRIPT_4_MINUTES.md).
-5. Watch both recordings at normal speed. Check text legibility, audio, current SHA, visible
+3. Build the primary two-to-three-minute Supademo using
+   [VIDEO_SCRIPT_2_3_MINUTES.md](VIDEO_SCRIPT_2_3_MINUTES.md) and
+   [VIDEO_VOICE_SEGMENTS.md](VIDEO_VOICE_SEGMENTS.md).
+4. Record one continuous 60-second backup using
+   [VIDEO_SCRIPT_60_SECONDS.md](VIDEO_SCRIPT_60_SECONDS.md).
+5. Keep [VIDEO_SCRIPT_4_MINUTES.md](VIDEO_SCRIPT_4_MINUTES.md) as a technical backup only.
+6. Watch the selected export at normal speed. Check text legibility, audio, current SHA, visible
    failures, and absence of secrets.
-6. Upload the selected take, set appropriate public/unlisted access permitted by the hackathon,
+7. Upload the selected take, set appropriate public/unlisted access permitted by the hackathon,
    and verify playback in a signed-out window.
 
 ## Failure branches

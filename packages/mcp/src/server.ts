@@ -20,6 +20,15 @@ const readOnly = {
 
 const externalRead = { ...readOnly, openWorldHint: true };
 
+const readSecurity = [{ type: "oauth2", scopes: ["queueproof:read"] }] as const;
+const syncSecurity = [{ type: "oauth2", scopes: ["queueproof:read", "queueproof:sync"] }] as const;
+const proposeSecurity = [{ type: "oauth2", scopes: ["queueproof:read", "queueproof:propose"] }] as const;
+
+/** OpenAI compatibility mirror for MCP clients that read auth policy from tool metadata. */
+const securityMeta = (schemes: readonly { type: "oauth2"; scopes: readonly string[] }[]) => ({
+  securitySchemes: schemes.map((scheme) => ({ type: scheme.type, scopes: [...scheme.scopes] })),
+});
+
 async function selectRows(
   workspaceId: string,
   table: string,
@@ -31,7 +40,13 @@ async function selectRows(
   // memories — none of which are created at runtime or written by anything, so the
   // tools reading them either threw "no such table" or returned an empty set that
   // an agent would read as a positive "there are none".
-  const allowed = new Set(["connectors", "audit_events", "execution_packets", "queue_snapshots"]);
+  const allowed = new Set([
+    "connectors",
+    "documents",
+    "audit_events",
+    "execution_packets",
+    "queue_snapshots",
+  ]);
   if (!allowed.has(table)) throw new Error("Unsupported QueueProof resource table.");
 
   // orderBy is interpolated, so it must be allowlisted too rather than trusted.
@@ -83,6 +98,7 @@ export function buildQueueProofServer(
         policyVersion: z.string(),
       }),
       annotations: readOnly,
+      _meta: securityMeta(readSecurity),
     },
     // Previously returned the literal "live" and so could never report a problem — a
     // health check that cannot fail is worse than none, because an agent treats it as
@@ -106,8 +122,23 @@ export function buildQueueProofServer(
       inputSchema: z.object({}),
       outputSchema: z.object({ connectors: z.array(z.record(z.string(), z.unknown())) }),
       annotations: readOnly,
+      _meta: securityMeta(readSecurity),
     },
     async () => text({ connectors: await selectRows(workspaceId, "connectors", "provider ASC") }),
+  );
+
+  server.registerTool(
+    "queueproof_list_documents",
+    {
+      title: "List QueueProof documents",
+      description:
+        "List workspace-owned document ingestion records, including the database and source ID accepted by evidence search.",
+      inputSchema: z.object({}),
+      outputSchema: z.object({ documents: z.array(z.record(z.string(), z.unknown())) }),
+      annotations: readOnly,
+      _meta: securityMeta(readSecurity),
+    },
+    async () => text({ documents: await selectRows(workspaceId, "documents", "created_at DESC") }),
   );
 
   server.registerTool(
@@ -119,6 +150,7 @@ export function buildQueueProofServer(
       inputSchema: z.object({ connectorId: z.string() }),
       outputSchema: z.object({ verification: z.record(z.string(), z.unknown()).nullable() }),
       annotations: readOnly,
+      _meta: securityMeta(readSecurity),
     },
     async ({ connectorId }) => {
       const verification = await requireDb()
@@ -150,6 +182,7 @@ export function buildQueueProofServer(
         idempotentHint: true,
         openWorldHint: true,
       },
+      _meta: securityMeta(syncSecurity),
     },
     async ({ connectorId }) => {
       const connector = await requireDb()
@@ -173,23 +206,65 @@ export function buildQueueProofServer(
 
   const searchSchema = z.object({
     query: z.string().min(1).max(4000),
-    database: z.string().min(1),
-    collections: z.array(z.string()).max(100).optional(),
+    database: z.string().min(1).max(200),
+    collections: z.array(z.string().min(1).max(200)).max(100).optional(),
+    sourceIds: z.array(z.string().min(1).max(500)).max(100).optional(),
     mode: z.enum(["fast", "thinking", "auto"]).default("auto"),
   });
 
+  const validateSearchScope = async (input: z.infer<typeof searchSchema>) => {
+    const collections = [...new Set(input.collections ?? [])];
+    const sourceIds = [...new Set(input.sourceIds ?? [])];
+    if (collections.length && sourceIds.length) {
+      throw new Error("Choose connector collections or document source IDs, not both.");
+    }
+
+    if (sourceIds.length) {
+      const owned = await requireDb().prepare(
+        `SELECT hydradb_source_id AS sourceId FROM documents
+         WHERE workspace_id = ? AND hydradb_database = ?
+           AND hydradb_source_id IN (${sourceIds.map(() => "?").join(", ")})`,
+      ).bind(workspaceId, input.database, ...sourceIds).all<{ sourceId: string }>();
+      const ownedIds = new Set(owned.results.map((row) => row.sourceId));
+      if (ownedIds.size !== sourceIds.length || sourceIds.some((id) => !ownedIds.has(id))) {
+        throw new Error("Every document source ID must belong to the authenticated workspace and database.");
+      }
+      return { collections: [] as string[], sourceIds };
+    }
+
+    const connectorRows = await requireDb().prepare(
+      `SELECT collection FROM connectors
+       WHERE workspace_id = ? AND database = ? AND state != 'deleted'`,
+    ).bind(workspaceId, input.database).all<{ collection: string | null }>();
+    if (!connectorRows.results.length) {
+      throw new Error("That HydraDB database is not attached to the authenticated workspace.");
+    }
+    const allowedCollections = new Set(
+      connectorRows.results.map((row) => row.collection).filter((item): item is string => Boolean(item)),
+    );
+    if (collections.some((collection) => !allowedCollections.has(collection))) {
+      throw new Error("Every collection must belong to a workspace connector in that database.");
+    }
+    if (allowedCollections.size > 0 && collections.length === 0) {
+      throw new Error("Select at least one workspace-owned collection for this database.");
+    }
+    return { collections, sourceIds: [] as string[] };
+  };
+
   const runSearch = async (input: z.infer<typeof searchSchema>) => {
+    const scope = await validateSearchScope(input);
     const plan = planRetrieval(input.query);
     const mode = input.mode === "auto" ? plan.mode : input.mode;
     const response = await (await hydraClientForWorkspace(workspaceId)).query({
       database: input.database,
-      ...(input.collections ? { collections: input.collections } : {}),
+      ...(scope.collections.length ? { collections: scope.collections } : {}),
+      ...(scope.sourceIds.length ? { ids: scope.sourceIds } : {}),
       query: input.query,
       type: "knowledge",
       query_by: plan.queryBy,
       mode,
       max_results: 12,
-      query_apps: true,
+      query_apps: scope.sourceIds.length === 0,
       graph_context: plan.graphContext,
       recency_bias: plan.recencyBias,
     });
@@ -229,6 +304,7 @@ export function buildQueueProofServer(
           callCount: z.number(),
         }),
         annotations: externalRead,
+        _meta: securityMeta(readSecurity),
       },
       async (input) => text(await runSearch(input)),
     );
@@ -243,6 +319,7 @@ export function buildQueueProofServer(
       inputSchema: z.object({ limit: z.number().int().min(1).max(50).default(10) }),
       outputSchema: z.object({ items: z.array(z.record(z.string(), z.unknown())) }),
       annotations: readOnly,
+      _meta: securityMeta(readSecurity),
     },
     async ({ limit }) => {
       const result = await requireDb()
@@ -284,6 +361,7 @@ export function buildQueueProofServer(
       inputSchema: z.object({ packetId: z.string() }),
       outputSchema: z.object({ packet: z.record(z.string(), z.unknown()).nullable() }),
       annotations: readOnly,
+      _meta: securityMeta(readSecurity),
     },
     async ({ packetId }) => {
       const row = await requireDb()
@@ -307,6 +385,7 @@ export function buildQueueProofServer(
       }),
       outputSchema: z.object({ recorded: z.boolean(), packetId: z.string(), status: z.string() }),
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+      _meta: securityMeta(proposeSecurity),
     },
     async ({ packetId, status, summary, evidence }) => {
       const packet = await requireDb().prepare(
@@ -335,6 +414,7 @@ export function buildQueueProofServer(
       inputSchema: z.object({ taskId: z.string() }),
       outputSchema: z.object({ ranking: z.record(z.string(), z.unknown()).nullable() }),
       annotations: readOnly,
+      _meta: securityMeta(readSecurity),
     },
     async ({ taskId }) => {
       const ranking = await requireDb()
@@ -356,6 +436,7 @@ export function buildQueueProofServer(
       inputSchema: z.object({ firstTaskId: z.string(), secondTaskId: z.string() }),
       outputSchema: z.object({ items: z.array(z.record(z.string(), z.unknown())) }),
       annotations: readOnly,
+      _meta: securityMeta(readSecurity),
     },
     async ({ firstTaskId, secondTaskId }) => {
       const result = await requireDb()
@@ -388,6 +469,7 @@ export function buildQueueProofServer(
       inputSchema: z.object({ limit: z.number().int().min(1).max(100).default(50) }),
       outputSchema: z.object({ items: z.array(z.record(z.string(), z.unknown())) }),
       annotations: readOnly,
+      _meta: securityMeta(readSecurity),
     },
     async ({ limit }) =>
       text({ items: await selectRows(workspaceId, "queue_snapshots", "created_at DESC", limit) }),
@@ -433,6 +515,7 @@ export function buildQueueProofServer(
         idempotentHint: true,
         openWorldHint: false,
       },
+      _meta: securityMeta(proposeSecurity),
     },
     async ({ provider, actionType, payload, evidenceIds, riskClass, idempotencyKey }) => {
       const db = requireDb();
@@ -499,6 +582,7 @@ export function buildQueueProofServer(
       inputSchema: z.object({ proposalId: z.string() }),
       outputSchema: z.object({ action: z.record(z.string(), z.unknown()).nullable() }),
       annotations: readOnly,
+      _meta: securityMeta(readSecurity),
     },
     async ({ proposalId }) => {
       const action = await requireDb()

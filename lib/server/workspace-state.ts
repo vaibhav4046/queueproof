@@ -1,4 +1,9 @@
-import { getRequestActor, signInConfigured } from "./identity";
+import {
+  auth0SignInConfigured,
+  getRequestActor,
+  legacySignInConfigured,
+  signInConfigured,
+} from "./identity";
 import { requireDb, runtimeEnv } from "./runtime";
 import { ensureCoreSchema, workspaceForUser } from "./store";
 import { hydraAccountForWorkspace } from "./hydradb-account";
@@ -19,7 +24,12 @@ import { listQueueForWorkspace } from "./queue";
  */
 export type WorkspaceView =
   | { kind: "storage_unconfigured"; detail: string }
-  | { kind: "sign_in_required"; signInConfigured: boolean }
+  | {
+      kind: "sign_in_required";
+      signInConfigured: boolean;
+      auth0Configured: boolean;
+      legacySignInConfigured: boolean;
+    }
   | { kind: "no_workspace"; actor: ActorView }
   | {
       kind: "ready";
@@ -33,7 +43,14 @@ export type WorkspaceView =
       storageBackend: string;
     };
 
-export type ActorView = { displayName: string; localDevelopment: boolean; publicAccess: boolean };
+export type ActorView = {
+  displayName: string;
+  localDevelopment: boolean;
+  publicAccess: boolean;
+  authenticated: boolean;
+  authType: "auth0" | "legacy" | "gateway" | "local" | "public";
+  emailVerified: boolean;
+};
 
 export type WorkspaceSummary = {
   id: string;
@@ -79,7 +96,12 @@ export async function loadWorkspaceView(): Promise<WorkspaceView> {
 
   const actor = await getRequestActor();
   if (!actor) {
-    return { kind: "sign_in_required", signInConfigured: signInConfigured() };
+    return {
+      kind: "sign_in_required",
+      signInConfigured: signInConfigured(),
+      auth0Configured: auth0SignInConfigured(),
+      legacySignInConfigured: legacySignInConfigured(),
+    };
   }
 
   await ensureCoreSchema();
@@ -88,6 +110,9 @@ export async function loadWorkspaceView(): Promise<WorkspaceView> {
     displayName: actor.displayName,
     localDevelopment: actor.localDevelopment,
     publicAccess: actor.id === "user:public-access",
+    authenticated: actor.id !== "user:public-access",
+    authType: actor.authType,
+    emailVerified: actor.emailVerified === true,
   };
 
   if (!workspace) return { kind: "no_workspace", actor: actorView };

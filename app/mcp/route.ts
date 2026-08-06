@@ -3,6 +3,13 @@ import { requireDb, runtimeEnv } from "../../lib/server/runtime";
 import { audit, ensureCoreSchema } from "../../lib/server/store";
 import { sha256 } from "../../packages/security/src";
 import { createWorkspaceMcpHandler } from "../../packages/mcp/src/server";
+import {
+  authenticateAuth0McpToken,
+  mcpAuthMode,
+  mcpBearerChallenge,
+  mcpOAuthConfig,
+  type QueueProofMcpScope,
+} from "../../lib/server/mcp-auth";
 
 const encoder = new TextEncoder();
 
@@ -34,10 +41,12 @@ async function containsToolCall(request: Request) {
 
 async function serve(request: Request) {
   const runtime = runtimeEnv();
+  const authMode = mcpAuthMode();
+  const oauth = mcpOAuthConfig();
   const configuredToken = runtime.QUEUEPROOF_MCP_TOKEN;
   const configuredWorkspaceId = runtime.QUEUEPROOF_MCP_WORKSPACE_ID;
   const expectedAudience = runtime.QUEUEPROOF_MCP_AUDIENCE?.trim() || "queueproof-mcp";
-  if (!runtime.DB && (!configuredToken || !configuredWorkspaceId)) {
+  if (!runtime.DB && (!configuredToken || !configuredWorkspaceId) && !oauth) {
     return noStoreJson(
       { error: "Remote MCP authentication is not configured for this deployment." },
       { status: 503 },
@@ -53,8 +62,34 @@ async function serve(request: Request) {
   let workspaceId: string | null = null;
   let clientId = "queueproof-static-client";
   let persistedClientId: string | null = null;
-  let scopes = ["queueproof:read", "queueproof:propose", "queueproof:sync"];
-  if (token && runtime.DB) {
+  let actorId = "mcp:queueproof-static-client";
+  let scopes: QueueProofMcpScope[] = ["queueproof:read", "queueproof:propose", "queueproof:sync"];
+  const jwtShaped = token.split(".").length === 3;
+
+  // JWTs are handled by one strict path. A malformed or wrong-audience JWT must never
+  // fall through and accidentally match a legacy/static credential.
+  if (token && jwtShaped) {
+    if (!oauth || authMode === "opaque") {
+      return oauthUnauthorized(oauth?.resource, "invalid_token", "OAuth access is not enabled.");
+    }
+    try {
+      const authenticated = await authenticateAuth0McpToken(token, { config: oauth });
+      workspaceId = authenticated.workspaceId;
+      clientId = authenticated.clientId;
+      persistedClientId = authenticated.persistedClientId;
+      scopes = authenticated.scopes;
+      actorId = `mcp:${authenticated.userId}`;
+    } catch (error) {
+      const insufficient = error instanceof Response && error.status === 403;
+      return oauthUnauthorized(
+        oauth.resource,
+        insufficient ? "insufficient_scope" : "invalid_token",
+        insufficient ? "Grant queueproof:read to use QueueProof." : "Sign in to QueueProof again.",
+      );
+    }
+  }
+
+  if (token && !jwtShaped && runtime.DB && authMode !== "auth0") {
     await ensureCoreSchema();
     const row = await requireDb().prepare(
       `SELECT mt.workspace_id AS workspaceId, mt.client_id AS clientId, mt.scopes_json AS scopesJson
@@ -71,7 +106,12 @@ async function serve(request: Request) {
       workspaceId = row.workspaceId;
       clientId = row.clientId;
       persistedClientId = row.clientId;
-      scopes = JSON.parse(row.scopesJson) as string[];
+      const parsedScopes = JSON.parse(row.scopesJson) as unknown;
+      scopes = Array.isArray(parsedScopes)
+        ? parsedScopes.filter((scope): scope is QueueProofMcpScope =>
+            scope === "queueproof:read" || scope === "queueproof:propose" || scope === "queueproof:sync")
+        : [];
+      actorId = `mcp:${clientId}`;
       await requireDb().prepare(
         `UPDATE mcp_clients
          SET last_handshake_at = COALESCE(last_handshake_at, CURRENT_TIMESTAMP),
@@ -80,10 +120,22 @@ async function serve(request: Request) {
       ).bind(clientId, workspaceId).run();
     }
   }
-  if (!workspaceId && token && configuredToken && configuredWorkspaceId && await constantTimeEqual(token, configuredToken)) {
+  if (
+    !workspaceId && token && !jwtShaped && authMode !== "auth0" &&
+    configuredToken && configuredWorkspaceId && await constantTimeEqual(token, configuredToken)
+  ) {
     workspaceId = configuredWorkspaceId;
   }
-  if (!token || !workspaceId) {
+  if (!token || !workspaceId || !scopes.includes("queueproof:read")) {
+    if (oauth) {
+      return oauthUnauthorized(
+        oauth.resource,
+        scopes.includes("queueproof:read") ? "invalid_token" : "insufficient_scope",
+        scopes.includes("queueproof:read")
+          ? "Sign in to QueueProof to continue."
+          : "Grant queueproof:read to use QueueProof.",
+      );
+    }
     return new Response(JSON.stringify({ error: "invalid_token" }), {
       status: 401,
       headers: {
@@ -95,12 +147,13 @@ async function serve(request: Request) {
   }
   const isToolCall = await containsToolCall(request);
   const handler = createWorkspaceMcpHandler(workspaceId, scopes);
+  const authenticatedResource = oauth?.resource ?? `${requestUrl.origin}${requestUrl.pathname}`;
   const response = await handler.fetch(request, {
     authInfo: {
       token: "[validated]",
       clientId,
       scopes,
-      resource: new URL(`${requestUrl.origin}${requestUrl.pathname}`),
+      resource: new URL(authenticatedResource),
     },
   });
   if (runtime.DB && persistedClientId && isToolCall) {
@@ -111,11 +164,28 @@ async function serve(request: Request) {
     ).bind(persistedClientId, workspaceId).run();
   }
   if (runtime.DB) {
-    await audit({ workspaceId, actorId: `mcp:${clientId}`, operation: "mcp.request",
+    await audit({ workspaceId, actorId, operation: "mcp.request",
       targetType: "mcp_client", targetId: clientId, outcome: response.ok ? "success" : "failure",
       metadata: { method: request.method, status: response.status, scopes } });
   }
   return response;
+}
+
+function oauthUnauthorized(
+  resource: string | undefined,
+  error: "invalid_token" | "insufficient_scope",
+  description: string,
+) {
+  return new Response(JSON.stringify({ error }), {
+    status: 401,
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store",
+      "WWW-Authenticate": resource
+        ? mcpBearerChallenge(resource, { error, description })
+        : "Bearer",
+    },
+  });
 }
 
 export const GET = serve;

@@ -29,6 +29,7 @@ describe("core schema", () => {
 
     for (const required of [
       "users",
+      "auth_identities",
       "workspaces",
       "workspace_members",
       "hydradb_accounts",
@@ -109,6 +110,13 @@ describe("workspace ownership", () => {
     expect(alice?.name).toBe("Helios");
     expect(bob?.name).toBe("Rover");
     expect(await workspaceForUser("user:carol")).toBeNull();
+  });
+
+  it("fails closed when an account has more than one workspace and no explicit selection", async () => {
+    const userId = "user:ambiguous-workspaces";
+    await createWorkspace(userId, "FirstSpace");
+    await createWorkspace(userId, "SecondSpace");
+    await expect(workspaceForUser(userId)).rejects.toMatchObject({ status: 409 });
   });
 
   it("requires the durable owner role for control-plane workspace access", async () => {

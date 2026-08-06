@@ -77,18 +77,20 @@ compare relative query work; they are not dollars. See [connector proof](docs/CO
 
 ## Public and owner boundaries
 
-The public deployment is a shared, read-oriented evidence workspace. Visitors can inspect
-receipts, ask bounded questions, and review queue packets. Proposal history, approvals,
-credential configuration, connector mutation, document uploads, MCP token management, and
-external writes require a signed owner session.
+The public deployment remains a shared, read-oriented judge workspace. Visitors can inspect
+receipts, ask bounded questions, and review queue packets. **Sign in** and **Create account** use
+Auth0; each external subject is provisioned a deterministic private QueueProof workspace whose
+sources, documents, receipts, queue, and MCP clients are isolated from every other account.
 
-The deployment owner signs in at [`/owner`](https://queueproof.vercel.app/owner) with the
-server-configured `QUEUEPROOF_ACCESS_TOKEN`. The token is exchanged for a signed, `httpOnly`
-session and is never stored in browser JavaScript or echoed by the API.
+Credential configuration, connector mutation, document uploads, proposal history, approvals,
+MCP administration, and external writes require an authenticated workspace owner. The historic
+[`/owner`](https://queueproof.vercel.app/owner) access-token flow is a transition path only and can
+be disabled with `QUEUEPROOF_LEGACY_OWNER_SIGNIN=false`. Neither Auth0 nor legacy session secrets
+are exposed to browser JavaScript.
 
 `QUEUEPROOF_PUBLIC_WORKSPACE_ID` selects the exact public workspace. A deployment with multiple
-workspaces and no selector fails closed. Public query and proposal endpoints are rate-limited.
-Secrets are encrypted at rest and are never returned by the API.
+workspaces and no selector fails closed. Public queries are rate-limited. Secrets are encrypted at
+rest and are never returned by the API.
 
 ## Architecture
 
@@ -135,8 +137,10 @@ pnpm dev
 For hosted storage, set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` instead of
 `QUEUEPROOF_SQLITE_PATH`. Add HydraDB credentials through the private Sources UI; do not commit
 them to an environment file. `LINEAR_API_KEY` is optional and is needed only for an approved
-external Linear write. Set a strong `QUEUEPROOF_ACCESS_TOKEN` to enable the hosted owner sign-in
-flow.
+external Linear write. A hosted multi-user deployment uses the four `AUTH0_*` values plus
+`QUEUEPROOF_AUTH_MODE=hybrid` (or `auth0` after retiring the legacy path). Never commit those
+values. See [remote MCP setup](docs/REMOTE_MCP_SETUP.md) for the separate Auth0 API/client needed
+by ChatGPT.
 
 ## Verify
 

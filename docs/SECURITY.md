@@ -2,8 +2,10 @@
 
 ## Identity and tenancy
 
-- Hosted sessions use a versioned JSON payload signed with HMAC-SHA-256 and stored in an
-  httpOnly cookie. Expiry and email are validated after signature verification.
+- Auth0 is the primary hosted identity path. Its SDK session is stored in an encrypted,
+  `httpOnly`, same-site cookie; issuer plus immutable subject is the tenant key.
+- A legacy owner path uses a versioned JSON payload signed with HMAC-SHA-256. It is separately
+  gated and can be disabled after the Auth0 rollout.
 - Safe legacy-cookie support reads the server-appended expiry after the final delimiter,
   preventing delimiter injection from overriding expiry.
 - Gateway identity headers are trusted only when the deployment explicitly declares a
@@ -15,8 +17,8 @@
 
 ## Public sandbox boundary
 
-The public actor can inspect shared evidence, ask grounded questions, review queue
-packets, and create shared proposals. It cannot:
+The public actor can inspect shared evidence, ask grounded questions, and review queue packets.
+It cannot:
 
 - configure HydraDB credentials;
 - create, discover, configure, sync, or verify connectors;
@@ -82,8 +84,13 @@ repeat the scan for the submitted commit as required by
 
 ## MCP
 
-- MCP tokens are random bearer values stored only as hashes.
-- Tokens carry scopes, expiry, revocation, client identity, and audience.
+- Opaque MCP tokens are random bearer values stored only as hashes. They carry scopes, expiry,
+  revocation, client identity, and audience.
+- Auth0 access tokens are accepted only in enabled OAuth/hybrid mode and must be RS256 JWTs with
+  the exact pinned issuer and canonical MCP audience/resource, valid lifetime, subject, and
+  `queueproof:read` scope. JWT failures never fall through to opaque authentication.
+- MCP database, collection, and source inputs must resolve to the authenticated workspace before
+  retrieval.
 - The MCP endpoint requires the `queueproof-mcp` audience, so a valid token minted for a
   different service is rejected.
 - Public sandbox visitors cannot mint or revoke tokens.

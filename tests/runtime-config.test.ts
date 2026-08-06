@@ -38,4 +38,31 @@ describe("runtime configuration", () => {
     expect(validateRuntimeConfig({ QUEUEPROOF_PUBLIC_ACCESS: "yes" }))
       .toContainEqual(expect.objectContaining({ key: "QUEUEPROOF_PUBLIC_ACCESS" }));
   });
+
+  it("fails closed on partial Auth0 and OAuth MCP configuration", () => {
+    const partial = validateRuntimeConfig({
+      AUTH0_DOMAIN: "tenant.example.auth0.com",
+      QUEUEPROOF_AUTH_MODE: "hybrid",
+      QUEUEPROOF_MCP_AUTH_MODE: "hybrid",
+      QUEUEPROOF_MCP_RESOURCE: "http://queueproof.example/mcp",
+    });
+    expect(partial.map((issue) => issue.key)).toEqual(expect.arrayContaining([
+      "AUTH0_*",
+      "QUEUEPROOF_AUTH_MODE",
+      "QUEUEPROOF_MCP_AUTH_MODE",
+      "QUEUEPROOF_MCP_RESOURCE",
+    ]));
+  });
+
+  it("accepts a complete Auth0 web and canonical MCP resource boundary", () => {
+    expect(validateRuntimeConfig({
+      AUTH0_DOMAIN: "tenant.example.auth0.com",
+      AUTH0_CLIENT_ID: "client",
+      AUTH0_CLIENT_SECRET: "client-secret",
+      AUTH0_SECRET: "a".repeat(64),
+      QUEUEPROOF_AUTH_MODE: "hybrid",
+      QUEUEPROOF_MCP_AUTH_MODE: "hybrid",
+      QUEUEPROOF_MCP_RESOURCE: "https://queueproof.vercel.app/mcp",
+    })).toEqual([]);
+  });
 });

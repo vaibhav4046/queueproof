@@ -96,12 +96,14 @@ describe("signed session values", () => {
       email: "owner@example.com",
       displayName: "Owner",
       localDevelopment: false,
+      authType: "legacy" as const,
     };
     const publicActor = {
       id: "user:public-access",
       email: "public@queueproof.local",
       displayName: "Public workspace",
       localDevelopment: false,
+      authType: "public" as const,
     };
     let publicResolverCalled = false;
 
