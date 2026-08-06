@@ -1,0 +1,121 @@
+.root {
+  --ember-backdrop-opacity: 0.22;
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  contain: layout paint style;
+  isolation: isolate;
+  pointer-events: none;
+  background: #050403;
+}
+
+.fallback,
+.video,
+.root::before,
+.root::after {
+  position: absolute;
+  inset: 0;
+}
+
+.fallback {
+  z-index: 0;
+  background:
+    radial-gradient(circle at 74% 72%, rgba(255, 106, 0, 0.34) 0 1px, transparent 2px) 0 0 / 14px 14px,
+    radial-gradient(ellipse 46% 34% at 76% 76%, rgba(255, 77, 0, 0.13), transparent 68%),
+    radial-gradient(ellipse 32% 28% at 18% 6%, rgba(255, 154, 66, 0.09), transparent 72%),
+    #050403;
+  opacity: 0.72;
+  -webkit-mask-image: radial-gradient(ellipse 62% 60% at 74% 70%, #000 16%, rgba(0, 0, 0, 0.72) 52%, transparent 82%);
+  mask-image: radial-gradient(ellipse 62% 60% at 74% 70%, #000 16%, rgba(0, 0, 0, 0.72) 52%, transparent 82%);
+}
+
+.video {
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  filter: sepia(0.2) saturate(1.24) hue-rotate(8deg) brightness(0.76) contrast(1.12);
+  mix-blend-mode: screen;
+  -webkit-mask-image: radial-gradient(ellipse 76% 84% at 70% 58%, #000 8%, rgba(0, 0, 0, 0.86) 46%, transparent 82%);
+  mask-image: radial-gradient(ellipse 76% 84% at 70% 58%, #000 8%, rgba(0, 0, 0, 0.86) 46%, transparent 82%);
+  transition: opacity 360ms ease;
+}
+
+.root::before {
+  content: "";
+  z-index: 2;
+  background: radial-gradient(ellipse 52% 44% at 72% 70%, rgba(255, 106, 0, 0.09), transparent 72%);
+  mix-blend-mode: screen;
+}
+
+.root::after {
+  content: "";
+  z-index: 3;
+  background:
+    linear-gradient(90deg, rgba(5, 4, 3, 0.96) 0%, rgba(5, 4, 3, 0.68) 40%, rgba(5, 4, 3, 0.34) 76%, rgba(5, 4, 3, 0.72) 100%),
+    linear-gradient(180deg, rgba(5, 4, 3, 0.76), transparent 35%, rgba(5, 4, 3, 0.82));
+}
+
+.root[data-video-state="loading"] .video,
+.root[data-video-state="failed"] .video {
+  opacity: 0.1;
+}
+
+.root[data-video-state="ready"] .video,
+.root[data-video-state="paused"] .video {
+  opacity: var(--ember-backdrop-opacity);
+}
+
+.root[data-video-state^="fallback-"] .video {
+  display: none;
+}
+
+.root[data-state="retrieving"],
+.root[data-state="connecting"],
+.root[data-state="verifying"] {
+  --ember-backdrop-opacity: 0.28;
+}
+
+.root[data-state="conflict"] {
+  --ember-backdrop-opacity: 0.24;
+}
+
+.root[data-state="complete"] {
+  --ember-backdrop-opacity: 0.16;
+}
+
+.root[data-state="error"] {
+  --ember-backdrop-opacity: 0.12;
+}
+
+.root[data-placement="empty"] .video,
+.root[data-placement="detail"] .video {
+  object-position: 72% 70%;
+}
+
+.root[data-placement="connect"] .video {
+  object-position: 74% 42%;
+}
+
+@media (max-width: 640px), (prefers-reduced-motion: reduce) {
+  .video {
+    display: none;
+  }
+
+  .fallback {
+    background:
+      radial-gradient(ellipse 58% 36% at 78% 76%, rgba(255, 106, 0, 0.13), transparent 72%),
+      #050403;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .video {
+    transition: none;
+  }
+}
