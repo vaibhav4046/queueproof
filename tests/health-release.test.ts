@@ -57,8 +57,12 @@ describe("live release identity", () => {
 
   it("keeps the production deploy path strict and self-verifying", () => {
     const script = readFileSync(new URL("../scripts/deploy-prod.mjs", import.meta.url), "utf8");
+    const gate = readFileSync(new URL("../scripts/release-gate.mjs", import.meta.url), "utf8");
 
     expect(script).not.toContain("--allow-dirty");
+    expect(script).toContain('"pnpm", ["dlx", "vercel@58.7.1"');
+    expect(script).toContain("VERCEL_PROJECT_ID");
+    expect(script).toContain("VERCEL_ORG_ID");
     expect(script).toContain('"--format", "json"');
     expect(script.match(/"--build-env"/g)).toHaveLength(3);
     expect(script.match(/"--env"/g)).toHaveLength(3);
@@ -66,5 +70,7 @@ describe("live release identity", () => {
     expect(script).toContain("/api/health/live");
     expect(script).toContain("/api/lab");
     expect(script).toContain('benchmarkReceiptVersion !== "grounded-grader-v2"');
+    expect(gate).toContain('health.status, "live"');
+    expect(gate).toContain('typeof health.release.commitRef === "string"');
   });
 });

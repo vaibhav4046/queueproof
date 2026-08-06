@@ -27,6 +27,18 @@ const git = (...args) => {
 const sha = git("rev-parse", "HEAD");
 const ref = git("rev-parse", "--abbrev-ref", "HEAD");
 const dirty = git("status", "--porcelain");
+const projectId = process.env.VERCEL_PROJECT_ID;
+const orgId = process.env.VERCEL_ORG_ID;
+
+if (!/^[0-9a-f]{40}$/.test(sha) || !ref || ref === "HEAD") {
+  console.error("BLOCKED  deployment requires a named branch and its exact 40-character git SHA.");
+  process.exit(1);
+}
+
+if (!projectId || !orgId) {
+  console.error("BLOCKED  set VERCEL_PROJECT_ID and VERCEL_ORG_ID to the existing production project.");
+  process.exit(1);
+}
 
 if (dirty) {
   console.error("BLOCKED  worktree is not clean, so the deployed artifact would not match the published SHA.");
@@ -52,7 +64,7 @@ const vercelArgs = [
   "--env", `QUEUEPROOF_DEPLOYMENT_TIMESTAMP=${deploymentTimestamp}`,
   "--meta", `releaseSha=${sha}`,
 ];
-const deploy = spawnSync("npx", ["--no-install", "vercel", ...vercelArgs], {
+const deploy = spawnSync("pnpm", ["dlx", "vercel@58.7.1", ...vercelArgs], {
   encoding: "utf8",
   stdio: ["inherit", "pipe", "inherit"],
   shell: process.platform === "win32",

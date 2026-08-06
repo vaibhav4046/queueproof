@@ -11,8 +11,13 @@ if (!base || !intendedSha) throw new Error("Usage: npm run release:verify -- --u
 const healthResponse = await fetch(`${base}/api/health/live`, { headers: { accept: "application/json" } });
 assert.equal(healthResponse.status, 200, "Live health endpoint must return 200.");
 const health = await healthResponse.json();
+assert.equal(health.status, "live", "Live health endpoint must report status=live.");
 assert.ok(health.release?.commitSha, "Live health endpoint must report a commit SHA.");
 assert.equal(health.release.commitSha, intendedSha, "Deployed SHA does not match the intended release SHA.");
+assert.ok(
+  typeof health.release.commitRef === "string" && health.release.commitRef.trim(),
+  "Live health endpoint must report a non-empty release ref.",
+);
 assert.equal(health.environment, "production", "The verified deployment must report its production environment.");
 assert.equal(health.release.target, "production", "The verified deployment is not a Vercel production deployment.");
 assert.match(health.release.deploymentId ?? "", /^dpl_[A-Za-z0-9]+$/, "Production health must report its Vercel deployment ID.");
