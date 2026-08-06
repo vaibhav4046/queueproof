@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+const buildTimestamp = process.env.QUEUEPROOF_DEPLOYMENT_TIMESTAMP || new Date().toISOString();
 
 export const productionSecurityHeaders = [
   {
@@ -46,6 +47,12 @@ export function securityHeaderRules(nodeEnv = process.env.NODE_ENV) {
 const nextConfig: NextConfig = {
   agentRules: false,
   poweredByHeader: false,
+  // Git-triggered Vercel deployments do not expose a creation timestamp to the
+  // runtime. Stamp the immutable artifact at build time so the release receipt
+  // remains complete without a mutable project-level environment variable.
+  env: {
+    QUEUEPROOF_BUILD_TIMESTAMP: buildTimestamp,
+  },
   async headers() {
     return securityHeaderRules();
   },

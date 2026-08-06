@@ -16,7 +16,8 @@ export async function GET() {
       target: environment,
       deploymentId: process.env.VERCEL_DEPLOYMENT_ID || null,
       deploymentUrl: process.env.VERCEL_URL || null,
-      deploymentTimestamp: process.env.QUEUEPROOF_DEPLOYMENT_TIMESTAMP || null,
+      deploymentTimestamp:
+        process.env.QUEUEPROOF_DEPLOYMENT_TIMESTAMP || process.env.QUEUEPROOF_BUILD_TIMESTAMP || null,
       benchmarkReceiptVersion: "grounded-grader-v2",
     },
   });
