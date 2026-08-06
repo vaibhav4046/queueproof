@@ -329,6 +329,13 @@ body { min-width: 320px; overflow-x: hidden; color: var(--paper); background: va
   backdrop-filter: blur(20px);
   transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
 }
+.ember-surface {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.ember-surface > [data-ember-backdrop] { z-index: 0; }
+.ember-surface > [data-ember-backdrop] ~ * { position: relative; z-index: 1; }
 .premium-console:focus-within { transform: translateY(-2px); border-color: rgba(255,106,0,.54); box-shadow: 0 28px 90px rgba(0,0,0,.38), 0 0 42px rgba(255,106,0,.07); }
 .premium-console::before { inset: auto 20% -80% !important; background: radial-gradient(circle, rgba(255,106,0,.12), transparent 62%) !important; }
 .premium-console .console-line { min-height: 52px; border-bottom: 1px solid var(--hairline); color: var(--paper-secondary); background: rgba(255,255,255,.018); }
