@@ -41,10 +41,19 @@ describe("live release identity", () => {
     });
   });
 
+  it("uses the immutable build stamp for Git-triggered deployments", async () => {
+    vi.stubEnv("QUEUEPROOF_DEPLOYMENT_TIMESTAMP", "");
+    vi.stubEnv("QUEUEPROOF_BUILD_TIMESTAMP", "2026-08-06T20:42:19.000Z");
+
+    const body = await (await GET()).json();
+    expect(body.release.deploymentTimestamp).toBe("2026-08-06T20:42:19.000Z");
+  });
+
   it("keeps unavailable platform identity explicit instead of inventing it", async () => {
     vi.stubEnv("VERCEL_DEPLOYMENT_ID", "");
     vi.stubEnv("VERCEL_URL", "");
     vi.stubEnv("QUEUEPROOF_DEPLOYMENT_TIMESTAMP", "");
+    vi.stubEnv("QUEUEPROOF_BUILD_TIMESTAMP", "");
 
     const body = await (await GET()).json();
     expect(body.release).toMatchObject({
