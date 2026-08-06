@@ -894,4 +894,76 @@ describe("evidence-constrained synthesis", () => {
       expect(spanned.length).toBeLessThan(2);
     }
   });
+
+  // Production defect, reproduced from the live flagship probe on 2026-08-06:
+  // "What is blocking the Atlas launch?" returned four citations that opened on a
+  // recruiter email about Atlas Copco -- a different company that happens to share
+  // the token "atlas" and to use the word "launch" in boilerplate. Two of the four
+  // citations were the same job-advert fragment and two more restated each other,
+  // so the answer never said what the blocker was.
+  const atlasBlockerCorpus = [
+    {
+      id: "gmail-jobs-1",
+      provider: "gmail",
+      title: "New jobs for you: Project Engineer",
+      excerpt:
+        "Deeside £30,000 - £45,000 a year Easily apply Delivering projects from concept "
+        + "through to launch in line with Atlas Copco's lean-agile development process.",
+      timestamp: "2026-08-05T06:00:00Z",
+    },
+    {
+      id: "gmail-jobs-2",
+      provider: "gmail",
+      title: "New jobs for you: Delivery Lead",
+      excerpt:
+        "Manchester Easily apply Delivering projects from concept through to launch in "
+        + "line with Atlas Copco's lean-agile development process. 1 day ago",
+      timestamp: "2026-08-05T06:10:00Z",
+    },
+    {
+      id: "linear-atlas",
+      provider: "linear",
+      title: "ENG-802 Atlas Launch readiness",
+      excerpt:
+        "Atlas Launch is blocked on the AuthShield migration: ENG-802 cannot start until "
+        + "the Northwind tenant is migrated off the legacy token service.",
+      timestamp: "2026-08-04T09:00:00Z",
+    },
+    {
+      id: "slack-atlas",
+      provider: "slack",
+      title: "#atlas-launch",
+      excerpt: "Blocked on the AuthShield migration: Atlas Launch cannot start.",
+      timestamp: "2026-08-04T10:00:00Z",
+    },
+  ];
+
+  it("does not answer a blocker question from prose that merely shares the entity token", () => {
+    const result = synthesiseGroundedAnswer("What is blocking the Atlas launch?", atlasBlockerCorpus);
+
+    const cited = new Set(result.claims.flatMap((claim) => claim.evidenceIds));
+    expect(cited.has("gmail-jobs-1")).toBe(false);
+    expect(cited.has("gmail-jobs-2")).toBe(false);
+    expect(result.answer).not.toMatch(/copco/i);
+  });
+
+  it("states the blocker rather than restating the same receipt twice", () => {
+    const result = synthesiseGroundedAnswer("What is blocking the Atlas launch?", atlasBlockerCorpus);
+
+    expect(result.validation.status).not.toBe("abstained");
+    expect(result.answer).toMatch(/authshield migration/i);
+    // The Slack line reorders the Linear sentence without adding a single new
+    // content word, so it is the same claim and must not consume a second slot.
+    expect(result.claims.length).toBe(1);
+  });
+
+  it("abstains on a blocker question when no record states an impediment", () => {
+    const result = synthesiseGroundedAnswer(
+      "What is blocking the Atlas launch?",
+      atlasBlockerCorpus.slice(0, 2),
+    );
+
+    expect(result.validation.status).toBe("abstained");
+    expect(result.answer).toBe("Insufficient evidence. QueueProof will not invent an answer.");
+  });
 });

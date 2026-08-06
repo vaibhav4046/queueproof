@@ -147,6 +147,23 @@ const DELIVERY_RECORD_PROVIDERS = new Set([
   "github", "gitlab", "linear", "jira", "shortcut", "slack", "notion", "confluence", "document",
 ]);
 
+// A question about what is stopping something. Naming the same subject is not an
+// answer to one -- the evidence has to state the impediment. "What is blocking
+// the Atlas launch?" was answered from recruiter email about Atlas Copco, an
+// unrelated company that shares the token "atlas" and uses "launch" in
+// boilerplate ("delivering projects from concept through to launch"). On token
+// overlap alone that advert is as good a match as the Linear receipt, so four
+// such fragments were assembled into a confident answer that never said what the
+// blocker was.
+const IMPEDIMENT_QUESTION =
+  /\b(?:blocking|blocked|blockers?|holding up|held up|stalled|stalling|waiting on|in the way)\b/;
+// Stated impediments, not the mere presence of the word. A bare participle is
+// not proof: "software readiness was never the blocking path" reports that
+// nothing was blocked, so "blocking" only qualifies with a subject in front of
+// it, and the remaining forms all name something that is being prevented.
+const IMPEDIMENT_ASSERTION =
+  /\b(?:is|are|was|were|remains?|stays?|still)\s+blocked\b|\bblocked\s+(?:on|by)\b|\bblockers?\b|\b(?:is|are|were|keeps?|kept)\s+blocking\b|\bwaiting\s+(?:on|for)\b|\b(?:cannot|can\s?not|can't|could\s?not|couldn't)\s+(?:be\s+)?(?:start|started|ship|shipped|proceed|land|deploy|deployed|release|released|launch|launched|continue|go\s+live)\b|\bheld\s+up\s+by\b|\bholding\s+up\b|\bdepends?\s+on\b|\bblocks\s+\w/;
+
 function relevance(question: string, text: string, provider?: string) {
   const q = question.toLowerCase();
   const candidate = text.toLowerCase();
@@ -184,6 +201,12 @@ function relevance(question: string, text: string, provider?: string) {
   const deliveryRecord = !provider || DELIVERY_RECORD_PROVIDERS.has(provider.toLowerCase());
   const deliveryScore = unanchoredDelivery && deliveryRecord && DELIVERY_ASSERTION.test(candidate) ? 8 : 0;
   if (unanchoredDelivery && deliveryScore === 0) return 0;
+  // Unlike delivery, an impediment question is gated even when it is anchored:
+  // the anchor is the thing being blocked, so matching it proves only that the
+  // candidate is about the same subject, never that it records an obstruction.
+  // An exact record identifier is the one exception -- naming BUG-123 back is a
+  // hard join, not a coincidence of vocabulary.
+  if (IMPEDIMENT_QUESTION.test(q) && identifierScore === 0 && !IMPEDIMENT_ASSERTION.test(candidate)) return 0;
   if (anchors.length && anchorMatches === 0 && identifierScore === 0 && deliveryScore === 0) return 0;
   if (overlap === 0 && identifierScore === 0 && deliveryScore === 0) return 0;
   return overlap * 3 + anchorMatches * 2 + identifierScore + deliveryScore + intentBoost(question, text);
@@ -772,6 +795,8 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
     candidates.filter((candidate) => candidate.score >= scoreFloor).map((candidate) => candidate.item.id),
   ).size);
   const seenEvidenceIds = new Set<string>();
+  /** Content tokens of each picked claim, for the restatement check below. */
+  const pickedTokens: Set<string>[] = [];
   /**
    * Content identity, independent of the diversity quotas. A candidate that
    * repeats text an already-picked claim carries is the same claim, so it is
@@ -791,6 +816,15 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
     // A claim wholly contained in an already-picked claim adds no fact, only
     // repetition -- either direction, since the longer one may be picked second.
     if ([...seenKeys].some((existing) => existing.includes(key) || key.includes(existing))) return true;
+    // Substring containment misses a reordering. "Blocked on the AuthShield
+    // migration: Atlas Launch cannot start." is not a substring of the Linear
+    // sentence it restates, yet it introduces no content word that sentence does
+    // not already carry, so it is the same claim. Compared against each picked
+    // claim on its own rather than their union, so three claims can never
+    // combine to swallow a fourth that none of them actually contains.
+    const tokens = tokenise(candidate.text);
+    if (tokens.length >= 3 &&
+        pickedTokens.some((picked) => tokens.every((token) => picked.has(token)))) return true;
     return false;
   };
   const recordPicked = (candidate: (typeof candidates)[number], key: string) => {
@@ -798,6 +832,7 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
     seenKeys.add(key);
     if (candidate.valuePhrase) seenValuePhrases.add(candidate.valuePhrase);
     claimSentences(candidate.text).forEach((sentence) => seenSentences.add(sentence));
+    pickedTokens.push(new Set(tokenise(candidate.text)));
     seenProviders.add(candidate.item.provider);
     seenEvidenceIds.add(candidate.item.id);
   };
