@@ -957,6 +957,53 @@ describe("evidence-constrained synthesis", () => {
     expect(result.claims.length).toBe(1);
   });
 
+  it("does not answer a blocker question from an impediment about a different subject", () => {
+    // Stating an obstruction is not the same as stating this question's
+    // obstruction. Production answered "What is blocking the Atlas launch?" from
+    // this commit body: "blocked by" satisfied the impediment gate, and the
+    // anchor match was carried entirely by the generic noun "launch" in "launch
+    // failure" while "Atlas" appeared nowhere in the evidence.
+    const unrelatedImpediment = {
+      id: "github-hook-runner",
+      provider: "github",
+      title: "Preserve compound receipt context and harden stale-state retrieval",
+      excerpt:
+        "The local hook runner itself is blocked by a Windows/WSL E_ACCESSDENIED launch "
+        + "failure; every underlying gate above was run directly and passed before these.",
+      timestamp: "2026-08-05T12:00:00Z",
+    };
+
+    const result = synthesiseGroundedAnswer(
+      "What is blocking the Atlas launch?",
+      [unrelatedImpediment],
+    );
+
+    expect(result.validation.status).toBe("abstained");
+    expect(result.answer).toBe("Insufficient evidence. QueueProof will not invent an answer.");
+  });
+
+  it("still answers the blocker question when the real receipt is present alongside it", () => {
+    const unrelatedImpediment = {
+      id: "github-hook-runner",
+      provider: "github",
+      title: "Preserve compound receipt context and harden stale-state retrieval",
+      excerpt:
+        "The local hook runner itself is blocked by a Windows/WSL E_ACCESSDENIED launch "
+        + "failure; every underlying gate above was run directly and passed before these.",
+      timestamp: "2026-08-05T12:00:00Z",
+    };
+
+    const result = synthesiseGroundedAnswer(
+      "What is blocking the Atlas launch?",
+      [...atlasBlockerCorpus, unrelatedImpediment],
+    );
+
+    expect(result.validation.status).not.toBe("abstained");
+    expect(result.answer).toMatch(/authshield migration/i);
+    const cited = new Set(result.claims.flatMap((claim) => claim.evidenceIds));
+    expect(cited.has("github-hook-runner")).toBe(false);
+  });
+
   it("abstains on a blocker question when no record states an impediment", () => {
     const result = synthesiseGroundedAnswer(
       "What is blocking the Atlas launch?",

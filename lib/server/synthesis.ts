@@ -206,7 +206,17 @@ function relevance(question: string, text: string, provider?: string) {
   // candidate is about the same subject, never that it records an obstruction.
   // An exact record identifier is the one exception -- naming BUG-123 back is a
   // hard join, not a coincidence of vocabulary.
-  if (IMPEDIMENT_QUESTION.test(q) && identifierScore === 0 && !IMPEDIMENT_ASSERTION.test(candidate)) return 0;
+  if (IMPEDIMENT_QUESTION.test(q) && identifierScore === 0) {
+    if (!IMPEDIMENT_ASSERTION.test(candidate)) return 0;
+    // Asserting an obstruction is still not asserting *this* obstruction. A
+    // commit reading "the local hook runner is blocked by a Windows/WSL
+    // E_ACCESSDENIED launch failure" cleared the assertion gate and answered
+    // "What is blocking the Atlas launch?", because the sole anchor match came
+    // from the generic noun "launch" while "Atlas" appeared nowhere in it. When
+    // the question names its subject, the evidence has to name it too.
+    const subjects = namedSubjectTokens(question);
+    if (subjects.length && !subjects.some((token) => candidateTokens.has(token))) return 0;
+  }
   if (anchors.length && anchorMatches === 0 && identifierScore === 0 && deliveryScore === 0) return 0;
   if (overlap === 0 && identifierScore === 0 && deliveryScore === 0) return 0;
   return overlap * 3 + anchorMatches * 2 + identifierScore + deliveryScore + intentBoost(question, text);
@@ -392,18 +402,32 @@ export function rankEvidenceForQuestion<T extends SynthesisEvidence>(question: s
  * (BUG-123, ADR-037, Priya Ramanathan). Value-focused extraction is gated on that
  * so a generic question can never pull a value sentence from unrelated evidence.
  */
-function hasConcreteAnchor(question: string) {
-  if (recordIdentifiers(question).length > 0) return true;
+function namedSubjects(question: string) {
   const words = question.split(/\s+/)
     .map((word) => word.replace(/[^\p{L}\p{N}'-]/gu, ""))
     .filter((word) => /^[A-Z][a-zA-Z'-]*$/.test(word));
   // A sentence-initial interrogative is capitalised by grammar, not because it
   // names anything. Without the stop-word check "What"/"Which"/"Where" all
   // counted as concrete anchors, so every question looked anchored.
-  return words.some((word) => {
+  return words.filter((word) => {
     const lower = word.toLowerCase();
     return word.length >= 4 && !STOP_WORDS.has(lower) && !GENERIC_QUESTION_TOKENS.has(lower);
   });
+}
+
+function hasConcreteAnchor(question: string) {
+  if (recordIdentifiers(question).length > 0) return true;
+  return namedSubjects(question).length > 0;
+}
+
+/**
+ * The named subjects of a question, tokenised so they can be compared against
+ * candidate tokens. "What is blocking the Atlas launch?" yields the stem of
+ * "Atlas" alone -- "blocking" and "launch" describe the shape of the question,
+ * not the thing it is about.
+ */
+function namedSubjectTokens(question: string) {
+  return [...new Set(namedSubjects(question).flatMap((word) => tokenise(word)))];
 }
 
 /**
