@@ -589,12 +589,7 @@ textarea,
   min-height: 44px;
   border-color: var(--line-strong);
   border-radius: 9px;
-  color: var(--paper);
-  background-color: #fff;
-  color-scheme: light;
 }
-select { color: var(--paper); background-color: #fff; }
-select option { color: var(--paper); background: #fff; }
 .inline-warning { border-color: rgba(166,95,21,.22); color: #7f4d18; background: #fff8ef; }
 .inline-error { border-color: rgba(173,64,58,.24); color: #8f3732; background: #fff3f1; }
 
