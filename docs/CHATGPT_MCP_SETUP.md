@@ -4,7 +4,18 @@ QueueProof's canonical remote MCP resource is `https://queueproof.vercel.app/mcp
 ChatGPT use the same Auth0 tenant but **different OAuth clients**. QueueProof is the resource server;
 Auth0 is the authorization server.
 
-## 1. Prepare Auth0
+## End-user experience after publication
+
+People should not create an API project, OAuth client, or QueueProof connection key. They open the
+ChatGPT or Codex Plugins Directory, search **QueueProof**, select **Add**, and sign in to their
+QueueProof workspace. The universal MCP URL and OAuth registration are publisher infrastructure.
+
+An MCP URL alone is enough for a private custom-connector test, but it does not create a searchable
+public listing. The verified publisher must complete OpenAI review and publish the approved entry.
+The prepared listing, test cases, and remaining owner actions are in
+[`submission/OPENAI_PLUGIN_SUBMISSION.md`](../submission/OPENAI_PLUGIN_SUBMISSION.md).
+
+## 1. Publisher preparation in Auth0
 
 1. Keep the Vercel Marketplace application for QueueProof web sign-in.
 2. In Auth0, create an API with identifier `https://queueproof.vercel.app/mcp` and RS256 signing.
@@ -30,7 +41,7 @@ Verify these public responses before opening ChatGPT:
   points to that metadata URL.
 - No secret, token, workspace ID, or private source content appears in either response.
 
-## 3. Add the ChatGPT custom app
+## 3. Test the ChatGPT custom app before publication
 
 In ChatGPT **Settings → Apps/Connectors → Advanced settings**, create the custom MCP app using:
 
