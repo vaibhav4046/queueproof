@@ -1,92 +1,167 @@
 {
   "project": "QueueProof",
   "status": "ACTIVE",
-  "sessionNumber": 1,
-  "updatedAt": "2026-08-06T02:36:51Z",
+  "sessionNumber": 2,
+  "updatedAt": "2026-08-06T08:45:00Z",
   "repository": "https://github.com/vaibhav4046/queueproof",
+  "repositoryVisibility": "private",
   "productionUrl": "https://queueproof.vercel.app",
   "benchmarksUrl": "https://queueproof.vercel.app/benchmarks",
   "branch": "codex/dialog-autofocus",
-  "head": "993bd9ee52eb3d284d484ea6c9b858daed89cf8c",
+  "head": "9821eee4644135b5161bba35a46159f4a586e4fb",
+  "headNote": "HEAD at inspection time. This checkpoint adds one docs-only commit on top of it; that commit's SHA is reported in the session output.",
+  "mainSha": "a884e8df35cbe25ecd73884a2d8820e0fa195bf8",
+  "commitsAheadOfMain": 39,
+  "unpushedCommits": 1,
+  "unpushedNote": "HEAD is 1 commit ahead of github/codex/dialog-autofocus; the session-1 checkpoint commit has not been pushed.",
   "productionSha": null,
+  "productionDeployment": "queueproof-n1zo1ybn5-vaibhav4046s-projects.vercel.app",
   "worktreeClean": false,
+  "uncommitted": [
+    "M app/globals.css (queue toolbar label 7px->10px, select font 8px->12px, wider padding)",
+    "M app/product.css (removed the forced light select colour block)",
+    "?? .mcp.json (untracked, NOT gitignored, must never be committed)"
+  ],
   "completed": [
-    "38 commits on codex/dialog-autofocus ahead of main (main = a884e8d); branch in sync with github/codex/dialog-autofocus",
+    "39 commits on codex/dialog-autofocus ahead of main (main = a884e8d)",
+    "9821eee: docs checkpoint, documentation only, no product files",
     "993bd9e: stop duplicate and run-on claims in grounded answers (lib/server/synthesis.ts + 59 test lines)",
-    "0098552: stop uploading local build output to Vercel (.vercelignore excludes .next/.vinext/.wrangler/dist/out/coverage/logs/.env*)",
-    "27b6ab7 + 9469b5b: require a system-of-record delivery assertion; refuse delivery answers built from prose that only mentions the verb",
-    "c70b8fe: expand the frozen fixture benchmark with recency-routing and synthesis cases (39 cases, 15 categories)",
+    "0098552: stop uploading local build output to Vercel (.vercelignore)",
+    "27b6ab7 and 9469b5b: require a system-of-record delivery assertion, not bare prose",
+    "c70b8fe: expand the frozen fixture benchmark with recency routing and synthesis cases",
     "87a255e: render the queue on first paint and decouple its fetch",
-    "3a44895: open the workspace to every visitor while preserving the owner boundary",
-    "UI owner-token nags removed while server-side write protection preserved (verified: no 'ownerToken' match in app/QueueProofApp.tsx)",
-    "Platform-aware Ctrl/Command keyboard labels (app/QueueProofApp.tsx:230-236, SSR-safe: renders Ctrl, upgrades to Command after mount)",
-    "MCP read surface implemented: app/mcp/route.ts, app/api/mcp/route.ts, app/api/mcp-tokens/, app/.well-known/oauth-protected-resource/mcp/, packages/mcp/, cli/",
-    "Submission copy drafted: docs/SUBMISSION_COPY.md, docs/HACKATHON_FORM.md, docs/DEMO_SCRIPT_60S.md, docs/JUDGING_MATRIX.md, submission/*",
-    "docs/continuity/ checkpoint package created (this file, QUEUEPROOF_STATE.md, DECISIONS.md, NEXT_SESSION_PROMPT.md)"
+    "3a44895: open the workspace to every visitor and repair two real defects",
+    "Owner-token UI nags removed while server-side write protection was preserved",
+    "Platform-aware Ctrl/Command keyboard labels (SSR Ctrl, post-mount Command)",
+    "39-case / 15-category fixture benchmark with router accuracy 1.0",
+    "Live and PDF benchmark harnesses with release-bound verification",
+    "MCP read surface, OAuth protected-resource metadata, CLI client and tests",
+    "Submission copy drafted across docs/ and submission/",
+    "docs/continuity package created (session 1) and refreshed (session 2)"
   ],
   "remaining": [
-    "P1 Fix release identity: /api/health/live returns commitSha null on production. Set QUEUEPROOF_RELEASE_SHA and QUEUEPROOF_RELEASE_REF on the Vercel production environment (or deploy so VERCEL_GIT_COMMIT_SHA is supplied), redeploy, confirm the SHA appears. Route logic is already unit-proven, so the fix belongs in deployment configuration.",
-    "P2 Fix grounded synthesis defect reproduced live on 'What is blocking the Atlas launch?' — an Atlas Copco job-listing fragment leads the answer and repeats at the end, and the blocker is never stated. Add the failing unit test to tests/synthesis.test.ts first, then fix lib/server/synthesis.ts (entity disambiguation, claim relevance gate, cross-claim dedup, answer shape).",
-    "P3 Add dist/** to globalIgnores in eslint.config.mjs so bare 'eslint .' reports 0 errors. All 41 current errors are in generated gitignored dist bundles; 0 in source. Do not weaken source rules.",
-    "P4 Add .mcp.json to .gitignore (currently untracked and not ignored).",
-    "P5 Resolve the two uncommitted CSS files (app/globals.css, app/product.css): finish or revert. Verify select contrast in the browser first, since the change removes the forced light color-scheme on select.",
-    "P6 Run full release gates for the submitted commit: pnpm typecheck, pnpm lint, pnpm test, pnpm benchmark:router, pnpm build, pnpm deploy:check.",
-    "P7 Deploy HEAD to production, then pnpm release:verify -- --url https://queueproof.vercel.app --sha <HEAD>.",
-    "P8 Re-measure on the deployed SHA: pnpm benchmark:live, pnpm benchmark:pdf, pnpm benchmark:publish. Confirm /api/lab reports the same SHA and /benchmarks shows measured rows. Run both explicit modes if a Fast-vs-Thinking claim is needed (modeComparison.comparable must become true).",
-    "P9 Record an authenticated MCP client smoke test against production.",
-    "P10 Decide branch strategy: 38 commits sit on codex/dialog-autofocus ahead of main. Submit from this branch or merge to main before publication.",
-    "P11 Refresh submission copy against the new SHA and new measured numbers; re-reconcile docs/DEMO_SCRIPT_60S.md (it currently pins metrics to release aed0278).",
-    "P12 Produce the final 60-second video script and submission copy for the user to record."
+    {
+      "id": "P1",
+      "priority": 1,
+      "title": "Fix release identity in production",
+      "detail": "/api/health/live returns commitSha null and commitRef null on deployment queueproof-n1zo1ybn5. /api/lab therefore reports currentRelease.commitSha null and degrades live and pdf to awaiting_current_release_measurement, emptying the judge-facing benchmark surface. Route logic is unit-proven by tests/health-release.test.ts, so the fix is deployment configuration: set QUEUEPROOF_RELEASE_SHA and QUEUEPROOF_RELEASE_REF on the Vercel production environment, or deploy so VERCEL_GIT_COMMIT_SHA is present.",
+      "blocking": true,
+      "blocks": ["P6", "P7", "P8"]
+    },
+    {
+      "id": "P2",
+      "priority": 2,
+      "title": "Fix grounded synthesis defect D1",
+      "detail": "Write the failing test first in tests/synthesis.test.ts encoding the Atlas Copco job-listing case, then fix lib/server/synthesis.ts: entity disambiguation (Atlas Copco is not Atlas Launch), claim-level relevance gating, cross-claim dedup, and answer shape so the blocker leads. Also cover the companion symptom: 'What did we ship most recently and what proves it?' currently abstains with 0 citations."
+    },
+    {
+      "id": "P3",
+      "priority": 3,
+      "title": "Add dist/** to eslint globalIgnores",
+      "detail": "eslint.config.mjs globalIgnores lists only .next/**, out/**, build/**, next-env.d.ts. Bare `eslint .` reports 41 errors, all inside generated dist/. Add a narrow dist/** entry; do not weaken source rules."
+    },
+    {
+      "id": "P4",
+      "priority": 4,
+      "title": "Gitignore .mcp.json",
+      "detail": "git check-ignore -v .mcp.json exits 1. A single `git add -A` would publish local MCP server configuration."
+    },
+    {
+      "id": "P5",
+      "priority": 5,
+      "title": "Resolve the uncommitted CSS edits",
+      "detail": "Finish or revert app/globals.css and app/product.css. Removing the forced light color-scheme on select may regress dropdown contrast on dark backgrounds; verify in the browser before committing."
+    },
+    {
+      "id": "P6",
+      "priority": 6,
+      "title": "Run the full release gate",
+      "detail": "pnpm typecheck, pnpm lint, pnpm test, pnpm benchmark:router, pnpm build, pnpm deploy:check. Paste real output. The full 48-file suite has not been run in either checkpoint."
+    },
+    {
+      "id": "P7",
+      "priority": 7,
+      "title": "Push, deploy and verify the release",
+      "detail": "Push codex/dialog-autofocus to the github remote (currently behind by the checkpoint commits), deploy, then run pnpm release:verify -- --url https://queueproof.vercel.app --sha <HEAD>."
+    },
+    {
+      "id": "P8",
+      "priority": 8,
+      "title": "Re-measure benchmarks on the deployed SHA",
+      "detail": "pnpm benchmark:live, pnpm benchmark:pdf, pnpm benchmark:publish. Confirm /api/lab reports the same SHA and /benchmarks shows measured rows. Run both explicit modes if a Fast-vs-Thinking claim is wanted; modeComparison.comparable must become true."
+    },
+    {
+      "id": "P9",
+      "priority": 9,
+      "title": "Record an authenticated MCP client smoke test",
+      "detail": "Against production, using a real client, before naming any client in the submission."
+    },
+    {
+      "id": "P10",
+      "priority": 10,
+      "title": "Decide the branch strategy",
+      "detail": "39 commits sit on codex/dialog-autofocus ahead of main. Either submit from this branch or merge to main before publication."
+    },
+    {
+      "id": "P11",
+      "priority": 11,
+      "title": "Refresh submission copy with current-release numbers",
+      "detail": "docs/SUBMISSION_COPY.md, docs/HACKATHON_FORM.md, docs/DEMO_SCRIPT_60S.md and submission/* still pin metrics to release aed0278."
+    },
+    {
+      "id": "P12",
+      "priority": 12,
+      "title": "Produce the final 60-second video script",
+      "detail": "For the user to record. Only claim a Fast-vs-Thinking difference when modeComparison.comparable is true."
+    }
   ],
   "verifiedTests": {
+    "reRunThisSession": false,
+    "carriedFrom": "session 1 (2026-08-06T02:26Z); no product or test file changed since, because 9821eee is documentation only",
     "command": "node ./node_modules/vitest/vitest.mjs run --config vitest.config.ts tests/synthesis.test.ts tests/health-release.test.ts --pool=threads --maxWorkers=1 --fileParallelism=false",
-    "runAt": "2026-08-06T02:26Z",
-    "scope": "targeted (2 of 48 test files)",
-    "testFiles": "2 passed (2)",
-    "tests": "41 passed (41)",
+    "testFilesPassed": 2,
+    "testsPassed": 41,
     "durationSeconds": 20.47,
-    "fullSuite": "not run in this session; current pass count unverified",
+    "fullSuiteRun": false,
+    "testFileCount": 48,
     "lint": {
       "command": "node ./node_modules/eslint/bin/eslint.js .",
-      "result": "2643 problems (41 errors, 2602 warnings)",
-      "errorsInSourceFiles": 0,
-      "errorsInGeneratedDist": 41,
-      "note": "package.json lint script passes --ignore-pattern dist --ignore-pattern .next, so only the bare invocation fails"
+      "reRunThisSession": false,
+      "configConfirmedUnchanged": true,
+      "problems": 2643,
+      "errors": 41,
+      "warnings": 2602,
+      "errorsAllInGeneratedDist": true
     }
   },
   "verifiedBenchmarks": {
     "measuredAgainstRelease": "aed027879150e3e324b54c5ec2194d4d715c501e",
-    "measuredAgainstRef": "main",
-    "currentReleaseValid": false,
-    "currentReleaseNote": "Production reports commitSha null, so /api/lab shows awaiting_current_release_measurement and /benchmarks displays no measured results.",
+    "note": "Local artifacts from a previous release. Not current-release measurements. Unchanged since session 1.",
     "fixture": {
       "artifact": "evals/results/results.json",
       "generatedAt": "2026-08-05T01:11:24Z",
       "cases": 39,
-      "routerAccuracy": 1.0,
       "categories": 15,
+      "routerAccuracy": 1.0,
+      "assertionsRun": 331,
+      "assertionsFailed": 0,
       "overEscalations": 0,
       "underEscalations": 0,
-      "rankingAllOrdersCorrect": true
+      "confirmedLiveThisSession": true
     },
     "live": {
       "artifact": "evals/results/live-run.json",
       "generatedAt": "2026-08-05T01:29:41Z",
-      "target": "production",
-      "releaseVerified": true,
       "grader": "grounded-grader-v2",
+      "releaseVerified": true,
       "cases": 6,
       "passed": 4,
       "latencyP50Ms": 2155,
       "latencyP95Ms": 2392,
       "requiredFactAccuracy": 1.0,
-      "requiredFactRecall": 1.0,
       "citationPrecision": 1.0,
-      "citationCompleteness": 1.0,
       "unsupportedClaimRate": 0,
-      "providerRequirementPasses": 4,
-      "contradictionRequirementPasses": "1 of 2",
-      "modeSplit": "6 fast, 0 thinking (no valid Fast-vs-Thinking comparison)"
+      "modesExecuted": "fast only, so no valid Fast-vs-Thinking comparison"
     },
     "pdf": {
       "artifact": "evals/results/pdf-live-run.json",
@@ -94,15 +169,11 @@
       "releaseVerified": true,
       "document": "helios-operations-handbook.pdf",
       "pages": 346,
-      "sha256": "c047a3d09c45ecf97e3ed8e2115eda08ea0f6152206237955030f4304fa2ed93",
-      "sourceId": "f64d374d1899f3057707528f77703f3f",
       "cases": 22,
       "passed": 21,
+      "canariesBeginningMiddleEnd": true,
       "requiredFactAccuracy": 0.982,
       "citationPrecision": 1.0,
-      "citationCompleteness": 1.0,
-      "unsupportedClaimRate": 0,
-      "canariesBeginningMiddleEnd": true,
       "latencyP50Ms": 1823,
       "latencyP95Ms": 2382
     }
@@ -112,63 +183,69 @@
       "id": "D1",
       "severity": "highest",
       "title": "Grounded synthesis glues unrelated evidence onto the answer",
-      "evidence": "POST https://queueproof.vercel.app/api/ask {\"question\":\"What is blocking the Atlas launch?\",\"mode\":\"auto\"} at 2026-08-06T02:32Z returned ok:true with 4 citations. Citations [1] and [4] are an Atlas Copco job-listing fragment (a different company) matched on lexical overlap of Atlas + launch; [2] and [3] are near-duplicates of each other; the blocker is never stated.",
-      "impact": "Breaks the flagship judge-facing demo question and the submission gate item 'flagship live question returns cited multi-source evidence'.",
-      "rootCauseCandidates": [
-        "entity disambiguation (Atlas Copco vs Atlas Launch)",
-        "claim-level relevance gating (a claim answering no part of the question should not be emitted)",
-        "cross-claim deduplication",
-        "answer shape (lead with the blocker, not with the highest-scoring excerpt)"
-      ],
-      "note": "Same defect class as the earlier newsletter-fragment report. Commit 993bd9e did not eliminate it in production, and it is unknown whether 993bd9e is even deployed (see D2)."
+      "reproduce": "curl -sS -X POST https://queueproof.vercel.app/api/ask -H 'content-type: application/json' -d '{\"question\":\"What is blocking the Atlas launch?\",\"mode\":\"auto\"}'",
+      "observed": "HTTP 200, 6.15s, 4 citations. The answer leads and ends with an Atlas Copco job-listing fragment, claims [2] and [3] are near-duplicates, and the question is never answered.",
+      "reVerifiedAt": "2026-08-06T08:36Z",
+      "reproducesVerbatim": true,
+      "companionSymptom": "'What did we ship most recently and what proves it?' returns an abstention with 0 citations (21.1s), so neither flagship demo question currently produces a usable answer.",
+      "open": true
     },
     {
       "id": "D2",
       "severity": "blocking",
       "title": "Release identity is null in production",
-      "evidence": "GET /api/health/live at 2026-08-06T02:29:50Z returned release {commitSha: null, commitRef: null, target: \"production\", deploymentUrl: \"queueproof-n1zo1ybn5-vaibhav4046s-projects.vercel.app\"}. GET /api/lab returned currentRelease.commitSha null, live.status awaiting_current_release_measurement (0 cases), pdf.status awaiting_current_release_measurement, modeComparison.status not_measured, comparable false.",
-      "impact": "The judge-facing /benchmarks page shows no current-release measured results at all, pnpm release:verify cannot pass, and at least four submission-gate items are blocked.",
-      "location": "deployment configuration, not route code — tests/health-release.test.ts passes both the Vercel-Git-metadata and QUEUEPROOF_RELEASE_SHA fallback cases"
+      "observed": "/api/health/live release.commitSha null, commitRef null, target production. /api/lab currentRelease.commitSha null; live and pdf both awaiting_current_release_measurement; modeComparison not_measured.",
+      "reVerifiedAt": "2026-08-06T08:28:54Z",
+      "cause": "Deployment configuration: neither VERCEL_GIT_COMMIT_SHA nor QUEUEPROOF_RELEASE_SHA reaches the running deployment. Route logic is unit-proven.",
+      "open": true
     },
     {
       "id": "D3",
       "severity": "medium",
-      "title": "Bare 'eslint .' fails on generated bundles",
-      "evidence": "41 errors, all in dist/client/assets/index-DHsbXt1Q.js (3), dist/server/index.js (1), dist/server/ssr/assets/QueueProofApp-iDRJ8Yom.js (34), dist/server/ssr/assets/QueueProofLogo-Bq0Mel3B.js (1), dist/server/ssr/assets/red-plasma-Bca5jnzS.js (1), dist/server/ssr/index.js (1). Zero non-generated files have errors. dist/ is gitignored and .vercelignore'd; Vercel builds from source.",
-      "fix": "Add dist/** to the existing globalIgnores([...]) array in eslint.config.mjs. Do not weaken source lint rules and do not remove the globalIgnores override of eslint-config-next defaults."
+      "title": "Bare `eslint .` fails on generated bundles",
+      "observed": "41 errors, all under dist/. eslint.config.mjs globalIgnores has no dist entry.",
+      "reVerifiedAt": "2026-08-06T08:40Z",
+      "open": true
     },
     {
       "id": "D4",
-      "severity": "low",
+      "severity": "medium",
       "title": ".mcp.json is untracked but not gitignored",
-      "evidence": "git check-ignore -v .mcp.json returns nothing; git status shows it as untracked. It configures one local MCP server (perplexity-ask).",
-      "fix": "Add .mcp.json to .gitignore. Never stage it."
+      "observed": "git check-ignore -v .mcp.json exits 1 with no output; .gitignore has .env* at line 34 and /dist/ at line 43 but no .mcp.json entry.",
+      "reVerifiedAt": "2026-08-06T08:41Z",
+      "open": true
     }
   ],
   "disprovedDefects": [
     {
-      "claim": "Mid-word truncation, output ending 'The lo'",
-      "verdict": "DISPROVED",
-      "detail": "The string came from a diagnostic slice(0, 600) in the investigator's own probe, not from QueueProof output. The speculative guard added in response was reverted. Verified this session: no slice(0, 600) and no truncation guard remains in lib/server/synthesis.ts. Do not recreate that fix without a new reproducible artifact showing QueueProof itself emitting a truncated word."
+      "title": "Mid-word truncation (\"The lo...\")",
+      "verdict": "disproved",
+      "detail": "Artifact of a diagnostic slice(0, 600) in the investigator's own probe. The speculative guard was reverted. Re-verified this session: grep for slice(0, *600) in lib/server/synthesis.ts and packages/retrieval returns nothing."
     },
     {
-      "claim": "SessionStart hook fails",
-      "verdict": "DOES NOT REPRODUCE",
-      "detail": "The hook ran successfully at the start of this checkpoint session. Do not modify the hook without new evidence."
+      "title": "SessionStart hook failure",
+      "verdict": "does not reproduce",
+      "detail": "The hook ran successfully at the start of both checkpoint sessions."
     },
     {
-      "claim": "Markdown run-on claims in grounded answers",
-      "verdict": "FIXED — unit-regression coverage only",
-      "detail": "tests/synthesis.test.ts ('treats every markdown bullet as its own claim boundary', ~line 877) passes and pins the behaviour. The original production document now yields an abstaining answer, so the old live output cannot currently be reproduced. Report this as unit-regression coverage, never as live reproduction. A different run-on path is still live — see D1."
+      "title": "Markdown run-on",
+      "verdict": "fixed, unit-regression coverage only",
+      "detail": "tests/synthesis.test.ts:877 pins the behaviour. The original production document now abstains, so the old live output cannot be reproduced. Never report this as live reproduction. A different run-on path is still live inside D1."
     }
   ],
   "userActions": [
-    "OAuth consent for any connector or MCP server that requires an interactive grant — cannot be authorised non-interactively",
+    "Interactive OAuth consent for connectors and MCP servers",
     "Attio credential rotation",
-    "Authorising the GitHub repository to be made public (currently PRIVATE)",
+    "Authorising the GitHub repository to be made public",
     "Recording and uploading the final 60-second video"
   ],
-  "lastProgress": "Created docs/continuity/ and wrote the four-file continuity checkpoint (QUEUEPROOF_STATE.md, QUEUEPROOF_STATE.json, DECISIONS.md, NEXT_SESSION_PROMPT.md) after verifying git state, targeted tests, lint, local benchmark artifacts and live production behaviour. No product implementation was modified.",
-  "nextAction": "Run: curl -sS https://queueproof.vercel.app/api/health/live — if release.commitSha is still null, set QUEUEPROOF_RELEASE_SHA and QUEUEPROOF_RELEASE_REF on the Vercel production environment, redeploy HEAD, and confirm the SHA appears in both /api/health/live and /api/lab.",
-  "stopReason": null
+  "submissionGate": {
+    "source": "WINNER_STATUS.md",
+    "itemsChecked": 0,
+    "itemsTotal": 12,
+    "blockedByD2": ["health SHA", "lab currentRelease SHA", "same-release live and PDF results"],
+    "blockedByD1": ["flagship live question returns cited multi-source evidence"]
+  },
+  "lastProgress": "Session 2 checkpoint. No product code changed. Re-probed production at 2026-08-06T08:28-08:36Z: release identity still null, D1 reproduces verbatim, / and /benchmarks both 200. Re-confirmed D3 and D4 from eslint.config.mjs and .gitignore. Re-verified all three disproved defects against the source. Rewrote QUEUEPROOF_STATE.md, QUEUEPROOF_STATE.json and NEXT_SESSION_PROMPT.md; DECISIONS.md reviewed and left unchanged.",
+  "nextAction": "Fix P1. Set QUEUEPROOF_RELEASE_SHA and QUEUEPROOF_RELEASE_REF on the Vercel production environment (or deploy with Git metadata present), redeploy, then confirm /api/health/live returns a full SHA and /api/lab echoes it in results.currentRelease.commitSha."
 }

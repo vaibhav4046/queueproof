@@ -31,10 +31,12 @@ owner-only and enforced server-side. The same bounded **read** contract is expos
 
 - Repo `https://github.com/vaibhav4046/queueproof` (**PRIVATE**) · Production
   `https://queueproof.vercel.app` · Benchmarks `https://queueproof.vercel.app/benchmarks`
-- Branch `codex/dialog-autofocus`, HEAD `993bd9e`, **38 commits ahead of `main`**, in sync with
-  the `github` remote. Worktree is **not** clean: `app/globals.css` and `app/product.css` carry
-  an unfinished dropdown-legibility edit, and `.mcp.json` is untracked and not gitignored.
-- Session 1 was a checkpoint only. **No product code was changed in it.**
+- Branch `codex/dialog-autofocus`, **39 commits ahead of `main`** (`a884e8d`), and **ahead of the
+  `github` remote by the unpushed checkpoint commits — push before deploying.** Worktree is
+  **not** clean: `app/globals.css` and `app/product.css` carry an unfinished dropdown-legibility
+  edit, and `.mcp.json` is untracked and not gitignored.
+- Sessions 1 and 2 were both checkpoints. **No product code was changed in either.** Every code
+  fact in the state files therefore still describes the current HEAD.
 
 ## How to work
 
@@ -45,9 +47,10 @@ owner-only and enforced server-side. The same bounded **read** contract is expos
 
 2. **Verify before trusting.** Run `git status --short`, `git branch --show-current`,
    `git log -5 --oneline`, and hit `/api/health/live` and `/api/lab` on production. The state
-   files were accurate at 2026-08-06T02:36Z; production and the worktree may have moved. Lines
-   marked **UNVERIFIED** in `QUEUEPROOF_STATE.md` are exactly that — re-check them before
-   repeating them.
+   files were accurate at 2026-08-06T08:45Z; production and the worktree may have moved. Lines
+   marked **UNVERIFIED** or **CARRIED FROM SESSION 1** in `QUEUEPROOF_STATE.md` are exactly
+   that — re-check them before repeating them. In particular, the full 48-file test suite has
+   never been run: only a 2-file / 41-test targeted run is on record.
 
 3. **Continue the highest-priority executable task**, currently P1 in
    `QUEUEPROOF_STATE.json`: production `/api/health/live` returns `commitSha: null`, which
