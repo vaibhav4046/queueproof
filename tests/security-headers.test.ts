@@ -36,4 +36,14 @@ describe("production browser security policy", () => {
     expect(headerMap["permissions-policy"]).toContain("geolocation=()");
     expect(headerMap["strict-transport-security"]).toContain("max-age=63072000");
   });
+
+  it("allows only the named Ember asset host for remote media", () => {
+    const mediaDirective = headerMap["content-security-policy"]
+      .split("; ")
+      .find((directive) => directive.startsWith("media-src"));
+
+    expect(mediaDirective).toBe("media-src 'self' blob: https://assets.21st.dev");
+    expect(mediaDirective).not.toContain("https: ");
+    expect(mediaDirective).not.toContain("*");
+  });
 });
