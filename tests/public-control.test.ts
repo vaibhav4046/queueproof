@@ -11,6 +11,8 @@ const actor = (id: string): RequestActor => ({
 });
 
 describe("public sandbox control boundary", () => {
+  const app = readFileSync(join(process.cwd(), "app/QueueProofApp.tsx"), "utf8");
+
   it("denies anonymous control-plane mutations with an abuse-safe response", () => {
     try {
       requirePrivateControlActor(actor("user:public-access"), "Token minting");
@@ -38,5 +40,11 @@ describe("public sandbox control boundary", () => {
 
   it("allows authenticated workspace actors", () => {
     expect(() => requirePrivateControlActor(actor("user:owner@example.com"))).not.toThrow();
+  });
+
+  it("does not call the owner-only proposal ledger from the public screen", () => {
+    expect(app).toMatch(/useEffect\(\(\) => \{\s*\/\/ Proposal payloads are owner-only[\s\S]*?if \(readOnly\) return;[\s\S]*?api<\{ proposals: ActionProposal\[\] \}>\("\/api\/actions"\)/);
+    expect(app).toContain("Proposal history is private.");
+    expect(app).toContain("Public visitors cannot read, prepare, approve, or send changes.");
   });
 });

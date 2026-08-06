@@ -12,6 +12,7 @@ import { requireRequestActor } from "../../../lib/server/identity";
 import { requireDb } from "../../../lib/server/runtime";
 import { audit, createId, enforcePublicRateLimit, requireWorkspaceForUser } from "../../../lib/server/store";
 import {
+  boundedDeliveryRepairProviders,
   coverageRepairProviderOrder,
   decideAutoEscalation,
   focusedEvidenceFollowUpQuery,
@@ -423,11 +424,43 @@ export async function POST(request: Request) {
     await runQueryBatch(retrievalQuery, retrievalQueryVariants(plan), "primary", primaryQueryMode);
     let preliminaryEvidence = dedupeEvidence();
     let preliminary = synthesiseGroundedAnswer(question, preliminaryEvidence);
+    const connectorRepairAllowed = requestedSourceIds.length === 0 || payload.includeConnectors === true;
+    const deliveryRepairProviders = primaryMode === "fast" && connectorRepairAllowed &&
+      preliminary.validation.status !== "grounded"
+      ? boundedDeliveryRepairProviders(
+          question,
+          connectors.results.map((connector) => connector.provider),
+        )
+      : [];
+    const deliveryRepairAttempted = deliveryRepairProviders.length > 0;
+    if (deliveryRepairAttempted) {
+      const deliveryRepairScopes = deliveryRepairProviders.flatMap((targetProvider) =>
+        connectors.results
+          .filter((connector) => connector.provider.toLowerCase() === targetProvider)
+          .map((connector) => ({
+            database: connector.database,
+            collection: connector.collection,
+            connectors: [connector],
+            lineageMetadataFilters: connectorLineageMetadataFilter(
+              connector.hydradbConnectorId,
+              connector.provider,
+            ),
+          } satisfies RetrievalScope)),
+      );
+      await recorder.record(
+        "routing",
+        `The mixed Fast pass could not prove a broad recent-delivery answer; checking ${deliveryRepairProviders.join(", ")} in bounded provider-scoped Fast lanes.`,
+        { callCount: trace.length, latencyMs: Date.now() - started, mode: "fast" },
+      );
+      await runQueryBatch(retrievalQuery, ["hybrid"], "follow_up", "fast", deliveryRepairScopes);
+      preliminaryEvidence = dedupeEvidence();
+      preliminary = synthesiseGroundedAnswer(question, preliminaryEvidence);
+    }
     const namedConnectorProviders = providersNamedInQuestion(
       question,
       connectors.results.map((connector) => connector.provider),
     );
-    if (shouldRunFastCoverageRepair({
+    if (!deliveryRepairAttempted && shouldRunFastCoverageRepair({
       category: plan.category,
       plannedMode: plan.mode,
       evidenceProviders: preliminary.evidence.map((item) => item.provider),
@@ -496,7 +529,7 @@ export async function POST(request: Request) {
         namedProviders,
         evidenceProviders: preliminary.evidence.map((item) => item.provider),
       });
-      if (decision.escalate) {
+      if (decision.escalate && !deliveryRepairAttempted) {
         effectiveMode = "thinking";
         routingReason = `Auto began in Fast, then escalated to Thinking because ${decision.reasons.join("; ")}.`;
         await recorder.record("routing", routingReason, {
@@ -508,7 +541,11 @@ export async function POST(request: Request) {
         ) ?? retrievalQuery;
         await runQueryBatch(followUpQuery, ["hybrid"], "follow_up", "thinking");
       } else {
-        routingReason = "Auto kept the Fast result because the preliminary answer was grounded, no requested information was missing, and every explicitly named provider returned evidence.";
+        routingReason = decision.escalate
+          ? "Auto stopped after the bounded provider-scoped Fast repair because a global Thinking retry over the same mixed connector pool would add cost without stronger evidence."
+          : deliveryRepairAttempted
+            ? `Auto kept the bounded Fast result after checking ${deliveryRepairProviders.join(", ")} as delivery systems of record.`
+            : "Auto kept the Fast result because the preliminary answer was grounded, no requested information was missing, and every explicitly named provider returned evidence.";
         await recorder.record("routing", routingReason, {
           callCount: trace.length, latencyMs: Date.now() - started, mode: "fast",
         });

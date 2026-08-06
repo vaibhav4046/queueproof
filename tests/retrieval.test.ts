@@ -1,8 +1,12 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  boundedDeliveryRepairProviders,
   coverageRepairProviderOrder,
   evidenceFollowUpTerms,
   focusedEvidenceFollowUpQuery,
+  isUnanchoredRecencyDeliveryQuestion,
   planRetrieval,
   recordIdentifiers,
   retrievalIntentTerms,
@@ -42,6 +46,36 @@ describe("retrieval planner", () => {
       "merged", "shipped", "still open", "tracked state",
     ]);
     expect(retrievalIntentTerms("Show me ENG-456")).toEqual([]);
+  });
+
+  it("routes broad recent-delivery questions through at most three systems of record", () => {
+    const broad = "What is the most recent thing we shipped?";
+    const broadWithTracker = "What did we ship most recently, and does the tracker still show that work as open?";
+    expect(isUnanchoredRecencyDeliveryQuestion(broad)).toBe(true);
+    expect(isUnanchoredRecencyDeliveryQuestion(broadWithTracker)).toBe(true);
+    expect(isUnanchoredRecencyDeliveryQuestion("What is the latest Northwind release?")).toBe(false);
+    expect(isUnanchoredRecencyDeliveryQuestion("What shipped in GitHub most recently?")).toBe(false);
+    expect(boundedDeliveryRepairProviders(broad, ["gmail", "slack", "linear", "github", "jira"])).toEqual([
+      "github", "linear", "jira",
+    ]);
+    expect(boundedDeliveryRepairProviders(broad, ["gmail"])).toEqual([]);
+  });
+
+  it("adds delivery and tracker-state terms without introducing an entity", () => {
+    expect(retrievalIntentTerms("What is the most recent thing we shipped?")).toEqual([
+      "merged", "shipped", "released", "deployed",
+    ]);
+    expect(retrievalIntentTerms(
+      "What did we ship most recently, and does the tracker still show that work as open?",
+    )).toEqual(["merged", "shipped", "released", "deployed", "still open", "tracked state"]);
+  });
+
+  it("executes the bounded delivery lanes in Fast and suppresses the redundant global Thinking retry", () => {
+    const askRoute = readFileSync(join(process.cwd(), "app/api/ask/route.ts"), "utf8");
+    expect(askRoute).toContain("boundedDeliveryRepairProviders(");
+    expect(askRoute).toContain("requestedSourceIds.length === 0 || payload.includeConnectors === true");
+    expect(askRoute).toContain('runQueryBatch(retrievalQuery, ["hybrid"], "follow_up", "fast", deliveryRepairScopes)');
+    expect(askRoute).toContain("decision.escalate && !deliveryRepairAttempted");
   });
 
   it("repairs a single-provider join before paying Thinking cost", () => {

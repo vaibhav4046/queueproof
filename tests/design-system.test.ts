@@ -7,6 +7,7 @@ describe("production design system", () => {
   const ember = readFileSync(join(process.cwd(), "app/ember-assistant.css"), "utf8");
   const css = `${readFileSync(join(process.cwd(), "app/command-centre.css"), "utf8")}\n${ember}`;
   const logo = readFileSync(join(process.cwd(), "app/components/QueueProofLogo.tsx"), "utf8");
+  const dates = readFileSync(join(process.cwd(), "app/date-label.ts"), "utf8");
   const owner = readFileSync(join(process.cwd(), "app/owner/OwnerSignIn.tsx"), "utf8");
   const labRoute = readFileSync(join(process.cwd(), "app/api/lab/route.ts"), "utf8");
 
@@ -36,6 +37,13 @@ describe("production design system", () => {
     expect(css).toContain("outline: 2px solid var(--ember-bright)");
   });
 
+  it("keeps server-rendered date text independent of the browser timezone", () => {
+    expect(app).toContain('import { dateLabel } from "./date-label"');
+    expect(app).not.toContain("function dateLabel(");
+    expect(dates).toContain("normaliseUtcTimestamp(value)");
+    expect(dates).toContain('timeZone: "UTC"');
+  });
+
   it("keeps evidence work conversational without hiding proof or safe actions", () => {
     expect(app).toContain('className="investigation-thread"');
     expect(app).toContain("Ask a follow-up");
@@ -43,6 +51,14 @@ describe("production design system", () => {
     expect(app).toContain("Prepare a change");
     expect(app).toContain('id="answer-sources"');
     expect(css).toContain(".answer-actions");
+  });
+
+  it("labels abstained retrieval candidates as rejected rather than proof", () => {
+    expect(app).toContain('result?.validation.status === "abstained" ? result.evidence : []');
+    expect(app).toContain('resultTone !== "abstained"');
+    expect(app).toContain("retrieved candidate");
+    expect(app).toContain("rejected as insufficient");
+    expect(app).toContain("They are not citations or sources behind an answer.");
   });
 
   it("keeps the daily workflow ahead of developer and judge utilities", () => {

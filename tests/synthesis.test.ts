@@ -836,6 +836,49 @@ describe("evidence-constrained synthesis", () => {
     expect(result.answer).not.toMatch(/Moreover/i);
   });
 
+  it("bridges a recent delivery to the independently tracked open state", () => {
+    const result = synthesiseGroundedAnswer(
+      "What did we ship most recently, and does the tracker still show that work as open?",
+      [
+        {
+          id: "github-release",
+          provider: "github",
+          title: "Authentication fix merged but tracker still open",
+          excerpt:
+            "The authentication fix for the Northwind outage (INC-2031) was merged. "
+            + "Linear issue ENG-456 is still showing as open even though the code is shipped.",
+          timestamp: "2026-08-02T17:39:45Z",
+        },
+        {
+          id: "linear-incident",
+          provider: "linear",
+          title: "Authentication outage for Northwind",
+          excerpt:
+            "INC-2031: Northwind reported an authentication outage. Priya Raman filed this against Atlas Launch.",
+          timestamp: "2026-08-02T01:03:55Z",
+        },
+        {
+          id: "gmail-newsletter",
+          provider: "gmail",
+          title: "Latest product launches",
+          excerpt: "A newsletter about companies that launched products this week.",
+          timestamp: "2026-08-04T17:12:32Z",
+        },
+      ],
+    );
+
+    expect(result.validation.status).not.toBe("abstained");
+    expect(result.answer).toMatch(/INC-2031/i);
+    expect(result.answer).toMatch(/ENG-456/i);
+    expect(result.evidence.map((item) => item.id)).toEqual(expect.arrayContaining([
+      "github-release", "linear-incident",
+    ]));
+    expect(result.contradictions).toEqual(expect.arrayContaining([
+      expect.objectContaining({ providers: ["github", "linear"] }),
+    ]));
+    expect(result.answer).not.toMatch(/newsletter/i);
+  });
+
   // Production defect: the multi-hop BUG-123 question returned three claims that
   // were overlapping windows of one Slack message, so the same sentence appeared
   // three times in one answer. The relaxed fallback that fills claim slots when
@@ -945,6 +988,79 @@ describe("evidence-constrained synthesis", () => {
     expect(cited.has("gmail-jobs-1")).toBe(false);
     expect(cited.has("gmail-jobs-2")).toBe(false);
     expect(result.answer).not.toMatch(/copco/i);
+  });
+
+  // Production defect query_a2b8eb3e-783e-455a-af16-449048fd5750:
+  // Quick mode retrieved independent lexical facets from four unrelated records
+  // and labelled their combination grounded, even though none stated Atlas
+  // Launch's general-availability date.
+  const atlasGaNoise = [
+    {
+      id: "linear-authshield",
+      provider: "linear",
+      title: "AuthShield authentication outage for Northwind",
+      excerpt:
+        "INC-2031: enterprise customer Northwind reported an authentication outage on 29 July 2026. "
+        + "Priya Raman filed this against Atlas Launch. Engineering committed to shipping the AuthShield "
+        + "fix before Friday 7 August 2026.",
+    },
+    {
+      id: "gmail-snowflake",
+      provider: "gmail",
+      title: "Snowflake Cross-Cloud Iceberg Replication",
+      excerpt:
+        "Iceberg table replication is in public preview, not general availability. "
+        + "Treat it as pre-GA and expect changes before general availability.",
+    },
+    {
+      id: "slack-authshield",
+      provider: "slack",
+      title: "Northwind escalation",
+      excerpt:
+        "Northwind escalated INC-2031. Priya Raman filed BUG-123 against Atlas Launch.",
+    },
+    {
+      id: "gmail-anthropic",
+      provider: "gmail",
+      title: "Introducing Claude Fable 5 and Claude Mythos 5",
+      excerpt:
+        "Anthropic held back a public launch until it built stronger safety controls. "
+        + "Fable 5 has a launch date of June 9, 2026.",
+    },
+  ];
+
+  it("abstains when committed GA-date facets come from unrelated records", () => {
+    const result = synthesiseGroundedAnswer(
+      "What was the committed general availability date for Atlas Launch?",
+      atlasGaNoise,
+    );
+
+    expect(result.validation.status).toBe("abstained");
+    expect(result.answer).toBe("Insufficient evidence. QueueProof will not invent an answer.");
+    expect(result.claims).toEqual([]);
+  });
+
+  it("answers a committed GA-date lookup from one subject-bound receipt", () => {
+    const result = synthesiseGroundedAnswer(
+      "What was the committed general availability date for Atlas Launch?",
+      [
+        ...atlasGaNoise,
+        {
+          id: "document-atlas-dossier",
+          provider: "document",
+          title: "Helios Robotics engineering handbook",
+          excerpt:
+            "Delivery. Atlas Launch reached general availability on 14 March 2031, four weeks later "
+            + "than the original plan.",
+        },
+      ],
+    );
+
+    expect(result.validation.status).toBe("grounded");
+    expect(result.answer).toMatch(/Atlas Launch reached general availability on 14 March 2031/i);
+    expect(new Set(result.claims.flatMap((claim) => claim.evidenceIds))).toEqual(
+      new Set(["document-atlas-dossier"]),
+    );
   });
 
   it("states the blocker rather than restating the same receipt twice", () => {

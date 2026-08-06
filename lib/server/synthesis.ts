@@ -164,6 +164,36 @@ const IMPEDIMENT_QUESTION =
 const IMPEDIMENT_ASSERTION =
   /\b(?:is|are|was|were|remains?|stays?|still)\s+blocked\b|\bblocked\s+(?:on|by)\b|\bblockers?\b|\b(?:is|are|were|keeps?|kept)\s+blocking\b|\bwaiting\s+(?:on|for)\b|\b(?:cannot|can\s?not|can't|could\s?not|couldn't)\s+(?:be\s+)?(?:start|started|ship|shipped|proceed|land|deploy|deployed|release|released|launch|launched|continue|go\s+live)\b|\bheld\s+up\s+by\b|\bholding\s+up\b|\bdepends?\s+on\b|\bblocks\s+\w/;
 
+// A committed GA-date lookup asks for one relationship-bound value: the date
+// must belong to the named programme's general-availability milestone. Token
+// overlap is not sufficient here. In production, independent fragments supplied
+// one facet each ("Atlas Launch" in an incident, "general availability" in a
+// Snowflake newsletter, and a date in an Anthropic launch post), and those
+// unrelated facts were assembled into a confidently grounded answer.
+const COMMITTED_GENERAL_AVAILABILITY_DATE_QUESTION =
+  /\bcommitt\w*\b[^?]{0,80}\b(?:general\s+availability|GA)\b|\b(?:general\s+availability|GA)\b[^?]{0,80}\bcommitt\w*\b/i;
+const GENERAL_AVAILABILITY_ASSERTION =
+  /\b(?:general\s+availability|generally\s+available|GA(?:\s+date)?)\b/i;
+const CALENDAR_DATE_ASSERTION =
+  /\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}|(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+\d{4})\b/i;
+
+function namesQuestionSubject(question: string, candidate: string) {
+  const subjects = namedSubjects(question);
+  if (!subjects.length) return false;
+  const escaped = subjects.map((subject) => subject.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  // Preserve a multi-word proper name as one subject. Allow punctuation or
+  // markdown between its words, but not unrelated prose that happens to mention
+  // the words independently.
+  return new RegExp(`\\b${escaped.join("[^a-z0-9]+")}\\b`, "i").test(candidate);
+}
+
+function supportsCommittedGeneralAvailabilityDate(question: string, candidate: string) {
+  if (!COMMITTED_GENERAL_AVAILABILITY_DATE_QUESTION.test(question)) return true;
+  return namesQuestionSubject(question, candidate) &&
+    GENERAL_AVAILABILITY_ASSERTION.test(candidate) &&
+    CALENDAR_DATE_ASSERTION.test(candidate);
+}
+
 function relevance(question: string, text: string, provider?: string) {
   const q = question.toLowerCase();
   const candidate = text.toLowerCase();
@@ -181,6 +211,10 @@ function relevance(question: string, text: string, provider?: string) {
   for (const identifier of recordIdentifiers(question)) {
     if (text.toUpperCase().includes(identifier.toUpperCase())) identifierScore += 12;
   }
+  // Keep the subject, requested milestone, and value in the same evidence unit.
+  // This deliberately abstains when retrieval returned only independent facet
+  // matches; a citation-backed answer cannot be composed from those fragments.
+  if (!supportsCommittedGeneralAvailabilityDate(question, text)) return 0;
   if (/\bpromise\b/.test(q) && !/\b(promise|promised|commit|committed)\b/.test(candidate)) return 0;
   if (/\b(disagree|conflict)\w*\b/.test(q) && anchors.length >= 2 && anchorMatches < 2 && identifierScore === 0) return 0;
   if (/\bopen\b/.test(q) && /\b(resolved|complete|completed|closed)\b/.test(q)) {
@@ -229,7 +263,12 @@ const BRIDGE_GENERIC_TOKENS = new Set([
 
 const staleBridgeQuestion = (question: string) =>
   /\bopen\s+(?:issue|ticket)\b[^?]{0,100}\b(?:resolved|complete|completed|closed|merged|shipped|elsewhere)\b/i.test(question) ||
-  /\bappears?(?:\s+\w+){0,5}\s+resolved\s+elsewhere\b/i.test(question);
+  /\bappears?(?:\s+\w+){0,5}\s+resolved\s+elsewhere\b/i.test(question) ||
+  // Natural compound questions often put the delivered state first, then ask
+  // whether "the tracker still shows that work as open". This is the same
+  // conservative state join: crossSourceBridgeScore still requires a shared
+  // exact record ID plus two non-generic anchors before another provider wins.
+  /\b(?:tracker|tracking|issue|ticket)\b[^?]{0,90}\b(?:still\s+)?(?:show(?:s|ing)?|remain(?:s|ing)?|stay(?:s|ing)?)?[^?]{0,30}\bopen\b/i.test(question);
 
 const bridgeTokens = (value: string) => new Set(
   tokenise(value).filter((token) => token.length >= 4 && !BRIDGE_GENERIC_TOKENS.has(token)),
@@ -717,6 +756,11 @@ const REQUESTED_FACETS: RequestedFacet[] = [
     supportedBy: /\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})\b/i,
   },
   {
+    label: "general availability date",
+    requestedBy: COMMITTED_GENERAL_AVAILABILITY_DATE_QUESTION,
+    supportedBy: /(?=.*\b(?:general\s+availability|generally\s+available|GA(?:\s+date)?)\b)(?=.*\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}|(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+\d{4})\b)/i,
+  },
+  {
     label: "filing actor",
     requestedBy: /\bwho\s+filed\b/i,
     supportedBy: /\bfiled\b/i,
@@ -731,7 +775,14 @@ const REQUESTED_FACETS: RequestedFacet[] = [
 function missingRequestedFacets(question: string, claims: GroundedClaim[]) {
   const supportedCorpus = claims.map((claim) => claim.text).join(" ");
   return REQUESTED_FACETS
-    .filter((facet) => facet.requestedBy.test(question) && !facet.supportedBy.test(supportedCorpus))
+    .filter((facet) => {
+      // In "committed GA date", committed qualifies the milestone value; it is
+      // not a separate request for an engineering promise. The dedicated facet
+      // above verifies the relationship and calendar value together.
+      if (facet.label === "engineering commitment" &&
+          COMMITTED_GENERAL_AVAILABILITY_DATE_QUESTION.test(question)) return false;
+      return facet.requestedBy.test(question) && !facet.supportedBy.test(supportedCorpus);
+    })
     .map((facet) => `Insufficient evidence for the requested ${facet.label}.`);
 }
 

@@ -19,6 +19,7 @@ import type { LiveProofState } from "../packages/contracts/src";
 import EvidenceGraphView from "./components/EvidenceGraph";
 import { EvidenceOrb } from "./components/EvidenceOrb";
 import { QueueProofLogo, QueueProofSymbol } from "./components/QueueProofLogo";
+import { dateLabel } from "./date-label";
 
 type CredentialField = {
   name: string; required?: boolean; title?: string; description?: string;
@@ -192,18 +193,6 @@ async function api<T>(url: string, init?: RequestInit): Promise<T> {
   if (!response.ok) throw new Error(data?.error?.trim() || text.trim() || `Request failed (${response.status}).`);
   if (!data) throw new Error("QueueProof returned an empty response.");
   return data;
-}
-
-function dateLabel(value?: string | null) {
-  if (!value) return "Not available";
-  const parsed = new Date(value);
-  return Number.isFinite(parsed.getTime())
-    ? new Intl.DateTimeFormat("en-GB", {
-        dateStyle: "medium",
-        timeStyle: "short",
-        timeZone: "UTC",
-      }).format(parsed)
-    : value;
 }
 
 function band(score: number) {
@@ -1113,14 +1102,24 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, onOpe
   async function submit(event: FormEvent) { event.preventDefault(); await run(); }
 
   const directlyCitedEvidence = result?.citations ?? [];
-  const rankedEvidence = directlyCitedEvidence.length > 0 ? directlyCitedEvidence : result?.evidence.slice(0, 6) ?? [];
+  // An abstention can still carry low-scoring retrieval candidates for audit and
+  // follow-up routing. They are not proof. Never promote them into the primary
+  // evidence grid merely because the answer correctly has zero citations.
+  const rejectedEvidence = result?.validation.status === "abstained" ? result.evidence : [];
+  const rankedEvidence = directlyCitedEvidence.length > 0
+    ? directlyCitedEvidence
+    : result?.validation.status === "abstained"
+      ? []
+      : result?.evidence.slice(0, 6) ?? [];
   const rankedEvidenceIds = new Set(rankedEvidence.map((item) => item.id ?? item.sourceId));
-  const supportingEvidence = result?.evidence.filter((item) => !rankedEvidenceIds.has(item.id ?? item.sourceId)) ?? [];
+  const supportingEvidence = result?.validation.status === "abstained"
+    ? []
+    : result?.evidence.filter((item) => !rankedEvidenceIds.has(item.id ?? item.sourceId)) ?? [];
   const missingInformation = [...new Set([...(result?.missing_information ?? []), ...(result?.missingInformation ?? [])])];
   const resultTone = result?.validation.status === "abstained" ? "abstained" : result?.validation.status === "partial" || missingInformation.length ? "partial" : "grounded";
   const judgeMeasured = judgePulse?.status === "measured";
   const contradictionEvidenceIds = new Set(result?.contradictions.flatMap((item) => item.evidenceIds) ?? []);
-  const timelineEvidence = [...(result?.evidence ?? [])]
+  const timelineEvidence = result?.validation.status === "abstained" ? [] : [...(result?.evidence ?? [])]
     .sort((left, right) => {
       const leftTime = left.timestamp ? new Date(left.timestamp).getTime() : Number.MAX_SAFE_INTEGER;
       const rightTime = right.timestamp ? new Date(right.timestamp).getTime() : Number.MAX_SAFE_INTEGER;
@@ -1358,9 +1357,12 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, onOpe
           <div><span className="eyebrow"><Command size={12} /> Why this comes first</span><h3>{result.priority_items[0].title}</h3><p>{result.priority_items[0].recommended_next_safe_action}</p><div className="priority-meta"><span>{result.priority_items[0].provider_coverage.join(" · ")}</span><span>{Math.round(result.priority_items[0].confidence * 100)}% confidence</span><span>{result.priority_items[0].approval_required ? "You approve the change" : "Read only"}</span></div></div>
         </article>}
 
-        <div className="result-heading" id="answer-sources"><div><span className="eyebrow">Open the proof</span><h3>Sources behind the answer.</h3></div><button className="secondary-button" onClick={onOpenLab}>Open benchmarks <ArrowRight size={13} /></button></div>
-        <div className="evidence-grid proof-evidence">{rankedEvidence.map((item, index) => <EvidenceCard key={`${item.provider}-${item.id ?? index}`} evidence={item} index={index} />)}</div>
-        {supportingEvidence.length > 0 && <details className="supporting-records"><summary>Show {supportingEvidence.length} additional retrieved record{supportingEvidence.length === 1 ? "" : "s"}</summary><div className="evidence-grid proof-evidence">{supportingEvidence.map((item, index) => <EvidenceCard key={`${item.provider}-${item.id ?? index + rankedEvidence.length}`} evidence={item} index={index + rankedEvidence.length} />)}</div></details>}
+        {resultTone !== "abstained" && <>
+          <div className="result-heading" id="answer-sources"><div><span className="eyebrow">Open the proof</span><h3>Sources behind the answer.</h3></div><button className="secondary-button" onClick={onOpenLab}>Open benchmarks <ArrowRight size={13} /></button></div>
+          <div className="evidence-grid proof-evidence">{rankedEvidence.map((item, index) => <EvidenceCard key={`${item.provider}-${item.id ?? index}`} evidence={item} index={index} />)}</div>
+          {supportingEvidence.length > 0 && <details className="supporting-records"><summary>Show {supportingEvidence.length} additional retrieved record{supportingEvidence.length === 1 ? "" : "s"}</summary><div className="evidence-grid proof-evidence">{supportingEvidence.map((item, index) => <EvidenceCard key={`${item.provider}-${item.id ?? index + rankedEvidence.length}`} evidence={item} index={index + rankedEvidence.length} />)}</div></details>}
+        </>}
+        {resultTone === "abstained" && rejectedEvidence.length > 0 && <details className="supporting-records rejected-records" id="answer-sources"><summary>Show {rejectedEvidence.length} retrieved candidate{rejectedEvidence.length === 1 ? "" : "s"} rejected as insufficient</summary><p>These records were returned by retrieval but did not support the requested claim. They are not citations or sources behind an answer.</p><div className="evidence-grid proof-evidence">{rejectedEvidence.map((item, index) => <EvidenceCard key={`${item.provider}-${item.id ?? index}`} evidence={item} index={index} />)}</div></details>}
       </div>}
       {citationPreview && <EvidenceReceiptDialog evidence={citationPreview.evidence} index={citationPreview.index} onClose={() => setCitationPreview(null)} />}
     </section>
@@ -1690,17 +1692,22 @@ function ApprovalsScreen({ seedPacket, onSeedUsed, setError, setNotice, readOnly
   const closeComposer = () => { setComposerOpen(false); onSeedUsed(); };
   const composerDialogRef = useDialogBehavior<HTMLFormElement>(composerOpen, closeComposer);
   async function load() {
+    if (readOnly) return;
     const data = await api<{ proposals: ActionProposal[] }>("/api/actions");
     setProposals(data.proposals);
   }
 
   useEffect(() => {
+    // Proposal payloads are owner-only. The public sandbox must not issue a request
+    // that the server is required to reject, because the expected 403 becomes a
+    // misleading browser-console failure.
+    if (readOnly) return;
     let active = true;
     void api<{ proposals: ActionProposal[] }>("/api/actions")
       .then((data) => { if (active) setProposals(data.proposals); })
       .catch((reason: Error) => { if (active) setError(reason.message); });
     return () => { active = false; };
-  }, [setError]);
+  }, [readOnly, setError]);
 
   async function createProposal(event: FormEvent) {
     event.preventDefault(); setBusy("create"); setError("");
@@ -1744,11 +1751,11 @@ function ApprovalsScreen({ seedPacket, onSeedUsed, setError, setNotice, readOnly
 
   return <section className="screen approvals-screen">
     <div className="screen-heading"><div><span className="eyebrow"><ShieldCheck size={13} /> Review changes</span><h1>Nothing changes<br /><em>without your approval.</em></h1><p>QueueProof can prepare a Linear update from the evidence. You see the exact change and its sources before anything is sent.</p></div>{readOnly ? <button className="primary-button" type="button" disabled title="Preparing a change is reserved to the workspace owner."><Plus size={15} /> Prepare a change</button> : <button className="primary-button" onClick={() => setComposerOpen(true)}><Plus size={15} /> Prepare a change</button>}</div>
-    {readOnly && <div className="inline-warning"><LockKeyhole size={14} /><span>Every proposed change and its exact payload is open here. Preparing, approving, and sending are reserved to the workspace owner.</span></div>}
-    <div className="approval-stats"><div><small>WAITING FOR REVIEW</small><strong>{pending}</strong><span>nothing is sent automatically</span></div><div><small>COMPLETED</small><strong>{executed}</strong><span>confirmed by Linear</span></div><div><small>SAFETY</small><strong>Runs once</strong><span>repeats are blocked</span></div></div>
+    {readOnly && <div className="inline-warning"><LockKeyhole size={14} /><span>Saved proposals and their exact payloads are private to the workspace owner. Public visitors cannot read, prepare, approve, or send changes.</span></div>}
+    <div className="approval-stats"><div><small>WAITING FOR REVIEW</small><strong>{readOnly ? "—" : pending}</strong><span>{readOnly ? "owner-only history" : "nothing is sent automatically"}</span></div><div><small>COMPLETED</small><strong>{readOnly ? "—" : executed}</strong><span>{readOnly ? "owner-only history" : "confirmed by Linear"}</span></div><div><small>SAFETY</small><strong>Runs once</strong><span>repeats are blocked</span></div></div>
     <div className="approval-list">
-      <div className="list-title"><span><LockKeyhole size={14} /> Proposed changes</span><button onClick={() => void load()}><RefreshCw size={12} /> Refresh</button></div>
-      {proposals.length ? proposals.map((proposal) => {
+      <div className="list-title"><span><LockKeyhole size={14} /> Proposed changes</span>{readOnly ? <button type="button" disabled title="Proposal history is private to the workspace owner."><LockKeyhole size={12} /> Owner only</button> : <button onClick={() => void load()}><RefreshCw size={12} /> Refresh</button>}</div>
+      {readOnly ? <div className="honest-empty"><LockKeyhole size={24} /><div><strong>Proposal history is private.</strong><p>Sign in as the workspace owner to review saved payloads and execution receipts.</p></div></div> : proposals.length ? proposals.map((proposal) => {
         const payload = parseJson<IssuePayload>(proposal.payloadJson, {});
         const evidence = parseJson<string[]>(proposal.evidenceIdsJson, []);
         const complete = proposal.executionStatus === "succeeded" || proposal.status === "executed";

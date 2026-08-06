@@ -173,6 +173,44 @@ export function retrievalQueryVariants(plan: RetrievalPlan): Array<"text" | "hyb
   return plan.exactParallel ? ["text", "hybrid"] : [plan.queryBy];
 }
 
+const BROAD_DELIVERY_TOKENS = new Set([
+  "and", "are", "as", "been", "did", "do", "does", "had", "has", "have", "is", "it", "most",
+  "deliver", "delivered", "deploy", "deployed", "launch", "launched", "newest", "latest", "open", "our",
+  "recent", "recently", "release", "released", "ship", "shipped", "shipping", "show", "showing", "shows",
+  "still", "that", "the", "thing", "things", "tracker",
+  "tracking", "was", "we", "were", "what", "which", "work",
+]);
+
+/**
+ * Broad recency questions carry no entity or identifier that can protect a mixed
+ * connector top-k from newsletter noise. Detect that narrow shape so the route can
+ * run a bounded Fast check against systems of record instead of paying for a global
+ * Thinking retry over the same noisy pool.
+ */
+export function isUnanchoredRecencyDeliveryQuestion(question: string): boolean {
+  const normalized = question.toLowerCase();
+  const asksForRecency = /\b(?:most\s+recent(?:ly)?|latest|newest)\b/.test(normalized);
+  const asksForDelivery = /\b(?:ship|shipped|shipping|release|released|deploy|deployed|deliver|delivered|launch|launched)\b/.test(normalized);
+  if (!asksForRecency || !asksForDelivery || recordIdentifiers(question).length > 0) return false;
+
+  const contentTokens = normalized.match(/[a-z0-9-]{3,}/g) ?? [];
+  return contentTokens.every((token) => BROAD_DELIVERY_TOKENS.has(token));
+}
+
+// Mail is intentionally absent. An unanchored delivery query cannot distinguish
+// a team release receipt from newsletter prose, while these providers are systems
+// where a shipped/merged/deployed state is an operational record.
+const DELIVERY_REPAIR_PROVIDER_ORDER = [
+  "github", "gitlab", "linear", "jira", "shortcut", "slack", "notion", "confluence",
+];
+
+/** At most three connector lanes keep the repair cheaper than an unbounded retry. */
+export function boundedDeliveryRepairProviders(question: string, availableProviders: string[]): string[] {
+  if (!isUnanchoredRecencyDeliveryQuestion(question)) return [];
+  const available = new Set(availableProviders.map((provider) => provider.toLowerCase()));
+  return DELIVERY_REPAIR_PROVIDER_ORDER.filter((provider) => available.has(provider)).slice(0, 3);
+}
+
 /**
  * Bounded, fixture-agnostic terms for intents whose natural-language wording
  * is often too abstract for lexical retrieval. These phrases describe the
@@ -181,13 +219,18 @@ export function retrievalQueryVariants(plan: RetrievalPlan): Array<"text" | "hyb
  */
 export function retrievalIntentTerms(question: string): string[] {
   const normalized = question.toLowerCase();
-  if (/\bopen\s+(?:issue|ticket)\b[^?]{0,90}\b(?:resolved|complete|completed|closed|merged|shipped|elsewhere)\b/.test(normalized)) {
-    return ["merged", "shipped", "still open", "tracked state"];
+  const terms: string[] = [];
+  if (isUnanchoredRecencyDeliveryQuestion(question)) {
+    terms.push("merged", "shipped", "released", "deployed");
+  }
+  if (/\bopen\s+(?:issue|ticket)\b[^?]{0,90}\b(?:resolved|complete|completed|closed|merged|shipped|elsewhere)\b/.test(normalized) ||
+      /\b(?:tracker|tracking|issue|ticket)\b[^?]{0,90}\b(?:still\s+)?(?:show(?:s|ing)?|remain(?:s|ing)?|stay(?:s|ing)?)?[^?]{0,30}\bopen\b/.test(normalized)) {
+    terms.push("merged", "shipped", "still open", "tracked state");
   }
   if (/\b(?:no|without|missing|lacks?)\b[^?]{0,60}\b(?:issue|ticket|track(?:ed|ing)?)\b/.test(normalized)) {
-    return ["no issue tracking", "not tracked"];
+    terms.push("no issue tracking", "not tracked");
   }
-  return [];
+  return [...new Set(terms)];
 }
 
 const FOLLOW_UP_STOP_WORDS = new Set([
