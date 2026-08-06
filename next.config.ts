@@ -19,7 +19,7 @@ export const productionSecurityHeaders = [
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
       "connect-src 'self' https://api.hydradb.com https://*.hydradb.com",
-      "media-src 'self' blob:",
+      "media-src 'self' blob: https://assets.21st.dev",
       "worker-src 'self' blob:",
       "manifest-src 'self'",
       "upgrade-insecure-requests",
