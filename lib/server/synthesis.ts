@@ -707,11 +707,18 @@ function contradictions(question: string, relevantEvidence: SynthesisEvidence[])
       stateIdentifiers.find((id) => /^INC-/i.test(id)) ??
       "tracked issue";
     const sameReceipt = completed.id === open.id;
-    const trackedBridge = completed.id === open.id && staleBridgeQuestion(question)
-      ? selected.find((item) => item.provider !== completed.provider &&
+    const trackedBridgeCandidates = completed.id === open.id && staleBridgeQuestion(question)
+      ? selected.filter((item) => item.provider !== completed.provider &&
           /\b(?:against|filed|issue|record|ticket|track(?:ed|ing)?)\b/i.test(`${item.title} ${item.excerpt}`) &&
           crossSourceBridgeScore(question, `${item.title}. ${item.excerpt}`, item.provider, selected) > 0)
-      : undefined;
+      : [];
+    // A Thinking follow-up may add another related provider after the Fast
+    // baseline has already found the tracker receipt. Prefer the eligible
+    // provider explicitly named by the completion/open record so extra context
+    // cannot displace the system of record merely by ranking first.
+    const trackedBridge = trackedBridgeCandidates.find((item) =>
+      providerNamedInQuestion(stateCorpus, item.provider),
+    ) ?? trackedBridgeCandidates[0];
     result.push({
       summary: sameReceipt
         ? trackedBridge
