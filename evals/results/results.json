@@ -1,24 +1,24 @@
 {
-  "generatedAt": "2026-08-05T01:11:24.118Z",
+  "generatedAt": "2026-08-06T16:35:45.072Z",
   "runner": "scripts/run-evals.mjs",
   "requestedMode": "fixture",
   "fixture": {
     "label": "FIXTURE (offline, no credentials, deterministic components only)",
-    "caseCount": 39,
+    "caseCount": 42,
     "coverage": {
-      "total": 39,
+      "total": 42,
       "multiHop": 16,
-      "temporalUpdate": 7,
+      "temporalUpdate": 10,
       "contradictionStale": 6,
       "entityDedup": 5,
       "exactMetadata": 6,
       "documentPdf": 9
     },
     "metrics": {
-      "totalCases": 39,
+      "totalCases": 42,
       "router": {
-        "correct": 39,
-        "total": 39,
+        "correct": 42,
+        "total": 42,
         "accuracy": 1
       },
       "perCategory": {
@@ -38,8 +38,8 @@
           "accuracy": 1
         },
         "temporal": {
-          "total": 3,
-          "correct": 3,
+          "total": 6,
+          "correct": 6,
           "accuracy": 1
         },
         "metadata": {
@@ -101,26 +101,27 @@
       "modeSplit": {
         "predicted": {
           "fast": 14,
-          "thinking": 25
+          "thinking": 28
         },
         "expected": {
           "fast": 14,
-          "thinking": 25
+          "thinking": 28
         }
       },
       "escalation": {
-        "predictedThinking": 25,
+        "predictedThinking": 28,
         "overEscalated": 0,
         "underEscalated": 0
       },
       "providerCoverage": {
         "availableProviders": [],
-        "casesWithUnavailableProviders": 39,
+        "casesWithUnavailableProviders": 42,
         "byProvider": {
-          "linear": 24,
+          "linear": 26,
           "document": 9,
-          "slack": 16,
-          "gmail": 11
+          "slack": 17,
+          "gmail": 11,
+          "github": 1
         }
       }
     },
@@ -209,7 +210,7 @@
       ]
     },
     "assertions": {
-      "run": 331,
+      "run": 353,
       "failed": 0,
       "failures": []
     },
@@ -927,6 +928,58 @@
       "queryBy": "hybrid",
       "graphContext": true,
       "recencyBias": 0.1
+    },
+    {
+      "id": "temporal-04",
+      "category": "temporal",
+      "question": "What did we ship most recently?",
+      "requiredProviders": [
+        "github"
+      ],
+      "expectedMode": "thinking",
+      "predictedMode": "thinking",
+      "modeMatch": true,
+      "declaredRouterCategory": "temporal_reasoning",
+      "predictedRouterCategory": "temporal_reasoning",
+      "routerCategoryMatch": true,
+      "queryBy": "hybrid",
+      "graphContext": true,
+      "recencyBias": 0.3
+    },
+    {
+      "id": "temporal-05",
+      "category": "temporal",
+      "question": "Which issue was updated newest in Linear?",
+      "requiredProviders": [
+        "linear"
+      ],
+      "expectedMode": "thinking",
+      "predictedMode": "thinking",
+      "modeMatch": true,
+      "declaredRouterCategory": "temporal_reasoning",
+      "predictedRouterCategory": "temporal_reasoning",
+      "routerCategoryMatch": true,
+      "queryBy": "hybrid",
+      "graphContext": true,
+      "recencyBias": 0.3
+    },
+    {
+      "id": "recency-vs-relevance-01",
+      "category": "temporal",
+      "question": "What is the latest decision on the Atlas firmware rollout and do all sources agree?",
+      "requiredProviders": [
+        "slack",
+        "linear"
+      ],
+      "expectedMode": "thinking",
+      "predictedMode": "thinking",
+      "modeMatch": true,
+      "declaredRouterCategory": "temporal_reasoning",
+      "predictedRouterCategory": "temporal_reasoning",
+      "routerCategoryMatch": true,
+      "queryBy": "hybrid",
+      "graphContext": true,
+      "recencyBias": 0.3
     }
   ]
 }
