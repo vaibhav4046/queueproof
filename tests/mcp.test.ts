@@ -26,7 +26,7 @@ describe("QueueProof MCP", () => {
     // Ten tools previously queried tables that ensureCoreSchema() never creates, so they
     // threw "no such table" at runtime. Guard against reintroducing one.
     const server = buildQueueProofServer("ws-test") as unknown as {
-      _registeredTools?: Record<string, unknown>;
+      _registeredTools?: Record<string, { _meta?: Record<string, unknown> }>;
     };
     const registered = Object.keys(server._registeredTools ?? {});
     expect(registered.length).toBeGreaterThan(0);
@@ -45,7 +45,13 @@ describe("QueueProof MCP", () => {
       );
     }
     expect(registered).toContain("queueproof_list_connectors");
+    expect(registered).toContain("queueproof_list_documents");
     expect(registered).toContain("queueproof_propose_action");
+    for (const tool of Object.values(server._registeredTools ?? {})) {
+      expect(tool._meta?.securitySchemes).toEqual(expect.arrayContaining([
+        expect.objectContaining({ type: "oauth2", scopes: expect.arrayContaining(["queueproof:read"]) }),
+      ]));
+    }
     const source = readFileSync(new URL("../packages/mcp/src/server.ts", import.meta.url), "utf8");
     expect(source).toContain('provider: z.literal("linear")');
     expect(source).toContain('actionType: z.literal("create_issue")');
@@ -192,6 +198,20 @@ describe("QueueProof MCP", () => {
     const call = await callMcpTool(secret, 12, "queueproof_health", {});
     expect(call.status).toBe(200);
     expect(await activity()).toMatchObject({ lastToolCallAt: expect.any(String) });
+  });
+
+  it("rejects an MCP search database that is not attached to the token workspace", async () => {
+    const secret = "qp_live_scope-boundary-token-000000";
+    await insertToken(secret);
+    const response = await callMcpTool(secret, 13, "queueproof_search", {
+      query: "What shipped?",
+      database: "another-workspace-database",
+      mode: "fast",
+    });
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain(
+      "That HydraDB database is not attached to the authenticated workspace.",
+    );
   });
 
   it("keeps /api/mcp as an exact compatibility alias for canonical /mcp", async () => {

@@ -9,6 +9,16 @@ const schemaStatements = [
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
+  `CREATE TABLE IF NOT EXISTS auth_identities (
+    id TEXT PRIMARY KEY, user_id TEXT NOT NULL,
+    issuer TEXT NOT NULL, subject TEXT NOT NULL,
+    email TEXT, email_verified INTEGER NOT NULL DEFAULT 0,
+    display_name TEXT, avatar_url TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(issuer, subject), UNIQUE(user_id)
+  )`,
+  `CREATE INDEX IF NOT EXISTS auth_identities_email_idx ON auth_identities(email)`,
   `CREATE TABLE IF NOT EXISTS workspaces (
     id TEXT PRIMARY KEY, slug TEXT NOT NULL UNIQUE, name TEXT NOT NULL,
     mode TEXT NOT NULL DEFAULT 'bring_your_own_hydradb',
@@ -251,6 +261,10 @@ const columnMigrations = [
   `ALTER TABLE documents ADD COLUMN page_count INTEGER`,
   `ALTER TABLE documents ADD COLUMN indexed_at TEXT`,
   `ALTER TABLE documents ADD COLUMN processing_duration_ms INTEGER`,
+  `ALTER TABLE mcp_clients ADD COLUMN auth_method TEXT`,
+  `ALTER TABLE mcp_clients ADD COLUMN auth_issuer TEXT`,
+  `ALTER TABLE mcp_clients ADD COLUMN external_client_id TEXT`,
+  `ALTER TABLE mcp_clients ADD COLUMN user_id TEXT`,
 ];
 
 export async function ensureCoreSchema(): Promise<void> {
@@ -390,14 +404,21 @@ export async function workspaceForUser(userId: string) {
        LIMIT 1`,
     ).first<Record<string, unknown>>();
   }
-  return db
+  const memberships = await db
     .prepare(
       `SELECT w.* FROM workspaces w
        JOIN workspace_members wm ON wm.workspace_id = w.id
-       WHERE wm.user_id = ? ORDER BY w.created_at ASC LIMIT 1`,
+       WHERE wm.user_id = ? ORDER BY w.created_at ASC, w.id ASC LIMIT 2`,
     )
     .bind(userId)
-    .first<Record<string, unknown>>();
+    .all<Record<string, unknown>>();
+  if (memberships.results.length > 1) {
+    throw new Response(
+      "This account belongs to multiple workspaces, but no active workspace was selected.",
+      { status: 409 },
+    );
+  }
+  return memberships.results[0] ?? null;
 }
 
 export async function requireWorkspaceForUser(userId: string) {

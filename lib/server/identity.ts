@@ -1,11 +1,20 @@
 import { headers, cookies } from "next/headers";
 import { runtimeEnv } from "./runtime";
+import {
+  auth0Config,
+  auth0WebEnabled,
+  getAuth0Client,
+  legacyOwnerSignInEnabled,
+} from "./auth0";
+import { ensureExternalPrincipalWorkspace } from "./auth-principal";
 
 export type RequestActor = {
   id: string;
   email: string;
   displayName: string;
   localDevelopment: boolean;
+  authType: "auth0" | "legacy" | "gateway" | "local" | "public";
+  emailVerified?: boolean;
 };
 
 /**
@@ -167,6 +176,7 @@ export async function verifySessionValue(
     email: claims.email,
     displayName: claims.email,
     localDevelopment: false,
+    authType: "legacy",
   };
 }
 
@@ -177,6 +187,32 @@ async function actorFromSessionCookie(): Promise<RequestActor | null> {
   const store = await cookies();
   const raw = store.get(SESSION_COOKIE)?.value;
   return raw ? verifySessionValue(raw) : null;
+}
+
+async function actorFromAuth0Session(): Promise<RequestActor | null> {
+  if (!auth0WebEnabled()) return null;
+  const client = getAuth0Client();
+  const config = auth0Config();
+  if (!client || !config) return null;
+  const session = await client.getSession();
+  if (!session?.user?.sub) return null;
+
+  const principal = await ensureExternalPrincipalWorkspace({
+    issuer: config.issuer,
+    subject: session.user.sub,
+    email: session.user.email,
+    emailVerified: session.user.email_verified === true,
+    displayName: session.user.name ?? session.user.nickname ?? session.user.email,
+    avatarUrl: session.user.picture,
+  });
+  return {
+    id: principal.userId,
+    email: principal.email,
+    displayName: principal.displayName,
+    localDevelopment: false,
+    authType: "auth0",
+    emailVerified: principal.emailVerified,
+  };
 }
 
 /**
@@ -201,7 +237,13 @@ async function actorFromTrustedGateway(): Promise<RequestActor | null> {
       displayName = email;
     }
   }
-  return { id: `user:${email.toLowerCase()}`, email, displayName, localDevelopment: false };
+  return {
+    id: `user:${email.toLowerCase()}`,
+    email,
+    displayName,
+    localDevelopment: false,
+    authType: "gateway",
+  };
 }
 
 /**
@@ -221,6 +263,7 @@ function actorFromLocalOptIn(): RequestActor | null {
     email: "local@queueproof.invalid",
     displayName: "Local workspace",
     localDevelopment: true,
+    authType: "local",
   };
 }
 
@@ -238,6 +281,7 @@ function actorFromPublicAccess(): RequestActor | null {
     email: "public@queueproof.local",
     displayName: "Public workspace",
     localDevelopment: false,
+    authType: "public",
   };
 }
 
@@ -257,6 +301,7 @@ export async function getRequestActor(): Promise<RequestActor | null> {
   // before the anonymous public-workspace fallback. The former ordering made a valid,
   // signed owner cookie impossible to use whenever the public sandbox was enabled.
   return resolveFirstActor([
+    actorFromAuth0Session,
     actorFromSessionCookie,
     actorFromTrustedGateway,
     actorFromLocalOptIn,
@@ -272,12 +317,22 @@ export async function requireRequestActor(): Promise<RequestActor> {
 
 /** True when a hosted deployment has a way for a human to sign in. */
 export function signInConfigured(): boolean {
+  return auth0SignInConfigured() || legacySignInConfigured();
+}
+
+export function auth0SignInConfigured(): boolean {
+  return auth0WebEnabled();
+}
+
+export function legacySignInConfigured(): boolean {
+  if (!legacyOwnerSignInEnabled()) return false;
   const env = runtimeEnv() as Record<string, unknown>;
   const raw = env.QUEUEPROOF_ACCESS_TOKEN;
   return typeof raw === "string" && raw.trim().length >= 16;
 }
 
 export function accessTokenMatches(candidate: string): boolean {
+  if (!legacyOwnerSignInEnabled()) return false;
   const env = runtimeEnv() as Record<string, unknown>;
   const raw = env.QUEUEPROOF_ACCESS_TOKEN;
   if (typeof raw !== "string") return false;

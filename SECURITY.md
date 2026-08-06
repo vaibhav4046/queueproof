@@ -8,9 +8,9 @@ QueueProof treats the browser, MCP client, provider content, connector descripto
 
 - HydraDB keys are submitted over HTTPS, verified server-side, encrypted with AES-256-GCM, and never returned.
 - Provider credentials flow browser → QueueProof server → HydraDB and are not persisted by QueueProof.
-- Remote MCP is fail-closed, bearer-authenticated, workspace-bound by server configuration, constant-time compared, origin checked, and no-store.
-- OAuth protected-resource metadata returns unavailable unless a real issuer is configured.
-- Owner access uses a signed, `httpOnly`, same-site session. A gateway identity header is accepted only when the deployment explicitly opts into the trusted OpenAI Sites proxy; local identity is forbidden in production.
+- Remote MCP is fail-closed, origin checked, and no-store. Opaque tokens remain hash-, audience-, expiry-, revocation-, scope-, and workspace-bound. OAuth mode verifies Auth0 JWT signatures from a pinned JWKS endpoint plus exact issuer, audience/resource, lifetime, subject, and scopes.
+- OAuth protected-resource metadata returns unavailable unless the complete Auth0 resource-server mode is configured.
+- Auth0 web sessions use encrypted, `httpOnly`, same-site cookies. Identity is keyed by pinned issuer plus immutable subject—not email—and provisions exactly one private personal workspace. The signed legacy owner cookie remains a separately gated transition path.
 - The public workspace denies credential, connector, upload, MCP-token, and external-write control operations. Anonymous rate-limit buckets use signed random client cookies plus a deployment-wide ceiling; raw IP addresses and browser fingerprints are not stored.
 - Write-capable MCP concepts are proposals. The only implemented external execution path is a human-approved Linear issue creation; it claims a database uniqueness record before calling the provider and reports success only when Linear returns an issue ID.
 - Zod schemas bound query size, action evidence, risk class, idempotency keys, and execution packets.
@@ -23,13 +23,13 @@ QueueProof treats the browser, MCP client, provider content, connector descripto
 
 1. Revoke the exposed provider or HydraDB credential at its source.
 2. Generate a new 32-byte QueueProof encryption key only as part of a planned re-encryption migration; changing it immediately makes existing envelopes unreadable.
-3. Replace the MCP bearer token and restart/redeploy.
+3. Revoke leaked MCP bearer tokens and Auth0 clients; rotate Auth0 client/session secrets before redeploying.
 4. Delete affected connector state and re-authorise through the UI.
 5. Review audit events and HydraDB access logs.
 
 ## Known limitations
 
-- Bearer MCP authentication is implemented; full OAuth authorisation-server integration depends on a configured issuer.
+- The Auth0 resource-server path is implemented, but a named ChatGPT connection is not release evidence until the deployed issuer/API/client consent flow and one harmless read-only tool call are recorded.
 - The rate limiter uses the product's durable audit ledger rather than a dedicated edge-rate-limit service. Operators should add upstream abuse controls for high-volume deployments.
 - CI rejects high/critical dependency advisories and runs type, lint, test, benchmark, build, and binding gates. The full-history secret scan remains a separate release gate and must be repeated before a visibility change.
 - External execution is implemented only for Linear; other provider actions remain proposals.

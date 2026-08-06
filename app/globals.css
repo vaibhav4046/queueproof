@@ -142,6 +142,13 @@ input, select { width: 100%; min-height: 42px; border: 1px solid var(--line); pa
 .boot-screen { min-height: 100vh; display: grid; place-content: center; justify-items: center; gap: 25px; background: radial-gradient(circle, rgba(255,116,23,.08), transparent 24%), var(--ink); }.boot-screen p { color: var(--muted); font: 600 9px var(--mono); letter-spacing: .12em; text-transform: uppercase; }.boot-core { width: 78px; height: 78px; display: grid; place-items: center; border: 1px solid var(--acid); color: var(--acid); transform: rotate(45deg); box-shadow: 0 0 50px rgba(255,116,23,.08); animation: pulse 1.8s ease infinite; }.boot-core svg { transform: rotate(-45deg); }
 .gateway-screen { min-height: 100vh; position: relative; overflow: hidden; background: var(--ink); }.gateway-image { object-fit: cover; object-position: 60% center; filter: brightness(.72) contrast(1.08) saturate(.88); animation: reveal 1s ease both; }.gateway-shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(6,8,6,.99) 0 29%, rgba(6,8,6,.75) 48%, rgba(6,8,6,.12) 75%), linear-gradient(0deg, rgba(6,8,6,.92), transparent 35%); }.gateway-copy { position: relative; z-index: 3; width: min(740px, 90%); padding: 16vh 0 10vh clamp(28px, 8vw, 125px); }.gateway-copy h1 { margin: 25px 0; font: 400 clamp(52px, 7vw, 102px)/.87 var(--serif); letter-spacing: -.07em; text-transform: uppercase; }.gateway-copy h1 em { color: var(--acid); font-style: italic; text-transform: none; }.gateway-copy > p { max-width: 620px; margin-bottom: 29px; color: var(--muted); font-size: 15px; line-height: 1.68; }.trust-row { display: flex; gap: 22px; margin-top: 29px; color: var(--faint); font: 600 8px var(--mono); text-transform: uppercase; }.trust-row span { display: flex; align-items: center; gap: 6px; }.trust-row svg { color: var(--acid); }
 .onboarding-screen { min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; background: var(--ink); }.onboarding-art { min-height: 100vh; position: relative; overflow: hidden; }.onboarding-art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, var(--ink)), linear-gradient(0deg, var(--ink), transparent 40%); }.onboarding-art img { object-fit: cover; object-position: 58% center; filter: brightness(.65) contrast(1.08); }.onboarding-card { width: min(620px, calc(100% - 70px)); align-self: center; padding: clamp(30px, 5vw, 65px); border: 1px solid rgba(255,116,23,.25); background: rgba(10,14,10,.92); box-shadow: 0 40px 120px #0008; }.onboarding-card > svg { margin-top: 36px; color: var(--acid); }.step-code { color: var(--faint); font: 650 8px var(--mono); letter-spacing: .15em; }.onboarding-card h1 { margin: 17px 0; font: 400 clamp(39px, 5vw, 67px)/.94 var(--serif); letter-spacing: -.055em; }.onboarding-card p { color: var(--muted); font-size: 12px; line-height: 1.65; }.onboarding-card label { display: flex; flex-direction: column; gap: 8px; margin: 26px 0 14px; color: var(--muted); font: 620 8px var(--mono); letter-spacing: .09em; text-transform: uppercase; }.onboarding-card .primary-button { width: 100%; }
+.account-onboarding { align-self: center; }
+.auth0-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 28px; }
+.auth0-actions :is(.primary-button,.secondary-button) { min-height: 48px; width: 100%; }
+.legacy-signin { margin-top: 22px; border-top: 1px solid var(--line); padding-top: 18px; }
+.legacy-signin > summary { min-height: 44px; display: flex; align-items: center; gap: 8px; color: var(--muted); cursor: pointer; font: 650 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+.legacy-signin form { padding-top: 4px; }
+.legacy-signin label { margin-top: 16px; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes pulse { 50% { opacity: .55; box-shadow: 0 0 32px rgba(255,116,23,.16); } }
@@ -1633,6 +1640,8 @@ button.citation-chip {
   vertical-align: baseline;
   cursor: pointer;
 }
+/* The visible marker stays compact in a citation line; the pseudo-element
+   expands its interactive footprint to the 44px target contract. */
 button.citation-chip::before { content: ""; position: absolute; inset: -8px; }
 .citation-chip.unavailable { opacity: .58; }
 
@@ -2060,6 +2069,7 @@ body { min-height: 100dvh; background: var(--ink); }
 .receipt-replay-step > div { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
 .receipt-replay-step .secondary-button { min-height: 40px; padding-inline: 14px; }
 @media (max-width: 680px) {
+  .auth0-actions { grid-template-columns: 1fr; }
   .receipt-wait-note,
   .receipt-replay-controls { width: calc(100% - 32px); }
   .receipt-replay-controls,
@@ -3170,138 +3180,4 @@ details > summary::marker { color: var(--acid); }
   .ask-results > section,
   .method-steps > article,
   .method-boundaries > article { animation: none !important; transform: none !important; opacity: 1 !important; }
-}
-
-/* One progressively enhanced CTA primitive. The static orange/black surface
-   is the accessible source of truth; Paper Shaders is a decorative layer. */
-.liquid-metal-button {
-  position: relative;
-  isolation: isolate;
-  min-height: 44px;
-  max-width: 100%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  border: 1px solid #ff9a4d;
-  border-radius: 999px;
-  padding: 0 19px;
-  color: #050505;
-  background: #ff7417;
-  box-shadow: 0 11px 32px rgba(255, 106, 0, .16), inset 0 1px rgba(255, 255, 255, .34);
-  cursor: pointer;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  font: 700 9px var(--mono);
-  letter-spacing: .09em;
-  text-decoration: none;
-  text-transform: uppercase;
-  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
-}
-
-.liquid-metal-button__shader,
-.liquid-metal-button__contrast {
-  position: absolute;
-  pointer-events: none;
-}
-
-.liquid-metal-button__shader {
-  z-index: 0;
-  inset: 1px;
-  overflow: hidden;
-  border-radius: inherit;
-  opacity: 0;
-  transition: opacity .2s ease;
-}
-
-.liquid-metal-button__shader canvas {
-  pointer-events: none;
-}
-
-.liquid-metal-button__contrast {
-  z-index: 1;
-  inset: 2px;
-  border-radius: inherit;
-  background: transparent;
-}
-
-.liquid-metal-button__content {
-  position: relative;
-  z-index: 2;
-  min-width: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-}
-
-.liquid-metal-button__icon {
-  min-width: 15px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.liquid-metal-button[data-shader="ready"] {
-  color: #fff;
-  border-color: rgba(255, 154, 77, .82);
-  background: #050505;
-}
-
-.liquid-metal-button[data-shader="ready"] .liquid-metal-button__shader {
-  opacity: .9;
-}
-
-.liquid-metal-button[data-shader="ready"] .liquid-metal-button__contrast {
-  background: rgba(5, 5, 5, .8);
-}
-
-.liquid-metal-button--icon {
-  width: 44px;
-  min-width: 44px;
-  padding: 0;
-}
-
-.liquid-metal-button:focus-visible {
-  outline: 2px solid #ffb56b;
-  outline-offset: 3px;
-}
-
-.liquid-metal-button:active:not(:disabled) {
-  transform: translateY(0) scale(.985);
-}
-
-.liquid-metal-button:disabled {
-  opacity: .48;
-  cursor: not-allowed;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .liquid-metal-button:hover:not(:disabled) {
-    transform: translateY(-2px);
-    border-color: #ffc08f;
-    box-shadow: 0 15px 38px rgba(255, 106, 0, .22), inset 0 1px rgba(255, 255, 255, .4);
-  }
-}
-
-@media (max-width: 560px) {
-  .prompt-actions .liquid-metal-button {
-    width: 100%;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .liquid-metal-button,
-  .liquid-metal-button__shader {
-    transition: none;
-  }
-
-  .liquid-metal-button__shader {
-    display: none;
-  }
-
-  .liquid-metal-button:hover:not(:disabled),
-  .liquid-metal-button:active:not(:disabled) {
-    transform: none;
-  }
 }

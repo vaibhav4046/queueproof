@@ -31,7 +31,21 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase,
     title: { default: title, template: "%s · QueueProof" },
     description,
-    icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
+    manifest: "/manifest.webmanifest",
+    icons: {
+      icon: [
+        { url: "/queueproof-favicon-v2.svg", type: "image/svg+xml", sizes: "any" },
+        { url: "/queueproof-favicon-v2-32.png", type: "image/png", sizes: "32x32" },
+      ],
+      shortcut: [{ url: "/queueproof-favicon-v2.ico", type: "image/x-icon" }],
+      apple: [
+        {
+          url: "/queueproof-apple-touch-icon-v2.png",
+          type: "image/png",
+          sizes: "180x180",
+        },
+      ],
+    },
     openGraph: {
       type: "website",
       title,

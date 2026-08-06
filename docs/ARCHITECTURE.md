@@ -31,13 +31,15 @@ Web / JSON API / MCP client
 
 ## 1. Identity and workspace boundary
 
-The server resolves an actor from one of four explicit paths: a versioned HMAC-signed
-session, a configured trusted identity gateway, an opted-in non-production local actor, or
-the opted-in public demo actor. Caller-provided workspace IDs do not select operational
-rows.
+The server resolves an actor in strict trust order: Auth0 session, versioned HMAC-signed
+legacy owner session, configured trusted identity gateway, opted-in non-production local actor,
+then the opted-in public demo actor. Auth0 identity is the pinned issuer plus immutable `sub`;
+email is mutable profile data and never a tenant key. A subject is provisioned exactly one
+deterministic personal workspace, and ambiguous membership fails closed. Caller-provided
+workspace IDs do not select operational rows.
 
-Public demo mode is a shared evidence sandbox. Reads, grounded questions, queue review,
-and shared proposals remain available. Credentials, connector lifecycle mutations,
+Public demo mode is a shared evidence sandbox. Reads, grounded questions, and queue review
+remain available. Credentials, connector lifecycle mutations, proposals,
 database creation, uploads, MCP token administration, and external execution call a
 private-actor guard and return 403 for the public actor.
 
@@ -114,9 +116,15 @@ Writes are split into proposal, approval, execution, and provider confirmation.
 
 ## 7. MCP
 
-MCP reads the same persisted packets used by the web and API surfaces. Tokens are stored
-as hashes, carry scopes, expiry, revocation state, and an audience. The endpoint rejects a
-valid token issued for any audience other than `queueproof-mcp`.
+MCP reads the same persisted packets used by the web and API surfaces. Legacy tokens are stored
+as hashes and carry scopes, expiry, revocation state, and an audience. In OAuth mode QueueProof is
+the resource server: it verifies Auth0 RS256 access tokens against a configuration-pinned JWKS,
+issuer, canonical `/mcp` audience/resource, lifetime, subject, and required scope, then resolves
+that subject to its one personal workspace. A JWT-shaped credential never falls through to the
+legacy token path.
+
+Search database, collection, and document-source inputs are checked against connectors/documents
+owned by the authenticated workspace before HydraDB receives the request.
 
 The propose scope is not a generic write escape hatch: it can only create a Linear
 `create_issue` proposal, every evidence ID must already belong to the token workspace,

@@ -5,28 +5,33 @@ import {
   Clipboard, Command, Database, Download, ExternalLink, Eye, FileCheck2, FileText, KeyRound,
   History, Link2, LoaderCircle, LockKeyhole, MoreHorizontal, Network, Play, Plus,
   Pause, Radio, RefreshCw, RotateCcw, Search, ShieldCheck, Sparkles, StepForward, Terminal,
-  Unplug, UploadCloud, X as LucideX, Zap,
+  Unplug, UploadCloud, UserPlus, UserRound, X as LucideX, Zap,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { SiGithub, SiGmail, SiLinear, SiSlack } from "react-icons/si";
 import { ComponentProps, FormEvent, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { motion } from "framer-motion";
 import type { WorkspaceView } from "../lib/server/workspace-state";
 import type { EvidenceGraph as EvidenceGraphData } from "../packages/graph/src";
 import type { LiveProofState } from "../packages/contracts/src";
 import EvidenceGraphView from "./components/EvidenceGraph";
 import { EvidenceOrb } from "./components/EvidenceOrb";
+import { NewInvestigationLink } from "./components/NewInvestigationLink";
 import { QueueProofLogo, QueueProofSymbol } from "./components/QueueProofLogo";
+import { usePrefersReducedMotion } from "./components/use-prefers-reduced-motion";
 import { EmberBackdrop } from "@/components/queueproof/ember-backdrop";
-import { LiquidMetalButton } from "@/components/ui/liquid-metal-button";
+import { ActionButton } from "@/components/ui/action-button";
 import { dateLabel } from "./date-label";
 
 type CredentialField = {
   name: string; required?: boolean; title?: string; description?: string;
   type?: string; format?: string; enum?: string[];
 };
+
+function preferredScrollBehavior(): ScrollBehavior {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+}
 
 type Provider = {
   id: string; name: string; available: boolean; maturity: string | null;
@@ -167,7 +172,11 @@ const tabForRoute = Object.fromEntries(
 
 const allNav = [...workspaceNav, ...useAnywhereNav, ...trustNav] as const;
 const mobileNav = workspaceNav.filter(({ id }) => id !== "approvals");
-const RECENT_INVESTIGATIONS_KEY = "queueproof.recent-investigations.v1";
+const RECENT_INVESTIGATIONS_KEY_PREFIX = "queueproof.recent-investigations.v2";
+
+function recentInvestigationsKey(workspaceId: string): string {
+  return `${RECENT_INVESTIGATIONS_KEY_PREFIX}:${workspaceId}`;
+}
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
   const jsonBody = typeof init?.body === "string";
@@ -478,7 +487,12 @@ export default function QueueProofApp({
   }
   if (view.kind === "storage_unconfigured") return <StorageNotConfigured detail={view.detail} />;
   if (view.kind === "sign_in_required") {
-    return <SignIn signInConfigured={view.signInConfigured} onSignedIn={reloadWorkspace} />;
+    return <SignIn
+      signInConfigured={view.signInConfigured}
+      auth0Configured={view.auth0Configured}
+      legacySignInConfigured={view.legacySignInConfigured}
+      onSignedIn={reloadWorkspace}
+    />;
   }
   if (view.kind === "no_workspace") {
     return view.actor.publicAccess
@@ -492,15 +506,13 @@ export default function QueueProofApp({
         <Link className="brand" href="/" aria-label="QueueProof home">
           <QueueProofLogo className="queueproof-logo" />
         </Link>
-        <Link className="new-investigation" href="/">
-          <Plus size={16} /><span>New investigation</span>
-        </Link>
+        <NewInvestigationLink />
         <nav aria-label="Primary navigation">
           <span className="sidebar-label">Workspace</span>
           {workspaceNav.map(({ id, label, icon: Icon }) => {
             const active = tab === id;
             return <Link key={id} href={routeForTab[id]} className={active ? "active" : ""} aria-current={active ? "page" : undefined}>
-              {active && <motion.span className="nav-lamp" layoutId="desktop-nav-lamp" transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
+              {active && <span className="nav-lamp" aria-hidden="true" />}
               <Icon size={15} /><span>{label}</span>
             </Link>;
           })}
@@ -508,7 +520,7 @@ export default function QueueProofApp({
           {useAnywhereNav.map(({ id, label, icon: Icon }) => {
             const active = tab === id;
             return <Link key={id} href={routeForTab[id]} className={active ? "active" : ""} aria-current={active ? "page" : undefined}>
-              {active && <motion.span className="nav-lamp" layoutId="desktop-nav-lamp" transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
+              {active && <span className="nav-lamp" aria-hidden="true" />}
               <Icon size={15} /><span>{label}</span>
             </Link>;
           })}
@@ -516,20 +528,23 @@ export default function QueueProofApp({
           {trustNav.map(({ id, label, icon: Icon }) => {
             const active = tab === id;
             return <Link key={id} href={routeForTab[id]} className={active ? "active" : ""} aria-current={active ? "page" : undefined}>
-              {active && <motion.span className="nav-lamp" layoutId="desktop-nav-lamp" transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
+              {active && <span className="nav-lamp" aria-hidden="true" />}
               <Icon size={15} /><span>{label}</span>
             </Link>;
           })}
         </nav>
         <div className="header-status sidebar-bottom">
           <button className="command-trigger" onClick={() => setCommandOpen(true)} aria-label={`Open command palette (${shortcut.spoken} K)`}><Search size={14} /><kbd>{shortcut.symbol}K</kbd></button>
+          <AccountControl actor={view.actor} />
           <span className="demo-badge"><span className={verified.length ? "status-orb live" : "status-orb"} />{verified.length} verified</span>
           <details className="nav-menu utility-menu"><summary aria-label="Open help and developer menu"><MoreHorizontal size={17} /><span>More</span></summary><div className="nav-popover nav-popover-right"><Link href="/developer"><Bot size={15} />Use with AI</Link><Link href="/method"><Braces size={15} />How it works</Link></div></details>
         </div>
       </aside>
       <header className="mobile-header">
         <Link className="mobile-brand" href="/" aria-label="QueueProof home"><QueueProofSymbol /><span>QueueProof</span></Link>
-        <span className="mobile-ready"><i className={verified.length ? "status-orb live" : "status-orb"} />{verified.length} verified</span>
+        {view.actor.publicAccess
+          ? <a className="mobile-account-link" href="/auth/login"><UserRound size={14} /> Sign in</a>
+          : <span className="mobile-ready"><i className={verified.length ? "status-orb live" : "status-orb"} />{verified.length} verified</span>}
       </header>
       <nav className="mobile-dock" aria-label="Mobile navigation">
         {mobileNav.map(({ id, label, mobileLabel, icon: Icon }) => (
@@ -566,12 +581,12 @@ export default function QueueProofApp({
             onGenerate={generateQueue} onOpenSources={() => navigateTab("sources")}
             onSelectPacket={setSelectedPacket} />
         )}
-        {tab === "ask" && <AskScreen verified={verified} connectorsLoaded={connectorsLoaded} onOpenSources={() => navigateTab("sources")} onOpenLab={() => navigateTab("lab")} onOpenApprovals={() => navigateTab("approvals")} setError={setError} />}
+        {tab === "ask" && <AskScreen workspaceId={view.workspace.id} verified={verified} connectorsLoaded={connectorsLoaded} onOpenSources={() => navigateTab("sources")} onOpenLab={() => navigateTab("lab")} onOpenApprovals={() => navigateTab("approvals")} setError={setError} />}
         {tab === "sources" && <SourcesScreen workspace={view} connectors={connectors}
           reloadWorkspace={reloadWorkspace} reloadConnectors={loadConnectors}
           setError={setError} setNotice={setNotice} readOnly={publicSandbox} />}
         {tab === "lab" && <LabScreen setError={setError} />}
-        {tab === "replay" && <ReplayScreen setError={setError} />}
+        {tab === "replay" && <ReplayScreen workspaceId={view.workspace.id} setError={setError} />}
         {tab === "approvals" && <ApprovalsScreen key={proposalPacket?.packet_id ?? "approvals"}
           seedPacket={proposalPacket} onSeedUsed={() => setProposalPacket(null)}
           setError={setError} setNotice={setNotice} readOnly={publicSandbox} />}
@@ -660,6 +675,37 @@ function CommandPalette({ query, setQuery, onClose, onNavigate }: {
   );
 }
 
+function AccountControl({ actor }: { actor: ReadyView["actor"] }) {
+  const router = useRouter();
+
+  async function signOut() {
+    await fetch("/api/session", { method: "DELETE", cache: "no-store" });
+    router.push("/");
+    router.refresh();
+  }
+
+  if (actor.publicAccess) {
+    return <div className="account-actions" aria-label="QueueProof account">
+      <a href="/auth/login"><UserRound size={14} /> Sign in</a>
+      <a href="/auth/login?screen_hint=signup"><UserPlus size={14} /> Create account</a>
+    </div>;
+  }
+
+  return <details className="account-menu">
+    <summary aria-label={`Account menu for ${actor.displayName}`}>
+      <span className="account-avatar" aria-hidden="true">{actor.displayName.slice(0, 1).toUpperCase()}</span>
+      <span>{actor.displayName}</span>
+    </summary>
+    <div className="account-popover">
+      <small>{actor.authType === "auth0" ? "Private Auth0 workspace" : "Private owner workspace"}</small>
+      <strong>{actor.displayName}</strong>
+      {actor.authType === "auth0"
+        ? <a href="/auth/logout">Sign out</a>
+        : <button type="button" onClick={() => void signOut()}>Sign out</button>}
+    </div>
+  </details>;
+}
+
 /**
  * Shown when the server could not determine the workspace state.
  *
@@ -699,16 +745,16 @@ function BootError({
   );
 }
 
-/**
- * Sign-in for a hosted deployment. Exchanges the deployment access token for the
- * HMAC-signed httpOnly session cookie issued by /api/session. The token is never stored
- * client-side and never placed in the URL.
- */
+/** Auth0 is the primary account path; the deployment token remains a labelled operator fallback. */
 function SignIn({
   signInConfigured,
+  auth0Configured,
+  legacySignInConfigured,
   onSignedIn,
 }: {
   signInConfigured: boolean;
+  auth0Configured: boolean;
+  legacySignInConfigured: boolean;
   onSignedIn: () => Promise<unknown>;
 }) {
   const [accessToken, setAccessToken] = useState("");
@@ -746,7 +792,7 @@ function SignIn({
             no workspace can be reached.
           </p>
           <ul className="setup-list">
-            <li><code>QUEUEPROOF_ACCESS_TOKEN</code> — 16+ characters, then redeploy</li>
+            <li>Attach Auth0 in Vercel Marketplace, or configure the transitional owner path.</li>
           </ul>
           <a className="primary-button" href="/api/health/dependencies">
             View diagnostics <ArrowRight size={15} />
@@ -761,40 +807,47 @@ function SignIn({
       <div className="onboarding-art">
         <Image src="/queueproof-sentinel.webp" alt="QueueProof sentinel" fill priority />
       </div>
-      <form className="onboarding-card" onSubmit={submit}>
+      <div className="onboarding-card account-onboarding">
         <span className="step-code">SIGN IN</span>
-        <LockKeyhole size={30} />
-        <h1>Open your workspace.</h1>
-        <p>
-          Enter this deployment&rsquo;s access token. QueueProof issues a signed, expiring
-          session cookie; the token itself is never stored in your browser.
-        </p>
-        <label>
-          Access token
-          <input
-            type="password"
-            value={accessToken}
-            onChange={(event) => setAccessToken(event.target.value)}
-            autoComplete="current-password"
-            required
-            minLength={16}
-            autoFocus
-          />
-        </label>
-        <label>
-          Email <span className="muted">(optional, labels the session)</span>
-          <input
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            autoComplete="username"
-          />
-        </label>
-        {error && <div className="inline-error"><CircleAlert size={14} />{error}</div>}
-        <button className="primary-button" disabled={busy || accessToken.length < 16}>
-          {busy ? <LoaderCircle className="spin" size={15} /> : <ArrowRight size={15} />} Sign in
-        </button>
-      </form>
+        <UserRound size={30} />
+        <h1>Your private evidence workspace.</h1>
+        <p>Sign in to connect your own HydraDB sources, keep investigations separate, and use the same QueueProof identity from ChatGPT.</p>
+        {auth0Configured && <div className="auth0-actions">
+          <a className="primary-button" href="/auth/login"><UserRound size={15} /> Sign in</a>
+          <a className="secondary-button" href="/auth/login?screen_hint=signup"><UserPlus size={15} /> Create account</a>
+        </div>}
+        {legacySignInConfigured && <details className="legacy-signin" open={!auth0Configured}>
+          <summary><LockKeyhole size={14} /> Deployment owner access</summary>
+          <form onSubmit={submit}>
+            <p>Operator fallback only. The token is exchanged for a signed, expiring, httpOnly cookie and is never stored in the browser.</p>
+            <label>
+              Access token
+              <input
+                type="password"
+                value={accessToken}
+                onChange={(event) => setAccessToken(event.target.value)}
+                autoComplete="current-password"
+                required
+                minLength={16}
+                autoFocus={!auth0Configured}
+              />
+            </label>
+            <label>
+              Email <span className="muted">(optional session label)</span>
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                autoComplete="username"
+              />
+            </label>
+            {error && <div className="inline-error"><CircleAlert size={14} />{error}</div>}
+            <button className="secondary-button full" disabled={busy || accessToken.length < 16}>
+              {busy ? <LoaderCircle className="spin" size={15} /> : <ArrowRight size={15} />} Open owner workspace
+            </button>
+          </form>
+        </details>}
+      </div>
     </div>
   );
 }
@@ -903,7 +956,7 @@ function CommandScreen({ queue, verified, busy, onGenerate, onOpenSources, onSel
         <div className="heading-actions">
           <span className="source-proof"><span className={verified.length ? "status-orb live" : "status-orb"} />{verified.length} verified</span>
           {verified.length > 0 && queue.items.length === 0
-            ? <LiquidMetalButton label="Build my day" icon={<Sparkles size={15} />} loading={busy} onClick={onGenerate} />
+            ? <ActionButton label="Build my day" icon={<Sparkles size={15} />} loading={busy} onClick={onGenerate} />
             : <button className="primary-button" onClick={verified.length ? onGenerate : onOpenSources} disabled={busy}>
                 {busy ? <LoaderCircle className="spin" size={15} /> : verified.length ? <RefreshCw size={15} /> : <Plus size={15} />}
                 {verified.length ? "Refresh today" : "Connect a source"}
@@ -983,8 +1036,8 @@ function CitedAnswer({ text, citations, onOpen }: {
   })}</>;
 }
 
-function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, onOpenApprovals, setError }: {
-  verified: Connector[]; connectorsLoaded: boolean; onOpenSources: () => void; onOpenLab: () => void; onOpenApprovals: () => void; setError: (value: string) => void;
+function AskScreen({ workspaceId, verified, connectorsLoaded, onOpenSources, onOpenLab, onOpenApprovals, setError }: {
+  workspaceId: string; verified: Connector[]; connectorsLoaded: boolean; onOpenSources: () => void; onOpenLab: () => void; onOpenApprovals: () => void; setError: (value: string) => void;
 }) {
   const [question, setQuestion] = useState("");
   const [submittedQuestion, setSubmittedQuestion] = useState("");
@@ -1039,7 +1092,7 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, onOpe
     if (!target) return;
     const frame = window.requestAnimationFrame(() => {
       target.focus({ preventScroll: true });
-      target.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+      target.scrollIntoView({ block: "start", behavior: preferredScrollBehavior() });
     });
     return () => window.cancelAnimationFrame(frame);
   }, [busy, result]);
@@ -1085,7 +1138,7 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, onOpe
       });
       setResult(data);
       setTurns((current) => [...current.filter((turn) => turn.result.retrieval_receipt.query_id !== data.retrieval_receipt.query_id), { question: nextQuestion, result: data }].slice(-8));
-      rememberInvestigation(data, nextQuestion);
+      rememberInvestigation(data, nextQuestion, workspaceId);
       const receiptUrl = new URL(window.location.href);
       receiptUrl.pathname = "/";
       receiptUrl.hash = "";
@@ -1139,7 +1192,7 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, onOpe
   return (
     <section className="screen ask-screen proof-screen">
       <header className="ask-intro">
-        <EvidenceOrb state={busy ? "searching" : result ? resultTone === "grounded" ? "answered" : "partial" : verifiedCount ? "ready" : "idle"} size={result ? "compact" : "hero"} />
+        <EvidenceOrb state={busy ? "searching" : result ? resultTone === "grounded" ? "answered" : "partial" : verifiedCount ? "ready" : "idle"} />
         <div className="ask-copy">
           <span className="eyebrow"><Sparkles size={13} /> Evidence for your work</span>
           <h1>Ask your work.<br /><em>Get the proof.</em></h1>
@@ -1201,7 +1254,7 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, onOpe
         <div className="prompt-actions">
           <span>{shortcut.symbol} Enter</span>
           {verifiedCount > 0
-            ? <LiquidMetalButton
+            ? <ActionButton
                 type="submit"
                 className="proof-button"
                 label={busy ? "Finding the answer" : mode === "thinking" ? "Run investigation" : "Ask QueueProof"}
@@ -1312,8 +1365,8 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, onOpe
           <h2><CitedAnswer text={result.answer} citations={result.citations} onOpen={(evidence, index) => setCitationPreview({ evidence, index })} /></h2>
           <div className="answer-verdict">{resultTone === "grounded" ? <CircleCheck size={17} /> : <CircleAlert size={17} />}<span><strong>{result.validation.citedClaimCount}/{result.validation.claimCount} claims cited</strong> · {resultTone === "abstained" ? "no unsupported answer was generated" : resultTone === "partial" ? "supported claims are shown, but evidence gaps remain" : "unsupported prose is blocked"}</span></div>
           <div className="answer-actions" aria-label="Continue this investigation">
-            <button type="button" className="primary-button" onClick={() => { setQuestion(""); window.requestAnimationFrame(() => { questionRef.current?.focus(); questionRef.current?.scrollIntoView({ block: "center", behavior: "smooth" }); }); }}><Search size={14} /> Ask a follow-up</button>
-            <button type="button" className="secondary-button" onClick={() => document.getElementById("answer-sources")?.scrollIntoView({ block: "start", behavior: "smooth" })}><Eye size={14} /> Open receipts</button>
+            <button type="button" className="primary-button" onClick={() => { setQuestion(""); window.requestAnimationFrame(() => { questionRef.current?.focus(); questionRef.current?.scrollIntoView({ block: "center", behavior: preferredScrollBehavior() }); }); }}><Search size={14} /> Ask a follow-up</button>
+            <button type="button" className="secondary-button" onClick={() => document.getElementById("answer-sources")?.scrollIntoView({ block: "start", behavior: preferredScrollBehavior() })}><Eye size={14} /> Open receipts</button>
             <button type="button" className="secondary-button" onClick={onOpenApprovals}><ShieldCheck size={14} /> Prepare a change</button>
           </div>
         </article>
@@ -1443,7 +1496,7 @@ function SourcesScreen({ workspace, connectors, reloadWorkspace, reloadConnector
   }
 
   return <section className="screen sources-screen">
-    <div className="screen-heading"><div><span className="eyebrow"><Database size={13} /> Connected work</span><h1>Your sources.</h1><p>Search only verified records. Open a source to see its latest proof.</p></div>{workspace.hydradb.configured && !readOnly && <button className="primary-button" onClick={() => setSetupOpen(true)}><Plus size={15} /> Add source</button>}</div>
+    <div className="screen-heading"><div><span className="eyebrow"><Database size={13} /> Connected work</span><h1>Your sources.</h1><p>Search only verified records. Open a source to see its latest proof.</p></div>{workspace.hydradb.configured && !readOnly && <button className="primary-button" onClick={() => setSetupOpen(true)}><Link2 size={15} /> Add source</button>}</div>
     {readOnly && <div className="inline-warning source-readonly"><Eye size={14} /><span>Every source and its proof is open here. Changing a connection is reserved to the workspace owner.</span></div>}
     {!workspace.hydradb.configured ? readOnly ? <div className="honest-empty"><LockKeyhole size={24} /><div><strong>Evidence configuration is owner-only.</strong><p>This public sandbox cannot accept credentials.</p></div></div> : <form className="hydra-setup" onSubmit={connectHydra}><div className="hydra-symbol"><Database size={29} /></div><div><span className="eyebrow">Step 1 · Evidence engine</span><h2>Attach your HydraDB account.</h2><p>Use a newly generated API key. QueueProof verifies it against the authenticated database endpoint, encrypts it with AES-GCM, and never returns it.</p><label>HydraDB API key<input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder="Paste new key" autoComplete="off" required minLength={12} /></label><button className="primary-button" disabled={busy === "hydra"}>{busy === "hydra" ? <LoaderCircle className="spin" size={15} /> : <KeyRound size={15} />} Verify and encrypt</button></div></form> : <>
       <div className="source-summary" aria-label="Source readiness summary">
@@ -1452,7 +1505,7 @@ function SourcesScreen({ workspace, connectors, reloadWorkspace, reloadConnector
         <span><FileCheck2 size={14} /><strong>{indexedFileCount}</strong> files</span>
         <small>Only verified sources support answers.</small>
       </div>
-      {connectors.length ? <div className="connector-list">{[...connectors].sort((a, b) => Number(b.state === "data_verified") - Number(a.state === "data_verified")).map((connector) => <article className={`connector-row ${connector.state === "data_verified" ? "ready" : "needs-attention"}`} data-provider={connector.provider} key={connector.id}><span className="provider-glyph large"><ProviderIcon provider={connector.provider} size={19} /></span><div className="connector-identity"><strong>{connector.name}</strong><span>{connector.provider} · {connector.database}{connector.collection ? ` / ${connector.collection}` : ""}</span></div><div className="connector-state"><span className={connector.state === "data_verified" ? "status-orb live" : connector.state.includes("sync") ? "status-orb indexing" : "status-orb"} /><strong>{connector.state === "data_verified" ? "Verified" : "Needs reconnecting"}</strong><small>{connector.state === "data_verified" ? `${connector.canaryResultCount ?? 0} ${connector.canaryResultCount === 1 ? "item" : "items"} · proven ${dateLabel(connector.verifiedAt ?? connector.lastSuccessfulSyncAt)}` : "Kept out of answers until it works"}</small></div>{connector.state === "data_verified" ? <button className="secondary-button" onClick={(event) => void connectorAction(connector, event.currentTarget)} disabled={busy === connector.id}>{busy === connector.id ? <LoaderCircle className="spin" size={14} /> : <Eye size={14} />}Details</button> : readOnly ? <button className="secondary-button" type="button" disabled title="Reconnecting a source is reserved to the workspace owner."><LockKeyhole size={14} /> Owner action</button> : <button className="secondary-button" onClick={(event) => void connectorAction(connector, event.currentTarget)} disabled={busy === connector.id}>{busy === connector.id ? <LoaderCircle className="spin" size={14} /> : connector.state === "connector_created" || connector.state === "resources_discovered" ? <Search size={14} /> : <RefreshCw size={14} />}{connector.state === "connector_created" || connector.state === "resources_discovered" ? "Choose scope" : connector.state === "resources_selected" ? "Start sync" : "Reconnect"}</button>}</article>)}</div> : <div className="empty-source"><Unplug size={28} /><div><h2>No source connected yet.</h2><p>Add Slack, Gmail, Linear, or another source from the live catalogue.</p></div>{!readOnly && <button className="primary-button" onClick={() => setSetupOpen(true)}><Plus size={15} /> Add first source</button>}</div>}
+      {connectors.length ? <div className="connector-list">{[...connectors].sort((a, b) => Number(b.state === "data_verified") - Number(a.state === "data_verified")).map((connector) => <article className={`connector-row ${connector.state === "data_verified" ? "ready" : "needs-attention"}`} data-provider={connector.provider} key={connector.id}><span className="provider-glyph large"><ProviderIcon provider={connector.provider} size={19} /></span><div className="connector-identity"><strong>{connector.name}</strong><span>{connector.provider} · {connector.database}{connector.collection ? ` / ${connector.collection}` : ""}</span></div><div className="connector-state"><span className={connector.state === "data_verified" ? "status-orb live" : connector.state.includes("sync") ? "status-orb indexing" : "status-orb"} /><strong>{connector.state === "data_verified" ? "Verified" : "Needs reconnecting"}</strong><small>{connector.state === "data_verified" ? `${connector.canaryResultCount ?? 0} ${connector.canaryResultCount === 1 ? "item" : "items"} · proven ${dateLabel(connector.verifiedAt ?? connector.lastSuccessfulSyncAt)}` : "Kept out of answers until it works"}</small></div>{connector.state === "data_verified" ? <button className="secondary-button" onClick={(event) => void connectorAction(connector, event.currentTarget)} disabled={busy === connector.id}>{busy === connector.id ? <LoaderCircle className="spin" size={14} /> : <Eye size={14} />}Details</button> : readOnly ? null : <button className="secondary-button" onClick={(event) => void connectorAction(connector, event.currentTarget)} disabled={busy === connector.id}>{busy === connector.id ? <LoaderCircle className="spin" size={14} /> : connector.state === "connector_created" || connector.state === "resources_discovered" ? <Search size={14} /> : <RefreshCw size={14} />}{connector.state === "connector_created" || connector.state === "resources_discovered" ? "Choose scope" : connector.state === "resources_selected" ? "Start sync" : "Reconnect"}</button>}</article>)}</div> : <div className="empty-source"><Unplug size={28} /><div><h2>No source connected yet.</h2><p>Add Slack, Gmail, Linear, or another source from the live catalogue.</p></div>{!readOnly && <button className="primary-button" onClick={() => setSetupOpen(true)}><Link2 size={15} /> Add first source</button>}</div>}
       <DocumentsPanel initialDocuments={workspace.evidence.documents} databases={[...new Set(connectors.map((item) => item.database).filter(Boolean))]}
         setError={setError} setNotice={setNotice} readOnly={readOnly} />
       <EvidenceGraphPanel setError={setError} />
@@ -1596,9 +1649,10 @@ function EvidenceGraphPanel({ setError }: { setError: (value: string) => void })
   </details>;
 }
 
-function rememberInvestigation(result: AskData, fallbackQuestion: string) {
+function rememberInvestigation(result: AskData, fallbackQuestion: string, workspaceId: string) {
   try {
-    const current = parseJson<RecentInvestigation[]>(window.localStorage.getItem(RECENT_INVESTIGATIONS_KEY) ?? "[]", []);
+    const key = recentInvestigationsKey(workspaceId);
+    const current = parseJson<RecentInvestigation[]>(window.localStorage.getItem(key) ?? "[]", []);
     const entry: RecentInvestigation = {
       id: result.retrieval_receipt.query_id,
       question: result.question ?? fallbackQuestion,
@@ -1607,7 +1661,7 @@ function rememberInvestigation(result: AskData, fallbackQuestion: string) {
       providers: result.validation.providerCoverage,
     };
     const next = [entry, ...current.filter((item) => item.id !== entry.id)].slice(0, 24);
-    window.localStorage.setItem(RECENT_INVESTIGATIONS_KEY, JSON.stringify(next));
+    window.localStorage.setItem(key, JSON.stringify(next));
   } catch {
     // History is a convenience layer; a disabled browser store never blocks the answer.
   }
@@ -1768,11 +1822,11 @@ function ApprovalsScreen({ seedPacket, onSeedUsed, setError, setNotice, readOnly
   const executed = proposals.filter((item) => item.executionStatus === "succeeded" || item.status === "executed").length;
 
   return <section className="screen approvals-screen">
-    <div className="screen-heading"><div><span className="eyebrow"><ShieldCheck size={13} /> Review changes</span><h1>Nothing changes<br /><em>without your approval.</em></h1><p>QueueProof can prepare a Linear update from the evidence. You see the exact change and its sources before anything is sent.</p></div>{readOnly ? <button className="primary-button" type="button" disabled title="Preparing a change is reserved to the workspace owner."><Plus size={15} /> Prepare a change</button> : <button className="primary-button" onClick={() => setComposerOpen(true)}><Plus size={15} /> Prepare a change</button>}</div>
+    <div className="screen-heading"><div><span className="eyebrow"><ShieldCheck size={13} /> Review changes</span><h1>Nothing changes<br /><em>without your approval.</em></h1><p>QueueProof can prepare a Linear update from the evidence. You see the exact change and its sources before anything is sent.</p></div>{!readOnly && <button className="primary-button" onClick={() => setComposerOpen(true)}><FileCheck2 size={15} /> Prepare a change</button>}</div>
     {readOnly && <div className="inline-warning"><LockKeyhole size={14} /><span>Saved proposals and their exact payloads are private to the workspace owner. Public visitors cannot read, prepare, approve, or send changes.</span></div>}
     <div className="approval-stats"><div><small>WAITING FOR REVIEW</small><strong>{readOnly ? "—" : pending}</strong><span>{readOnly ? "owner-only history" : "nothing is sent automatically"}</span></div><div><small>COMPLETED</small><strong>{readOnly ? "—" : executed}</strong><span>{readOnly ? "owner-only history" : "confirmed by Linear"}</span></div><div><small>SAFETY</small><strong>Runs once</strong><span>repeats are blocked</span></div></div>
     <div className="approval-list">
-      <div className="list-title"><span><LockKeyhole size={14} /> Proposed changes</span>{readOnly ? <button type="button" disabled title="Proposal history is private to the workspace owner."><LockKeyhole size={12} /> Owner only</button> : <button onClick={() => void load()}><RefreshCw size={12} /> Refresh</button>}</div>
+      <div className="list-title"><span><LockKeyhole size={14} /> Proposed changes</span>{readOnly ? <span className="owner-only-label"><LockKeyhole size={12} /> Owner only</span> : <button onClick={() => void load()}><RefreshCw size={12} /> Refresh</button>}</div>
       {readOnly ? <div className="honest-empty"><LockKeyhole size={24} /><div><strong>Proposal history is private.</strong><p>Sign in as the workspace owner to review saved payloads and execution receipts.</p></div></div> : proposals.length ? proposals.map((proposal) => {
         const payload = parseJson<IssuePayload>(proposal.payloadJson, {});
         const evidence = parseJson<string[]>(proposal.evidenceIdsJson, []);
@@ -1874,7 +1928,7 @@ function AgentScreen({ workspace, setError, setNotice, readOnly, publicOrigin }:
         <EmberBackdrop placement="connect" state={busy ? "connecting" : freshToken ? "complete" : "idle"} />
         <div className="console-line"><span><KeyRound size={14} /> 1. Create a connection key</span><span className="secure-chip"><LockKeyhole size={12} /> stored as a hash</span></div>
         <label className="scope-choice"><input type="checkbox" checked={writeScopes} onChange={(event) => setWriteScopes(event.target.checked)} disabled={readOnly} /><span><strong>Let this client prepare actions and sync</strong><small>It still cannot execute a provider change without your approval.</small></span></label>
-        {readOnly ? <button className="primary-button" type="button" disabled title="Minting a connection key is reserved to the workspace owner."><LockKeyhole size={15} /> Owner action</button> : <LiquidMetalButton label="Create connection" icon={<KeyRound size={15} />} loading={busy} onClick={() => void createToken()} />}
+        {!readOnly && <ActionButton label="Create connection" icon={<KeyRound size={15} />} loading={busy} onClick={() => void createToken()} />}
         {freshToken && <div className="token-reveal"><span><CircleAlert size={13} /> Copy this now. It is shown only once.</span><code>{freshToken}</code><button onClick={() => void navigator.clipboard.writeText(freshToken)}><Clipboard size={13} /> Copy key</button></div>}
       </div>
       <div className="config-card">
@@ -1980,20 +2034,21 @@ type BenchmarkModeCase = {
   costUnits: number | null;
 };
 
-function ReplayScreen({ setError }: { setError: (value: string) => void }) {
+function ReplayScreen({ workspaceId, setError }: { workspaceId: string; setError: (value: string) => void }) {
   const [data, setData] = useState<LabResults | null>(null);
   const [recent, setRecent] = useState<RecentInvestigation[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [step, setStep] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
+  const reducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
-      setRecent(parseJson<RecentInvestigation[]>(window.localStorage.getItem(RECENT_INVESTIGATIONS_KEY) ?? "[]", []));
+      setRecent(parseJson<RecentInvestigation[]>(window.localStorage.getItem(recentInvestigationsKey(workspaceId)) ?? "[]", []));
     });
     return () => window.cancelAnimationFrame(frame);
-  }, []);
+  }, [workspaceId]);
 
   useEffect(() => {
     let active = true;
@@ -2016,7 +2071,7 @@ function ReplayScreen({ setError }: { setError: (value: string) => void }) {
   ] : [], [data?.generatedAt, data?.live?.generatedAt, selected]);
 
   useEffect(() => {
-    if (!playing || !replaySteps.length) return;
+    if (reducedMotion || !playing || !replaySteps.length) return;
     const timer = window.setInterval(() => {
       setStep((current) => {
         if (current >= replaySteps.length - 1) {
@@ -2027,7 +2082,7 @@ function ReplayScreen({ setError }: { setError: (value: string) => void }) {
       });
     }, Math.max(350, 1100 / speed));
     return () => window.clearInterval(timer);
-  }, [playing, replaySteps.length, speed]);
+  }, [playing, reducedMotion, replaySteps.length, speed]);
 
   function selectRow(index: number) {
     setSelectedIndex(index);
@@ -2038,7 +2093,7 @@ function ReplayScreen({ setError }: { setError: (value: string) => void }) {
   function removeRecent(id: string) {
     const next = recent.filter((item) => item.id !== id);
     setRecent(next);
-    window.localStorage.setItem(RECENT_INVESTIGATIONS_KEY, JSON.stringify(next));
+    window.localStorage.setItem(recentInvestigationsKey(workspaceId), JSON.stringify(next));
   }
   function exportRun() {
     if (!selected) return;
@@ -2059,7 +2114,7 @@ function ReplayScreen({ setError }: { setError: (value: string) => void }) {
   }
 
   return <section className="screen replay-screen">
-    <div className="screen-heading"><div><span className="eyebrow"><History size={13} /> Saved on this device</span><h1>Your history.</h1><p>Open a past answer with its original receipt link, continue investigating, or share the exact run with a teammate.</p></div><Link className="primary-button" href="/"><Plus size={14} /> New investigation</Link></div>
+    <div className="screen-heading"><div><span className="eyebrow"><History size={13} /> Saved on this device</span><h1>Your history.</h1><p>Open a past answer with its original receipt link, continue investigating, or share the exact run with a teammate.</p></div><NewInvestigationLink placement="heading" /></div>
     <section className="recent-investigations" aria-labelledby="recent-investigations-title">
       <div className="list-title"><span id="recent-investigations-title"><History size={14} /> Recent questions</span><small>{recent.length}</small></div>
       {recent.length ? recent.map((item) => <article key={item.id}>
@@ -2079,16 +2134,21 @@ function ReplayScreen({ setError }: { setError: (value: string) => void }) {
             type="button"
             className="primary-button"
             onClick={() => {
+              if (reducedMotion) {
+                setStep(Math.max(0, replaySteps.length - 1));
+                setPlaying(false);
+                return;
+              }
               if (!playing && step >= replaySteps.length - 1) setStep(0);
               setPlaying((value) => !value);
             }}
           >
-            {playing ? <Pause size={14} /> : <Play size={14} fill="currentColor" />}
-            {playing ? "Pause" : step >= replaySteps.length - 1 ? "Play again" : "Play"}
+            {reducedMotion ? <StepForward size={14} /> : playing ? <Pause size={14} /> : <Play size={14} fill="currentColor" />}
+            {reducedMotion ? "Show all" : playing ? "Pause" : step >= replaySteps.length - 1 ? "Play again" : "Play"}
           </button>
           <button type="button" className="secondary-button" onClick={() => { setPlaying(false); setStep((value) => Math.min(value + 1, replaySteps.length - 1)); }} disabled={step >= replaySteps.length - 1}><StepForward size={14} /> Step</button>
           <button type="button" className="secondary-button" onClick={() => { setPlaying(false); setStep(0); }} disabled={step === 0}><RotateCcw size={14} /> Reset</button>
-          <label>Speed<select value={speed} onChange={(event) => setSpeed(Number(event.target.value))}><option value={0.5}>0.5×</option><option value={1}>1×</option><option value={2}>2×</option></select></label>
+          <label>Speed<select value={speed} disabled={reducedMotion} aria-label={reducedMotion ? "Replay speed unavailable with reduced motion" : "Replay speed"} onChange={(event) => setSpeed(Number(event.target.value))}><option value={0.5}>0.5×</option><option value={1}>1×</option><option value={2}>2×</option></select></label>
           <button type="button" className="secondary-button" onClick={exportRun}><Download size={14} /> Export JSON</button>
         </div>
         {selected && <><div className="replay-head"><div><small>RUN ID</small><code>{selected.runId ?? selected.id ?? "artifact row"}</code></div><div><small>CHECKPOINT</small><strong>{dateLabel(data?.live?.generatedAt ?? data?.generatedAt)}</strong></div><div><small>DURATION</small><strong>{(selected.latencyMs / 1000).toFixed(2)}s</strong></div><div><small>COST</small><strong>{selected.costUnits ?? "—"} units</strong></div></div>

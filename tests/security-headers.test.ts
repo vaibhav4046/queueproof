@@ -37,13 +37,13 @@ describe("production browser security policy", () => {
     expect(headerMap["strict-transport-security"]).toContain("max-age=63072000");
   });
 
-  it("allows only the named Ember asset host for remote media", () => {
+  it("does not grant a remote media host for decorative UI", () => {
     const mediaDirective = headerMap["content-security-policy"]
       .split("; ")
       .find((directive) => directive.startsWith("media-src"));
 
-    expect(mediaDirective).toBe("media-src 'self' blob: https://assets.21st.dev");
-    expect(mediaDirective).not.toContain("https: ");
+    expect(mediaDirective).toBe("media-src 'self' blob:");
+    expect(mediaDirective).not.toContain("https:");
     expect(mediaDirective).not.toContain("*");
   });
 });

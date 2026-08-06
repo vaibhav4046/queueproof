@@ -116,11 +116,13 @@ request ID, latency, provider coverage, and relative query work in the receipt.
 Canonical endpoint: `https://queueproof.vercel.app/mcp` over HTTP MCP with bearer authentication.
 Tokens are hashed, workspace-bound, scoped, expiring, revocable, and audience-restricted. Read is
 the default. The product registers implemented read, sync, result-recording, and proposal tools plus
-workspace queue/changes/connectors resources; it currently registers no MCP prompts. OAuth
-resource metadata is conditional on an external issuer, so OAuth and Claude web are not claimed
-without a live end-to-end receipt.
+workspace queue/changes/connectors resources; it currently registers no MCP prompts. Auth0 web
+identity and the OAuth MCP resource-server path are implemented, including exact JWT
+issuer/audience/scope validation and per-subject workspace binding. A named ChatGPT connection is
+claimed only after current-release consent, discovery, and one harmless read-only tool receipt.
 
 Setup: [Remote MCP](../docs/REMOTE_MCP_SETUP.md) ·
+[ChatGPT workflow](../docs/CHATGPT_MCP_SETUP.md) ·
 [Claude workflow](../docs/CLAUDE_QUEUEPROOF_WORKFLOW.md) ·
 [Codex workflow](../docs/CODEX_QUEUEPROOF_WORKFLOW.md)
 

@@ -45,14 +45,16 @@ execution requires a stored provider response ID.
 
 ## OAuth boundary
 
-`/.well-known/oauth-protected-resource/mcp` describes the resource. It returns 200 only when an
-external `QUEUEPROOF_OAUTH_ISSUER` is configured; otherwise it returns 503. QueueProof does not
-currently implement its own authorization server, PKCE, redirect validation, consent UI, access-
-token exchange, refresh rotation, or OAuth revocation endpoint. Therefore:
+`/.well-known/oauth-protected-resource/mcp` describes the canonical resource and pinned Auth0
+issuer. It returns 200 only when the complete OAuth resource-server mode is valid; otherwise it
+returns 503. QueueProof verifies JWT signatures, exact issuer/audience/resource, lifetime, subject,
+and scopes, then maps the subject to one private workspace. Auth0—not QueueProof—owns consent,
+PKCE, token exchange, refresh, and authorization-server revocation.
 
-- do not describe OAuth as implemented merely because resource metadata exists;
-- do not claim Claude web custom-connector support without an end-to-end tested issuer; and
-- use an environment-backed bearer token only in clients that support a secure header.
+The first-party web application and ChatGPT must never share a client ID. A ChatGPT connection uses
+a separate CIMD, DCR, or manually registered client and begins with `queueproof:read`. Metadata is
+configuration evidence, not an end-to-end receipt; name a client only after a current production
+consent flow and harmless read-only tool call succeed.
 
 ## Retrieval and prompt-injection rules
 

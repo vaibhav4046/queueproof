@@ -3,8 +3,10 @@ import {
   DEPLOYMENT_OWNER_ACTOR_ID,
   SESSION_COOKIE,
   accessTokenMatches,
+  auth0SignInConfigured,
   createSessionValue,
   getRequestActor,
+  legacySignInConfigured,
   signInConfigured,
 } from "../../../lib/server/identity";
 import { requireDb, runtimeEnv } from "../../../lib/server/runtime";
@@ -23,11 +25,15 @@ export async function GET() {
     {
       ok: true,
       signInConfigured: signInConfigured(),
+      auth0Configured: auth0SignInConfigured(),
+      legacySignInConfigured: legacySignInConfigured(),
       actor: actor ? {
         displayName: actor.displayName,
         localDevelopment: actor.localDevelopment,
         publicAccess: actor.id === "user:public-access",
         owner: actor.id === DEPLOYMENT_OWNER_ACTOR_ID,
+        authType: actor.authType,
+        emailVerified: actor.emailVerified === true,
       } : null,
     },
     { headers: { "Cache-Control": "no-store" } },
@@ -39,12 +45,12 @@ export async function GET() {
  * The token is never stored client-side and never echoed back.
  */
 export async function POST(request: Request) {
-  if (!signInConfigured()) {
+  if (!legacySignInConfigured()) {
     return Response.json(
       {
         ok: false,
         error:
-          "Sign-in is not configured on this deployment. Set QUEUEPROOF_ACCESS_TOKEN (minimum 16 characters).",
+          "Legacy owner sign-in is not configured on this deployment. Use Auth0 sign-in instead.",
       },
       { status: 503 },
     );

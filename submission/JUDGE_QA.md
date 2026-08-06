@@ -77,8 +77,8 @@ the web control plane, and execution counts only after the provider response ID 
 
 Bearer tokens are hashed, workspace-bound, scoped, expiring, revocable, and audience-restricted.
 Anonymous, invalid, expired, revoked, and wrong-audience requests fail closed. Retrieved text is
-untrusted evidence. OAuth is not claimed unless an external issuer and consent flow are configured
-and tested end to end.
+untrusted evidence. Auth0 OAuth is claimed only when the external issuer/API/client consent flow
+and a current-release read-only ChatGPT tool call are recorded and tested end to end.
 
 ## Does it work in Claude and Codex?
 

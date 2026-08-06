@@ -11,7 +11,16 @@ export type RuntimeEnv = {
   QUEUEPROOF_MCP_WORKSPACE_ID?: string;
   QUEUEPROOF_PUBLIC_WORKSPACE_ID?: string;
   QUEUEPROOF_OAUTH_ISSUER?: string;
+  QUEUEPROOF_AUTH_MODE?: string;
+  QUEUEPROOF_LEGACY_OWNER_SIGNIN?: string;
+  QUEUEPROOF_MCP_AUTH_MODE?: string;
+  QUEUEPROOF_MCP_RESOURCE?: string;
   QUEUEPROOF_ALLOW_LOCAL_IDENTITY?: string;
+  AUTH0_DOMAIN?: string;
+  AUTH0_CLIENT_ID?: string;
+  AUTH0_CLIENT_SECRET?: string;
+  AUTH0_SECRET?: string;
+  APP_BASE_URL?: string;
 };
 
 export function runtimeEnv(): RuntimeEnv {

@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 
 describe("production design system", () => {
   const app = readFileSync(join(process.cwd(), "app/QueueProofApp.tsx"), "utf8");
+  const layout = readFileSync(join(process.cwd(), "app/layout.tsx"), "utf8");
+  const manifest = readFileSync(join(process.cwd(), "app/manifest.ts"), "utf8");
   const ember = readFileSync(join(process.cwd(), "app/ember-assistant.css"), "utf8");
   const css = `${readFileSync(join(process.cwd(), "app/command-centre.css"), "utf8")}\n${ember}`;
   const logo = readFileSync(join(process.cwd(), "app/components/QueueProofLogo.tsx"), "utf8");
@@ -26,6 +28,53 @@ describe("production design system", () => {
     expect(css).toMatch(/\.queueproof-logo[^}]*opacity:\s*1/);
     expect(css).not.toMatch(/\.queueproof-logo[^}]*display:\s*none/);
     expect(logo).not.toContain("LIVE");
+  });
+
+  it("uses the same cache-busted Q and ember check across browser and installed icons", () => {
+    const favicon = readFileSync(join(process.cwd(), "public/queueproof-favicon-v2.svg"), "utf8");
+    const fallbackFavicon = readFileSync(join(process.cwd(), "public/favicon.svg"), "utf8");
+    const appIcon = readFileSync(join(process.cwd(), "public/queueproof-app-icon-v2.svg"), "utf8");
+    const canonicalQ = "M25.8 25.2A10.8 10.8 0 1 1 28.8 18c0 2.8-1 5.3-2.7 7.2l4.3 4.1";
+
+    expect(logo).toContain(canonicalQ);
+    expect(favicon).toContain(canonicalQ);
+    expect(fallbackFavicon).toContain(canonicalQ);
+    expect(appIcon).toContain(canonicalQ);
+    expect(favicon).toContain("#FF6A00");
+    expect(favicon).not.toMatch(/#5EE6A8|#14875C/i);
+
+    for (const path of [
+      "/queueproof-favicon-v2.svg",
+      "/queueproof-favicon-v2-32.png",
+      "/queueproof-favicon-v2.ico",
+      "/queueproof-apple-touch-icon-v2.png",
+    ]) {
+      expect(layout).toContain(path);
+    }
+    expect(layout).toContain('manifest: "/manifest.webmanifest"');
+    expect(manifest).toContain('/queueproof-icon-v2-192.png');
+    expect(manifest).toContain('/queueproof-icon-v2-512.png');
+
+    for (const [path, expected] of [
+      ["public/queueproof-favicon-v2-32.png", [32, 32]],
+      ["public/queueproof-apple-touch-icon-v2.png", [180, 180]],
+      ["public/queueproof-icon-v2-192.png", [192, 192]],
+      ["public/queueproof-icon-v2-512.png", [512, 512]],
+    ] as const) {
+      const png = readFileSync(join(process.cwd(), path));
+      expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual(expected);
+    }
+
+    const faviconPng = readFileSync(join(process.cwd(), "public/queueproof-favicon-v2-32.png"));
+    const applePng = readFileSync(join(process.cwd(), "public/queueproof-apple-touch-icon-v2.png"));
+    expect(faviconPng.readUInt8(25)).toBe(6);
+    expect(applePng.readUInt8(25)).toBe(2);
+
+    const ico = readFileSync(join(process.cwd(), "public/queueproof-favicon-v2.ico"));
+    expect(ico.readUInt16LE(0)).toBe(0);
+    expect(ico.readUInt16LE(2)).toBe(1);
+    expect(ico.readUInt16LE(4)).toBe(3);
+    expect(readFileSync(join(process.cwd(), "public/favicon.ico"))).toEqual(ico);
   });
 
   it("protects mobile layout, focus, touch targets, and reduced motion", () => {
