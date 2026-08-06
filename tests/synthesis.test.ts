@@ -696,8 +696,10 @@ describe("evidence-constrained synthesis", () => {
         {
           id: "newsletter",
           provider: "gmail",
-          title: "Weekly browser tips",
-          excerpt: "This newsletter describes browser testing and developer productivity.",
+          title: "Latest product launches",
+          // Even an explicit delivery-shaped sentence cannot establish what
+          // this team shipped when it comes from a marketing mailbox.
+          excerpt: "The browser vendor's summer product was launched on 4 August 2026.",
           timestamp: "2026-08-04T10:00:00Z",
         },
       ],
@@ -707,10 +709,49 @@ describe("evidence-constrained synthesis", () => {
     // The newest shipped item must rank first in the evidence list.
     expect(result.evidence[0].id).toBe("new-ship");
     // The answer's opening sentence must be the newest ship receipt.
-    expect(result.answer).toMatch(/authentication hotfix for Northwind/);
+    expect(result.answer).toMatch(
+      /^The most recent matching delivery receipt is: The authentication hotfix for Northwind/,
+    );
+    // The recency relation is answer framing, not invented extractive claim text.
+    expect(result.claims[0].text).toMatch(/^The authentication hotfix for Northwind/);
+    expect(result.claims[0].text).not.toMatch(/most recent|latest|newest/i);
     // The unrelated newsletter (newest overall but base relevance 0) must not appear.
     expect(result.answer).not.toMatch(/newsletter/i);
-    expect(result.answer).not.toMatch(/browser testing/i);
+    expect(result.answer).not.toMatch(/browser vendor|summer product/i);
+    expect(result.claims.some((claim) => claim.providers.includes("gmail"))).toBe(false);
+  });
+
+  it("does not add a recency qualifier when the grounded delivery receipt is undated", () => {
+    const result = synthesiseGroundedAnswer(
+      "What was the most recent thing we shipped?",
+      [{
+        id: "github-undated",
+        provider: "github",
+        title: "Northwind hotfix",
+        excerpt: "The Northwind authentication hotfix was deployed to production.",
+      }],
+    );
+
+    expect(result.validation.status).not.toBe("abstained");
+    expect(result.answer).toMatch(/Northwind authentication hotfix was deployed/i);
+    expect(result.answer).not.toMatch(/most recent matching delivery receipt/i);
+  });
+
+  it("does not add a recency qualifier to an ordinary delivery question", () => {
+    const result = synthesiseGroundedAnswer(
+      "What did we ship?",
+      [{
+        id: "github-dated",
+        provider: "github",
+        title: "Northwind hotfix",
+        excerpt: "The Northwind authentication hotfix was deployed to production.",
+        timestamp: "2026-08-05T09:00:00Z",
+      }],
+    );
+
+    expect(result.validation.status).toBe("grounded");
+    expect(result.answer).toMatch(/Northwind authentication hotfix was deployed/i);
+    expect(result.answer).not.toMatch(/most recent matching delivery receipt/i);
   });
 
   it("ranks the newest relevant evidence first for a latest-question via rankEvidenceForQuestion", () => {
@@ -808,6 +849,7 @@ describe("evidence-constrained synthesis", () => {
     expect(result.answer).not.toMatch(/Moreover/i);
     expect(result.answer).not.toMatch(/trans-shipped/i);
     expect(result.answer).not.toMatch(/open source/i);
+    expect(result.answer).not.toMatch(/most recent matching delivery receipt/i);
   });
 
   it("still answers the same delivery question when a real ship receipt is present", () => {

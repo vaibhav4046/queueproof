@@ -947,8 +947,32 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
   }));
   const citedOrder = [...new Set(claims.flatMap((claim) => claim.evidenceIds))];
   const evidenceIndex = new Map(citedOrder.map((id, index) => [id, index + 1]));
+  // Recency is a relationship between receipts, not text that can be copied out
+  // of the winning receipt. State that relationship in answer framing only when
+  // the lead grounded claim is itself a delivery assertion from a system of
+  // record, its timestamp is parseable, and no other matching dated delivery
+  // candidate is newer. Claim text and citation ownership remain extractive.
+  const lead = picked[0];
+  const leadTime = lead ? evidenceTime(lead.item.timestamp) : null;
+  const matchingDatedDeliveryTimes = candidates
+    .filter((candidate) => candidate.score > 0 &&
+      DELIVERY_RECORD_PROVIDERS.has(candidate.item.provider.toLowerCase()) &&
+      DELIVERY_ASSERTION.test(candidate.text))
+    .map((candidate) => evidenceTime(candidate.item.timestamp))
+    .filter((time): time is number => time != null);
+  const frameAsMostRecentDelivery = Boolean(
+    recencyQuestion(question) && DELIVERY_QUESTION.test(question.toLowerCase()) &&
+    lead && leadTime != null &&
+    DELIVERY_RECORD_PROVIDERS.has(lead.item.provider.toLowerCase()) &&
+    DELIVERY_ASSERTION.test(lead.text) &&
+    matchingDatedDeliveryTimes.length > 0 &&
+    leadTime === Math.max(...matchingDatedDeliveryTimes),
+  );
+  const answerFrame = frameAsMostRecentDelivery
+    ? "The most recent matching delivery receipt is: "
+    : "";
   const answer = claims.length
-    ? claims.map((claim) => `${claim.text} [${evidenceIndex.get(claim.evidenceIds[0])}]`).join(" ")
+    ? answerFrame + claims.map((claim) => `${claim.text} [${evidenceIndex.get(claim.evidenceIds[0])}]`).join(" ")
     : "Insufficient evidence. QueueProof will not invent an answer.";
   const detectedContradictions = contradictions(question, ranked);
   const providerCoverage = [...new Set(claims.flatMap((claim) => claim.providers))];
