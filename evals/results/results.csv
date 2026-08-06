@@ -38,3 +38,6 @@ adv-03,adversarial,linear,fast,fast,true,exact_identifier,exact_identifier,true,
 pdf-01,large-pdf,document,fast,fast,true,single_source_fact,single_source_fact,true,false,false,not applicable,false
 pdf-02,large-pdf,document,fast,fast,true,single_source_fact,single_source_fact,true,false,false,not applicable,false
 pdf-03,large-pdf,document gmail,thinking,thinking,true,cross_source_fact,cross_source_fact,true,false,false,not applicable,false
+temporal-04,temporal,github,thinking,thinking,true,temporal_reasoning,temporal_reasoning,true,false,false,not applicable,false
+temporal-05,temporal,linear,thinking,thinking,true,temporal_reasoning,temporal_reasoning,true,false,false,not applicable,false
+recency-vs-relevance-01,temporal,slack linear,thinking,thinking,true,temporal_reasoning,temporal_reasoning,true,false,false,not applicable,false
