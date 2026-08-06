@@ -3171,3 +3171,137 @@ details > summary::marker { color: var(--acid); }
   .method-steps > article,
   .method-boundaries > article { animation: none !important; transform: none !important; opacity: 1 !important; }
 }
+
+/* One progressively enhanced CTA primitive. The static orange/black surface
+   is the accessible source of truth; Paper Shaders is a decorative layer. */
+.liquid-metal-button {
+  position: relative;
+  isolation: isolate;
+  min-height: 44px;
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid #ff9a4d;
+  border-radius: 999px;
+  padding: 0 19px;
+  color: #050505;
+  background: #ff7417;
+  box-shadow: 0 11px 32px rgba(255, 106, 0, .16), inset 0 1px rgba(255, 255, 255, .34);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  font: 700 9px var(--mono);
+  letter-spacing: .09em;
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+.liquid-metal-button__shader,
+.liquid-metal-button__contrast {
+  position: absolute;
+  pointer-events: none;
+}
+
+.liquid-metal-button__shader {
+  z-index: 0;
+  inset: 1px;
+  overflow: hidden;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+
+.liquid-metal-button__shader canvas {
+  pointer-events: none;
+}
+
+.liquid-metal-button__contrast {
+  z-index: 1;
+  inset: 2px;
+  border-radius: inherit;
+  background: transparent;
+}
+
+.liquid-metal-button__content {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+}
+
+.liquid-metal-button__icon {
+  min-width: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.liquid-metal-button[data-shader="ready"] {
+  color: #fff;
+  border-color: rgba(255, 154, 77, .82);
+  background: #050505;
+}
+
+.liquid-metal-button[data-shader="ready"] .liquid-metal-button__shader {
+  opacity: .9;
+}
+
+.liquid-metal-button[data-shader="ready"] .liquid-metal-button__contrast {
+  background: rgba(5, 5, 5, .8);
+}
+
+.liquid-metal-button--icon {
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+}
+
+.liquid-metal-button:focus-visible {
+  outline: 2px solid #ffb56b;
+  outline-offset: 3px;
+}
+
+.liquid-metal-button:active:not(:disabled) {
+  transform: translateY(0) scale(.985);
+}
+
+.liquid-metal-button:disabled {
+  opacity: .48;
+  cursor: not-allowed;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .liquid-metal-button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    border-color: #ffc08f;
+    box-shadow: 0 15px 38px rgba(255, 106, 0, .22), inset 0 1px rgba(255, 255, 255, .4);
+  }
+}
+
+@media (max-width: 560px) {
+  .prompt-actions .liquid-metal-button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .liquid-metal-button,
+  .liquid-metal-button__shader {
+    transition: none;
+  }
+
+  .liquid-metal-button__shader {
+    display: none;
+  }
+
+  .liquid-metal-button:hover:not(:disabled),
+  .liquid-metal-button:active:not(:disabled) {
+    transform: none;
+  }
+}
