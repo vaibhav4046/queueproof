@@ -1,142 +1,151 @@
 {
   "project": "QueueProof",
   "status": "ACTIVE",
-  "sessionNumber": 2,
-  "updatedAt": "2026-08-06T08:45:00Z",
+  "sessionNumber": 3,
+  "updatedAt": "2026-08-06T10:05:00Z",
   "repository": "https://github.com/vaibhav4046/queueproof",
   "repositoryVisibility": "private",
   "productionUrl": "https://queueproof.vercel.app",
   "benchmarksUrl": "https://queueproof.vercel.app/benchmarks",
   "branch": "codex/dialog-autofocus",
-  "head": "9821eee4644135b5161bba35a46159f4a586e4fb",
-  "headNote": "HEAD at inspection time. This checkpoint adds one docs-only commit on top of it; that commit's SHA is reported in the session output.",
-  "mainSha": "a884e8df35cbe25ecd73884a2d8820e0fa195bf8",
-  "commitsAheadOfMain": 39,
-  "unpushedCommits": 1,
-  "unpushedNote": "HEAD is 1 commit ahead of github/codex/dialog-autofocus; the session-1 checkpoint commit has not been pushed.",
+  "head": "358aac88984605cc7437b3a52bc6d577be6036ee",
+  "headNote": "Branch tip, pushed to github. This checkpoint adds one docs-only commit on top of it; that commit's SHA is reported in the session output.",
+  "mainSha": "993bd9ee52eb3d284d484ea6c9b858daed89cf8c",
+  "mainShaNote": "Remote github/main. The local main ref is stale at a884e8d and needs fetching; it is bookkeeping only, not divergence.",
+  "commitsAheadOfMain": 5,
+  "unpushedCommits": 0,
+  "unpushedNote": "codex/dialog-autofocus is level with github/codex/dialog-autofocus at 358aac8.",
   "productionSha": null,
   "productionDeployment": "queueproof-n1zo1ybn5-vaibhav4046s-projects.vercel.app",
-  "worktreeClean": false,
-  "uncommitted": [
-    "M app/globals.css (queue toolbar label 7px->10px, select font 8px->12px, wider padding)",
-    "M app/product.css (removed the forced light select colour block)",
-    "?? .mcp.json (untracked, NOT gitignored, must never be committed)"
-  ],
+  "productionNote": "Production still runs the pre-session artifact. None of c67352b, aa30fc8 or 358aac8 are live, because the production deploy was refused by the permission classifier and was not routed around.",
+  "worktreeClean": true,
+  "uncommitted": [],
   "completed": [
-    "39 commits on codex/dialog-autofocus ahead of main (main = a884e8d)",
-    "9821eee: docs checkpoint, documentation only, no product files",
-    "993bd9e: stop duplicate and run-on claims in grounded answers (lib/server/synthesis.ts + 59 test lines)",
+    "c67352b: refuse blocker answers grounded only in a shared entity token (lib/server/synthesis.ts + tests/synthesis.test.ts)",
+    "aa30fc8: make native selects readable and the queue toolbar legible (app/globals.css, app/product.css)",
+    "358aac8: scripts/deploy-prod.mjs, package.json deploy:prod, .gitignore .mcp.json",
+    "9821eee and 1f90e66: session-1 and session-2 docs-only continuity checkpoints",
+    "993bd9e: stop duplicate and run-on claims in grounded answers",
     "0098552: stop uploading local build output to Vercel (.vercelignore)",
     "27b6ab7 and 9469b5b: require a system-of-record delivery assertion, not bare prose",
     "c70b8fe: expand the frozen fixture benchmark with recency routing and synthesis cases",
     "87a255e: render the queue on first paint and decouple its fetch",
     "3a44895: open the workspace to every visitor and repair two real defects",
-    "Owner-token UI nags removed while server-side write protection was preserved",
-    "Platform-aware Ctrl/Command keyboard labels (SSR Ctrl, post-mount Command)",
+    "Full release gate run green end to end (see verifiedTests)",
     "39-case / 15-category fixture benchmark with router accuracy 1.0",
     "Live and PDF benchmark harnesses with release-bound verification",
-    "MCP read surface, OAuth protected-resource metadata, CLI client and tests",
+    "MCP read surface, CLI client and tests",
     "Submission copy drafted across docs/ and submission/",
-    "docs/continuity package created (session 1) and refreshed (session 2)"
+    "docs/continuity package created (session 1), refreshed (sessions 2 and 3)"
   ],
   "remaining": [
     {
       "id": "P1",
       "priority": 1,
       "title": "Fix release identity in production",
-      "detail": "/api/health/live returns commitSha null and commitRef null on deployment queueproof-n1zo1ybn5. /api/lab therefore reports currentRelease.commitSha null and degrades live and pdf to awaiting_current_release_measurement, emptying the judge-facing benchmark surface. Route logic is unit-proven by tests/health-release.test.ts, so the fix is deployment configuration: set QUEUEPROOF_RELEASE_SHA and QUEUEPROOF_RELEASE_REF on the Vercel production environment, or deploy so VERCEL_GIT_COMMIT_SHA is present.",
+      "detail": "The mechanism now exists: scripts/deploy-prod.mjs reads the SHA and ref from git and passes them as QUEUEPROOF_RELEASE_SHA and QUEUEPROOF_RELEASE_REF, which is exactly the fallback /api/health/live consumes. It has never been executed.",
+      "status": "BLOCKED_ON_USER",
+      "blocker": "The permission classifier refused `pnpm deploy:prod` because it runs `vercel deploy --prod --yes` against live production and the session's only direction, 'continue finish all tasks make this fuly compete', never names production as the target. Clearing it requires the user to explicitly authorise deploying to production at queueproof.vercel.app, or to run the command outside auto mode so the prompt is reviewed directly.",
       "blocking": true,
-      "blocks": ["P6", "P7", "P8"]
+      "blocks": ["P7", "P8", "P10", "P11"]
     },
     {
       "id": "P2",
       "priority": 2,
       "title": "Fix grounded synthesis defect D1",
-      "detail": "Write the failing test first in tests/synthesis.test.ts encoding the Atlas Copco job-listing case, then fix lib/server/synthesis.ts: entity disambiguation (Atlas Copco is not Atlas Launch), claim-level relevance gating, cross-claim dedup, and answer shape so the blocker leads. Also cover the companion symptom: 'What did we ship most recently and what proves it?' currently abstains with 0 citations."
+      "status": "DONE_PENDING_DEPLOY",
+      "detail": "Root cause found: tokenise() stems 'atlas' to 'atla', so an Atlas Copco recruiter advert scored identically to the genuine Linear receipt. c67352b adds an impediment gate in relevance() plus a token-subset restatement check in duplicatesPicked, with three regression tests over an atlasBlockerCorpus fixture. Verified by unit test, not yet by live probe, because the fix is not deployed.",
+      "companionSymptom": "CONFIRMED CORRECT, NOT A DEFECT. 'What did we ship most recently and what proves it?' abstains with 0 citations live, and that is the designed behaviour. lib/server/synthesis.ts:199-203 scores an unanchored delivery question at 0 unless the candidate both comes from a DELIVERY_RECORD_PROVIDER and matches DELIVERY_ASSERTION, so bare prose containing the word 'ship' cannot support an answer. Paired tests prove both directions: tests/synthesis.test.ts:749 'abstains instead of stitching newsletters that only mention the word ship' asserts abstained at :804, and :815 runs the same question against a real delivery record and asserts not abstained at :834. This is the intent committed in 27b6ab7 and 9469b5b. Do not 'fix' it."
     },
     {
       "id": "P3",
       "priority": 3,
       "title": "Add dist/** to eslint globalIgnores",
-      "detail": "eslint.config.mjs globalIgnores lists only .next/**, out/**, build/**, next-env.d.ts. Bare `eslint .` reports 41 errors, all inside generated dist/. Add a narrow dist/** entry; do not weaken source rules."
+      "status": "BLOCKED_BY_HOOK",
+      "detail": "One-line change: append \"dist/**\" to globalIgnores([...]) in eslint.config.mjs, currently [\".next/**\", \"out/**\", \"build/**\", \"next-env.d.ts\"].",
+      "blocker": "The ECC config-protection PreToolUse hook blocks edits to eslint.config.mjs: 'BLOCKED: Modifying eslint.config.mjs is not allowed... If this is a legitimate config change, disable the config-protection hook temporarily.' Gating is process-env (ECC_HOOK_PROFILE, default standard; ECC_DISABLED_HOOKS) and cannot be changed mid-session. Unblock with ECC_HOOK_PROFILE=minimal or ECC_DISABLED_HOOKS=pre:config-protection.",
+      "impact": "Cosmetic. `pnpm lint` passes because the script carries --ignore-pattern dist; only a bare `eslint .` fails, with 41 errors, all in generated dist/ bundles and 0 in source."
     },
     {
       "id": "P4",
       "priority": 4,
       "title": "Gitignore .mcp.json",
-      "detail": "git check-ignore -v .mcp.json exits 1. A single `git add -A` would publish local MCP server configuration."
+      "status": "DONE",
+      "detail": "Added in 358aac8 at .gitignore lines 40-41."
     },
     {
       "id": "P5",
       "priority": 5,
       "title": "Resolve the uncommitted CSS edits",
-      "detail": "Finish or revert app/globals.css and app/product.css. Removing the forced light color-scheme on select may regress dropdown contrast on dark backgrounds; verify in the browser before committing."
+      "status": "DONE_PENDING_DEPLOY",
+      "detail": "The removed product.css block was a dead light-theme leftover. Live token probe proved --paper resolves to #faf7f2, so `select { color: var(--paper); background-color: #fff }` painted near-white text on white at 1.07:1. After the change the select renders rgb(238,234,240) on rgb(13,13,17) at 16.31:1 and the toolbar label at 6.55:1. Measured against the live loaded stylesheets by injecting the .queue-toolbar markup into the running page; stated openly as an injection, not the mounted component."
     },
     {
       "id": "P6",
       "priority": 6,
       "title": "Run the full release gate",
-      "detail": "pnpm typecheck, pnpm lint, pnpm test, pnpm benchmark:router, pnpm build, pnpm deploy:check. Paste real output. The full 48-file suite has not been run in either checkpoint."
+      "status": "DONE",
+      "detail": "All six commands run with real output pasted. See verifiedTests."
     },
     {
       "id": "P7",
       "priority": 7,
       "title": "Push, deploy and verify the release",
-      "detail": "Push codex/dialog-autofocus to the github remote (currently behind by the checkpoint commits), deploy, then run pnpm release:verify -- --url https://queueproof.vercel.app --sha <HEAD>."
+      "status": "PARTIAL",
+      "detail": "Push done: 993bd9e..358aac8 codex/dialog-autofocus -> codex/dialog-autofocus. Deploy blocked by P1. After deploying, run `pnpm release:verify -- --url https://queueproof.vercel.app --sha 358aac8`."
     },
     {
       "id": "P8",
       "priority": 8,
       "title": "Re-measure benchmarks on the deployed SHA",
-      "detail": "pnpm benchmark:live, pnpm benchmark:pdf, pnpm benchmark:publish. Confirm /api/lab reports the same SHA and /benchmarks shows measured rows. Run both explicit modes if a Fast-vs-Thinking claim is wanted; modeComparison.comparable must become true."
+      "status": "BLOCKED_BY_P1",
+      "detail": "pnpm benchmark:live, pnpm benchmark:pdf, pnpm benchmark:publish. Confirm /api/lab reports the same SHA and /benchmarks shows measured rows. Run both explicit modes if a Fast-vs-Thinking claim is wanted; modeComparison.comparable must become true.",
+      "warning": "Do NOT regenerate BENCHMARK_REPORT.md with `pnpm benchmark:router`. A fixture-only run silently deletes the 'SHA-bound live connector runs' section and rewrites the fixture line. This happened twice and was reverted with `git checkout -- BENCHMARK_REPORT.md evals/results/` both times. Only the full live run may rewrite that artifact."
     },
     {
       "id": "P9",
       "priority": 9,
       "title": "Record an authenticated MCP client smoke test",
-      "detail": "Against production, using a real client, before naming any client in the submission."
+      "status": "PARTIAL",
+      "detail": "Unauthenticated surface verified against production: POST /mcp tools/list returns {\"error\":\"invalid_token\"}, HTTP 401, Www-Authenticate: Bearer, X-Content-Type-Options: nosniff. Reading app/mcp/route.ts confirmed the auth model is DB-backed bearer tokens against mcp_tokens (sha256 hash, audience, revoked_at IS NULL, expiry) with a constant-time configured-token fallback, NOT OAuth, so the absent /.well-known/oauth-protected-resource (404) is a design choice, not a defect. Protocol surface is covered by tests/mcp.test.ts inside the green suite.",
+      "blocker": "An authenticated call needs a real token. No token was minted or stored, per the standing instruction not to store secrets or connector credentials."
     },
     {
       "id": "P10",
       "priority": 10,
       "title": "Decide the branch strategy",
-      "detail": "39 commits sit on codex/dialog-autofocus ahead of main. Either submit from this branch or merge to main before publication."
+      "status": "DECIDED_PENDING_DEPLOY",
+      "detail": "No divergence exists. `git merge-base --is-ancestor 993bd9e 358aac8` succeeds and `git rev-list --count 993bd9e..358aac8` is 5, so remote main fast-forwards cleanly. Hold the fast-forward until the deploy verifies, so main points at what is actually running. Local main also needs updating from the stale a884e8d."
     },
     {
       "id": "P11",
       "priority": 11,
       "title": "Refresh submission copy with current-release numbers",
-      "detail": "docs/SUBMISSION_COPY.md, docs/HACKATHON_FORM.md, docs/DEMO_SCRIPT_60S.md and submission/* still pin metrics to release aed0278."
+      "status": "BLOCKED_BY_P8",
+      "detail": "docs/SUBMISSION_COPY.md, docs/HACKATHON_FORM.md and submission/* still pin metrics to release aed0278. Those files already carry explicit banners saying the numbers bind to that runtime and do not transfer, so they are honest today; they become wrong only if numbers are moved to a new SHA without re-measuring. submission/verified-facts-not-yet-in-marketing.md gained item 12 this session, forbidding any claim about the two undeployed fixes."
     },
     {
       "id": "P12",
       "priority": 12,
       "title": "Produce the final 60-second video script",
-      "detail": "For the user to record. Only claim a Fast-vs-Thinking difference when modeComparison.comparable is true."
+      "status": "DONE",
+      "detail": "docs/DEMO_SCRIPT_60S.md is the canonical script and is deliberately metric-free: it instructs the recorder to read the on-screen values bound to the running release and to say 'this release is awaiting a comparable mode pair' when modeComparison.comparable is false. submission/60-second-script.md is an intentional redirect to it. No rewrite was needed; recording is a user action and is gated on the deploy."
     }
   ],
   "verifiedTests": {
-    "reRunThisSession": false,
-    "carriedFrom": "session 1 (2026-08-06T02:26Z); no product or test file changed since, because 9821eee is documentation only",
-    "command": "node ./node_modules/vitest/vitest.mjs run --config vitest.config.ts tests/synthesis.test.ts tests/health-release.test.ts --pool=threads --maxWorkers=1 --fileParallelism=false",
-    "testFilesPassed": 2,
-    "testsPassed": 41,
-    "durationSeconds": 20.47,
-    "fullSuiteRun": false,
-    "testFileCount": 48,
-    "lint": {
-      "command": "node ./node_modules/eslint/bin/eslint.js .",
-      "reRunThisSession": false,
-      "configConfirmedUnchanged": true,
-      "problems": 2643,
-      "errors": 41,
-      "warnings": 2602,
-      "errorsAllInGeneratedDist": true
-    }
+    "reRunThisSession": true,
+    "ranAt": "2026-08-06 (session 3)",
+    "typecheck": {"command": "pnpm typecheck", "result": "clean, TYPECHECK_OK"},
+    "lint": {"command": "pnpm lint", "result": "clean, LINT_OK", "note": "The script carries --ignore-pattern dist. A bare `eslint .` still reports 41 errors, all in generated dist/, 0 in source. See P3."},
+    "test": {"command": "pnpm test", "testFilesPassed": 46, "testFilesTotal": 46, "testsPassed": 447, "testsTotal": 447, "durationSeconds": 15.49},
+    "benchmarkRouter": {"command": "pnpm benchmark:router", "result": "PASS all 353 fixture assertions", "routerModeAccuracy": "42/42 = 100.0%", "categoriesAt100Percent": 15},
+    "build": {"command": "pnpm build", "result": "Build complete. Run `vinext start` to start the production server."},
+    "deployCheck": {"command": "pnpm deploy:check", "result": "PASS Sites bindings declared"},
+    "fullSuiteRun": true
   },
   "verifiedBenchmarks": {
     "measuredAgainstRelease": "aed027879150e3e324b54c5ec2194d4d715c501e",
-    "note": "Local artifacts from a previous release. Not current-release measurements. Unchanged since session 1.",
+    "note": "Local artifacts from a previous release. NOT current-release measurements and NOT measurements of the two fixes on this branch. Unchanged since session 1.",
     "fixture": {
       "artifact": "evals/results/results.json",
       "generatedAt": "2026-08-05T01:11:24Z",
@@ -185,18 +194,20 @@
       "title": "Grounded synthesis glues unrelated evidence onto the answer",
       "reproduce": "curl -sS -X POST https://queueproof.vercel.app/api/ask -H 'content-type: application/json' -d '{\"question\":\"What is blocking the Atlas launch?\",\"mode\":\"auto\"}'",
       "observed": "HTTP 200, 6.15s, 4 citations. The answer leads and ends with an Atlas Copco job-listing fragment, claims [2] and [3] are near-duplicates, and the question is never answered.",
-      "reVerifiedAt": "2026-08-06T08:36Z",
-      "reproducesVerbatim": true,
-      "companionSymptom": "'What did we ship most recently and what proves it?' returns an abstention with 0 citations (21.1s), so neither flagship demo question currently produces a usable answer.",
-      "open": true
+      "cause": "tokenise() stems 'atlas' to 'atla', so an Atlas Copco recruiter advert and the genuine Linear receipt scored identically.",
+      "fixedBy": "c67352b",
+      "open": false,
+      "openInProduction": true,
+      "note": "Fixed in source and covered by three regression tests. Still reproduces live because the fix is not deployed. Re-probe after deploying."
     },
     {
       "id": "D2",
       "severity": "blocking",
       "title": "Release identity is null in production",
-      "observed": "/api/health/live release.commitSha null, commitRef null, target production. /api/lab currentRelease.commitSha null; live and pdf both awaiting_current_release_measurement; modeComparison not_measured.",
-      "reVerifiedAt": "2026-08-06T08:28:54Z",
-      "cause": "Deployment configuration: neither VERCEL_GIT_COMMIT_SHA nor QUEUEPROOF_RELEASE_SHA reaches the running deployment. Route logic is unit-proven.",
+      "observed": "/api/health/live release.commitSha null, commitRef null, target production, deployment queueproof-n1zo1ybn5. /api/lab currentRelease.commitSha null, caseCount 39; live and pdf both awaiting_current_release_measurement; modeComparison not_measured.",
+      "reVerifiedAt": "2026-08-06 (session 3)",
+      "cause": "Deployment configuration: CLI deploys inject no VERCEL_GIT_COMMIT_SHA because there is no Vercel Git integration. Route logic is unit-proven by tests/health-release.test.ts.",
+      "remedyExists": "scripts/deploy-prod.mjs (358aac8)",
       "open": true
     },
     {
@@ -204,48 +215,53 @@
       "severity": "medium",
       "title": "Bare `eslint .` fails on generated bundles",
       "observed": "41 errors, all under dist/. eslint.config.mjs globalIgnores has no dist entry.",
-      "reVerifiedAt": "2026-08-06T08:40Z",
-      "open": true
+      "open": true,
+      "note": "Fix is one line but the ECC config-protection hook blocks editing eslint.config.mjs. See P3."
     },
     {
       "id": "D4",
       "severity": "medium",
       "title": ".mcp.json is untracked but not gitignored",
-      "observed": "git check-ignore -v .mcp.json exits 1 with no output; .gitignore has .env* at line 34 and /dist/ at line 43 but no .mcp.json entry.",
-      "reVerifiedAt": "2026-08-06T08:41Z",
-      "open": true
+      "fixedBy": "358aac8",
+      "open": false
     }
   ],
   "disprovedDefects": [
     {
       "title": "Mid-word truncation (\"The lo...\")",
       "verdict": "disproved",
-      "detail": "Artifact of a diagnostic slice(0, 600) in the investigator's own probe. The speculative guard was reverted. Re-verified this session: grep for slice(0, *600) in lib/server/synthesis.ts and packages/retrieval returns nothing."
+      "detail": "Artifact of a diagnostic slice(0, 600) in the investigator's own probe. The speculative guard was reverted. Re-verified: grep for slice(0, *600) in lib/server/synthesis.ts and packages/retrieval returns nothing."
     },
     {
       "title": "SessionStart hook failure",
       "verdict": "does not reproduce",
-      "detail": "The hook ran successfully at the start of both checkpoint sessions."
+      "detail": "The hook ran successfully at the start of all three checkpoint sessions."
     },
     {
       "title": "Markdown run-on",
       "verdict": "fixed, unit-regression coverage only",
-      "detail": "tests/synthesis.test.ts:877 pins the behaviour. The original production document now abstains, so the old live output cannot be reproduced. Never report this as live reproduction. A different run-on path is still live inside D1."
+      "detail": "tests/synthesis.test.ts:877 pins the behaviour. The original production document now abstains, so the old live output cannot be reproduced. Never report this as live reproduction."
     }
   ],
   "userActions": [
-    "Interactive OAuth consent for connectors and MCP servers",
+    "Authorise the production deploy at queueproof.vercel.app, or run `pnpm deploy:prod` outside auto mode (this is the single gate on P1, P7, P8, P10 and P11)",
+    "Unblock the eslint.config.mjs edit with ECC_HOOK_PROFILE=minimal or ECC_DISABLED_HOOKS=pre:config-protection, or apply the one-line change directly",
+    "Interactive OAuth consent for connectors and MCP servers (about 41 installed servers are OAuth-gated and cannot be authorised non-interactively)",
     "Attio credential rotation",
     "Authorising the GitHub repository to be made public",
     "Recording and uploading the final 60-second video"
+  ],
+  "environmentChanges": [
+    "D:\\.claude\\launch.json (the user's global harness config, OUTSIDE this repo) gained a 'queueproof' entry on port 5199 so the preview tooling can start the dev server. Additive only; no existing entry was changed. A project-local .claude/launch.json was created and then deleted, because the preview tool reads the session-root file."
   ],
   "submissionGate": {
     "source": "WINNER_STATUS.md",
     "itemsChecked": 0,
     "itemsTotal": 12,
     "blockedByD2": ["health SHA", "lab currentRelease SHA", "same-release live and PDF results"],
-    "blockedByD1": ["flagship live question returns cited multi-source evidence"]
+    "blockedByD1": ["flagship live question returns cited multi-source evidence"],
+    "note": "D1 is fixed in source; both gates now depend only on the deploy."
   },
-  "lastProgress": "Session 2 checkpoint. No product code changed. Re-probed production at 2026-08-06T08:28-08:36Z: release identity still null, D1 reproduces verbatim, / and /benchmarks both 200. Re-confirmed D3 and D4 from eslint.config.mjs and .gitignore. Re-verified all three disproved defects against the source. Rewrote QUEUEPROOF_STATE.md, QUEUEPROOF_STATE.json and NEXT_SESSION_PROMPT.md; DECISIONS.md reviewed and left unchanged.",
-  "nextAction": "Fix P1. Set QUEUEPROOF_RELEASE_SHA and QUEUEPROOF_RELEASE_REF on the Vercel production environment (or deploy with Git metadata present), redeploy, then confirm /api/health/live returns a full SHA and /api/lab echoes it in results.currentRelease.commitSha."
+  "lastProgress": "Session 3. Three product commits landed and were pushed: c67352b (synthesis entity-token gate + 3 regression tests), aa30fc8 (readable selects, measured 1.07:1 -> 16.31:1), 358aac8 (deploy-prod script, deploy:prod script entry, .mcp.json gitignored). Full release gate run green: typecheck clean, lint clean, 46/46 files and 447/447 tests in 15.49s, 353/353 fixture assertions with router accuracy 42/42, build complete, deploy:check PASS. Production deploy was refused by the permission classifier and was not routed around, so production still runs the pre-session artifact and D1 still reproduces live. P3 blocked by the ECC config-protection hook. P10 resolved as a clean fast-forward. P12 confirmed already complete. Added item 12 to submission/verified-facts-not-yet-in-marketing.md forbidding claims about the undeployed fixes.",
+  "nextAction": "Get explicit user authorisation for the production deploy, then run `pnpm deploy:prod` and `pnpm release:verify -- --url https://queueproof.vercel.app --sha <deployed sha>`. Everything else that remains is downstream of that one action."
 }

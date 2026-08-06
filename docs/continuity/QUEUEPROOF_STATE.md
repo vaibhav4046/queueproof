@@ -1,15 +1,72 @@
 # QueueProof — continuity state
 
-**Checkpoint written:** 2026-08-06T08:45Z (session 2)
-**Status:** ACTIVE — implementation continues in a fresh session.
-**Previous checkpoint:** 2026-08-06T02:36:51Z (session 1, commit `9821eee`).
+**Checkpoint written:** 2026-08-06 (session 3)
+**Status:** ACTIVE — one user action gates everything that remains.
+**Previous checkpoints:** session 2 (`1f90e66`), session 1 (`9821eee`).
 
-Every claim below was either re-verified in this checkpoint by running the command shown, or is
-explicitly labelled **CARRIED FROM SESSION 1** (still believed true, not re-run) or
-**UNVERIFIED**. Do not promote a carried or unverified line to a fact without re-running its check.
+`QUEUEPROOF_STATE.json` is the authoritative machine-readable status. Where this document and
+that file disagree, the JSON is newer. Sections 1–3 (product definition, workflow, links) are
+stable and were not rewritten; the per-task status narrative further down is **session-2 vintage**
+and is superseded by the session-3 delta immediately below.
 
-Session 2 changed **no product code**. It re-measured production, re-confirmed all four open
-defects, re-verified the three disproved defects against the source, and rewrote this package.
+Every claim below was either re-verified by running the command shown, or is explicitly labelled
+**CARRIED** (still believed true, not re-run) or **UNVERIFIED**. Do not promote a carried or
+unverified line to a fact without re-running its check.
+
+---
+
+## 0. Session 3 delta — what changed and what still blocks
+
+Session 3 landed the first product code since session 1. Three commits, all pushed to
+`github/codex/dialog-autofocus`, none deployed:
+
+| Commit | What it does | Evidence |
+| --- | --- | --- |
+| `c67352b` | Refuses a blocker answer grounded only in a shared entity token (defect **D1**) | 3 regression tests over an `atlasBlockerCorpus` fixture |
+| `aa30fc8` | Makes native selects readable and the queue toolbar legible (**P5**) | contrast measured 1.07:1 → **16.31:1** |
+| `358aac8` | `scripts/deploy-prod.mjs`, `deploy:prod` script, `.mcp.json` gitignored (**P4**) | `pnpm deploy:check` PASS |
+
+**D1 root cause:** `tokenise()` stems `atlas` → `atla`, so an Atlas Copco recruiter advert scored
+identically to the genuine Linear receipt. The fix adds an impediment gate in `relevance()` plus a
+token-subset restatement check in `duplicatesPicked`.
+
+**Full release gate, run this session, real output:**
+
+| Command | Result |
+| --- | --- |
+| `pnpm typecheck` | clean, `TYPECHECK_OK` |
+| `pnpm lint` | clean, `LINT_OK` |
+| `pnpm test` | **46/46 files, 447/447 tests**, 15.49s |
+| `pnpm benchmark:router` | `PASS all 353 fixture assertions`, router accuracy **42/42 = 100.0%**, 15/15 categories |
+| `pnpm build` | `Build complete.` |
+| `pnpm deploy:check` | `PASS Sites bindings declared` |
+
+### The one thing blocking the rest
+
+`pnpm deploy:prod` was **refused by the permission classifier** and was not routed around:
+
+> Clearing requires the user to explicitly name deploying to production at queueproof.vercel.app —
+> consider running this step outside auto mode so the permission prompt is reviewed directly.
+
+Because of that, production still runs the pre-session artifact. `/api/health/live` still returns
+`commitSha: null`, `/api/lab` still reports `caseCount: 39`, and **D1 still reproduces live even
+though it is fixed in source**. P7 (deploy half), P8, P10 and P11 are all downstream of this single
+action. Nothing else is waiting on anything.
+
+### Second blocker (cosmetic)
+
+The **P3** one-line eslint change is blocked by the ECC `config-protection` PreToolUse hook:
+
+> BLOCKED: Modifying eslint.config.mjs is not allowed.
+
+`pnpm lint` passes regardless — the script carries `--ignore-pattern dist`, and the 41 errors a
+bare `eslint .` reports are all in generated `dist/` bundles, 0 in source. Unblock with
+`ECC_HOOK_PROFILE=minimal` or `ECC_DISABLED_HOOKS=pre:config-protection`.
+
+### Environment change made outside this repo
+
+`D:\.claude\launch.json` (the user's global harness config) gained a `queueproof` entry on port
+5199 so the preview tooling could start the dev server. Additive only; no existing entry changed.
 
 ---
 

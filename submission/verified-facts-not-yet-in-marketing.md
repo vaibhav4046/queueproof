@@ -26,3 +26,9 @@ build must be verified independently through `/api/health/live`.
     evidence-build receipt are pending.
 11. **“Production-ready,” “winner,” or “perfect.”** Those words overstate the measured
     evidence and are not judge-verifiable claims.
+12. **The two grounding and legibility fixes on `codex/dialog-autofocus`.** Commits `c67352b`
+    (refuses a blocker answer supported only by a shared entity token) and `aa30fc8` (readable
+    native selects and queue toolbar) are committed and pushed but **not deployed**.
+    `/api/health/live` still reports `commitSha: null`, so production does not contain them.
+    Do not demo or describe either behaviour until a deployment publishes a release identity
+    that matches the branch tip and the live suite is re-measured against it.
