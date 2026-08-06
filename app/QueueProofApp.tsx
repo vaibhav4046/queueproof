@@ -19,6 +19,8 @@ import type { LiveProofState } from "../packages/contracts/src";
 import EvidenceGraphView from "./components/EvidenceGraph";
 import { EvidenceOrb } from "./components/EvidenceOrb";
 import { QueueProofLogo, QueueProofSymbol } from "./components/QueueProofLogo";
+import { EmberBackdrop } from "@/components/queueproof/ember-backdrop";
+import { LiquidMetalButton } from "@/components/ui/liquid-metal-button";
 import { dateLabel } from "./date-label";
 
 type CredentialField = {
@@ -900,15 +902,18 @@ function CommandScreen({ queue, verified, busy, onGenerate, onOpenSources, onSel
         </div>
         <div className="heading-actions">
           <span className="source-proof"><span className={verified.length ? "status-orb live" : "status-orb"} />{verified.length} verified</span>
-          <button className="primary-button" onClick={verified.length ? onGenerate : onOpenSources} disabled={busy}>
-            {busy ? <LoaderCircle className="spin" size={15} /> : verified.length ? <RefreshCw size={15} /> : <Plus size={15} />}
-            {verified.length ? (queue.items.length ? "Refresh today" : "Build my day") : "Connect a source"}
-          </button>
+          {verified.length > 0 && queue.items.length === 0
+            ? <LiquidMetalButton label="Build my day" icon={<Sparkles size={15} />} loading={busy} onClick={onGenerate} />
+            : <button className="primary-button" onClick={verified.length ? onGenerate : onOpenSources} disabled={busy}>
+                {busy ? <LoaderCircle className="spin" size={15} /> : verified.length ? <RefreshCw size={15} /> : <Plus size={15} />}
+                {verified.length ? "Refresh today" : "Connect a source"}
+              </button>}
         </div>
       </div>
 
       {!queue.items.length ? (
-        <div className="empty-command">
+        <div className="empty-command ember-surface">
+          <EmberBackdrop placement="empty" state={busy ? "verifying" : verified.length ? "complete" : "idle"} />
           <div className="radar"><Search size={28} /><i /><i /><i /></div>
           <div><span className="eyebrow">Nothing invented</span>
             <h2>{verified.length ? "Your sources are verified." : "Connect a source to build your day."}</h2>
@@ -1170,7 +1175,11 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, onOpe
           </div>
         </div>
       </div>
-      <form className="ask-console premium-console" onSubmit={submit}>
+      <form className="ask-console premium-console ember-surface" onSubmit={submit}>
+        <EmberBackdrop
+          placement="composer"
+          state={busy ? "retrieving" : result ? resultTone === "grounded" ? "complete" : resultTone === "partial" ? "conflict" : "error" : "idle"}
+        />
         <div className="console-line">
           <button type="button" className="console-source-status" onClick={onOpenSources} aria-label={connectorsLoaded ? `Open ${verifiedCount} verified sources` : "Open sources"}>
             <span className={verifiedCount ? "status-orb live" : connectorsLoaded ? "status-orb" : "status-orb indexing"} />
@@ -1191,15 +1200,24 @@ function AskScreen({ verified, connectorsLoaded, onOpenSources, onOpenLab, onOpe
         <textarea ref={questionRef} id="proof-question" value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); void run(); } }} placeholder="Ask what happened, what changed, or what to do next…" required maxLength={4000} />
         <div className="prompt-actions">
           <span>{shortcut.symbol} Enter</span>
-          <button
-            type={verifiedCount ? "submit" : "button"}
-            className="primary-button proof-button"
-            disabled={!connectorsLoaded || busy || (verifiedCount > 0 && !question.trim())}
-            onClick={verifiedCount || !connectorsLoaded ? undefined : onOpenSources}
-          >
-            {busy || !connectorsLoaded ? <LoaderCircle className="spin" size={15} /> : verifiedCount ? <ArrowRight size={15} /> : <Link2 size={15} />}
-            {!connectorsLoaded ? "Checking sources" : !verifiedCount ? "Connect a source" : busy ? "Finding the answer" : "Ask QueueProof"}
-          </button>
+          {verifiedCount > 0
+            ? <LiquidMetalButton
+                type="submit"
+                className="proof-button"
+                label={busy ? "Finding the answer" : mode === "thinking" ? "Run investigation" : "Ask QueueProof"}
+                icon={<ArrowRight size={15} />}
+                loading={busy}
+                disabled={!connectorsLoaded || !question.trim()}
+              />
+            : <button
+                type="button"
+                className="primary-button proof-button"
+                disabled={!connectorsLoaded || busy}
+                onClick={connectorsLoaded ? onOpenSources : undefined}
+              >
+                {!connectorsLoaded ? <LoaderCircle className="spin" size={15} /> : <Link2 size={15} />}
+                {!connectorsLoaded ? "Checking sources" : "Connect a source"}
+              </button>}
         </div>
       </form>
 
@@ -1852,10 +1870,11 @@ function AgentScreen({ workspace, setError, setNotice, readOnly, publicOrigin }:
       {[['codex', 'Codex'], ['claude', 'Claude Code'], ['kilo', 'Kilo Code'], ['generic', 'Generic MCP']].map(([value, label]) => <button type="button" role="tab" aria-selected={clientType === value} className={clientType === value ? "active" : ""} key={value} onClick={() => setClientType(value)}>{label}</button>)}
     </div>
     <div className="agent-grid">
-      <div className="token-console">
+      <div className="token-console ember-surface">
+        <EmberBackdrop placement="connect" state={busy ? "connecting" : freshToken ? "complete" : "idle"} />
         <div className="console-line"><span><KeyRound size={14} /> 1. Create a connection key</span><span className="secure-chip"><LockKeyhole size={12} /> stored as a hash</span></div>
         <label className="scope-choice"><input type="checkbox" checked={writeScopes} onChange={(event) => setWriteScopes(event.target.checked)} disabled={readOnly} /><span><strong>Let this client prepare actions and sync</strong><small>It still cannot execute a provider change without your approval.</small></span></label>
-        {readOnly ? <button className="primary-button" type="button" disabled title="Minting a connection key is reserved to the workspace owner."><LockKeyhole size={15} /> Owner action</button> : <button className="primary-button" onClick={() => void createToken()} disabled={busy}>{busy ? <LoaderCircle className="spin" size={15} /> : <KeyRound size={15} />}Create connection</button>}
+        {readOnly ? <button className="primary-button" type="button" disabled title="Minting a connection key is reserved to the workspace owner."><LockKeyhole size={15} /> Owner action</button> : <LiquidMetalButton label="Create connection" icon={<KeyRound size={15} />} loading={busy} onClick={() => void createToken()} />}
         {freshToken && <div className="token-reveal"><span><CircleAlert size={13} /> Copy this now. It is shown only once.</span><code>{freshToken}</code><button onClick={() => void navigator.clipboard.writeText(freshToken)}><Clipboard size={13} /> Copy key</button></div>}
       </div>
       <div className="config-card">
