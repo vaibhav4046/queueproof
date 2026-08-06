@@ -23,6 +23,7 @@ work
 *.db
 
 # Local secrets (already gitignored; never upload them either)
+.mcp.json
 .env
 .env.local
 .env.*.local
