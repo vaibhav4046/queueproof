@@ -1,0 +1,266 @@
+.page {
+  --auth-ink: #050403;
+  --auth-panel: #0b0907;
+  --auth-raised: #120e0b;
+  --auth-paper: #faf7f2;
+  --auth-secondary: #c0b7af;
+  --auth-muted: #938880;
+  --auth-ember: #ff6a00;
+  --auth-ember-bright: #ff9a42;
+  min-height: 100dvh;
+  padding: 12px;
+  color: var(--auth-paper);
+  background: var(--auth-ink);
+}
+
+.shell {
+  min-height: calc(100dvh - 24px);
+  display: grid;
+  grid-template-columns: minmax(0, 1.04fr) minmax(440px, .96fr);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .09);
+  border-radius: 18px;
+  background: var(--auth-panel);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, .42);
+}
+
+.story {
+  min-height: 680px;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border-right: 1px solid rgba(255, 255, 255, .08);
+  background: var(--auth-ink);
+}
+
+.story > [data-ember-backdrop] { opacity: .92; }
+
+.storyContent {
+  min-height: 100%;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 48px;
+  padding: clamp(28px, 5vw, 72px);
+}
+
+.brand {
+  width: 166px;
+  color: var(--auth-paper);
+}
+
+.brand svg { width: 166px; height: 36px; }
+
+.storyCopy { max-width: 660px; }
+
+.kicker,
+.eyebrow {
+  color: var(--auth-ember-bright);
+  font: 690 11px/1.2 var(--font-geist-mono), monospace;
+  letter-spacing: .1em;
+}
+
+.storyCopy h1 {
+  margin: 18px 0 20px;
+  font: 650 clamp(52px, 6.4vw, 94px)/.92 var(--font-geist-sans), sans-serif;
+  letter-spacing: -.07em;
+}
+
+.storyCopy p {
+  max-width: 580px;
+  margin: 0;
+  color: var(--auth-secondary);
+  font-size: clamp(15px, 1.4vw, 19px);
+  line-height: 1.62;
+}
+
+.proofList {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.proofList li {
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 13px;
+  border: 1px solid rgba(255, 255, 255, .09);
+  border-radius: 10px;
+  color: var(--auth-secondary);
+  background: rgba(5, 4, 3, .68);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.proofList svg { flex: 0 0 auto; color: var(--auth-ember-bright); }
+
+.authPanel {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 28px;
+  padding: clamp(24px, 4.4vw, 68px);
+  background:
+    radial-gradient(circle at 100% 0, rgba(255, 106, 0, .07), transparent 24rem),
+    var(--auth-panel);
+}
+
+.back {
+  width: fit-content;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--auth-secondary);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.back:hover { color: var(--auth-paper); }
+
+.authCard {
+  width: min(510px, 100%);
+  margin-inline: auto;
+}
+
+.symbol {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 32px;
+  border: 1px solid rgba(255, 106, 0, .3);
+  border-radius: 13px;
+  color: var(--auth-paper);
+  background: rgba(255, 106, 0, .07);
+}
+
+.symbol svg { width: 34px; height: 34px; }
+
+.authCard h2 {
+  margin: 13px 0 16px;
+  font: 650 clamp(38px, 4vw, 58px)/.96 var(--font-geist-sans), sans-serif;
+  letter-spacing: -.055em;
+}
+
+.authCard > p {
+  max-width: 470px;
+  margin: 0;
+  color: var(--auth-secondary);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.primary {
+  width: 100%;
+  min-height: 52px;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 10px;
+  margin-top: 30px;
+  padding: 0 16px;
+  border: 1px solid var(--auth-ember);
+  border-radius: 9px;
+  color: #1c0d03;
+  background: var(--auth-ember);
+  box-shadow: 0 12px 30px rgba(255, 106, 0, .16);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  transition: background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.primary:hover {
+  background: var(--auth-ember-bright);
+  box-shadow: 0 16px 38px rgba(255, 106, 0, .22);
+  transform: translateY(-1px);
+}
+
+.switchMode {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--auth-muted);
+  font-size: 12px;
+}
+
+.switchMode a { color: var(--auth-paper); text-underline-offset: 3px; }
+
+.trustNote,
+.unavailable {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  margin-top: 20px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, .09);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .025);
+}
+
+.trustNote svg,
+.unavailable svg { flex: 0 0 auto; color: var(--auth-ember-bright); }
+
+.trustNote div { display: grid; gap: 5px; }
+.trustNote strong { font-size: 12px; }
+.trustNote span,
+.unavailable { color: var(--auth-muted); font-size: 11px; line-height: 1.5; }
+
+.helpLinks {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  color: var(--auth-muted);
+  font-size: 11px;
+}
+
+.helpLinks a { color: inherit; text-decoration: none; }
+.helpLinks a:hover { color: var(--auth-paper); }
+
+.page :focus-visible {
+  outline: 2px solid var(--auth-ember-bright);
+  outline-offset: 3px;
+}
+
+@media (max-width: 960px) {
+  .page { padding: 0; }
+  .shell { min-height: 100dvh; grid-template-columns: 1fr; border: 0; border-radius: 0; }
+  .story { min-height: 410px; border-right: 0; border-bottom: 1px solid rgba(255, 255, 255, .08); }
+  .storyContent { padding: 30px clamp(22px, 7vw, 58px); }
+  .storyCopy h1 { font-size: clamp(46px, 11vw, 72px); }
+  .proofList { grid-template-columns: 1fr; }
+  .proofList li { min-height: 52px; }
+  .authPanel { min-height: 640px; }
+}
+
+@media (max-width: 560px) {
+  .story { min-height: 360px; }
+  .storyContent { gap: 30px; }
+  .storyCopy h1 { font-size: clamp(42px, 13vw, 58px); }
+  .storyCopy p { font-size: 14px; }
+  .proofList { display: none; }
+  .authPanel { min-height: 620px; padding: 22px; }
+  .authCard h2 { font-size: 40px; }
+  .helpLinks { flex-wrap: wrap; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primary { transition: none; }
+  .primary:hover { transform: none; }
+}
+
+@media (forced-colors: active) {
+  .primary { border: 1px solid ButtonText; color: ButtonText; background: ButtonFace; box-shadow: none; }
+  .story > [data-ember-backdrop] { display: none; }
+}

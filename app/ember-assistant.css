@@ -141,7 +141,7 @@ body { min-width: 320px; overflow-x: hidden; color: var(--paper); background: va
   align-items: stretch;
   gap: 3px;
   min-height: 0;
-  overflow-y: auto;
+  overflow-y: hidden;
   scrollbar-width: none;
 }
 .app-header.app-sidebar nav::-webkit-scrollbar { display: none; }
@@ -153,10 +153,10 @@ body { min-width: 320px; overflow-x: hidden; color: var(--paper); background: va
   font-weight: 630;
   letter-spacing: .02em;
 }
-.sidebar-label-spaced { margin-top: 22px; }
+.sidebar-label-spaced { margin-top: 12px; }
 .app-header.app-sidebar nav > a {
   width: 100%;
-  min-height: 43px;
+  min-height: 44px;
   position: relative;
   display: flex;
   justify-content: flex-start;
@@ -253,7 +253,7 @@ body { min-width: 320px; overflow-x: hidden; color: var(--paper); background: va
 .account-popover :is(a, button) { display: grid; min-height: 44px; place-items: center; border: 1px solid var(--hairline); border-radius: 7px; color: var(--paper); background: rgba(255,255,255,.035); cursor: pointer; text-decoration: none; }
 .app-sidebar .command-trigger {
   grid-column: 1 / -1;
-  min-height: 42px;
+  min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -266,7 +266,7 @@ body { min-width: 320px; overflow-x: hidden; color: var(--paper); background: va
 .app-sidebar .command-trigger kbd { margin-left: auto; font-size: 11px; }
 .app-sidebar .demo-badge {
   min-width: 0;
-  min-height: 42px;
+  min-height: 44px;
   max-width: none;
   display: flex;
   justify-content: flex-start;
@@ -280,7 +280,7 @@ body { min-width: 320px; overflow-x: hidden; color: var(--paper); background: va
 .app-sidebar .header-utility,
 .app-sidebar .utility-menu > summary {
   min-width: 60px;
-  min-height: 42px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -625,6 +625,53 @@ body { min-width: 320px; overflow-x: hidden; color: var(--paper); background: va
 .integration-promise > span { display: flex; align-items: center; gap: 9px; color: var(--paper-secondary); font-size: 12px; }
 .integration-promise > span svg { color: var(--ember-bright); }
 .integration-promise > svg { color: var(--paper-muted); }
+.chatgpt-install-grid { display: grid; grid-template-columns: minmax(0,1.14fr) minmax(300px,.86fr); gap: 14px; }
+.chatgpt-install-card,
+.chatgpt-proof-card { min-width: 0; border: 1px solid var(--hairline); border-radius: 16px; background: var(--panel); }
+.chatgpt-install-card { overflow: hidden; }
+.chatgpt-install-head { min-height: 88px; display: grid; grid-template-columns: 48px minmax(0,1fr) auto; align-items: center; gap: 13px; padding: 18px; border-bottom: 1px solid var(--hairline); background: var(--raised); }
+.chatgpt-mark { width: 46px; height: 46px; display: grid; place-items: center; border: 1px solid rgba(255,106,0,.3); border-radius: 12px; color: var(--paper); background: rgba(255,106,0,.07); }
+.chatgpt-mark svg { width: 33px; height: 33px; }
+.chatgpt-install-head > div { display: grid; gap: 3px; }
+.chatgpt-install-head small { color: var(--paper-muted); font: 680 9px var(--mono); letter-spacing: .09em; }
+.chatgpt-install-head h2 { margin: 0; font: 650 23px var(--sans); letter-spacing: -.035em; }
+.directory-status { padding: 6px 8px; border: 1px solid rgba(255,154,66,.27); border-radius: 999px; color: var(--ember-bright); background: rgba(255,106,0,.07); font: 690 9px var(--mono); letter-spacing: .06em; }
+.chatgpt-install-steps { display: grid; margin: 0; padding: 4px 18px; list-style: none; }
+.chatgpt-install-steps li { min-height: 82px; display: grid; grid-template-columns: 36px minmax(0,1fr); align-items: center; gap: 12px; border-bottom: 1px solid var(--hairline); }
+.chatgpt-install-steps li:last-child { border-bottom: 0; }
+.chatgpt-install-steps li > span { width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid rgba(255,106,0,.24); border-radius: 50%; color: var(--ember-bright); background: rgba(255,106,0,.055); font: 700 9px var(--mono); }
+.chatgpt-install-steps li > div { display: grid; gap: 5px; }
+.chatgpt-install-steps strong { color: var(--paper); font-size: 13px; }
+.chatgpt-install-steps p { margin: 0; color: var(--paper-muted); font-size: 11px; line-height: 1.45; }
+.chatgpt-open-button { min-height: 48px; display: grid; grid-template-columns: 18px minmax(0,1fr) 16px; align-items: center; gap: 9px; margin: 10px 18px 18px; padding: 0 14px; border: 1px solid var(--ember); border-radius: 9px; color: #1c0d03; background: var(--ember); box-shadow: 0 10px 28px rgba(255,106,0,.14); font-size: 12px; font-weight: 700; text-align: center; text-decoration: none; }
+.chatgpt-open-button:hover { color: #140802; background: var(--ember-bright); }
+.preview-install { margin: 0 18px 18px; border-top: 1px solid var(--hairline); }
+.preview-install > summary { min-height: 44px; display: flex; align-items: center; color: var(--paper-secondary); cursor: pointer; font-size: 11px; }
+.preview-install > p { margin: 0 0 12px; color: var(--paper-muted); font-size: 11px; line-height: 1.5; }
+.preview-install > div { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 8px; padding: 9px; border: 1px solid var(--hairline); border-radius: 8px; background: #080705; }
+.preview-install code { min-width: 0; overflow: hidden; color: #e6c5ae; font: 10px var(--mono); text-overflow: ellipsis; white-space: nowrap; }
+.preview-install button { min-height: 36px; display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 6px; padding: 0 9px; color: var(--paper); background: rgba(255,255,255,.06); cursor: pointer; font-size: 10px; }
+.chatgpt-proof-card { display: flex; flex-direction: column; padding: 24px; background: radial-gradient(circle at 100% 0, rgba(255,106,0,.08), transparent 18rem), var(--panel); }
+.chatgpt-proof-card > .eyebrow { display: flex; align-items: center; gap: 7px; }
+.chatgpt-proof-card h2 { margin: 18px 0 22px; font: 640 30px/1.04 var(--sans); letter-spacing: -.05em; }
+.chatgpt-proof-card ul { display: grid; gap: 17px; margin: 0; padding: 0; list-style: none; }
+.chatgpt-proof-card li { display: grid; grid-template-columns: 20px minmax(0,1fr); gap: 10px; color: var(--ember-bright); }
+.chatgpt-proof-card li > span { display: grid; gap: 5px; }
+.chatgpt-proof-card li strong { color: var(--paper); font-size: 12px; }
+.chatgpt-proof-card li small { color: var(--paper-muted); font-size: 10px; line-height: 1.45; }
+.chatgpt-proof-card > p { margin: auto 0 0; padding-top: 24px; color: var(--paper-muted); font-size: 10px; line-height: 1.55; }
+.chatgpt-proof-card > p strong { color: var(--paper-secondary); }
+.advanced-connect { margin-top: 16px; border: 1px solid var(--hairline); border-radius: 14px; background: rgba(11,9,7,.72); }
+.advanced-connect > summary { min-height: 66px; display: grid; grid-template-columns: 20px minmax(0,1fr) 18px; align-items: center; gap: 11px; padding: 0 18px; color: var(--paper-secondary); cursor: pointer; list-style: none; }
+.advanced-connect > summary::-webkit-details-marker { display: none; }
+.advanced-connect > summary > svg:first-child { color: var(--ember-bright); }
+.advanced-connect > summary > svg:last-child { transition: transform 160ms ease; }
+.advanced-connect[open] > summary > svg:last-child { transform: rotate(90deg); }
+.advanced-connect > summary > span { display: grid; gap: 4px; }
+.advanced-connect > summary strong { color: var(--paper); font-size: 12px; }
+.advanced-connect > summary small { color: var(--paper-muted); font-size: 10px; }
+.advanced-connect-body { padding: 0 14px 14px; border-top: 1px solid var(--hairline); }
+.advanced-connect .token-list { margin-bottom: 0; }
 .client-tabs { display: flex; gap: 5px; margin: 22px 0 10px; overflow-x: auto; }
 .client-tabs button { min-height: 44px; flex: 0 0 auto; border: 1px solid transparent; border-radius: 10px; padding: 0 14px; color: var(--paper-muted); background: transparent; font: 580 12px var(--sans); }
 .client-tabs button:hover { color: var(--paper); background: rgba(255,255,255,.035); }
@@ -648,10 +695,6 @@ body { min-width: 320px; overflow-x: hidden; color: var(--paper); background: va
 .config-environment button { min-height: 36px; display: inline-flex; align-items: center; gap: 6px; border: 0; color: var(--ember-bright); background: transparent; font: 620 11px var(--sans); cursor: pointer; }
 .config-environment pre { min-height: 0; margin: 0; padding: 14px; color: #e6c5ae; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; line-height: 1.6; }
 .client-note { margin: 0; padding: 0 15px 15px; color: var(--paper-secondary); font-size: 12px; line-height: 1.55; }
-.mcp-truth-note { display: grid; grid-template-columns: auto 1fr; gap: 11px; margin: 14px 0; border: 1px solid var(--hairline); border-radius: 14px; padding: 15px; background: rgba(255,255,255,.018); }
-.mcp-truth-note > svg { color: var(--ember-bright); }
-.mcp-truth-note strong { color: var(--paper); font-size: 13px; }
-.mcp-truth-note p { margin: 4px 0 0; color: var(--paper-muted); font-size: 12px; line-height: 1.55; }
 .token-row { border-color: var(--hairline); }
 
 /* Real browser-local investigation history; benchmark playback stays secondary */
@@ -878,6 +921,23 @@ body { min-width: 320px; overflow-x: hidden; color: var(--paper); background: va
 @keyframes signal-three { 0%,100% { transform: translate(0,0); opacity: .4; } 50% { transform: translate(-18px,-30px); opacity: 1; } }
 @keyframes sheet-in { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: translateX(0); } }
 
+@media (min-width: 981px) and (max-height: 820px) {
+  .app-header.app-sidebar { gap: 10px; padding-block: 12px; }
+  .sidebar-label { margin-block: 3px 2px; }
+  .sidebar-label-spaced { margin-top: 5px; }
+  .app-header.app-sidebar nav { gap: 2px; }
+  .app-sidebar .header-status.sidebar-bottom { padding-top: 8px; }
+}
+
+@media (min-width: 981px) and (max-height: 700px) {
+  .sidebar-label,
+  .app-sidebar .command-trigger { display: none; }
+  .app-sidebar .header-status.sidebar-bottom { grid-template-columns: 1fr; }
+  .app-sidebar .demo-badge { display: none; }
+  .app-sidebar .utility-menu { grid-column: 1; }
+  .app-sidebar .utility-menu > summary { width: 100%; }
+}
+
 @media (max-width: 980px) {
   .qp-app { padding-left: 0; padding-bottom: 86px; }
   .app-header.app-sidebar { display: none; }
@@ -922,6 +982,8 @@ body { min-width: 320px; overflow-x: hidden; color: var(--paper); background: va
   .proof-screen { padding-top: 90px; }
   .sandbox-disclosure { margin-top: 72px; margin-bottom: -70px; }
   .source-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .chatgpt-install-grid { grid-template-columns: 1fr; }
+  .chatgpt-proof-card > p { margin-top: 24px; }
 }
 
 @media (max-width: 680px) {
@@ -958,6 +1020,14 @@ body { min-width: 320px; overflow-x: hidden; color: var(--paper); background: va
   .connector-row > a.secondary-button { width: auto; min-width: 0; grid-column: 2 / 4; grid-row: 3; padding-inline: 12px; }
   .integration-promise { grid-template-columns: 1fr; gap: 12px; }
   .integration-promise > svg { display: none; }
+  .chatgpt-install-head { grid-template-columns: 44px minmax(0,1fr); }
+  .directory-status { width: fit-content; grid-column: 1 / -1; }
+  .chatgpt-proof-card { padding: 20px; }
+  .chatgpt-proof-card h2 { font-size: 27px; }
+  .preview-install > div { grid-template-columns: 1fr; }
+  .preview-install code { white-space: normal; overflow-wrap: anywhere; }
+  .preview-install button { min-height: 44px; justify-content: center; }
+  .advanced-connect > summary { min-height: 72px; }
   .agent-grid,
   .document-grid { grid-template-columns: 1fr; }
   .source-proof-layer { align-items: flex-end; }

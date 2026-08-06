@@ -50,8 +50,8 @@ describe("public sandbox control boundary", () => {
   });
 
   it("offers Auth0 entry points and namespaces browser history by workspace", () => {
-    expect(app).toContain('href="/auth/login"');
-    expect(app).toContain('href="/auth/login?screen_hint=signup"');
+    expect(app).toContain('href="/sign-in"');
+    expect(app).toContain('href="/sign-in?mode=signup"');
     expect(app).toContain('"queueproof.recent-investigations.v2"');
     expect(app).toContain("`${RECENT_INVESTIGATIONS_KEY_PREFIX}:${workspaceId}`");
     expect(app).not.toContain('"queueproof.recent-investigations"');

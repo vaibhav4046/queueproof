@@ -153,8 +153,10 @@ const trustNav = [
 ] as const;
 
 const useAnywhereNav = [
-  { id: "agent", label: "Use with AI", mobileLabel: "AI setup", icon: Bot },
+  { id: "agent", label: "ChatGPT", mobileLabel: "ChatGPT", icon: Bot },
 ] as const;
+
+const CHATGPT_PLUGINS_URL = "https://chatgpt.com/plugins";
 
 const routeForTab: Record<ActiveTab, string> = {
   ask: "/",
@@ -537,13 +539,13 @@ export default function QueueProofApp({
           <button className="command-trigger" onClick={() => setCommandOpen(true)} aria-label={`Open command palette (${shortcut.spoken} K)`}><Search size={14} /><kbd>{shortcut.symbol}K</kbd></button>
           <AccountControl actor={view.actor} />
           <span className="demo-badge"><span className={verified.length ? "status-orb live" : "status-orb"} />{verified.length} verified</span>
-          <details className="nav-menu utility-menu"><summary aria-label="Open help and developer menu"><MoreHorizontal size={17} /><span>More</span></summary><div className="nav-popover nav-popover-right"><Link href="/developer"><Bot size={15} />Use with AI</Link><Link href="/method"><Braces size={15} />How it works</Link></div></details>
+          <details className="nav-menu utility-menu"><summary aria-label="Open help and developer menu"><MoreHorizontal size={17} /><span>More</span></summary><div className="nav-popover nav-popover-right"><Link href="/developer"><Bot size={15} />ChatGPT</Link><Link href="/method"><Braces size={15} />How it works</Link></div></details>
         </div>
       </aside>
       <header className="mobile-header">
         <Link className="mobile-brand" href="/" aria-label="QueueProof home"><QueueProofSymbol /><span>QueueProof</span></Link>
         {view.actor.publicAccess
-          ? <a className="mobile-account-link" href="/auth/login"><UserRound size={14} /> Sign in</a>
+          ? <a className="mobile-account-link" href="/sign-in"><UserRound size={14} /> Sign in</a>
           : <span className="mobile-ready"><i className={verified.length ? "status-orb live" : "status-orb"} />{verified.length} verified</span>}
       </header>
       <nav className="mobile-dock" aria-label="Mobile navigation">
@@ -686,8 +688,8 @@ function AccountControl({ actor }: { actor: ReadyView["actor"] }) {
 
   if (actor.publicAccess) {
     return <div className="account-actions" aria-label="QueueProof account">
-      <a href="/auth/login"><UserRound size={14} /> Sign in</a>
-      <a href="/auth/login?screen_hint=signup"><UserPlus size={14} /> Create account</a>
+      <a href="/sign-in"><UserRound size={14} /> Sign in</a>
+      <a href="/sign-in?mode=signup"><UserPlus size={14} /> Create account</a>
     </div>;
   }
 
@@ -813,8 +815,8 @@ function SignIn({
         <h1>Your private evidence workspace.</h1>
         <p>Sign in to connect your own HydraDB sources, keep investigations separate, and use the same QueueProof identity from ChatGPT.</p>
         {auth0Configured && <div className="auth0-actions">
-          <a className="primary-button" href="/auth/login"><UserRound size={15} /> Sign in</a>
-          <a className="secondary-button" href="/auth/login?screen_hint=signup"><UserPlus size={15} /> Create account</a>
+          <a className="primary-button" href="/sign-in"><UserRound size={15} /> Sign in</a>
+          <a className="secondary-button" href="/sign-in?mode=signup"><UserPlus size={15} /> Create account</a>
         </div>}
         {legacySignInConfigured && <details className="legacy-signin" open={!auth0Configured}>
           <summary><LockKeyhole size={14} /> Deployment owner access</summary>
@@ -1916,31 +1918,79 @@ function AgentScreen({ workspace, setError, setNotice, readOnly, publicOrigin }:
     return guides[clientType] ?? guides.generic;
   }, [clientType, endpoint]);
 
+  async function copyMcpEndpoint() {
+    try {
+      await navigator.clipboard.writeText(endpoint);
+      setNotice("QueueProof's universal ChatGPT connection URL was copied.");
+    } catch {
+      setError("The browser could not copy the connection URL. Select it manually instead.");
+    }
+  }
+
   return <section className="screen agent-screen connect-ai-screen">
-    <div className="screen-heading"><div><span className="eyebrow"><Bot size={13} /> Works where you work</span><h1>Connect QueueProof<br /><em>to your AI.</em></h1><p>Ask QueueProof from Codex, Claude Code, Kilo Code, or any compatible MCP client. Read-only access is the default. You still approve every external change.</p></div></div>
-    <div className="integration-promise"><span><Search size={17} /><strong>Ask across your work</strong></span><ChevronRight size={14} /><span><FileCheck2 size={17} /><strong>Get sources and next actions</strong></span><ChevronRight size={14} /><span><ShieldCheck size={17} /><strong>Approve any change</strong></span></div>
-    {readOnly && <div className="inline-warning"><LockKeyhole size={14} />Connection keys are owner-only. You can still inspect the exact setup for every supported client.</div>}
-    <div className="client-tabs" role="tablist" aria-label="AI client">
-      {[['codex', 'Codex'], ['claude', 'Claude Code'], ['kilo', 'Kilo Code'], ['generic', 'Generic MCP']].map(([value, label]) => <button type="button" role="tab" aria-selected={clientType === value} className={clientType === value ? "active" : ""} key={value} onClick={() => setClientType(value)}>{label}</button>)}
+    <div className="screen-heading"><div><span className="eyebrow"><Bot size={13} /> QueueProof in ChatGPT</span><h1>Add once.<br /><em>Ask from ChatGPT.</em></h1><p>No API project, client secret, or connection key. Add QueueProof, sign in to your workspace, and ask for evidence in a normal ChatGPT conversation.</p></div></div>
+    <div className="integration-promise"><span><Bot size={17} /><strong>Add QueueProof</strong></span><ChevronRight size={14} /><span><UserRound size={17} /><strong>Sign in once</strong></span><ChevronRight size={14} /><span><Search size={17} /><strong>Ask with receipts</strong></span></div>
+
+    <div className="chatgpt-install-grid">
+      <article className="chatgpt-install-card">
+        <div className="chatgpt-install-head">
+          <span className="chatgpt-mark"><QueueProofSymbol /></span>
+          <div><small>CHATGPT PLUGIN</small><h2>QueueProof</h2></div>
+          <span className="directory-status">REVIEW PENDING</span>
+        </div>
+        <ol className="chatgpt-install-steps">
+          <li><span>01</span><div><strong>Open ChatGPT Plugins</strong><p>Use the shared ChatGPT and Codex plugin directory.</p></div></li>
+          <li><span>02</span><div><strong>Search QueueProof and select Add</strong><p>After OpenAI approves and the publisher releases the listing.</p></div></li>
+          <li><span>03</span><div><strong>Sign in to QueueProof</strong><p>OAuth opens the secure account flow. No API key is created or pasted.</p></div></li>
+        </ol>
+        <a className="chatgpt-open-button" href={CHATGPT_PLUGINS_URL} target="_blank" rel="noreferrer">
+          <Bot size={16} /> Open ChatGPT Plugins <ExternalLink size={14} />
+        </a>
+        <details className="preview-install">
+          <summary>Testing before directory approval</summary>
+          <p>Workspace testers can add this universal OAuth MCP URL once as a custom connector. Ordinary users will not need this step after publication.</p>
+          <div><code>{endpoint}</code><button type="button" onClick={() => void copyMcpEndpoint()}><Clipboard size={13} /> Copy URL</button></div>
+        </details>
+      </article>
+
+      <aside className="chatgpt-proof-card" aria-label="QueueProof ChatGPT safety">
+        <span className="eyebrow"><ShieldCheck size={13} /> What the connection can do</span>
+        <h2>Answers with a trail,<br />not another black box.</h2>
+        <ul>
+          <li><CircleCheck size={16} /><span><strong>Read your verified sources</strong><small>Only inside your authenticated QueueProof workspace.</small></span></li>
+          <li><CircleCheck size={16} /><span><strong>Return cited evidence</strong><small>Claims, receipts, disagreements, and missing proof stay visible.</small></span></li>
+          <li><LockKeyhole size={16} /><span><strong>Keep provider writes separate</strong><small>ChatGPT cannot approve or execute an external change.</small></span></li>
+        </ul>
+        <p><strong>Current release status:</strong> the universal MCP endpoint and OAuth resource are live. Public search requires OpenAI review and publisher release.</p>
+      </aside>
     </div>
-    <div className="agent-grid">
-      <div className="token-console ember-surface">
-        <EmberBackdrop placement="connect" state={busy ? "connecting" : freshToken ? "complete" : "idle"} />
-        <div className="console-line"><span><KeyRound size={14} /> 1. Create a connection key</span><span className="secure-chip"><LockKeyhole size={12} /> stored as a hash</span></div>
-        <label className="scope-choice"><input type="checkbox" checked={writeScopes} onChange={(event) => setWriteScopes(event.target.checked)} disabled={readOnly} /><span><strong>Let this client prepare actions and sync</strong><small>It still cannot execute a provider change without your approval.</small></span></label>
-        {!readOnly && <ActionButton label="Create connection" icon={<KeyRound size={15} />} loading={busy} onClick={() => void createToken()} />}
-        {freshToken && <div className="token-reveal"><span><CircleAlert size={13} /> Copy this now. It is shown only once.</span><code>{freshToken}</code><button onClick={() => void navigator.clipboard.writeText(freshToken)}><Clipboard size={13} /> Copy key</button></div>}
+
+    <details className="advanced-connect">
+      <summary><Terminal size={16} /><span><strong>Developer setup for other MCP clients</strong><small>Codex, Claude Code, Kilo Code, and generic Streamable HTTP</small></span><ChevronRight size={15} /></summary>
+      <div className="advanced-connect-body">
+        {readOnly && <div className="inline-warning"><LockKeyhole size={14} />Connection keys are private to a signed-in workspace owner. The ChatGPT OAuth path above does not use one.</div>}
+        <div className="client-tabs" role="tablist" aria-label="Developer MCP client">
+          {[['codex', 'Codex'], ['claude', 'Claude Code'], ['kilo', 'Kilo Code'], ['generic', 'Generic MCP']].map(([value, label]) => <button type="button" role="tab" aria-selected={clientType === value} className={clientType === value ? "active" : ""} key={value} onClick={() => setClientType(value)}>{label}</button>)}
+        </div>
+        <div className="agent-grid">
+          <div className="token-console ember-surface">
+            <EmberBackdrop placement="connect" state={busy ? "connecting" : freshToken ? "complete" : "idle"} />
+            <div className="console-line"><span><KeyRound size={14} /> 1. Create a developer key</span><span className="secure-chip"><LockKeyhole size={12} /> stored as a hash</span></div>
+            <label className="scope-choice"><input type="checkbox" checked={writeScopes} onChange={(event) => setWriteScopes(event.target.checked)} disabled={readOnly} /><span><strong>Let this client prepare actions and sync</strong><small>It still cannot execute a provider change without your approval.</small></span></label>
+            {!readOnly && <ActionButton label="Create developer key" icon={<KeyRound size={15} />} loading={busy} onClick={() => void createToken()} />}
+            {freshToken && <div className="token-reveal"><span><CircleAlert size={13} /> Copy this now. It is shown only once.</span><code>{freshToken}</code><button onClick={() => void navigator.clipboard.writeText(freshToken)}><Clipboard size={13} /> Copy key</button></div>}
+          </div>
+          <div className="config-card">
+            {clientGuide.environment && <div className="config-environment"><div><small>2. SET THE DEVELOPER KEY</small><button onClick={() => void navigator.clipboard.writeText(clientGuide.environment!)}><Clipboard size={13} /> Copy</button></div><pre>{clientGuide.environment}</pre></div>}
+            <div className="list-title"><span><Braces size={14} /> {clientGuide.environment ? "3." : "2."} Add to {clientGuide.name}</span><button onClick={() => void navigator.clipboard.writeText(clientGuide.config)}><Clipboard size={13} /> Copy</button></div>
+            <div className="config-file"><small>PUT THIS IN</small><code>{clientGuide.file}</code></div>
+            <pre>{clientGuide.config}</pre>
+            <p className="client-note">{clientGuide.note}</p>
+          </div>
+        </div>
+        <div className="token-list"><div className="list-title"><span><ShieldCheck size={14} /> Developer clients</span><small>{workspace.workspace?.name}</small></div>{tokens.length ? tokens.map((token) => <div className="token-row" key={token.id}><span className={token.revokedAt ? "status-orb" : token.lastHandshakeAt ? "status-orb live" : "status-orb indexing"} /><div><strong>{token.clientType}</strong><small>{token.scopes.join(" · ")} · expires {dateLabel(token.expiresAt)}</small></div><span>{token.revokedAt ? "Revoked" : token.lastHandshakeAt ? `Connected ${dateLabel(token.lastHandshakeAt)}` : "Waiting for first connection"}</span>{!token.revokedAt && !readOnly && <button onClick={() => void revoke(token.id)}>Revoke</button>}</div>) : <div className="honest-empty"><Bot size={24} /><div><strong>No developer client connected.</strong><p>Create a scoped key only when another MCP client cannot use QueueProof OAuth.</p></div></div>}</div>
       </div>
-      <div className="config-card">
-        {clientGuide.environment && <div className="config-environment"><div><small>2. SET THE CONNECTION KEY</small><button onClick={() => void navigator.clipboard.writeText(clientGuide.environment!)}><Clipboard size={13} /> Copy</button></div><pre>{clientGuide.environment}</pre></div>}
-        <div className="list-title"><span><Braces size={14} /> {clientGuide.environment ? "3." : "2."} Add to {clientGuide.name}</span><button onClick={() => void navigator.clipboard.writeText(clientGuide.config)}><Clipboard size={13} /> Copy</button></div>
-        <div className="config-file"><small>PUT THIS IN</small><code>{clientGuide.file}</code></div>
-        <pre>{clientGuide.config}</pre>
-        <p className="client-note">{clientGuide.note}</p>
-      </div>
-    </div>
-    <div className="mcp-truth-note"><Sparkles size={16} /><div><strong>Using OmniRoute too?</strong><p>Add QueueProof beside it as a separate MCP server in the same client. QueueProof supplies evidence from your work; OmniRoute keeps its own routing role.</p></div></div>
-    <div className="token-list"><div className="list-title"><span><ShieldCheck size={14} /> Connected clients</span><small>{workspace.workspace?.name}</small></div>{tokens.length ? tokens.map((token) => <div className="token-row" key={token.id}><span className={token.revokedAt ? "status-orb" : token.lastHandshakeAt ? "status-orb live" : "status-orb indexing"} /><div><strong>{token.clientType}</strong><small>{token.scopes.join(" · ")} · expires {dateLabel(token.expiresAt)}</small></div><span>{token.revokedAt ? "Revoked" : token.lastHandshakeAt ? `Connected ${dateLabel(token.lastHandshakeAt)}` : "Waiting for first connection"}</span>{!token.revokedAt && !readOnly && <button onClick={() => void revoke(token.id)}>Revoke</button>}</div>) : <div className="honest-empty"><Bot size={24} /><div><strong>No client connected yet.</strong><p>Create a key when you are ready to use QueueProof from another AI tool.</p></div></div>}</div>
+    </details>
   </section>;
 }
 

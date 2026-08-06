@@ -113,7 +113,7 @@ describe("production design system", () => {
   it("keeps the daily workflow ahead of developer and judge utilities", () => {
     expect(app).toContain("const workspaceNav = [");
     expect(app).toContain('{ id: "approvals", label: "Review changes"');
-    expect(app).toContain('{ id: "agent", label: "Use with AI"');
+    expect(app).toContain('{ id: "agent", label: "ChatGPT"');
     expect(app).toContain('className="command-group"');
     expect(app).toContain("<h2>Help</h2>");
   });

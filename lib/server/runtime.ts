@@ -21,6 +21,7 @@ export type RuntimeEnv = {
   AUTH0_CLIENT_SECRET?: string;
   AUTH0_SECRET?: string;
   APP_BASE_URL?: string;
+  OPENAI_APPS_CHALLENGE?: string;
 };
 
 export function runtimeEnv(): RuntimeEnv {
