@@ -892,6 +892,16 @@ describe("evidence-constrained synthesis", () => {
           timestamp: "2026-08-02T17:39:45Z",
         },
         {
+          id: "slack-incident",
+          provider: "slack",
+          title: "Northwind have escalated the AuthShield authentication outage (INC-2031). Their",
+          excerpt:
+            "Northwind have escalated the AuthShield authentication outage (INC-2031). "
+            + "Their whole team has been locked out since 29 July. "
+            + "Priya Raman is on it and filed BUG-123 against Atlas Launch.",
+          timestamp: "2026-08-03T01:03:55Z",
+        },
+        {
           id: "linear-incident",
           provider: "linear",
           title: "Authentication outage for Northwind",
@@ -916,8 +926,12 @@ describe("evidence-constrained synthesis", () => {
       "github-release", "linear-incident",
     ]));
     expect(result.contradictions).toEqual(expect.arrayContaining([
-      expect.objectContaining({ providers: ["github", "linear"] }),
+      expect.objectContaining({
+        providers: ["github", "linear"],
+        evidenceIds: ["github-release", "linear-incident"],
+      }),
     ]));
+    expect(result.contradictions.flatMap((item) => item.providers)).not.toContain("slack");
     expect(result.answer).not.toMatch(/newsletter/i);
   });
 
