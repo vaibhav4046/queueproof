@@ -7,7 +7,7 @@
  * excerpt, and any required contradiction is backed by two cited providers.
  */
 
-export const GROUNDED_GRADER_VERSION = "grounded-grader-v2";
+export const GROUNDED_GRADER_VERSION = "grounded-grader-v3";
 
 /** @template T @param {T[] | unknown} value @returns {T[]} */
 const asArray = (value) => Array.isArray(value) ? value : [];
@@ -62,6 +62,18 @@ function contradictionCitationIds(contradiction) {
   return [...new Set(asArray(contradiction?.evidenceIds ?? contradiction?.evidence_ids).map(String).filter(Boolean))];
 }
 
+function claimCarriesRequiredFactSignal(claim, requiredFacts) {
+  const corpus = normaliseGradeText(claim?.text);
+  if (!corpus) return false;
+  return asArray(requiredFacts).some((fact) => {
+    const phrases = [
+      ...asArray(fact?.anyOf),
+      ...asArray(fact?.allOf).flatMap((group) => asArray(group)),
+    ];
+    return alternativesMatch(corpus, phrases) !== null;
+  });
+}
+
 function claimSupportedByCitation(claim, citation) {
   const claimText = normaliseGradeText(claim?.text);
   const excerpt = normaliseGradeText(citation?.excerpt);
@@ -106,12 +118,24 @@ export function gradeGroundedAnswer({
   const referencedCitationIds = new Set();
   const supportedCitationIds = new Set();
   const unsupportedClaims = [];
+  const irrelevantClaims = [];
   let claimCitationPairCount = 0;
   let supportedClaimCitationPairCount = 0;
   let supportedClaimCount = 0;
+  let relevantClaimCount = 0;
 
   for (const [index, claim] of asArray(claims).entries()) {
     const ids = claimCitationIds(claim);
+    const relevant = claimCarriesRequiredFactSignal(claim, requiredFacts);
+    if (relevant) {
+      relevantClaimCount += 1;
+    } else {
+      irrelevantClaims.push({
+        index,
+        text: String(claim?.text ?? ""),
+        citationIds: ids,
+      });
+    }
     let supported = false;
     for (const id of ids) {
       claimCitationPairCount += 1;
@@ -167,8 +191,12 @@ export function gradeGroundedAnswer({
   const citationPrecision = ratio(supportedClaimCitationPairCount, claimCitationPairCount);
   const citationCompleteness = ratio(supportedClaimCount, claimCount);
   const unsupportedClaimRate = ratio(unsupportedClaims.length, claimCount);
+  const claimRelevancePrecision = ratio(relevantClaimCount, claimCount);
+  const irrelevantClaimRate = ratio(irrelevantClaims.length, claimCount);
   const citationPass = claimCount > 0 && invalidCitationIds.size === 0 && unsupportedClaims.length === 0 &&
     citationPrecision === 1 && citationCompleteness === 1;
+  const relevancePass = claimCount > 0 && asArray(requiredFacts).length > 0 &&
+    irrelevantClaims.length === 0 && claimRelevancePrecision === 1;
   const contradictionPass = !requiresContradiction || supportedContradictions.length > 0;
   const factPass = factResults.length > 0 && missingFacts.length === 0;
   const providerPass = expectedProviders.length > 0 && missingProviders.length === 0;
@@ -185,7 +213,7 @@ export function gradeGroundedAnswer({
     }));
 
   return {
-    pass: factPass && providerPass && citationPass && contradictionPass,
+    pass: factPass && providerPass && citationPass && relevancePass && contradictionPass,
     factPass,
     factResults,
     matchedFacts,
@@ -204,6 +232,11 @@ export function gradeGroundedAnswer({
     citationPrecision,
     citationCompleteness,
     unsupportedClaimRate,
+    relevancePass,
+    claimRelevancePrecision,
+    irrelevantClaimRate,
+    relevantClaimCount,
+    irrelevantClaims,
     claimCount,
     supportedClaimCount,
     claimCitationPairCount,
