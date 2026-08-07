@@ -11,7 +11,7 @@ const publishToken = "benchmark-publisher-token-that-is-long-enough";
 const artifact = {
   status: "measured",
   generatedAt: "2026-08-05T12:00:00.000Z",
-  grader: "grounded-grader-v2",
+  grader: "grounded-grader-v3",
   target: "https://queueproof.test",
   requestedMode: "auto",
   release: { commitSha: releaseSha, commitRef: "main", deploymentUrl: "queueproof.test" },
@@ -99,7 +99,7 @@ describe("release-bound benchmark artifacts", () => {
     const body = await response.json();
     expect(body.results.live).toMatchObject({
       storage: "durable",
-      grader: "grounded-grader-v2",
+      grader: "grounded-grader-v3",
       release: { commitSha: releaseSha },
     });
     expect(body.results.currentRelease.commitSha).toBe(releaseSha);
