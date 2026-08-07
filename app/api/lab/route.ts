@@ -38,11 +38,49 @@ const isCurrentReleaseArtifact = (artifact: Artifact | null, currentSha: string 
     artifactReleaseSha(artifact) === currentSha.toLowerCase(),
   );
 
+const unitMetric = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
+
+const hasCompleteV3Relevance = (artifact: Artifact | null, includeCrossSource = false) => {
+  if (!artifact) return false;
+  const quality = objectValue(artifact.quality);
+  const rows = Array.isArray(artifact.rows) ? artifact.rows.map(objectValue) : [];
+  const rowsComplete = rows.length > 0 && rows.every((row) =>
+    typeof row.relevancePass === "boolean" &&
+    unitMetric(row.relevancePrecision) &&
+    unitMetric(row.irrelevantClaimRate) &&
+    typeof row.relevantClaimCount === "number" &&
+    Array.isArray(row.irrelevantClaims));
+  const allRowsClean = rows.every((row) => (row.irrelevantClaims as unknown[]).length === 0);
+  const aggregateComplete =
+    unitMetric(quality.relevancePrecision) &&
+    unitMetric(quality.irrelevantClaimRate) &&
+    typeof quality.relevanceRequirementPasses === "number" &&
+    typeof quality.zeroIrrelevantClaims === "boolean" &&
+    quality.zeroIrrelevantClaims === allRowsClean;
+  if (!rowsComplete || !aggregateComplete || !includeCrossSource) return rowsComplete && aggregateComplete;
+  const crossSource = objectValue(artifact.crossSource);
+  return typeof crossSource.pass === "boolean" &&
+    typeof crossSource.relevancePass === "boolean" &&
+    unitMetric(crossSource.relevancePrecision) &&
+    unitMetric(crossSource.irrelevantClaimRate) &&
+    Array.isArray(crossSource.irrelevantClaims);
+};
+
 const isStrictLiveArtifact = (artifact: Artifact | null, currentSha: string | null) => {
   const rows = artifact?.rows;
   return isCurrentReleaseArtifact(artifact, currentSha) &&
     artifact?.status === "measured" && artifact.grader === "grounded-grader-v3" &&
-    Array.isArray(rows) && rows.length > 0 && artifact.cases === rows.length;
+    Array.isArray(rows) && rows.length > 0 && artifact.cases === rows.length &&
+    hasCompleteV3Relevance(artifact);
+};
+
+const isStrictPdfArtifact = (artifact: Artifact | null, currentSha: string | null) => {
+  const rows = artifact?.rows;
+  return isCurrentReleaseArtifact(artifact, currentSha) &&
+    artifact?.grader === "grounded-grader-v3" &&
+    Array.isArray(rows) && rows.length > 0 && artifact.cases === rows.length &&
+    hasCompleteV3Relevance(artifact, true);
 };
 
 const objectValue = (value: unknown): Artifact =>
@@ -244,11 +282,14 @@ export async function GET() {
     const selectedPdf = persisted.get("pdf") ??
       (isCurrentReleaseArtifact(bundledPdf, currentSha) ? bundledPdf : null);
     const strictArtifact = isStrictLiveArtifact(selectedLive, currentSha);
+    const strictFast = isStrictLiveArtifact(selectedFast, currentSha) ? selectedFast : null;
+    const strictThinking = isStrictLiveArtifact(selectedThinking, currentSha) ? selectedThinking : null;
+    const strictPdf = isStrictPdfArtifact(selectedPdf, currentSha) ? selectedPdf : null;
     const currentRef = process.env.VERCEL_GIT_COMMIT_REF || process.env.QUEUEPROOF_RELEASE_REF || null;
     const publicAccess = isPublicAccessActor(actor);
-    const liveForResponse = publicAccess ? publicLiveArtifact(selectedLive) : selectedLive;
-    const pdfForResponse = publicAccess ? publicPdfArtifact(selectedPdf) : selectedPdf;
-    const comparison = compareLiveModes(selectedFast, selectedThinking);
+    const liveForResponse = publicAccess ? publicLiveArtifact(strictArtifact ? selectedLive : null) : selectedLive;
+    const pdfForResponse = publicAccess ? publicPdfArtifact(strictPdf) : strictPdf;
+    const comparison = compareLiveModes(strictFast, strictThinking);
     const response = {
       ok: true,
       results: {
