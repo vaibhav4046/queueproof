@@ -9,6 +9,7 @@ import {
   sourceBelongsToConnector,
 } from "../../../lib/server/hydradb-shapes";
 import { requireDb } from "../../../lib/server/runtime";
+import { synthesiseGroundedAnswer } from "../../../lib/server/synthesis";
 import { createId } from "../../../lib/server/store";
 import { planRetrieval } from "../../retrieval/src";
 import {
@@ -598,6 +599,17 @@ export function buildQueueProofServer(
       items.findIndex((candidate) => candidate.evidenceId === item.evidenceId && candidate.provider === item.provider) === index,
     ).slice(0, 48);
     const providers = [...new Set(evidence.map((item) => item.provider))];
+    const synthesis = synthesiseGroundedAnswer(
+      input.query,
+      evidence.map((item) => ({
+        id: item.evidenceId,
+        provider: item.provider,
+        title: item.title,
+        excerpt: item.excerpt,
+        timestamp: item.timestamp,
+        url: item.url,
+      })),
+    );
     return {
       plan: {
         category: plan.category,
@@ -606,6 +618,11 @@ export function buildQueueProofServer(
         reason: plan.reason,
       },
       mode,
+      answer: synthesis.answer,
+      claims: synthesis.claims,
+      contradictions: synthesis.contradictions,
+      missingInformation: synthesis.missingInformation,
+      validation: synthesis.validation,
       evidence,
       providerCoverage: providers,
       latencyMs: Date.now() - startedAt,
@@ -626,6 +643,11 @@ export function buildQueueProofServer(
       outputSchema: z.object({
         plan: z.record(z.string(), z.unknown()),
         mode: z.enum(["fast", "thinking"]),
+        answer: z.string(),
+        claims: z.array(z.record(z.string(), z.unknown())),
+        contradictions: z.array(z.record(z.string(), z.unknown())),
+        missingInformation: z.array(z.string()),
+        validation: z.record(z.string(), z.unknown()),
         evidence: z.array(z.record(z.string(), z.unknown())),
         providerCoverage: z.array(z.string()),
         latencyMs: z.number(),
