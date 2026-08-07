@@ -16,8 +16,10 @@ describe("QueueProof account and ChatGPT entry experience", () => {
     expect(signIn).toContain("<QueueProofLogo");
     expect(signIn).toContain("<EmberBackdrop");
     expect(signIn).toContain("<SignInForm");
+    expect(signIn).toContain("publishableKey: config.publishableKey");
     expect(signIn).not.toMatch(/GoogleIcon|AppleIcon|@paper-design|GrainGradient|\/auth\/login/);
     expect(signInForm).toContain("signInWithOtp");
+    expect(signInForm).toContain("createQueueProofBrowserClient(supabase)");
     expect(signInForm).toContain('type="email"');
     expect(signInForm).toContain('new URL("/auth/callback", window.location.origin)');
     expect(signInForm).not.toMatch(/type="password"|service_role|client_secret/i);

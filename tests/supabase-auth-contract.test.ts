@@ -11,6 +11,8 @@ describe("Supabase branded-auth contract", () => {
     const form = read("app/sign-in/SignInForm.tsx");
     expect(server).toContain("getClaims()");
     expect(form).toContain("signInWithOtp");
+    expect(form).toContain("createQueueProofBrowserClient(supabase)");
+    expect(browser).toContain("config?.publishableKey");
     expect(`${server}\n${browser}\n${form}`).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
   });
 

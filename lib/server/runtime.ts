@@ -22,6 +22,7 @@ export type RuntimeEnv = {
   NEXT_PUBLIC_SUPABASE_ANON_KEY?: string;
   SUPABASE_URL?: string;
   SUPABASE_PUBLISHABLE_KEY?: string;
+  SUPABASE_ANON_KEY?: string;
   OPENAI_APPS_CHALLENGE?: string;
   LINEAR_API_KEY?: string;
 };

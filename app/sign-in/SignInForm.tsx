@@ -2,15 +2,19 @@
 
 import { useId, useState, type FormEvent } from "react";
 import { ArrowRight, LoaderCircle, Mail } from "lucide-react";
-import { createQueueProofBrowserClient } from "../../lib/supabase/client";
+import {
+  createQueueProofBrowserClient,
+  type QueueProofBrowserConfig,
+} from "../../lib/supabase/client";
 import styles from "./sign-in.module.css";
 
 type SignInFormProps = {
   creating: boolean;
   nextPath: string;
+  supabase: QueueProofBrowserConfig;
 };
 
-export function SignInForm({ creating, nextPath }: SignInFormProps) {
+export function SignInForm({ creating, nextPath, supabase }: SignInFormProps) {
   const emailId = useId();
   const [email, setEmail] = useState("");
   const [pending, setPending] = useState(false);
@@ -22,7 +26,7 @@ export function SignInForm({ creating, nextPath }: SignInFormProps) {
     if (pending) return;
     setPending(true);
     setError("");
-    const client = createQueueProofBrowserClient();
+    const client = createQueueProofBrowserClient(supabase);
     if (!client) {
       setError("Account sign-in is temporarily unavailable. The public demo remains open.");
       setPending(false);

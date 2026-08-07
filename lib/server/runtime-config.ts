@@ -25,7 +25,8 @@ export function validateRuntimeConfig(
   const linearExecutionWorkspaceId = value("QUEUEPROOF_LINEAR_EXECUTION_WORKSPACE_ID");
   const supabaseUrl = value("NEXT_PUBLIC_SUPABASE_URL") || value("SUPABASE_URL");
   const supabasePublishableKey = value("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY") ||
-    value("SUPABASE_PUBLISHABLE_KEY") || value("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+    value("SUPABASE_PUBLISHABLE_KEY") || value("NEXT_PUBLIC_SUPABASE_ANON_KEY") ||
+    value("SUPABASE_ANON_KEY");
   const anySupabase = Boolean(supabaseUrl || supabasePublishableKey);
   const completeSupabase = Boolean(supabaseUrl && supabasePublishableKey);
   const validAuthMode = ["legacy", "hybrid", "supabase"].includes(authMode) ? authMode : "";

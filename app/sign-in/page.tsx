@@ -4,7 +4,11 @@ import { ArrowLeft, Check, ShieldCheck } from "lucide-react";
 import { redirect } from "next/navigation";
 import { EmberBackdrop } from "@/components/queueproof/ember-backdrop";
 import { QueueProofLogo, QueueProofSymbol } from "../components/QueueProofLogo";
-import { createQueueProofServerClient, supabaseWebEnabled } from "../../lib/server/supabase";
+import {
+  createQueueProofServerClient,
+  supabaseConfig,
+  supabaseWebEnabled,
+} from "../../lib/server/supabase";
 import { SignInForm } from "./SignInForm";
 import styles from "./sign-in.module.css";
 
@@ -33,7 +37,8 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
   const params = await searchParams;
   const mode = Array.isArray(params.mode) ? params.mode[0] : params.mode;
   const creating = mode === "signup";
-  const configured = supabaseWebEnabled();
+  const config = supabaseConfig();
+  const configured = supabaseWebEnabled() && Boolean(config);
   const nextPath = safeNext(params.next);
 
   return (
@@ -75,7 +80,13 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
                 : "Return to your private sources, investigations, approvals, and connected AI clients."}
             </p>
 
-            {configured ? <SignInForm creating={creating} nextPath={nextPath} /> : (
+            {configured && config ? (
+              <SignInForm
+                creating={creating}
+                nextPath={nextPath}
+                supabase={{ url: config.url, publishableKey: config.publishableKey }}
+              />
+            ) : (
               <div className={styles.unavailable} role="status">
                 <ShieldCheck size={17} />
                 Account sign-in is temporarily unavailable. The public demo remains open.

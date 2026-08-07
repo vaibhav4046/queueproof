@@ -37,6 +37,25 @@ describe("Supabase configuration", () => {
     expect(legacyOwnerSignInEnabled(production)).toBe(false);
   });
 
+  it("accepts the server-scoped Marketplace pair without requiring NEXT_PUBLIC aliases", () => {
+    const marketplace = {
+      SUPABASE_URL: complete.NEXT_PUBLIC_SUPABASE_URL,
+      SUPABASE_PUBLISHABLE_KEY: complete.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    };
+    expect(supabaseConfig(marketplace)).toMatchObject({
+      url: "https://project.supabase.co",
+      publishableKey: complete.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    });
+    expect(supabaseWebEnabled(marketplace)).toBe(true);
+  });
+
+  it("keeps the older server-only anon-key alias as a bounded compatibility fallback", () => {
+    expect(supabaseConfig({
+      SUPABASE_URL: complete.NEXT_PUBLIC_SUPABASE_URL,
+      SUPABASE_ANON_KEY: "legacy-anon-key-value-for-tests",
+    })).toMatchObject({ publishableKey: "legacy-anon-key-value-for-tests" });
+  });
+
   it("rejects partial configuration and honors a Supabase-only legacy cutoff", () => {
     expect(supabaseConfig({ NEXT_PUBLIC_SUPABASE_URL: complete.NEXT_PUBLIC_SUPABASE_URL })).toBeNull();
     const supabaseOnly = { ...complete, QUEUEPROOF_AUTH_MODE: "supabase" };

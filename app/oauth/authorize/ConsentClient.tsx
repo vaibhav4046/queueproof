@@ -3,11 +3,17 @@
 import { useEffect, useState } from "react";
 import { ArrowRight, Check, LoaderCircle, LockKeyhole, ShieldCheck } from "lucide-react";
 import type { OAuthAuthorizationDetails } from "@supabase/supabase-js";
-import { createQueueProofBrowserClient } from "../../../lib/supabase/client";
+import {
+  createQueueProofBrowserClient,
+  type QueueProofBrowserConfig,
+} from "../../../lib/supabase/client";
 import { QueueProofLogo, QueueProofSymbol } from "../../components/QueueProofLogo";
 import styles from "./authorize.module.css";
 
-type ConsentClientProps = { authorizationId: string };
+type ConsentClientProps = {
+  authorizationId: string;
+  supabase: QueueProofBrowserConfig;
+};
 
 function safeRedirect(raw: string): string | null {
   try {
@@ -22,8 +28,8 @@ function originLabel(raw: string): string {
   try { return new URL(raw).hostname; } catch { return "registered AI client"; }
 }
 
-export function ConsentClient({ authorizationId }: ConsentClientProps) {
-  const client = createQueueProofBrowserClient();
+export function ConsentClient({ authorizationId, supabase }: ConsentClientProps) {
+  const client = createQueueProofBrowserClient(supabase);
   const [details, setDetails] = useState<OAuthAuthorizationDetails | null>(null);
   const [error, setError] = useState(
     client ? "" : "AI connection is not configured on this deployment.",

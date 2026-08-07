@@ -48,6 +48,7 @@ export function supabaseConfig(
     "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
     "SUPABASE_PUBLISHABLE_KEY",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "SUPABASE_ANON_KEY",
   );
   if (!url || publishableKey.length < 20) return null;
   return {
