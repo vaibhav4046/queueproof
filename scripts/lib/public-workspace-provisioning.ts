@@ -13,12 +13,6 @@ export type PublicWorkspaceProvisioningResult = {
   role: typeof PUBLIC_WORKSPACE_ROLE;
 };
 
-export type ReviewedPublicWorkspaceProvisioningResult = PublicWorkspaceProvisioningResult & {
-  changed: boolean;
-  verifiedConnectorCount: number;
-  indexedDocumentCount: number;
-};
-
 export class PublicWorkspaceProvisioningError extends Error {
   constructor(message: string) {
     super(message);
@@ -180,86 +174,5 @@ export async function provisionPublicWorkspaceMembership(
     workspaceId,
     userId: PUBLIC_WORKSPACE_USER_ID,
     role: PUBLIC_WORKSPACE_ROLE,
-  };
-}
-
-/**
- * Deployment-only migration for the existing hackathon judge workspace.
- *
- * A deployment setting alone is never sufficient authority to publish a tenant. Before adding
- * the deliberately public member, this requires the selected workspace to look exactly like the
- * already-reviewed demo: no Supabase identities, at least three independently verified
- * connectors, and an indexed document carrying a HydraDB source receipt. Personal workspaces
- * therefore fail closed even if their ID is accidentally selected.
- */
-export async function provisionReviewedPublicWorkspaceMembership(
-  db: ProvisioningDatabase,
-  workspaceId: string,
-): Promise<ReviewedPublicWorkspaceProvisioningResult> {
-  const existing = await db
-    .prepare(
-      `SELECT role FROM workspace_members
-       WHERE workspace_id = ? AND user_id = ? LIMIT 1`,
-    )
-    .bind(workspaceId, PUBLIC_WORKSPACE_USER_ID)
-    .first<{ role: string }>();
-
-  const [connectors, documents, externalIdentities] = await Promise.all([
-    db
-      .prepare(
-        `SELECT COUNT(*) AS count FROM connectors
-         WHERE workspace_id = ? AND state = 'data_verified'`,
-      )
-      .bind(workspaceId)
-      .first<{ count: number | string }>(),
-    db
-      .prepare(
-        `SELECT COUNT(*) AS count FROM documents
-         WHERE workspace_id = ? AND stage = 'indexed'
-           AND hydradb_source_id IS NOT NULL AND TRIM(hydradb_source_id) != ''`,
-      )
-      .bind(workspaceId)
-      .first<{ count: number | string }>(),
-    db
-      .prepare(
-        `SELECT COUNT(*) AS count
-         FROM workspace_members wm
-         JOIN auth_identities ai ON ai.user_id = wm.user_id
-         WHERE wm.workspace_id = ?`,
-      )
-      .bind(workspaceId)
-      .first<{ count: number | string }>(),
-  ]);
-
-  const verifiedConnectorCount = Number(connectors?.count ?? 0);
-  const indexedDocumentCount = Number(documents?.count ?? 0);
-  const externalIdentityCount = Number(externalIdentities?.count ?? 0);
-  if (
-    !Number.isSafeInteger(verifiedConnectorCount) || verifiedConnectorCount < 3 ||
-    !Number.isSafeInteger(indexedDocumentCount) || indexedDocumentCount < 1 ||
-    !Number.isSafeInteger(externalIdentityCount) || externalIdentityCount !== 0
-  ) {
-    throw new PublicWorkspaceProvisioningError(
-      "The selected workspace is not the reviewed public demo; no membership was changed.",
-    );
-  }
-
-  if (existing?.role === PUBLIC_WORKSPACE_ROLE) {
-    return {
-      workspaceId,
-      userId: PUBLIC_WORKSPACE_USER_ID,
-      role: PUBLIC_WORKSPACE_ROLE,
-      changed: false,
-      verifiedConnectorCount,
-      indexedDocumentCount,
-    };
-  }
-
-  const result = await provisionPublicWorkspaceMembership(db, workspaceId);
-  return {
-    ...result,
-    changed: true,
-    verifiedConnectorCount,
-    indexedDocumentCount,
   };
 }
