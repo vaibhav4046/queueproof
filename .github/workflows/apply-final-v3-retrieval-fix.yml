@@ -1,0 +1,170 @@
+name: Apply final v3 retrieval fix
+
+on:
+  push:
+    branches:
+      - agent/final-v3-retrieval-fix
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[patched-v3-retrieval]') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: pnpm
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Apply evidence-closure fix and regressions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('lib/server/synthesis.ts')
+          text = path.read_text()
+
+          old = '''  if (/\\bpromise\\b/.test(q) && !/\\b(promise|promised|commit|committed)\\b/.test(candidate)) return 0;'''
+          new = '''  if (/\\bpromise\\b/.test(q) && !/\\b(promise|promised|commit|committed)\\b/.test(candidate)) return 0;
+          // A missing-tracker question asks for negative evidence, not merely a
+          // nearby promise or issue. Require the retained evidence unit itself to
+          // assert that the work has no tracker record; otherwise an unrelated
+          // incident that shares the customer and commitment language can become
+          // a cited-but-off-question claim.
+          const missingTrackerQuestion =
+            /\\b(?:no|without|missing|lacks?)\\b[^?]{0,70}\\b(?:issue|ticket|track(?:ed|ing)?)\\b/.test(q) ||
+            /\\b(?:issue|ticket)\\b[^?]{0,50}\\b(?:missing|absent|not tracked)\\b/.test(q);
+          const missingTrackerAssertion =
+            /\\b(?:no (?:linear )?(?:issue|ticket)|not tracked(?: in [a-z0-9_-]+)?|without (?:an? )?(?:issue|ticket)|lacks? (?:an? )?(?:issue|ticket))\\b/.test(candidate);
+          if (missingTrackerQuestion && !missingTrackerAssertion) return 0;'''
+          if old not in text:
+              raise SystemExit('missing-tracker patch anchor not found')
+          text = text.replace(old, new, 1)
+
+          old = '''    const trackedBridgeCandidates = completed.id === open.id && staleBridgeQuestion(question)
+              ? selected.filter((item) => item.provider !== completed.provider &&
+                  /\\b(?:against|filed|issue|record|ticket|track(?:ed|ing)?)\\b/i.test(`${item.title} ${item.excerpt}`) &&
+                  crossSourceBridgeScore(question, `${item.title}. ${item.excerpt}`, item.provider, selected) > 0)
+              : [];'''
+          new = '''    const trackedBridgeCandidates = completed.id === open.id && staleBridgeQuestion(question)
+              ? selected.filter((item) => {
+                  if (item.provider === completed.provider) return false;
+                  const corpus = `${item.title} ${item.excerpt}`;
+                  const namesTrackedEntity = trackedEntity === "tracked issue" ||
+                    corpus.toUpperCase().includes(trackedEntity.toUpperCase());
+                  const independentlyReportsOpen =
+                    /\\b(?:still\\s+(?:showing\\s+as\\s+)?open|remains?\\s+open|issue\\s+is\\s+open|ticket\\s+still\\s+open|status(?:\\s+is|:)?\\s+open)\\b/i.test(corpus);
+                  return namesTrackedEntity && independentlyReportsOpen &&
+                    /\\b(?:against|filed|issue|record|ticket|track(?:ed|ing)?)\\b/i.test(corpus) &&
+                    crossSourceBridgeScore(question, `${item.title}. ${item.excerpt}`, item.provider, selected) > 0;
+                }).sort((left, right) => {
+                  const score = (item: SynthesisEvidence) => {
+                    const corpus = `${item.title} ${item.excerpt}`;
+                    let value = 0;
+                    if (trackedEntity !== "tracked issue" && corpus.toUpperCase().includes(trackedEntity.toUpperCase())) value += 8;
+                    if (/\\b(?:still\\s+(?:showing\\s+as\\s+)?open|remains?\\s+open|issue\\s+is\\s+open|ticket\\s+still\\s+open|status(?:\\s+is|:)?\\s+open)\\b/i.test(corpus)) value += 6;
+                    return value;
+                  };
+                  return score(right) - score(left);
+                })
+              : [];'''
+          if old not in text:
+              raise SystemExit('tracked-bridge patch anchor not found')
+          text = text.replace(old, new, 1)
+
+          old = '''          ? `${completed.provider} reports the code complete while ${trackedEntity} remains open; ${trackedBridge.provider} independently records the linked incident and tracked work.`'''
+          new = '''          ? `${completed.provider} reports the code complete while ${trackedBridge.provider} reports ${trackedEntity} remains open.`'''
+          if old not in text:
+              raise SystemExit('contradiction summary patch anchor not found')
+          text = text.replace(old, new, 1)
+          path.write_text(text)
+
+          Path('tests/final-v3-retrieval-fix.test.ts').write_text(r'''import { describe, expect, it } from "vitest";
+          import { synthesiseGroundedAnswer } from "../lib/server/synthesis";
+
+          describe("final v3 retrieval relevance regressions", () => {
+            it("keeps an unrelated incident out of a missing-tracker promise answer", () => {
+              const result = synthesiseGroundedAnswer(
+                "Which promise to Northwind has no issue tracking it?",
+                [
+                  {
+                    id: "slack-promise",
+                    provider: "slack",
+                    title: "Northwind post-mortem promise",
+                    excerpt: "I promised Northwind a written incident post-mortem by 10 August. There is no Linear issue tracking that yet, someone please raise one.",
+                  },
+                  {
+                    id: "github-promise",
+                    provider: "github",
+                    title: "Post-mortem doc for INC-2031 Northwind outage",
+                    excerpt: "Vaibhav promised Northwind a written incident post-mortem by 10 August 2026. Tracking it here since there is no Linear issue for it. Owner unassigned.",
+                  },
+                  {
+                    id: "linear-noise",
+                    provider: "linear",
+                    title: "AuthShield authentication outage for Northwind",
+                    excerpt: "INC-2031: enterprise customer Northwind reported an authentication outage on 29 July 2026. Priya Raman filed this against Atlas Launch. Engineering committed to shipping the AuthShield fix before Friday 7 August 2026.",
+                  },
+                ],
+              );
+              expect(result.claims.map((claim) => claim.providers[0])).not.toContain("linear");
+              expect(result.claims.map((claim) => claim.evidenceIds[0])).not.toContain("linear-noise");
+              expect(result.answer).toMatch(/post-mortem/i);
+              expect(result.answer).toMatch(/no Linear issue/i);
+            });
+
+            it("uses the tracker receipt, not a related incident, for an open-vs-complete contradiction", () => {
+              const result = synthesiseGroundedAnswer(
+                "Which open issue appears to be already resolved elsewhere?",
+                [
+                  {
+                    id: "github-complete",
+                    provider: "github",
+                    title: "AuthShield fix merged in PR-8871 but ENG-456 still open",
+                    excerpt: "The AuthShield authentication fix for the Northwind outage (INC-2031) was merged. Linear issue ENG-456 is still showing as open even though the code is shipped. Someone should close it or explain why it is still tracked.",
+                  },
+                  {
+                    id: "linear-open",
+                    provider: "linear",
+                    title: "ENG-456 AuthShield tracker",
+                    excerpt: "Linear issue ENG-456 remains open for the AuthShield work linked to INC-2031 and Northwind.",
+                  },
+                  {
+                    id: "linear-noise",
+                    provider: "linear",
+                    title: "AuthShield authentication outage for Northwind",
+                    excerpt: "INC-2031: enterprise customer Northwind reported an authentication outage. Priya Raman filed this against Atlas Launch. Engineering committed to shipping the AuthShield fix.",
+                  },
+                ],
+              );
+              const conflict = result.contradictions.find((item) => item.providers.includes("github") && item.providers.includes("linear"));
+              expect(conflict).toBeTruthy();
+              expect(conflict?.evidenceIds).toContain("linear-open");
+              expect(conflict?.evidenceIds).not.toContain("linear-noise");
+              expect(conflict?.summary).toMatch(/github reports the code complete while linear reports ENG-456 remains open/i);
+            });
+          });
+          ''')
+          PY
+      - name: Verify focused regressions
+        run: pnpm exec vitest run tests/final-v3-retrieval-fix.test.ts --pool=threads --maxWorkers=1 --fileParallelism=false
+      - name: Type-check
+        run: pnpm typecheck
+      - name: Lint
+        run: pnpm lint
+      - name: Commit verified patch
+        run: |
+          git config user.name "QueueProof Release Bot"
+          git config user.email "115102797+vaibhav4046@users.noreply.github.com"
+          git add lib/server/synthesis.ts tests/final-v3-retrieval-fix.test.ts
+          git commit -m "Fix final v3 cross-source relevance [patched-v3-retrieval]"
+          git push origin HEAD:agent/final-v3-retrieval-fix
