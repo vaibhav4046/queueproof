@@ -318,7 +318,7 @@ describe("grounded benchmark grader", () => {
           id: "slack-mixed",
           provider: "slack",
           title: "Team update",
-          excerpt: "The billing migration is being planned. The Slack team picnic is 7 August.",
+          excerpt: "Billing migration planned. The Slack team picnic is 7 August.",
         },
       ],
       contradictions: [{
@@ -429,7 +429,7 @@ describe("grounded benchmark grader", () => {
           id: "gmail-docs",
           provider: "gmail",
           title: "Documentation",
-          excerpt: "The documentation branch merged.",
+          excerpt: "The AuthShield fix merged. The documentation branch merged.",
         },
       ],
       providerCoverage: ["github", "linear", "gmail"],
