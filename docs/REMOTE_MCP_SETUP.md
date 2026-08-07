@@ -4,7 +4,8 @@
 
 For a zero-credential evaluation against QueueProof's synthetic Helios workspace, add
 `https://queueproof.vercel.app/mcp/demo` as a custom MCP server and select **No
-authentication**. This endpoint registers one focused `queueproof_search` tool, is bound to the
+authentication**. This endpoint registers one focused `queueproof_search` tool plus a tiny
+read-only routing guide resource, and is bound to the
 deliberately provisioned public workspace, and has durable per-client and deployment-wide rate
 limits.
 It cannot sync connectors, create proposals, approve changes, or execute provider writes.

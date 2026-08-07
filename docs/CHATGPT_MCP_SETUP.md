@@ -21,7 +21,8 @@ MCP server with no credentials:
 - Authentication: **No authentication**
 
 This endpoint is intentionally limited to the synthetic Helios workspace. It advertises one
-`noauth` `queueproof_search` tool, enforces durable per-client and deployment-wide rate limits, and
+`noauth` `queueproof_search` tool plus a tiny read-only routing guide resource, enforces durable
+per-client and deployment-wide rate limits, and
 cannot sync a connector, prepare a proposal, approve a change, or execute a provider write. It is
 not an authentication bypass for a personal workspace.
 

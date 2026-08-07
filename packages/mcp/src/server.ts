@@ -1010,6 +1010,29 @@ export function buildQueueProofServer(
 
   // Fixed authenticated URIs avoid exposing or requiring an internal workspace ID.
   // The removed `changes` resource was an identical queue-snapshot alias, not a diff.
+  if (demoSurface) server.registerResource(
+    "queueproof-demo-guide",
+    "queueproof://demo/guide",
+    {
+      title: "QueueProof synthetic demo guide",
+      description:
+        "A safe routing hint for the public Helios judge demo. Use queueproof_search for cross-source questions; no write or connector-management surface is available.",
+      mimeType: "application/json",
+    },
+    async (uri) => ({
+      contents: [{
+        uri: uri.href,
+        mimeType: "application/json",
+        text: JSON.stringify({
+          workspace: "synthetic-helios-demo",
+          tool: "queueproof_search",
+          usage: "Ask one cross-source work question and preserve returned source IDs, disagreement, and missing proof.",
+          permissions: "read-only",
+        }),
+      }],
+    }),
+  );
+
   if (!demoSurface) server.registerResource(
     "queueproof-connectors",
     "queueproof://current/connectors",
