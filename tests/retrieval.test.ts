@@ -28,6 +28,9 @@ describe("retrieval planner", () => {
     expect(askRoute).toContain("narrowExactLookup ? [plan.queryBy] : retrievalQueryVariants(plan)");
     expect(askRoute).toContain("max_results: scope.sourceIds ? 24 : narrowExactLookup ? 6 : 12");
     expect(askRoute).toContain(".some((identifier) => identifier.toUpperCase() === exactIdentifier)");
+    expect(askRoute).toContain(
+      "if (!narrowExactLookup && !deliveryRepairAttempted && shouldRunFastCoverageRepair({",
+    );
 
     const exactIdentifier = recordIdentifiers("What is BUG-123?")[0];
     const candidates = [
