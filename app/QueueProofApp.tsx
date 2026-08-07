@@ -2130,38 +2130,65 @@ function AgentScreen({ workspace, setError, setNotice, readOnly, publicOrigin }:
     catch (reason) { setError(reason instanceof Error ? reason.message : "Token revocation failed."); }
   }
   const clientGuide = useMemo(() => {
-    const environment = `PowerShell:  $env:QUEUEPROOF_MCP_TOKEN="<paste connection key>"\nmacOS/Linux: export QUEUEPROOF_MCP_TOKEN="<paste connection key>"`;
+    const targetEndpoint = readOnly ? demoEndpoint : endpoint;
+    const environment = readOnly
+      ? undefined
+      : `PowerShell:  $env:QUEUEPROOF_MCP_TOKEN="<paste connection key>"\nmacOS/Linux: export QUEUEPROOF_MCP_TOKEN="<paste connection key>"`;
     const guides: Record<string, { name: string; file: string; note: string; config: string; environment?: string }> = {
       codex: {
         name: "Codex",
         file: "~/.codex/config.toml",
         environment,
-        note: "Restart Codex, then open /mcp to confirm QueueProof is connected.",
-        config: `[mcp_servers.queueproof]\nurl = "${endpoint}"\nbearer_token_env_var = "QUEUEPROOF_MCP_TOKEN"\ntool_timeout_sec = 60`,
+        note: readOnly
+          ? "Restart Codex, open /mcp, and run the synthetic AuthShield investigation. No key is required."
+          : "Restart Codex, then open /mcp to confirm QueueProof is connected.",
+        config: readOnly
+          ? `[mcp_servers.queueproof]\nurl = "${targetEndpoint}"\ntool_timeout_sec = 60`
+          : `[mcp_servers.queueproof]\nurl = "${targetEndpoint}"\nbearer_token_env_var = "QUEUEPROOF_MCP_TOKEN"\ntool_timeout_sec = 60`,
       },
       claude: {
         name: "Claude Code",
         file: ".mcp.json",
         environment,
-        note: "Run claude mcp list, then use /mcp inside Claude Code.",
-        config: JSON.stringify({ mcpServers: { queueproof: { type: "http", url: endpoint, headers: { Authorization: "Bearer ${QUEUEPROOF_MCP_TOKEN}" }, timeout: 60000 } } }, null, 2),
+        note: readOnly
+          ? "Run claude mcp list, then ask the AuthShield question. The server is synthetic, read-only, and needs no key."
+          : "Run claude mcp list, then use /mcp inside Claude Code.",
+        config: JSON.stringify({
+          mcpServers: {
+            queueproof: readOnly
+              ? { type: "http", url: targetEndpoint, timeout: 60000 }
+              : { type: "http", url: targetEndpoint, headers: { Authorization: "Bearer ${QUEUEPROOF_MCP_TOKEN}" }, timeout: 60000 },
+          },
+        }, null, 2),
       },
       kilo: {
         name: "Kilo Code",
         file: ".kilocode/mcp.json",
         environment,
-        note: "Kilo reads the token from your environment and connects as a remote MCP server.",
-        config: JSON.stringify({ mcp: { queueproof: { type: "remote", url: endpoint, headers: { Authorization: "Bearer {env:QUEUEPROOF_MCP_TOKEN}" }, enabled: true, timeout: 60000 } } }, null, 2),
+        note: readOnly
+          ? "Kilo connects directly to the read-only synthetic demo; no credential is stored."
+          : "Kilo reads the token from your environment and connects as a remote MCP server.",
+        config: JSON.stringify({
+          mcp: {
+            queueproof: readOnly
+              ? { type: "remote", url: targetEndpoint, enabled: true, timeout: 60000 }
+              : { type: "remote", url: targetEndpoint, headers: { Authorization: "Bearer {env:QUEUEPROOF_MCP_TOKEN}" }, enabled: true, timeout: 60000 },
+          },
+        }, null, 2),
       },
       generic: {
         name: "Any HTTP MCP client",
         file: "Client settings",
-        note: "Use Streamable HTTP and send your QueueProof token as a Bearer authorization header.",
-        config: JSON.stringify({ url: endpoint, transport: "streamable-http", headers: { Authorization: "Bearer <QUEUEPROOF_MCP_TOKEN>" } }, null, 2),
+        note: readOnly
+          ? "Use Streamable HTTP with no authentication. This endpoint can only search synthetic Helios evidence."
+          : "Use Streamable HTTP and send your QueueProof token as a Bearer authorization header.",
+        config: JSON.stringify(readOnly
+          ? { url: targetEndpoint, transport: "streamable-http", authentication: "none" }
+          : { url: targetEndpoint, transport: "streamable-http", headers: { Authorization: "Bearer <QUEUEPROOF_MCP_TOKEN>" } }, null, 2),
       },
     };
     return guides[clientType] ?? guides.generic;
-  }, [clientType, endpoint]);
+  }, [clientType, demoEndpoint, endpoint, readOnly]);
 
   async function copyMcpEndpoint(value = endpoint, label = "OAuth") {
     try {
