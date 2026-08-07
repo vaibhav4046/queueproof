@@ -98,16 +98,31 @@ function topicalFactAlternatives(requiredFacts) {
   ]).map(normaliseGradeText).filter(phraseIsTopical))];
 }
 
+function citationExcerptSentences(citation) {
+  return String(citation?.excerpt ?? "")
+    .split(/[.!?;\n]+/)
+    .map(normaliseGradeText)
+    .filter(Boolean);
+}
+
+function citationExcerptClauses(citation) {
+  return String(citation?.excerpt ?? "")
+    .split(/[.!?;,\n]+|\b(?:and|but|however|whereas|while)\b/i)
+    .map(normaliseGradeText)
+    .filter(Boolean);
+}
+
 function claimLocalContext(claim, citation) {
   const claimText = normaliseGradeText(claim?.text);
   if (!claimText) return "";
-  const matchingSentences = String(citation?.excerpt ?? "")
-    .split(/[.!?;\n]+/)
-    .map(normaliseGradeText)
-    .filter((sentence) => sentence.includes(claimText));
-  // Never borrow a topic from an adjacent sentence in a multi-topic chunk.
-  // If a claim spans sentence boundaries, its own text remains the only context.
-  return [claimText, ...matchingSentences].join(" ");
+  const sentences = citationExcerptSentences(citation);
+  const isWholeSentenceClaim = sentences.some((sentence) => sentence === claimText);
+  const matchingClauses = citationExcerptClauses(citation)
+    .filter((clause) => clause.includes(claimText));
+  // A topical title can bind an exact excerpt sentence. A neighbouring clause
+  // cannot lend its topic to a narrower, unrelated claim in the same sentence.
+  const titleContext = isWholeSentenceClaim ? normaliseGradeText(citation?.title) : "";
+  return [claimText, titleContext, ...matchingClauses].filter(Boolean).join(" ");
 }
 
 function claimCarriesRequiredFactSignal(claim, supportedCitations, requiredFacts) {
@@ -160,45 +175,70 @@ function contradictionClauseSignals(clause, provider, topicalAnchors) {
   return [...signals];
 }
 
-function citationSentences(citation) {
-  return [
-    String(citation?.title ?? ""),
-    ...String(citation?.excerpt ?? "").split(/[.!?;\n]+/),
-  ].map(normaliseGradeText).filter(Boolean);
+function citationSignalHasTopicalClaim(citation, signal, claimAssessments) {
+  const citationId = String(citation?.id ?? "");
+  const sentences = citationExcerptSentences(citation);
+  return asArray(claimAssessments).some((assessment) => {
+    const claimText = normaliseGradeText(assessment?.text);
+    return assessment?.touchesRequiredFact === true &&
+      asArray(assessment?.supportedIds).includes(citationId) &&
+      claimText.includes(signal) &&
+      sentences.some((sentence) => sentence === claimText);
+  });
 }
 
-function contradictionHasAttributedDifference(citations, summary, topicalAnchors) {
+function citationSupportsContradictionSignal(citation, signal, topicalAnchors, claimAssessments) {
+  const clauses = citationExcerptClauses(citation);
+  if (clauses.some((clause) =>
+    clause.includes(signal) && topicalAnchors.some((anchor) => clause.includes(anchor)))) {
+    return true;
+  }
+  const title = normaliseGradeText(citation?.title);
+  return topicalAnchors.some((anchor) => title.includes(anchor)) &&
+    citationSignalHasTopicalClaim(citation, signal, claimAssessments);
+}
+
+function citationSupportsContradictionTopic(citation, topicalAnchors, claimAssessments) {
+  if (citationExcerptClauses(citation)
+    .some((clause) => topicalAnchors.some((anchor) => clause.includes(anchor)))) {
+    return true;
+  }
+  const title = normaliseGradeText(citation?.title);
+  return topicalAnchors.some((anchor) => title.includes(anchor)) &&
+    asArray(claimAssessments).some((assessment) => {
+      const claimText = normaliseGradeText(assessment?.text);
+      return assessment?.touchesRequiredFact === true &&
+        asArray(assessment?.supportedIds).includes(String(citation?.id ?? "")) &&
+        citationExcerptSentences(citation).some((sentence) => sentence === claimText);
+    });
+}
+
+function contradictionHasAttributedDifference(citations, summary, topicalAnchors, claimAssessments) {
   const clauses = String(summary ?? "")
     .split(/\b(?:but|however|whereas|while)\b|[;.!?]+/i)
     .map(normaliseGradeText)
     .filter(Boolean);
   const signalSets = citations.map((citation) => {
     const provider = normaliseGradeText(citation?.provider);
-    const sentences = citationSentences(citation);
-    const title = normaliseGradeText(citation?.title);
-    const titleCarriesTopic = topicalAnchors.some((anchor) => title.includes(anchor));
     const signals = clauses
       .filter((clause) => new RegExp(`\\b${provider}\\b`).test(clause))
       .flatMap((clause) => contradictionClauseSignals(clause, provider, topicalAnchors))
       .filter((signal) =>
-        sentences.some((sentence) =>
-          sentence.includes(signal) &&
-          topicalAnchors.some((anchor) => sentence.includes(anchor))) ||
-        (titleCarriesTopic && sentences.some((sentence) => sentence.includes(signal))));
+        citationSupportsContradictionSignal(citation, signal, topicalAnchors, claimAssessments));
     return [...new Set(signals)].sort();
   });
   if (signalSets.some((signals) => signals.length === 0)) return false;
   return new Set(signalSets.map((signals) => signals.join("|"))).size >= 2;
 }
 
-function contradictionSupportedByEvidence(citations, requiredFacts, summary) {
+function contradictionSupportedByEvidence(citations, requiredFacts, summary, claimAssessments) {
   const anchors = topicalFactAlternatives(requiredFacts);
   if (
     anchors.length === 0 ||
     citations.some((citation) =>
-      !citationSentences(citation).some((sentence) => anchors.some((anchor) => sentence.includes(anchor))))
+      !citationSupportsContradictionTopic(citation, anchors, claimAssessments))
   ) return false;
-  return contradictionHasAttributedDifference(citations, summary, anchors);
+  return contradictionHasAttributedDifference(citations, summary, anchors, claimAssessments);
 }
 
 function claimSupportedByCitation(claim, citation) {
@@ -309,7 +349,7 @@ export function gradeGroundedAnswer({
       resolved.length === ids.length &&
       providers.length >= 2 &&
       String(contradiction?.summary ?? "").trim() &&
-      contradictionSupportedByEvidence(resolved, requiredFacts, contradiction?.summary)
+      contradictionSupportedByEvidence(resolved, requiredFacts, contradiction?.summary, claimAssessments)
     ) {
       ids.forEach((id) => {
         supportedCitationIds.add(id);
