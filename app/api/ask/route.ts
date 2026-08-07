@@ -613,7 +613,7 @@ export async function POST(request: Request) {
     // returned claim or contradiction. Retrieval candidates remain available
     // to routing telemetry, but cannot appear as uncited "additional" proof.
     const returnedEvidence = referencedEvidenceIds
-      .map((id) => synthesis.evidence.find((item) => item.id === id))
+      .map((id) => deduped.find((item) => item.id === id))
       .filter((item): item is NonNullable<typeof item> => Boolean(item));
     const returnedProviderCoverage = [...new Set(returnedEvidence.map((item) => item.provider))];
     const validation = {
