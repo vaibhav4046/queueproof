@@ -35,7 +35,7 @@
       { "id": "post-mortem-date", "label": "The promise is due 10 August", "anyOf": ["10 august"] },
       { "id": "not-tracked", "label": "The promise has no Linear issue", "anyOf": ["not tracked in linear", "no linear issue", "has no linear issue", "without a linear issue", "lacks a linear issue"] }
     ],
-    "requiredProviders": ["linear", "slack"],
+    "requiredProviders": ["github", "slack"],
     "requiresContradiction": false
   },
   {

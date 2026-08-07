@@ -133,6 +133,11 @@ for (const [index, fact] of facts.entries()) {
     citationPrecision: grade.citationPrecision,
     citationCompleteness: grade.citationCompleteness,
     unsupportedClaimRate: grade.unsupportedClaimRate,
+    relevancePass: grade.relevancePass,
+    relevancePrecision: grade.relevancePrecision,
+    irrelevantClaimRate: grade.irrelevantClaimRate,
+    relevantClaimCount: grade.relevantClaimCount,
+    irrelevantClaims: grade.irrelevantClaims,
     invalidCitationIds: grade.invalidCitationIds,
     unsupportedClaims: grade.unsupportedClaims,
     citedSources: grade.citedSources,
@@ -187,7 +192,8 @@ const crossSource = {
   apiOk: crossApiOk,
   httpStatus: crossResult.status,
   error: crossResult.error,
-  pass: crossApiOk && crossGrade.factPass && crossGrade.citationPass && crossDocumentPass && connectorProviderPass,
+  pass: crossApiOk && crossGrade.factPass && crossGrade.citationPass && crossGrade.relevancePass &&
+    crossDocumentPass && connectorProviderPass,
   requiredFacts: crossRequiredFacts,
   matchedFacts: crossGrade.matchedFacts,
   missingFacts: crossGrade.missingFacts,
@@ -209,6 +215,11 @@ const crossSource = {
   citationPrecision: crossGrade.citationPrecision,
   citationCompleteness: crossGrade.citationCompleteness,
   unsupportedClaimRate: crossGrade.unsupportedClaimRate,
+  relevancePass: crossGrade.relevancePass,
+  relevancePrecision: crossGrade.relevancePrecision,
+  irrelevantClaimRate: crossGrade.irrelevantClaimRate,
+  relevantClaimCount: crossGrade.relevantClaimCount,
+  irrelevantClaims: crossGrade.irrelevantClaims,
   invalidCitationIds: crossGrade.invalidCitationIds,
   unsupportedClaims: crossGrade.unsupportedClaims,
   citedSources: crossGrade.citedSources,
@@ -228,6 +239,7 @@ const totalRequiredFacts = rows.reduce((sum, row) => sum + row.requiredFactCount
 const totalMatchedFacts = rows.reduce((sum, row) => sum + row.matchedFactCount, 0);
 const totalClaims = rows.reduce((sum, row) => sum + row.claimCount, 0);
 const totalSupportedClaims = rows.reduce((sum, row) => sum + row.supportedClaimCount, 0);
+const totalRelevantClaims = rows.reduce((sum, row) => sum + row.relevantClaimCount, 0);
 const totalCitationPairs = rows.reduce((sum, row) => sum + row.claimCitationPairCount, 0);
 const totalSupportedCitationPairs = rows.reduce((sum, row) => sum + row.supportedClaimCitationPairCount, 0);
 const ratio = (numerator, denominator) => denominator > 0 ? numerator / denominator : null;
@@ -262,11 +274,17 @@ const artifact = {
     max: calls.length ? Math.max(...calls) : null,
   },
   quality: {
+    scope: "document-only",
+    note: "Aggregate quality covers the fixed PDF rows only; the separate crossSource receipt carries its own relevance and citation metrics.",
     requiredFactAccuracy: ratio(totalMatchedFacts, totalRequiredFacts),
     citationPrecision: ratio(totalSupportedCitationPairs, totalCitationPairs),
     citationCompleteness: ratio(totalSupportedClaims, totalClaims),
     unsupportedClaimRate: ratio(totalClaims - totalSupportedClaims, totalClaims),
+    relevancePrecision: ratio(totalRelevantClaims, totalClaims),
+    irrelevantClaimRate: ratio(totalClaims - totalRelevantClaims, totalClaims),
+    relevanceRequirementPasses: rows.filter((row) => row.relevancePass).length,
     zeroKnowinglyUnsupportedClaims: rows.every((row) => row.unsupportedClaims.length === 0 && row.invalidCitationIds.length === 0),
+    zeroIrrelevantClaims: rows.every((row) => row.irrelevantClaims.length === 0),
   },
   crossSource,
   rows,

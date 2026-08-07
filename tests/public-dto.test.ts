@@ -478,7 +478,7 @@ describe("anonymous public read inventory", () => {
     const body = await response.json();
     expect(response.status, JSON.stringify(body)).toBe(200);
     assertPublicShape(body);
-    expect(JSON.stringify(body)).toMatch(/Incident|AuthShield|slack|observable|Public proof workspace/i);
+    expect(JSON.stringify(body)).toMatch(/Incident|AuthShield|slack|observable|Public proof workspace|FIXTURE/i);
   });
 
   it("resolves a public ask handle without returning the stored query primary key", async () => {
@@ -553,13 +553,19 @@ describe("anonymous public read inventory", () => {
   it("allowlists public benchmark rows instead of returning raw artifact diagnostics", async () => {
     vi.stubEnv("VERCEL_GIT_COMMIT_SHA", "aed027879150e3e324b54c5ec2194d4d715c501e");
     const response = await (await import("../app/api/lab/route")).GET();
-    const body = await response.json() as { results: { live?: { target?: unknown }; pdf?: { target?: unknown } } };
+    const body = await response.json() as {
+      results: {
+        live?: { status?: unknown; target?: unknown };
+        pdf?: { target?: unknown };
+      };
+    };
     expect(response.status).toBe(200);
     const serialised = JSON.stringify(body);
     for (const rawField of ["citedSources", "invalidCitationIds", "supportedContradictions", "runner", "health", "command", "sha256"]) {
       expect(serialised).not.toContain(`\"${rawField}\"`);
     }
-    expect(serialised).toContain("AuthShield");
+    expect(serialised).toContain("FIXTURE");
+    expect(body.results.live?.status).toBe("awaiting_current_release_measurement");
     expect(body.results.live?.target ?? null).toBeNull();
     expect(body.results.pdf?.target ?? null).toBeNull();
     assertPublicShape(body);

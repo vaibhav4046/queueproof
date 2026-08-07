@@ -40,7 +40,7 @@ const STOP_WORDS = new Set([
 const GENERIC_QUESTION_TOKENS = new Set([
   "against", "answer", "appear", "commit", "committ", "context", "deadline", "disagree",
   "elsewhere", "engineer", "exact", "fil", "fix", "issue", "merge", "open",
-  "project", "promi", "resolv", "source", "track", "work",
+  "project", "promi", "resolv", "source", "sourc", "track", "work",
   // Provider names describe where to look, not what constitutes a supported
   // answer. Treating them as entity anchors let an unrelated Linear welcome
   // document outrank the Slack receipt that actually contained BUG-123.

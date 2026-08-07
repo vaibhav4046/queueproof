@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { gradeGroundedAnswer } from "../evals/lib/grounded-grader.mjs";
 
 const readArg = (name) => {
   const index = process.argv.indexOf(name);
@@ -42,7 +43,7 @@ assert.ok(
 );
 assert.equal(
   health.release.benchmarkReceiptVersion,
-  "grounded-grader-v2",
+  "grounded-grader-v3",
   "Production health must report the benchmark receipt version used by /api/lab.",
 );
 
@@ -149,6 +150,63 @@ assert.doesNotMatch(
   JSON.stringify(webFlagship.evidence),
   /\b(?:TypeScript|ESLint|Vitest|Webpack|Vinext)\b|\b\d+\s+tests?\s+passed\b|\b(?:exact preview|benchmark artifact|secret scans?|diff whitespace check)\b|\/api\/health\/live\b|\bdeployment:\s*(?:dpl_|https:\/\/)\S*|\b(?:production|preview)\s+build\s+passed\b/i,
   "The web flagship retained QueueProof CI or release-note noise.",
+);
+
+const webDeadlineConflict = await runPublicAsk(
+  "Which sources disagree about the billing migration deadline?",
+);
+assertWebEvidenceClosure(webDeadlineConflict, "Web deadline-conflict answer");
+assert.equal(webDeadlineConflict.trace?.callCount, 1,
+  `Web deadline-conflict lookup used ${webDeadlineConflict.trace?.callCount} HydraDB calls; expected exactly 1.`);
+assert.equal(webDeadlineConflict.claims.length, 2,
+  `Web deadline-conflict answer returned ${webDeadlineConflict.claims.length} claims; expected exactly 2.`);
+assert.equal(webDeadlineConflict.citations.length, 2,
+  `Web deadline-conflict answer returned ${webDeadlineConflict.citations.length} citations; expected exactly 2.`);
+assert.equal(webDeadlineConflict.evidence.length, 2,
+  `Web deadline-conflict answer returned ${webDeadlineConflict.evidence.length} receipts; expected exactly 2.`);
+assert.deepEqual(
+  [...new Set(webDeadlineConflict.evidence.map((item) => item.provider))].sort(),
+  ["linear", "slack"],
+  "Web deadline-conflict proof must close over exactly Linear and Slack.",
+);
+assert.equal(webDeadlineConflict.contradictions.length, 1,
+  `Web deadline-conflict answer returned ${webDeadlineConflict.contradictions.length} contradictions; expected exactly 1.`);
+const deadlineContradictionIds = webDeadlineConflict.contradictions[0]?.evidenceIds ?? [];
+assert.equal(deadlineContradictionIds.length, 2,
+  "Web deadline-conflict contradiction must cite exactly two receipts.");
+const deadlineEvidenceById = new Map(webDeadlineConflict.evidence.map((item) => [item.id, item]));
+assert.deepEqual(
+  [...new Set(deadlineContradictionIds.map((id) => deadlineEvidenceById.get(id)?.provider).filter(Boolean))].sort(),
+  ["linear", "slack"],
+  "Web deadline-conflict contradiction must resolve to both Linear and Slack receipts.",
+);
+const deadlineGrade = gradeGroundedAnswer({
+  answer: webDeadlineConflict.answer,
+  claims: webDeadlineConflict.claims,
+  citations: webDeadlineConflict.citations,
+  contradictions: webDeadlineConflict.contradictions,
+  providerCoverage: webDeadlineConflict.evidence.map((item) => item.provider),
+  requiredFacts: [
+    { id: "subject", anyOf: ["billing migration"] },
+    { id: "first-deadline", anyOf: ["7 August"] },
+    { id: "second-deadline", anyOf: ["14 August"] },
+  ],
+  requiredProviders: ["linear", "slack"],
+  requiresContradiction: true,
+});
+assert.equal(deadlineGrade.pass, true,
+  `Web deadline-conflict answer failed grounded-grader-v3: ${JSON.stringify({
+    missingFacts: deadlineGrade.missingFacts,
+    missingProviders: deadlineGrade.missingProviders,
+    irrelevantClaims: deadlineGrade.irrelevantClaims,
+    contradictionPass: deadlineGrade.contradictionPass,
+  })}`);
+assert.deepEqual(deadlineGrade.supportedProviders, ["linear", "slack"],
+  "Web deadline-conflict v3 grade must be supported by exactly Linear and Slack.");
+assert.doesNotMatch(
+  JSON.stringify(webDeadlineConflict),
+  /medical billing|healthcare systems?|phantom service|blockchain in healthcare|\\"provider\\":\\"gmail\\"/i,
+  "Web deadline-conflict answer retained unrelated medical-billing evidence.",
 );
 
 const webExactId = await runPublicAsk("What is BUG-123?");

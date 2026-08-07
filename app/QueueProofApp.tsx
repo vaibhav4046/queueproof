@@ -1155,7 +1155,7 @@ function AskScreen({ workspaceId, verified, connectorsLoaded, onOpenSources, onO
     calls: number | null;
     citationPrecision: number | null;
     citationCompleteness: number | null;
-    unsupportedClaimRate: number | null;
+    relevancePrecision: number | null;
   } | null>(null);
   const runPending = useRef(false);
   const requestController = useRef<AbortController | null>(null);
@@ -1214,7 +1214,7 @@ function AskScreen({ workspaceId, verified, connectorsLoaded, onOpenSources, onO
         calls,
         citationPrecision: results.live?.quality?.citationPrecision ?? null,
         citationCompleteness: results.live?.quality?.citationCompleteness ?? null,
-        unsupportedClaimRate: results.live?.quality?.unsupportedClaimRate ?? null,
+        relevancePrecision: results.live?.quality?.relevancePrecision ?? null,
       });
     }).catch(() => { /* The proof workflow remains usable if telemetry is unavailable. */ });
     return () => { active = false; };
@@ -1313,7 +1313,7 @@ function AskScreen({ workspaceId, verified, connectorsLoaded, onOpenSources, onO
             <div className="hero-proofline" aria-label="Current source proof and recorded live benchmark">
               <span><strong>{verifiedCount}</strong><small>LIVE SYSTEMS PROVEN</small></span>
               <span><strong>{judgeMeasured && judgePulse?.citationPrecision !== null && judgePulse?.citationPrecision !== undefined ? `${Math.round(judgePulse.citationPrecision * 100)}%` : "—"}</strong><small>RECORDED CITATION PRECISION</small></span>
-              <span><strong>{judgeMeasured && judgePulse?.unsupportedClaimRate !== null && judgePulse?.unsupportedClaimRate !== undefined ? `${Math.round(judgePulse.unsupportedClaimRate * 100)}%` : "—"}</strong><small>RECORDED UNSUPPORTED RATE</small></span>
+              <span><strong>{judgeMeasured && judgePulse?.relevancePrecision !== null && judgePulse?.relevancePrecision !== undefined ? `${Math.round(judgePulse.relevancePrecision * 100)}%` : "—"}</strong><small>RECORDED CLAIM RELEVANCE</small></span>
             </div>
             <div className="proof-manifest" aria-label="QueueProof evidence workflow">
               <span><b>01</b> Verify sources</span><i />
@@ -1404,7 +1404,7 @@ function AskScreen({ workspaceId, verified, connectorsLoaded, onOpenSources, onO
             <span className="eyebrow">Flagship proof</span>
             <h3>Who escalated AuthShield, what was promised, and is the fix merged?</h3>
             <p>QueueProof reconstructs the warning, commitment, implementation, tracked state, and missing follow-up across the verified sources available to this workspace.</p>
-            <div><span><small>LIVE SOURCES PROVEN</small><strong>{verifiedCount || "—"}</strong></span><span><small>RECORDED CITATION PRECISION</small><strong>{judgeMeasured && judgePulse?.citationPrecision !== null && judgePulse?.citationPrecision !== undefined ? `${Math.round(judgePulse.citationPrecision * 100)}%` : "Not measured"}</strong></span><span><small>RECORDED UNSUPPORTED</small><strong>{judgeMeasured && judgePulse?.unsupportedClaimRate !== null && judgePulse?.unsupportedClaimRate !== undefined ? `${Math.round(judgePulse.unsupportedClaimRate * 100)}%` : "Not measured"}</strong></span></div>
+            <div><span><small>LIVE SOURCES PROVEN</small><strong>{verifiedCount || "—"}</strong></span><span><small>RECORDED CITATION PRECISION</small><strong>{judgeMeasured && judgePulse?.citationPrecision !== null && judgePulse?.citationPrecision !== undefined ? `${Math.round(judgePulse.citationPrecision * 100)}%` : "Not measured"}</strong></span><span><small>RECORDED RELEVANCE</small><strong>{judgeMeasured && judgePulse?.relevancePrecision !== null && judgePulse?.relevancePrecision !== undefined ? `${Math.round(judgePulse.relevancePrecision * 100)}%` : "Not measured"}</strong></span></div>
             <button type="button" className="secondary-button" onClick={() => { setQuestion("Who escalated the AuthShield outage, what did engineering commit to, and is the fix already merged?"); questionRef.current?.focus(); }}>Load this investigation</button>
           </article>
           <article className="difficult-questions-card">
@@ -2420,8 +2420,45 @@ function AgentScreen({ workspace, setError, setNotice, readOnly, publicOrigin }:
 type BenchmarkReplayRow = {
   id?: string; runId?: string; label: string; question: string; expected?: string; actual?: string;
   pass?: boolean; mode: string; latencyMs: number; callCount?: number; sources: number;
-  providers: string[]; costUnits?: number;
+  providers: string[]; costUnits?: number; relevancePrecision?: number; irrelevantClaimRate?: number;
 };
+
+type BenchmarkQuality = {
+  scope?: string;
+  note?: string;
+  requiredFactAccuracy?: number;
+  requiredFactRecall?: number;
+  citationPrecision?: number;
+  citationCompleteness?: number;
+  unsupportedClaimRate?: number;
+  relevancePrecision?: number;
+  irrelevantClaimRate?: number;
+  relevanceRequirementPasses?: number;
+  zeroKnowinglyUnsupportedClaims?: boolean;
+  zeroIrrelevantClaims?: boolean;
+};
+
+type BenchmarkCrossSource = {
+  pass?: boolean;
+  providers?: string[];
+  connectorProviderPass?: boolean;
+  citationPass?: boolean;
+  relevancePass?: boolean;
+  relevancePrecision?: number;
+  irrelevantClaimRate?: number;
+};
+
+const perfectRelevance = (quality?: BenchmarkQuality) =>
+  quality?.relevancePrecision === 1 &&
+  quality.irrelevantClaimRate === 0 &&
+  quality.zeroIrrelevantClaims === true;
+
+const zeroIrrelevantLabel = (quality?: BenchmarkQuality) =>
+  quality?.zeroIrrelevantClaims === true
+    ? "zero irrelevant claims"
+    : quality?.zeroIrrelevantClaims === false
+      ? "irrelevant claims detected"
+      : "zero-claim check not recorded";
 
 type LabResults = {
   generatedAt?: string;
@@ -2442,7 +2479,7 @@ type LabResults = {
     release?: { commitSha?: string | null; commitRef?: string | null; deploymentUrl?: string | null };
     connectors?: string[]; allThreeProviders?: number; fast?: number; thinking?: number;
     latencyMs?: { p50?: number; p95?: number; min?: number; max?: number };
-    quality?: { requiredFactRecall?: number; citationPrecision?: number; citationCompleteness?: number; unsupportedClaimRate?: number; note?: string };
+    quality?: BenchmarkQuality;
     rows?: BenchmarkReplayRow[];
   };
   modeComparison?: {
@@ -2467,6 +2504,7 @@ type LabResults = {
     }>;
   };
   pdf?: {
+    status?: string;
     generatedAt?: string;
     target?: string;
     document?: { filename?: string; pages?: number; sha256?: string };
@@ -2475,12 +2513,8 @@ type LabResults = {
     canaries?: { beginning?: boolean; middle?: boolean; end?: boolean };
     latencyMs?: { p50?: number; p95?: number; min?: number; max?: number };
     calls?: { median?: number; mean?: number; min?: number; max?: number };
-    quality?: {
-      requiredFactAccuracy?: number;
-      citationPrecision?: number;
-      citationCompleteness?: number;
-      unsupportedClaimRate?: number;
-    };
+    quality?: BenchmarkQuality;
+    crossSource?: BenchmarkCrossSource;
     release?: { commitSha?: string | null; commitRef?: string | null; deploymentUrl?: string | null };
   };
 };
@@ -2672,6 +2706,17 @@ function LabScreen({ setError }: { setError: (value: string) => void }) {
   const measuredReleaseSha = live?.release?.commitSha ?? comparison?.fast.release.commitSha ?? null;
   const currentReleaseSha = data?.currentRelease?.commitSha ?? null;
   const artifactMatchesRelease = Boolean(measuredReleaseSha && currentReleaseSha && measuredReleaseSha === currentReleaseSha);
+  const pdfMatchesRelease = Boolean(pdf?.release?.commitSha && currentReleaseSha && pdf.release.commitSha === currentReleaseSha);
+  const liveRelevanceMet = perfectRelevance(live?.quality);
+  const pdfRelevanceMet = perfectRelevance(pdf?.quality);
+  const pdfCrossSourceRelevanceMet = pdf?.crossSource?.pass === true
+    && pdf.crossSource.relevancePass === true
+    && pdf.crossSource.relevancePrecision === 1
+    && pdf.crossSource.irrelevantClaimRate === 0;
+  const pdfGatesMet = pdfMatchesRelease && pdf?.status === "measured"
+    && (pdf?.cases ?? 0) > 0 && pdf?.passed === pdf.cases
+    && pdf.canaries?.beginning === true && pdf.canaries?.middle === true && pdf.canaries?.end === true
+    && pdfRelevanceMet && pdfCrossSourceRelevanceMet;
   const benchmarkRunAt = live?.generatedAt ?? data?.generatedAt ?? null;
   const benchmarkRunState = artifactMatchesRelease ? "Current results" : measuredReleaseSha ? "Previous results" : "No current results";
   const benchmarkRunTitle = measuredReleaseSha ? `Benchmark run ${measuredReleaseSha.slice(0, 8)}` : "Run the live benchmark";
@@ -2680,10 +2725,12 @@ function LabScreen({ setError }: { setError: (value: string) => void }) {
     : measuredReleaseSha
       ? "These results belong to a different release. Run the published command again to measure this deployment."
       : "Run the published command to measure this deployment. Until then, the live metrics stay empty.";
-  const benchmarkGatesMet = (router?.total ?? 0) >= 30 && graded > 0 && passed === graded
+  const benchmarkGatesMet = artifactMatchesRelease && live?.status === "measured"
+    && (router?.total ?? 0) >= 30 && graded > 0 && passed === graded
     && typeof live?.quality?.requiredFactRecall === "number" && live.quality.requiredFactRecall >= .9
     && typeof live?.quality?.citationCompleteness === "number" && live.quality.citationCompleteness >= .95
-    && typeof live?.quality?.unsupportedClaimRate === "number" && live.quality.unsupportedClaimRate === 0;
+    && typeof live?.quality?.unsupportedClaimRate === "number" && live.quality.unsupportedClaimRate === 0
+    && liveRelevanceMet && pdfGatesMet;
 
   return (
     <section className="screen benchmark-screen">
@@ -2709,7 +2756,7 @@ function LabScreen({ setError }: { setError: (value: string) => void }) {
         <div className="lab-metric primary"><small>LIVE CASES</small><strong>{rows.length || live?.cases || "—"}</strong><span>{graded ? `${passed}/${graded} strict source checks passed` : "production cross-source runs"}</span></div>
         <div className="lab-metric"><small>P50 LATENCY</small><strong>{live?.latencyMs?.p50 ? `${(live.latencyMs.p50 / 1000).toFixed(2)}s` : "—"}</strong><span>p95 {live?.latencyMs?.p95 ? `${(live.latencyMs.p95 / 1000).toFixed(2)}s` : "not recorded"}</span></div>
         <div className="lab-metric"><small>PROVIDER PROOF</small><strong>{live?.connectors?.length ?? "—"}</strong><span>{live?.connectors?.join(" · ") || "not recorded"}</span></div>
-        <div className="lab-metric"><small>CALL EFFICIENCY</small><strong>{averageCalls === null ? "—" : averageCalls.toFixed(1)}</strong><span>average HydraDB calls per answer</span></div>
+        <div className="lab-metric"><small>CLAIM RELEVANCE</small><strong>{typeof live?.quality?.relevancePrecision === "number" ? `${Math.round(live.quality.relevancePrecision * 100)}%` : "—"}</strong><span>{typeof live?.quality?.irrelevantClaimRate === "number" ? `${Math.round(live.quality.irrelevantClaimRate * 100)}% irrelevant · ${zeroIrrelevantLabel(live.quality)}` : zeroIrrelevantLabel(live?.quality)}</span></div>
       </div>
 
       <section className="mode-comparison" aria-labelledby="mode-comparison-title">
@@ -2732,21 +2779,21 @@ function LabScreen({ setError }: { setError: (value: string) => void }) {
       {pdf?.document?.pages && <section className="pdf-proof" aria-labelledby="pdf-proof-title">
         <div className="pdf-proof-heading">
           <div><span className="eyebrow"><FileCheck2 size={13} /> Large-document proof</span><h2 id="pdf-proof-title">{pdf.document.pages} pages. Facts tested from beginning to end.</h2><p>A fixed, SHA-256 identified handbook is queried with the same strict grader. Failures remain REVIEW, never silently converted to passes.</p></div>
-          <span className={(pdf.passed ?? 0) === (pdf.cases ?? -1) ? "readiness-seal ready" : "readiness-seal"}>{pdf.passed ?? "—"}/{pdf.cases ?? "—"} passed</span>
+          <span className={pdfGatesMet ? "readiness-seal ready" : "readiness-seal"}>{pdfGatesMet ? <CircleCheck size={14} /> : <CircleAlert size={14} />}{pdf.passed ?? "—"}/{pdf.cases ?? "—"} passed</span>
         </div>
         <div className="pdf-proof-grid">
           <article><small>DOCUMENT</small><strong>{pdf.document.pages} pages</strong><span>{pdf.document.filename ?? "Measured PDF"}</span></article>
           <article><small>REQUIRED FACTS</small><strong>{typeof pdf.quality?.requiredFactAccuracy === "number" ? `${Math.round(pdf.quality.requiredFactAccuracy * 100)}%` : "—"}</strong><span>strict fact match</span></article>
-          <article><small>CITATIONS</small><strong>{typeof pdf.quality?.citationCompleteness === "number" ? `${Math.round(pdf.quality.citationCompleteness * 100)}%` : "—"}</strong><span>{typeof pdf.quality?.unsupportedClaimRate === "number" ? `${Math.round(pdf.quality.unsupportedClaimRate * 100)}% unsupported` : "not recorded"}</span></article>
+          <article><small>CITATIONS + RELEVANCE</small><strong>{typeof pdf.quality?.relevancePrecision === "number" ? `${Math.round(pdf.quality.relevancePrecision * 100)}%` : "—"}</strong><span>{typeof pdf.quality?.citationCompleteness === "number" ? `${Math.round(pdf.quality.citationCompleteness * 100)}% cited · ${Math.round((pdf.quality.irrelevantClaimRate ?? 0) * 100)}% irrelevant` : "not recorded"}</span><span>{zeroIrrelevantLabel(pdf.quality)} · {pdf.quality?.scope ?? "scope not recorded"}</span></article>
           <article><small>LATENCY</small><strong>{pdf.latencyMs?.p50 ? `${(pdf.latencyMs.p50 / 1000).toFixed(2)}s` : "—"}</strong><span>p95 {pdf.latencyMs?.p95 ? `${(pdf.latencyMs.p95 / 1000).toFixed(2)}s` : "not recorded"}</span></article>
         </div>
-        <div className="pdf-proof-footer"><span><CircleCheck size={13} /> Position checks: {pdf.canaries?.beginning && pdf.canaries?.middle && pdf.canaries?.end ? "beginning · middle · end passed" : "incomplete"}</span><code>SHA-256 {pdf.document.sha256?.slice(0, 16) ?? "not recorded"}…</code><code>npm run benchmark:pdf -- --url https://queueproof.vercel.app</code></div>
+        <div className="pdf-proof-footer"><span><CircleCheck size={13} /> Position checks: {pdf.canaries?.beginning && pdf.canaries?.middle && pdf.canaries?.end ? "beginning · middle · end passed" : "incomplete"}</span><span>{pdfCrossSourceRelevanceMet ? <CircleCheck size={13} /> : <CircleAlert size={13} />} Cross-source: {pdfCrossSourceRelevanceMet ? "PASS" : "REVIEW"} · {typeof pdf.crossSource?.relevancePrecision === "number" ? `${Math.round(pdf.crossSource.relevancePrecision * 100)}% relevant` : "relevance not recorded"} · {typeof pdf.crossSource?.irrelevantClaimRate === "number" ? `${Math.round(pdf.crossSource.irrelevantClaimRate * 100)}% irrelevant` : "rate not recorded"}</span><code>SHA-256 {pdf.document.sha256?.slice(0, 16) ?? "not recorded"}…</code><code>npm run benchmark:pdf -- --url https://queueproof.vercel.app</code></div>
       </section>}
 
       <section className="judge-lens" aria-label="Hackathon judging evidence">
         <div className="judge-lens-heading"><div><span className="eyebrow"><ShieldCheck size={13} /> Judge lens</span><h2>Every scoring claim has a receipt.</h2></div><span className={benchmarkGatesMet ? "readiness-seal ready" : "readiness-seal"}>{benchmarkGatesMet ? <CircleCheck size={15} /> : <Activity size={15} />} {benchmarkGatesMet ? "BENCHMARK GATES MET" : "EVIDENCE BUILDING"}</span></div>
         <div className="judge-proof-grid">
-          <article><small>01 · REQUIRED FACTS</small><strong>{typeof live?.quality?.requiredFactRecall === "number" ? `${Math.round(live.quality.requiredFactRecall * 100)}%` : graded ? `${passed}/${graded}` : "—"}</strong><p>{typeof live?.quality?.unsupportedClaimRate === "number" ? `${Math.round((live.quality.citationCompleteness ?? 0) * 100)}% claims cited · ${Math.round(live.quality.unsupportedClaimRate * 100)}% unsupported` : "Required facts are stored beside observed production answers; this is not universal correctness."}</p></article>
+          <article><small>01 · FACTS + RELEVANCE</small><strong>{typeof live?.quality?.requiredFactRecall === "number" ? `${Math.round(live.quality.requiredFactRecall * 100)}%` : graded ? `${passed}/${graded}` : "—"}</strong><p>{typeof live?.quality?.unsupportedClaimRate === "number" ? `${Math.round((live.quality.citationCompleteness ?? 0) * 100)}% cited · ${Math.round((live.quality.relevancePrecision ?? 0) * 100)}% relevant · ${Math.round(live.quality.unsupportedClaimRate * 100)}% unsupported` : "Required facts are stored beside observed production answers; this is not universal correctness."}</p></article>
           <article><small>02 · CROSS-SOURCE</small><strong>{live?.connectors?.length ?? "—"}</strong><p>Distinct providers appear in the replayable benchmark receipt.</p></article>
           <article><small>03 · LATENCY</small><strong>{live?.latencyMs?.p50 ? `${(live.latencyMs.p50 / 1000).toFixed(2)}s` : "—"}</strong><p>P50 and p95 are measured on the deployed public target.</p></article>
           <article><small>04 · COST</small><strong>{averageCalls === null ? "—" : averageCalls.toFixed(1)}</strong><p>Average HydraDB calls per answer—not a vague efficiency claim.</p></article>
@@ -2760,7 +2807,7 @@ function LabScreen({ setError }: { setError: (value: string) => void }) {
           <div className="case-index"><span>{String(index + 1).padStart(2, "0")}</span><i className={row.pass === false ? "fail" : "pass"} /></div>
           <div className="case-body"><span className="case-label">{row.label}</span><h3>{row.question}</h3>
             {row.expected && <div className="answer-compare"><div><small>EXPECTED</small><p>{row.expected}</p></div><div><small>OBSERVED</small><p>{row.actual || "No answer captured"}</p></div></div>}
-            <div className="case-meta"><span><Zap size={12} />{row.mode}</span><span><Clock3 size={12} />{(row.latencyMs / 1000).toFixed(2)}s</span><span><Activity size={12} />{row.callCount ?? "—"} calls</span><span><FileCheck2 size={12} />{row.sources} receipts</span><span>{row.providers.join(" · ")}</span></div>
+            <div className="case-meta"><span><Zap size={12} />{row.mode}</span><span><Clock3 size={12} />{(row.latencyMs / 1000).toFixed(2)}s</span><span><Activity size={12} />{row.callCount ?? "—"} calls</span><span><FileCheck2 size={12} />{row.sources} receipts</span>{typeof row.relevancePrecision === "number" && <span>{Math.round(row.relevancePrecision * 100)}% relevant</span>}<span>{row.providers.join(" · ")}</span></div>
           </div>
           <span className={row.pass === false ? "case-status fail" : "case-status pass"}>{typeof row.pass === "boolean" ? row.pass ? "PASS" : "REVIEW" : "MEASURED"}</span>
         </article>)}

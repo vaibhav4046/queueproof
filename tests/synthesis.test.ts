@@ -125,6 +125,42 @@ describe("evidence-constrained synthesis", () => {
     expect(result.answer).not.toContain("personal data");
   });
 
+  it("rejects a cited medical-billing paragraph from a billing-migration conflict", () => {
+    const result = synthesiseGroundedAnswer(
+      "Which sources disagree about the billing migration deadline?",
+      [
+        {
+          id: "billing-linear",
+          provider: "linear",
+          title: "Billing migration deadline moved to 14 August",
+          excerpt: "The billing migration deadline moved from 7 August to 14 August 2026 after the Northwind escalation took priority.",
+        },
+        {
+          id: "billing-slack",
+          provider: "slack",
+          title: "Finance kept the billing migration at 7 August",
+          excerpt: "The Linear ticket still says the billing migration deadline moved to 14 August, but finance confirmed it is staying at 7 August.",
+        },
+        {
+          id: "medical-billing-gmail",
+          provider: "gmail",
+          title: "Blockchain in Healthcare: Improving Patient Care",
+          excerpt: "Medical billing fraud and error collectively represent one of the largest sources of financial waste in healthcare systems. Duplicate billing, upcoding, and phantom service claims are difficult to detect.",
+        },
+      ],
+    );
+
+    expect(result.answer).toMatch(/billing migration/i);
+    expect(result.answer).not.toMatch(/medical billing|healthcare|phantom service/i);
+    expect(result.claims.flatMap((claim) => claim.providers)).not.toContain("gmail");
+    expect(result.contradictions).toEqual([
+      expect.objectContaining({
+        providers: expect.arrayContaining(["linear", "slack"]),
+        evidenceIds: expect.arrayContaining(["billing-linear", "billing-slack"]),
+      }),
+    ]);
+  });
+
   it("detects a deadline conflict when one source omits the shared year", () => {
     const result = synthesiseGroundedAnswer(
       "Which sources disagree about the billing migration deadline?",
