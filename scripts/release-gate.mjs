@@ -5,6 +5,20 @@ const readArg = (name) => {
   const index = process.argv.indexOf(name);
   return index >= 0 ? process.argv[index + 1] : null;
 };
+
+const parseMcpResponse = (body) => {
+  try {
+    return JSON.parse(body);
+  } catch {
+    const dataLines = body
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith("data:"))
+      .map((line) => line.slice(5).trim())
+      .filter(Boolean);
+    assert.ok(dataLines.length > 0, "MCP response was neither JSON nor an SSE data event.");
+    return JSON.parse(dataLines.at(-1));
+  }
+};
 const base = (readArg("--url") || process.env.QUEUEPROOF_URL || "").replace(/\/$/, "");
 const intendedSha = readArg("--sha") || process.env.QUEUEPROOF_RELEASE_SHA || "";
 if (!base || !intendedSha) throw new Error("Usage: npm run release:verify -- --url <production-url> --sha <intended-sha>");
@@ -188,6 +202,95 @@ assert.match(demoResourceBody, /queueproof:\/\/demo\/guide/,
   "The public MCP demo is missing its safe routing guide.");
 assert.doesNotMatch(demoResourceBody, /workspaceId|database|collection|connectorId|sourceId/i,
   "The public MCP demo guide exposed an internal identifier.");
+
+const demoSearchResponse = await fetch(`${base}/mcp/demo`, {
+  method: "POST",
+  headers: {
+    accept: "application/json, text/event-stream",
+    "content-type": "application/json",
+  },
+  body: JSON.stringify({
+    jsonrpc: "2.0",
+    id: 3,
+    method: "tools/call",
+    params: {
+      name: "queueproof_search",
+      arguments: {
+        query: "Who escalated the AuthShield outage, what did engineering commit to, and is the fix already merged?",
+        mode: "auto",
+      },
+    },
+  }),
+});
+assert.equal(demoSearchResponse.status, 200, "The public MCP demo search must return 200.");
+const demoSearchRpc = parseMcpResponse(await demoSearchResponse.text());
+assert.ifError(demoSearchRpc.error);
+const demoSearch = demoSearchRpc.result?.structuredContent;
+assert.equal(typeof demoSearch?.answer, "string", "MCP search is missing its grounded answer.");
+assert.doesNotMatch(demoSearch.answer, /^Insufficient evidence\b/,
+  "The reviewed flagship query unexpectedly abstained.");
+assert.ok(Array.isArray(demoSearch.claims) && demoSearch.claims.length > 0,
+  "MCP search must return at least one grounded claim.");
+assert.ok(Array.isArray(demoSearch.citations) && demoSearch.citations.length > 0,
+  "MCP search must return citation objects for grounded claims.");
+assert.ok(Number.isFinite(demoSearch.estimatedCostUnits) && demoSearch.estimatedCostUnits > 0,
+  "MCP search must report positive relative retrieval cost.");
+assert.ok(Array.isArray(demoSearch.contradictions),
+  "MCP search must return an explicit contradictions array.");
+assert.ok(Array.isArray(demoSearch.missingInformation),
+  "MCP search must return an explicit missing-information array.");
+assert.ok(["grounded", "partial"].includes(demoSearch.validation?.status),
+  "MCP search validation must be grounded or explicitly partial.");
+assert.equal(demoSearch.validation?.claimCount, demoSearch.claims.length,
+  "MCP validation claim count does not match the returned claims.");
+assert.equal(demoSearch.validation?.citedClaimCount, demoSearch.claims.length,
+  "Every returned MCP claim must be cited.");
+assert.equal(demoSearch.validation?.evidenceCount, demoSearch.evidence?.length,
+  "MCP validation evidence count does not match the returned evidence.");
+const demoEvidenceIds = new Set((demoSearch.evidence ?? []).map((item) => item.evidenceId));
+for (const citation of demoSearch.citations) {
+  assert.ok(demoEvidenceIds.has(citation.evidenceId),
+    `MCP citation references missing evidence ${citation.evidenceId}.`);
+}
+for (const item of [...demoSearch.claims, ...demoSearch.contradictions]) {
+  assert.ok(Array.isArray(item.evidenceIds) && item.evidenceIds.length > 0,
+    "Every claim and contradiction must reference returned evidence.");
+  for (const evidenceId of item.evidenceIds) {
+    assert.ok(demoEvidenceIds.has(evidenceId),
+      `MCP result references missing evidence ${evidenceId}.`);
+  }
+}
+
+const exactIdResponse = await fetch(`${base}/mcp/demo`, {
+  method: "POST",
+  headers: {
+    accept: "application/json, text/event-stream",
+    "content-type": "application/json",
+  },
+  body: JSON.stringify({
+    jsonrpc: "2.0",
+    id: 4,
+    method: "tools/call",
+    params: {
+      name: "queueproof_search",
+      arguments: { query: "What is BUG-123?", mode: "auto" },
+    },
+  }),
+});
+assert.equal(exactIdResponse.status, 200, "The public MCP exact-ID search must return 200.");
+const exactIdRpc = parseMcpResponse(await exactIdResponse.text());
+assert.ifError(exactIdRpc.error);
+const exactIdSearch = exactIdRpc.result?.structuredContent;
+assert.equal(exactIdSearch?.mode, "fast", "A single exact-ID lookup must stay in Fast mode.");
+assert.ok(exactIdSearch?.callCount <= 2,
+  `Exact-ID search used ${exactIdSearch?.callCount} HydraDB calls; expected at most 2.`);
+assert.ok(Array.isArray(exactIdSearch?.evidence) && exactIdSearch.evidence.length > 0 &&
+  exactIdSearch.evidence.length <= 6,
+"Exact-ID search must retain between 1 and 6 receipts.");
+for (const item of exactIdSearch.evidence) {
+  assert.match(`${item.sourceId ?? ""} ${item.title ?? ""} ${item.excerpt ?? ""}`, /\bBUG-123\b/i,
+    "Exact-ID search retained an unrelated or neighboring receipt.");
+}
 
 const challengeResponse = await fetch(`${base}/.well-known/openai-apps-challenge`, {
   headers: { accept: "text/plain" },

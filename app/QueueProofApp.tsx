@@ -40,6 +40,33 @@ type Provider = {
   indexedObjectTypes: unknown[]; setupGuide?: unknown; authTypes?: unknown[];
 };
 
+type ProviderAuthChoice = { id: string; label: string };
+
+function providerAuthChoices(values: unknown[] | undefined): ProviderAuthChoice[] {
+  const choices = (values ?? []).flatMap((value): ProviderAuthChoice[] => {
+    if (typeof value === "string" && value.trim()) {
+      const id = value.trim();
+      return [{ id, label: id.replaceAll("_", " ") }];
+    }
+    if (!value || typeof value !== "object") return [];
+    const entry = value as Record<string, unknown>;
+    const rawId = entry.id ?? entry.type ?? entry.value ?? entry.name;
+    if (typeof rawId !== "string" || !rawId.trim()) return [];
+    const id = rawId.trim();
+    const rawLabel = entry.label ?? entry.title ?? entry.display_name ?? entry.name;
+    return [{
+      id,
+      label: typeof rawLabel === "string" && rawLabel.trim()
+        ? rawLabel.trim()
+        : id.replaceAll("_", " "),
+    }];
+  });
+  const unique = [...new Map(choices.map((choice) => [choice.id, choice])).values()];
+  const preferred = (choice: ProviderAuthChoice) =>
+    /oauth|hosted|connect/i.test(choice.id) ? 0 : /token|key|secret/i.test(choice.id) ? 2 : 1;
+  return unique.sort((left, right) => preferred(left) - preferred(right));
+}
+
 type Connector = {
   id: string; hydradbConnectorId?: string; provider: string; name: string;
   state: string; database?: string; collection?: string | null;
@@ -593,7 +620,7 @@ export default function QueueProofApp({
         <div className="header-status sidebar-bottom">
           <button className="command-trigger" onClick={() => setCommandOpen(true)} aria-label={`Open command palette (${shortcut.spoken} K)`}><Search size={14} /><kbd>{shortcut.symbol}K</kbd></button>
           <AccountControl actor={view.actor} workspaceId={view.workspace.id} />
-          <span className="demo-badge"><span className={verified.length ? "status-orb live" : "status-orb"} />{verified.length} verified</span>
+          <span className="demo-badge" aria-label={publicSandbox ? `Synthetic Helios demo, ${verified.length} verified sources` : `${verified.length} verified sources`}><span className={verified.length ? "status-orb live" : "status-orb"} />{publicSandbox ? `Synthetic Helios · ${verified.length}` : `${verified.length} verified`}</span>
           <details className="nav-menu utility-menu"><summary aria-label="Open help and developer menu"><MoreHorizontal size={17} /><span>More</span></summary><div className="nav-popover nav-popover-right"><Link href="/developer"><Bot size={15} />ChatGPT</Link><Link href="/method"><Braces size={15} />How it works</Link><Link href="/support"><CircleHelp size={15} />Help</Link><Link href="/privacy"><ShieldCheck size={15} />Policies</Link></div></details>
         </div>
       </aside>
@@ -1352,7 +1379,7 @@ function AskScreen({ workspaceId, verified, connectorsLoaded, onOpenSources, onO
           {starterPrompts.map(({ label, prompt }) => <button key={label} disabled={!connectorsLoaded || !verifiedCount} onClick={() => { setQuestion(prompt); void run(prompt); }} aria-label={`${label}: ${prompt}`}><span>{label}</span><small>{prompt}</small><ArrowRight size={13} /></button>)}
         </div>}
         <div className="proof-trustline" aria-label="QueueProof safeguards">
-          <span><CircleCheck size={14} /> Open the source behind every claim</span>
+          <span><CircleCheck size={14} /> Inspect the receipt behind every claim</span>
           <span><CircleAlert size={14} /> See where your tools disagree</span>
           <span><LockKeyhole size={14} /> You approve every change</span>
         </div>
@@ -1579,7 +1606,7 @@ function SourcesScreen({ workspace, connectors, reloadWorkspace, reloadConnector
         <span><FileCheck2 size={14} /><strong>{indexedFileCount}</strong> files</span>
         <small>Only verified sources support answers.</small>
       </div>
-      {connectors.length ? <div className="connector-list">{[...connectors].sort((a, b) => Number(b.state === "data_verified") - Number(a.state === "data_verified")).map((connector) => <article className={`connector-row ${connector.state === "data_verified" ? "ready" : "needs-attention"}`} data-provider={connector.provider} key={connector.id}><span className="provider-glyph large"><ProviderIcon provider={connector.provider} size={19} /></span><div className="connector-identity"><strong>{connector.name}</strong><span>{connector.provider}{!readOnly && connector.database ? ` · ${connector.database}${connector.collection ? ` / ${connector.collection}` : ""}` : ""}</span></div><div className="connector-state"><span className={connector.state === "data_verified" ? "status-orb live" : connector.state.includes("sync") ? "status-orb indexing" : "status-orb"} /><strong>{connector.state === "data_verified" ? "Verified" : "Needs reconnecting"}</strong><small>{connector.state === "data_verified" ? `${connector.canaryResultCount ?? 0} ${connector.canaryResultCount === 1 ? "item" : "items"} · proven ${dateLabel(connector.verifiedAt ?? connector.lastSuccessfulSyncAt)}` : "Kept out of answers until it works"}</small></div>{connector.state === "data_verified" ? <button className="secondary-button" onClick={(event) => void connectorAction(connector, event.currentTarget)} disabled={busy === connector.id}>{busy === connector.id ? <LoaderCircle className="spin" size={14} /> : <Eye size={14} />}Details</button> : readOnly ? null : <button className="secondary-button" onClick={(event) => void connectorAction(connector, event.currentTarget)} disabled={busy === connector.id}>{busy === connector.id ? <LoaderCircle className="spin" size={14} /> : connector.state === "connector_created" || connector.state === "resources_discovered" ? <Search size={14} /> : <RefreshCw size={14} />}{connector.state === "connector_created" || connector.state === "resources_discovered" ? "Choose scope" : connector.state === "resources_selected" ? "Start sync" : "Reconnect"}</button>}</article>)}</div> : <div className="empty-source"><Unplug size={28} /><div><h2>No source connected yet.</h2><p>Add Slack, Gmail, Linear, or another source from the live catalogue.</p></div>{!readOnly && <button className="primary-button" onClick={() => setSetupOpen(true)}><Link2 size={15} /> Add first source</button>}</div>}
+      {connectors.length ? <div className="connector-list">{[...connectors].sort((a, b) => Number(b.state === "data_verified") - Number(a.state === "data_verified")).map((connector) => <article className={`connector-row ${connector.state === "data_verified" ? "ready" : "needs-attention"}`} data-provider={connector.provider} key={connector.id}><span className="provider-glyph large"><ProviderIcon provider={connector.provider} size={19} /></span><div className="connector-identity"><strong>{connector.name}</strong><span>{connector.provider}{!readOnly && connector.database ? ` · ${connector.database}${connector.collection ? ` / ${connector.collection}` : ""}` : ""}</span></div><div className="connector-state"><span className={connector.state === "data_verified" ? "status-orb live" : connector.state.includes("sync") ? "status-orb indexing" : "status-orb"} /><strong>{connector.state === "data_verified" ? "Verified" : "Needs reconnecting"}</strong><small>{connector.state === "data_verified" ? `${connector.canaryResultCount ?? 0} ${connector.canaryResultCount === 1 ? "item" : "items"} · proven ${dateLabel(connector.verifiedAt ?? connector.lastSuccessfulSyncAt)}` : "Kept out of answers until it works"}</small></div>{connector.state === "data_verified" ? <button className="secondary-button" aria-label={`View proof for ${connector.name}`} onClick={(event) => void connectorAction(connector, event.currentTarget)} disabled={busy === connector.id}>{busy === connector.id ? <LoaderCircle className="spin" size={14} /> : <Eye size={14} />}Details</button> : readOnly ? null : <button className="secondary-button" onClick={(event) => void connectorAction(connector, event.currentTarget)} disabled={busy === connector.id}>{busy === connector.id ? <LoaderCircle className="spin" size={14} /> : connector.state === "connector_created" || connector.state === "resources_discovered" ? <Search size={14} /> : <RefreshCw size={14} />}{connector.state === "connector_created" || connector.state === "resources_discovered" ? "Choose scope" : connector.state === "resources_selected" ? "Start sync" : "Reconnect"}</button>}</article>)}</div> : <div className="empty-source"><Unplug size={28} /><div><h2>No source connected yet.</h2><p>Add Slack, Gmail, Linear, or another source from the live catalogue.</p></div>{!readOnly && <button className="primary-button" onClick={() => setSetupOpen(true)}><Link2 size={15} /> Add first source</button>}</div>}
       <DocumentsPanel initialDocuments={workspace.evidence.documents} databases={[...new Set(connectors.map((item) => item.database).filter((item): item is string => Boolean(item)))]}
         setError={setError} setNotice={setNotice} readOnly={readOnly} />
       <EvidenceGraphPanel setError={setError} />
@@ -1920,14 +1947,16 @@ function SourceSetup({ onClose, onDone, setError }: { onClose: () => void; onDon
   const [database, setDatabase] = useState("");
   const [collection, setCollection] = useState("");
   const [accountScope, setAccountScope] = useState("");
+  const [authType, setAuthType] = useState("");
   const [credentials, setCredentials] = useState<Record<string, string>>({});
   const [newDatabase, setNewDatabase] = useState("");
   const [busy, setBusy] = useState(true);
   const dialogRef = useDialogBehavior<HTMLFormElement>(true, onClose);
   const selected = providers.find((item) => item.id === providerId);
+  const authChoices = providerAuthChoices(selected?.authTypes);
   useEffect(() => {
     void Promise.all([api<{ providers: Provider[] }>("/api/providers"), api<{ databases: string[] }>("/api/databases")])
-      .then(([providerData, databaseData]) => { setProviders(providerData.providers); setDatabases(databaseData.databases); setProviderId(providerData.providers[0]?.id ?? ""); setDatabase(databaseData.databases[0] ?? ""); })
+      .then(([providerData, databaseData]) => { const firstProvider = providerData.providers[0]; setProviders(providerData.providers); setDatabases(databaseData.databases); setProviderId(firstProvider?.id ?? ""); setAuthType(providerAuthChoices(firstProvider?.authTypes)[0]?.id ?? ""); setDatabase(databaseData.databases[0] ?? ""); })
       .catch((reason: Error) => setError(reason.message)).finally(() => setBusy(false));
   }, [setError]);
   async function createDatabase() {
@@ -1938,17 +1967,22 @@ function SourceSetup({ onClose, onDone, setError }: { onClose: () => void; onDon
   }
   async function submit(event: FormEvent) {
     event.preventDefault(); if (!selected) return; setBusy(true); setError("");
-    try { await api("/api/connectors", { method: "POST", body: JSON.stringify({ provider: selected.id, name: selected.name, database, collection: collection || undefined, accountScope: accountScope || undefined, credentials }) }); await onDone(); }
+    try { await api("/api/connectors", { method: "POST", body: JSON.stringify({ provider: selected.id, name: selected.name, database, collection: collection || undefined, accountScope: accountScope || undefined, authType: authType || undefined, credentials }) }); await onDone(); }
     catch (reason) { setError(reason instanceof Error ? reason.message : "Connector creation failed."); }
     finally { setBusy(false); }
   }
-  return <div className="modal-layer" role="presentation"><form ref={dialogRef} className="modal-card source-modal" role="dialog" aria-modal="true" aria-labelledby="source-setup-title" tabIndex={-1} onSubmit={submit}><button type="button" className="modal-close" data-dialog-initial aria-label="Close source setup" onClick={onClose}><X size={16} /></button><span className="eyebrow"><Plus size={13} /> New evidence source</span><h2 id="source-setup-title">Connect from the live catalogue.</h2><p>QueueProof renders this form from HydraDB’s current provider contract. It never guesses provider credentials.</p>{busy && !providers.length ? <div className="modal-loading" role="status"><LoaderCircle className="spin" /> Hydrating provider contracts…</div> : <div className="setup-form"><label>Provider<select value={providerId} onChange={(event) => { setProviderId(event.target.value); setCredentials({}); }} required>{providers.filter((item) => item.available).map((item) => <option key={item.id} value={item.id}>{item.name} · {item.supportClass}</option>)}</select></label><div className="two-cols"><label>HydraDB database<select value={database} onChange={(event) => setDatabase(event.target.value)} required><option value="" disabled>Select database</option>{databases.map((item) => <option key={item} value={item}>{item}</option>)}</select></label><label>Collection <small>optional isolation</small><input value={collection} onChange={(event) => setCollection(event.target.value)} placeholder="team-work" /></label></div>{!databases.length && <div className="database-create"><input value={newDatabase} onChange={(event) => setNewDatabase(event.target.value)} placeholder="Create database name" aria-label="Create database name" /><button type="button" className="secondary-button" onClick={() => void createDatabase()}>Create</button></div>}<label>Provider account scope <small>recommended for multi-account safety</small><input value={accountScope} onChange={(event) => setAccountScope(event.target.value)} placeholder="workspace / org / account identifier" /></label><div className="credential-grid">{selected?.credentialFields.map((field) => <label key={field.name}>{field.title || field.name}{field.required && <b> required</b>}{field.enum?.length ? <select value={credentials[field.name] ?? ""} onChange={(event) => setCredentials((current) => ({ ...current, [field.name]: event.target.value }))} required={field.required}><option value="">Select</option>{field.enum.map((value) => <option key={value} value={value}>{value}</option>)}</select> : <input type={field.format === "password" || /token|secret|password|key/i.test(field.name) ? "password" : "text"} value={credentials[field.name] ?? ""} onChange={(event) => setCredentials((current) => ({ ...current, [field.name]: event.target.value }))} required={field.required} autoComplete="off" />}{field.description && <small>{field.description}</small>}</label>)}</div>{selected && !selected.credentialFields.length && <div className="inline-warning"><CircleAlert size={14} />This provider contract exposes no credential fields. QueueProof will submit no credentials only if HydraDB marks that valid.</div>}<button className="primary-button" disabled={busy || !database || !selected}>{busy ? <LoaderCircle className="spin" size={15} /> : <ArrowRight size={15} />} Create connector</button></div>}</form></div>;
+  return <div className="modal-layer" role="presentation"><form ref={dialogRef} className="modal-card source-modal" role="dialog" aria-modal="true" aria-labelledby="source-setup-title" tabIndex={-1} onSubmit={submit}><button type="button" className="modal-close" data-dialog-initial aria-label="Close source setup" onClick={onClose}><X size={16} /></button><span className="eyebrow"><Plus size={13} /> New evidence source</span><h2 id="source-setup-title">Connect from the live catalogue.</h2><p>QueueProof renders this form from HydraDB’s current provider contract. It never guesses provider credentials.</p>{busy && !providers.length ? <div className="modal-loading" role="status"><LoaderCircle className="spin" /> Hydrating provider contracts…</div> : <div className="setup-form"><label>Provider<select value={providerId} onChange={(event) => { const nextId = event.target.value; const nextProvider = providers.find((item) => item.id === nextId); setProviderId(nextId); setAuthType(providerAuthChoices(nextProvider?.authTypes)[0]?.id ?? ""); setCredentials({}); }} required>{providers.filter((item) => item.available).map((item) => <option key={item.id} value={item.id}>{item.name} · {item.supportClass}</option>)}</select></label>{authChoices.length > 0 && <label>Connection method <small>HydraDB-hosted OAuth is preferred when available</small><select value={authType} onChange={(event) => setAuthType(event.target.value)} required>{authChoices.map((choice) => <option key={choice.id} value={choice.id}>{choice.label}</option>)}</select></label>}<div className="two-cols"><label>HydraDB database<select value={database} onChange={(event) => setDatabase(event.target.value)} required><option value="" disabled>Select database</option>{databases.map((item) => <option key={item} value={item}>{item}</option>)}</select></label><label>Collection <small>optional isolation</small><input value={collection} onChange={(event) => setCollection(event.target.value)} placeholder="team-work" /></label></div>{!databases.length && <div className="database-create"><input value={newDatabase} onChange={(event) => setNewDatabase(event.target.value)} placeholder="Create database name" aria-label="Create database name" /><button type="button" className="secondary-button" onClick={() => void createDatabase()}>Create</button></div>}<label>Provider account scope <small>recommended for multi-account safety</small><input value={accountScope} onChange={(event) => setAccountScope(event.target.value)} placeholder="workspace / org / account identifier" /></label><div className="credential-grid">{selected?.credentialFields.map((field) => <label key={field.name}>{field.title || field.name}{field.required && <b> required</b>}{field.enum?.length ? <select value={credentials[field.name] ?? ""} onChange={(event) => setCredentials((current) => ({ ...current, [field.name]: event.target.value }))} required={field.required}><option value="">Select</option>{field.enum.map((value) => <option key={value} value={value}>{value}</option>)}</select> : <input type={field.format === "password" || /token|secret|password|key/i.test(field.name) ? "password" : "text"} value={credentials[field.name] ?? ""} onChange={(event) => setCredentials((current) => ({ ...current, [field.name]: event.target.value }))} required={field.required} autoComplete="off" />}{field.description && <small>{field.description}</small>}</label>)}</div>{selected && !selected.credentialFields.length && <div className="inline-warning"><CircleAlert size={14} />This provider contract exposes no credential fields. QueueProof will submit no credentials only if HydraDB marks that valid.</div>}<button className="primary-button" disabled={busy || !database || !selected}>{busy ? <LoaderCircle className="spin" size={15} /> : <ArrowRight size={15} />} Create connector</button></div>}</form></div>;
 }
 
 function ProofModal({ data, returnFocusRef, onClose, onConfigured, setError }: { data: Record<string, unknown>; returnFocusRef?: { readonly current: HTMLElement | null }; onClose: () => void; onConfigured: () => Promise<void>; setError: (value: string) => void }) {
   const connector = data.connector as Connector | undefined;
   const resources = (data.resources ?? []) as Resource[];
   const verification = data.verification as Record<string, unknown> | undefined;
+  const proofFreshness = data.proofFreshness as {
+    status?: "current" | "stale" | "unverified";
+    ageHours?: number | null;
+    expiresAt?: string | null;
+  } | undefined;
   const [selected, setSelected] = useState<string[]>(resources.filter((item) => item.selected).map((item) => item.id));
   const [busy, setBusy] = useState(false);
   const dialogRef = useDialogBehavior<HTMLDivElement>(true, onClose, returnFocusRef);
@@ -1970,6 +2004,8 @@ function ProofModal({ data, returnFocusRef, onClose, onConfigured, setError }: {
           <dl className="connection-facts">
             <div><dt>Records proven</dt><dd>{String(verification.canaryResultCount ?? 0)}</dd></div>
             <div><dt>Last checked</dt><dd>{dateLabel(String(verification.verifiedAt ?? ""))}</dd></div>
+            <div><dt>Proof status</dt><dd>{proofFreshness?.status === "current" ? `Current · ${Math.round(proofFreshness.ageHours ?? 0)}h old` : "Needs recheck"}</dd></div>
+            <div><dt>Recheck by</dt><dd>{dateLabel(proofFreshness?.expiresAt ?? null)}</dd></div>
             <div><dt>Provider</dt><dd>{connector?.provider ?? "Connected source"}</dd></div>
             <div><dt>Database</dt><dd>{connector?.database ?? "Not available"}</dd></div>
           </dl>
@@ -2112,6 +2148,15 @@ function AgentScreen({ workspace, setError, setNotice, readOnly, publicOrigin }:
   const [writeScopes, setWriteScopes] = useState(false);
   const [freshToken, setFreshToken] = useState("");
   const [busy, setBusy] = useState(false);
+  const [demoBusy, setDemoBusy] = useState(false);
+  const [demoProof, setDemoProof] = useState<{
+    answer: string;
+    providerCoverage: string[];
+    latencyMs: number;
+    callCount: number;
+    estimatedCostUnits: number;
+    validation?: { status?: string };
+  } | null>(null);
   const endpoint = `${publicOrigin}/mcp`;
   const demoEndpoint = `${publicOrigin}/mcp/demo`;
   const load = useCallback(() => {
@@ -2130,38 +2175,65 @@ function AgentScreen({ workspace, setError, setNotice, readOnly, publicOrigin }:
     catch (reason) { setError(reason instanceof Error ? reason.message : "Token revocation failed."); }
   }
   const clientGuide = useMemo(() => {
-    const environment = `PowerShell:  $env:QUEUEPROOF_MCP_TOKEN="<paste connection key>"\nmacOS/Linux: export QUEUEPROOF_MCP_TOKEN="<paste connection key>"`;
+    const targetEndpoint = readOnly ? demoEndpoint : endpoint;
+    const environment = readOnly
+      ? undefined
+      : `PowerShell:  $env:QUEUEPROOF_MCP_TOKEN="<paste connection key>"\nmacOS/Linux: export QUEUEPROOF_MCP_TOKEN="<paste connection key>"`;
     const guides: Record<string, { name: string; file: string; note: string; config: string; environment?: string }> = {
       codex: {
         name: "Codex",
         file: "~/.codex/config.toml",
         environment,
-        note: "Restart Codex, then open /mcp to confirm QueueProof is connected.",
-        config: `[mcp_servers.queueproof]\nurl = "${endpoint}"\nbearer_token_env_var = "QUEUEPROOF_MCP_TOKEN"\ntool_timeout_sec = 60`,
+        note: readOnly
+          ? "Restart Codex, open /mcp, and run the synthetic AuthShield investigation. No key is required."
+          : "Restart Codex, then open /mcp to confirm QueueProof is connected.",
+        config: readOnly
+          ? `[mcp_servers.queueproof]\nurl = "${targetEndpoint}"\ntool_timeout_sec = 60`
+          : `[mcp_servers.queueproof]\nurl = "${targetEndpoint}"\nbearer_token_env_var = "QUEUEPROOF_MCP_TOKEN"\ntool_timeout_sec = 60`,
       },
       claude: {
         name: "Claude Code",
         file: ".mcp.json",
         environment,
-        note: "Run claude mcp list, then use /mcp inside Claude Code.",
-        config: JSON.stringify({ mcpServers: { queueproof: { type: "http", url: endpoint, headers: { Authorization: "Bearer ${QUEUEPROOF_MCP_TOKEN}" }, timeout: 60000 } } }, null, 2),
+        note: readOnly
+          ? "Run claude mcp list, then ask the AuthShield question. The server is synthetic, read-only, and needs no key."
+          : "Run claude mcp list, then use /mcp inside Claude Code.",
+        config: JSON.stringify({
+          mcpServers: {
+            queueproof: readOnly
+              ? { type: "http", url: targetEndpoint, timeout: 60000 }
+              : { type: "http", url: targetEndpoint, headers: { Authorization: "Bearer ${QUEUEPROOF_MCP_TOKEN}" }, timeout: 60000 },
+          },
+        }, null, 2),
       },
       kilo: {
         name: "Kilo Code",
         file: ".kilocode/mcp.json",
         environment,
-        note: "Kilo reads the token from your environment and connects as a remote MCP server.",
-        config: JSON.stringify({ mcp: { queueproof: { type: "remote", url: endpoint, headers: { Authorization: "Bearer {env:QUEUEPROOF_MCP_TOKEN}" }, enabled: true, timeout: 60000 } } }, null, 2),
+        note: readOnly
+          ? "Kilo connects directly to the read-only synthetic demo; no credential is stored."
+          : "Kilo reads the token from your environment and connects as a remote MCP server.",
+        config: JSON.stringify({
+          mcp: {
+            queueproof: readOnly
+              ? { type: "remote", url: targetEndpoint, enabled: true, timeout: 60000 }
+              : { type: "remote", url: targetEndpoint, headers: { Authorization: "Bearer {env:QUEUEPROOF_MCP_TOKEN}" }, enabled: true, timeout: 60000 },
+          },
+        }, null, 2),
       },
       generic: {
         name: "Any HTTP MCP client",
         file: "Client settings",
-        note: "Use Streamable HTTP and send your QueueProof token as a Bearer authorization header.",
-        config: JSON.stringify({ url: endpoint, transport: "streamable-http", headers: { Authorization: "Bearer <QUEUEPROOF_MCP_TOKEN>" } }, null, 2),
+        note: readOnly
+          ? "Use Streamable HTTP with no authentication. This endpoint can only search synthetic Helios evidence."
+          : "Use Streamable HTTP and send your QueueProof token as a Bearer authorization header.",
+        config: JSON.stringify(readOnly
+          ? { url: targetEndpoint, transport: "streamable-http", authentication: "none" }
+          : { url: targetEndpoint, transport: "streamable-http", headers: { Authorization: "Bearer <QUEUEPROOF_MCP_TOKEN>" } }, null, 2),
       },
     };
     return guides[clientType] ?? guides.generic;
-  }, [clientType, endpoint]);
+  }, [clientType, demoEndpoint, endpoint, readOnly]);
 
   async function copyMcpEndpoint(value = endpoint, label = "OAuth") {
     try {
@@ -2172,39 +2244,134 @@ function AgentScreen({ workspace, setError, setNotice, readOnly, publicOrigin }:
     }
   }
 
+  async function runPublicDemoProof() {
+    setDemoBusy(true);
+    setDemoProof(null);
+    setError("");
+    try {
+      const response = await fetch(demoEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: Date.now(),
+          method: "tools/call",
+          params: {
+            name: "queueproof_search",
+            arguments: {
+              query: "Who escalated the AuthShield outage, what did engineering commit to, and is the fix already merged?",
+              mode: "auto",
+            },
+          },
+        }),
+      });
+      const body = await response.text();
+      const payload = (() => {
+        try {
+          return JSON.parse(body) as Record<string, unknown>;
+        } catch {
+          const data = body
+            .split(/\r?\n/)
+            .filter((line) => line.startsWith("data:"))
+            .map((line) => line.slice(5).trim())
+            .filter(Boolean)
+            .at(-1);
+          return data ? JSON.parse(data) as Record<string, unknown> : null;
+        }
+      })();
+      const rpcResult = payload?.result as Record<string, unknown> | undefined;
+      const structured = rpcResult?.structuredContent as {
+        answer?: unknown;
+        providerCoverage?: unknown;
+        latencyMs?: unknown;
+        callCount?: unknown;
+        estimatedCostUnits?: unknown;
+        validation?: { status?: unknown };
+      } | undefined;
+      if (!response.ok || !structured || typeof structured.answer !== "string") {
+        throw new Error("The live MCP proof did not return a structured answer.");
+      }
+      setDemoProof({
+        answer: structured.answer,
+        providerCoverage: Array.isArray(structured.providerCoverage)
+          ? structured.providerCoverage.map(String)
+          : [],
+        latencyMs: Number(structured.latencyMs ?? 0),
+        callCount: Number(structured.callCount ?? 0),
+        estimatedCostUnits: Number(structured.estimatedCostUnits ?? 0),
+        validation: {
+          status: typeof structured.validation?.status === "string"
+            ? structured.validation.status
+            : undefined,
+        },
+      });
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "The live MCP proof could not run.");
+    } finally {
+      setDemoBusy(false);
+    }
+  }
+
   return <section className="screen agent-screen connect-ai-screen">
-    <div className="screen-heading"><div><span className="eyebrow"><Bot size={13} /> QueueProof in ChatGPT</span><h1>Add once.<br /><em>Ask from ChatGPT.</em></h1><p>After publisher approval, ordinary users will add QueueProof, sign in to their workspace, and ask for evidence without creating an API project or pasting a connection key.</p></div></div>
-    <div className="integration-promise"><span><Bot size={17} /><strong>Add QueueProof</strong></span><ChevronRight size={14} /><span><UserRound size={17} /><strong>Sign in once</strong></span><ChevronRight size={14} /><span><Search size={17} /><strong>Ask with receipts</strong></span></div>
+    <div className="screen-heading"><div><span className="eyebrow"><Bot size={13} /> {readOnly ? "Live public MCP demo" : "QueueProof in ChatGPT"}</span><h1>{readOnly ? <>Connect now.<br /><em>Ask with proof.</em></> : <>Add once.<br /><em>Ask from ChatGPT.</em></>}</h1><p>{readOnly ? "Connect any Streamable HTTP MCP client to the read-only synthetic Helios demo. No account, API key, or provider permission is required." : "After publisher approval, ordinary users will add QueueProof, sign in to their workspace, and ask for evidence without creating an API project or pasting a connection key."}</p></div></div>
+    <div className="integration-promise"><span><Bot size={17} /><strong>{readOnly ? "Copy demo URL" : "Add QueueProof"}</strong></span><ChevronRight size={14} /><span><UserRound size={17} /><strong>{readOnly ? "No authentication" : "Sign in once"}</strong></span><ChevronRight size={14} /><span><Search size={17} /><strong>Ask with receipts</strong></span></div>
 
     <div className="chatgpt-install-grid">
       <article className="chatgpt-install-card">
         <div className="chatgpt-install-head">
           <span className="chatgpt-mark"><QueueProofSymbol /></span>
-          <div><small>CHATGPT PLUGIN</small><h2>QueueProof</h2></div>
-          <span className="directory-status">REVIEW PENDING</span>
+          <div><small>{readOnly ? "PUBLIC MCP DEMO" : "CHATGPT PLUGIN"}</small><h2>QueueProof</h2></div>
+          <span className="directory-status">{readOnly ? "LIVE · NO AUTH" : "REVIEW PENDING"}</span>
         </div>
-        <ol className="chatgpt-install-steps">
-          <li><span>01</span><div><strong>Open ChatGPT Plugins</strong><p>Use the shared ChatGPT and Codex plugin directory.</p></div></li>
-          <li><span>02</span><div><strong>Search QueueProof and select Add</strong><p>After OpenAI approves and the publisher releases the listing.</p></div></li>
-          <li><span>03</span><div><strong>Sign in to QueueProof</strong><p>OAuth opens the secure account flow. No API key is created or pasted.</p></div></li>
-        </ol>
-        <a className="chatgpt-open-button" href={CHATGPT_PLUGINS_URL} target="_blank" rel="noreferrer">
-          <Bot size={16} /> Open ChatGPT Plugins <ExternalLink size={14} />
-        </a>
-        <details className="preview-install">
-          <summary>Test QueueProof before directory approval</summary>
-          <p><strong>Public demo.</strong> Add this as a custom MCP server with no authentication. It is fixed to synthetic Helios data, rate-limited, and exposes one focused investigation tool.</p>
-          <div><code>{demoEndpoint}</code><button type="button" onClick={() => void copyMcpEndpoint(demoEndpoint, "public demo")}><Clipboard size={13} /> Copy URL</button></div>
-          <p className="preview-private"><strong>Personal workspace.</strong> Use the OAuth endpoint after private account authorization is enabled.</p>
-          <div><code>{endpoint}</code><button type="button" onClick={() => void copyMcpEndpoint()}><Clipboard size={13} /> Copy URL</button></div>
-        </details>
+        {readOnly ? (
+          <>
+            <ol className="chatgpt-install-steps">
+              <li><span>01</span><div><strong>Copy the public demo URL</strong><p>It exposes one focused, read-only investigation tool.</p></div></li>
+              <li><span>02</span><div><strong>Add a custom MCP server</strong><p>Select Streamable HTTP and no authentication.</p></div></li>
+              <li><span>03</span><div><strong>Ask the AuthShield question</strong><p>Receive a grounded answer, citations, disagreement, latency, and call count.</p></div></li>
+            </ol>
+            <button className="chatgpt-open-button" type="button" onClick={() => void copyMcpEndpoint(demoEndpoint, "public demo")}>
+              <Clipboard size={16} /> Copy live demo URL
+            </button>
+            <div className="preview-install">
+              <p><strong>Synthetic Helios · live HydraDB retrieval · read-only.</strong></p>
+              <div><code>{demoEndpoint}</code><button type="button" onClick={() => void copyMcpEndpoint(demoEndpoint, "public demo")}><Clipboard size={13} /> Copy URL</button><button type="button" onClick={() => void runPublicDemoProof()} disabled={demoBusy}>{demoBusy ? <LoaderCircle className="spin" size={13} /> : <Play size={13} />} {demoBusy ? "Running…" : "Run live proof"}</button></div>
+              {demoProof && <div className="proof-seal" role="status"><CircleCheck size={21} /><div><strong>{demoProof.validation?.status ?? "measured"} · {demoProof.providerCoverage.join(" · ")}</strong><span>{demoProof.callCount} HydraDB call{demoProof.callCount === 1 ? "" : "s"} · {demoProof.latencyMs.toLocaleString()} ms · {demoProof.estimatedCostUnits} relative cost unit{demoProof.estimatedCostUnits === 1 ? "" : "s"}</span><small>{demoProof.answer}</small></div></div>}
+            </div>
+            <details className="preview-install">
+              <summary>Directory and personal-workspace status</summary>
+              <p><strong>Forthcoming.</strong> OpenAI review and personal OAuth are separate release gates. The working public demo above is available now.</p>
+            </details>
+          </>
+        ) : (
+          <>
+            <ol className="chatgpt-install-steps">
+              <li><span>01</span><div><strong>Open ChatGPT Plugins</strong><p>Use the shared ChatGPT and Codex plugin directory.</p></div></li>
+              <li><span>02</span><div><strong>Search QueueProof and select Add</strong><p>After OpenAI approves and the publisher releases the listing.</p></div></li>
+              <li><span>03</span><div><strong>Sign in to QueueProof</strong><p>OAuth opens the secure account flow. No API key is created or pasted.</p></div></li>
+            </ol>
+            <a className="chatgpt-open-button" href={CHATGPT_PLUGINS_URL} target="_blank" rel="noreferrer">
+              <Bot size={16} /> Open ChatGPT Plugins <ExternalLink size={14} />
+            </a>
+            <details className="preview-install">
+              <summary>Test QueueProof before directory approval</summary>
+              <p><strong>Public demo.</strong> Add this as a custom MCP server with no authentication. It is fixed to synthetic Helios data, rate-limited, and exposes one focused investigation tool.</p>
+              <div><code>{demoEndpoint}</code><button type="button" onClick={() => void copyMcpEndpoint(demoEndpoint, "public demo")}><Clipboard size={13} /> Copy URL</button></div>
+              <p className="preview-private"><strong>Personal workspace.</strong> Use the OAuth endpoint after private account authorization is enabled.</p>
+              <div><code>{endpoint}</code><button type="button" onClick={() => void copyMcpEndpoint()}><Clipboard size={13} /> Copy URL</button></div>
+            </details>
+          </>
+        )}
       </article>
 
       <aside className="chatgpt-proof-card" aria-label="QueueProof ChatGPT safety">
         <span className="eyebrow"><ShieldCheck size={13} /> What the connection can do</span>
         <h2>Answers with a trail,<br />not another black box.</h2>
         <ul>
-          <li><CircleCheck size={16} /><span><strong>Read your verified sources</strong><small>Only inside your authenticated QueueProof workspace.</small></span></li>
+          <li><CircleCheck size={16} /><span><strong>{readOnly ? "Read verified synthetic sources" : "Read your verified sources"}</strong><small>{readOnly ? "Only the public Helios workspace; no personal data or provider write access." : "Only inside your authenticated QueueProof workspace."}</small></span></li>
           <li><CircleCheck size={16} /><span><strong>Return cited evidence</strong><small>Claims, receipts, disagreements, and missing proof stay visible.</small></span></li>
           <li><LockKeyhole size={16} /><span><strong>Keep provider writes separate</strong><small>ChatGPT cannot approve or execute an external change.</small></span></li>
         </ul>
@@ -2215,17 +2382,26 @@ function AgentScreen({ workspace, setError, setNotice, readOnly, publicOrigin }:
     <details className="advanced-connect">
       <summary><Terminal size={16} /><span><strong>Developer setup for other MCP clients</strong><small>Codex, Claude Code, Kilo Code, and generic Streamable HTTP</small></span><ChevronRight size={15} /></summary>
       <div className="advanced-connect-body">
-        {readOnly && <div className="inline-warning"><LockKeyhole size={14} />Connection keys are private to a signed-in workspace owner. The ChatGPT OAuth path above does not use one.</div>}
-        <div className="client-tabs" role="tablist" aria-label="Developer MCP client">
-          {[['codex', 'Codex'], ['claude', 'Claude Code'], ['kilo', 'Kilo Code'], ['generic', 'Generic MCP']].map(([value, label]) => <button type="button" role="tab" aria-selected={clientType === value} className={clientType === value ? "active" : ""} key={value} onClick={() => setClientType(value)}>{label}</button>)}
+        {readOnly && <div className="inline-warning"><CircleCheck size={14} />The public demo needs no connection key. It can search only synthetic Helios evidence and cannot write.</div>}
+        <div className="client-tabs" aria-label="Developer MCP client">
+          {[['codex', 'Codex'], ['claude', 'Claude Code'], ['kilo', 'Kilo Code'], ['generic', 'Generic MCP']].map(([value, label]) => <button type="button" aria-pressed={clientType === value} className={clientType === value ? "active" : ""} key={value} onClick={() => setClientType(value)}>{label}</button>)}
         </div>
         <div className="agent-grid">
           <div className="token-console ember-surface">
             <EmberBackdrop placement="connect" state={busy ? "connecting" : freshToken ? "complete" : "idle"} />
-            <div className="console-line"><span><KeyRound size={14} /> 1. Create a developer key</span><span className="secure-chip"><LockKeyhole size={12} /> stored as a hash</span></div>
-            <label className="scope-choice"><input type="checkbox" checked={writeScopes} onChange={(event) => setWriteScopes(event.target.checked)} disabled={readOnly} /><span><strong>Let this client prepare actions and sync</strong><small>It still cannot execute a provider change without your approval.</small></span></label>
-            {!readOnly && <ActionButton label="Create developer key" icon={<KeyRound size={15} />} loading={busy} onClick={() => void createToken()} />}
-            {freshToken && <div className="token-reveal"><span><CircleAlert size={13} /> Copy this now. It is shown only once.</span><code>{freshToken}</code><button onClick={() => void navigator.clipboard.writeText(freshToken)}><Clipboard size={13} /> Copy key</button></div>}
+            {readOnly ? (
+              <>
+                <div className="console-line"><span><CircleCheck size={14} /> 1. Use the live public endpoint</span><span className="secure-chip"><LockKeyhole size={12} /> no auth</span></div>
+                <div className="scope-choice"><span><strong>No account or key required</strong><small>One read-only search tool, synthetic Helios data, durable rate limits, and no provider writes.</small></span></div>
+              </>
+            ) : (
+              <>
+                <div className="console-line"><span><KeyRound size={14} /> 1. Create a developer key</span><span className="secure-chip"><LockKeyhole size={12} /> stored as a hash</span></div>
+                <label className="scope-choice"><input type="checkbox" checked={writeScopes} onChange={(event) => setWriteScopes(event.target.checked)} /><span><strong>Let this client prepare actions and sync</strong><small>It still cannot execute a provider change without your approval.</small></span></label>
+                <ActionButton label="Create developer key" icon={<KeyRound size={15} />} loading={busy} onClick={() => void createToken()} />
+                {freshToken && <div className="token-reveal"><span><CircleAlert size={13} /> Copy this now. It is shown only once.</span><code>{freshToken}</code><button onClick={() => void navigator.clipboard.writeText(freshToken)}><Clipboard size={13} /> Copy key</button></div>}
+              </>
+            )}
           </div>
           <div className="config-card">
             {clientGuide.environment && <div className="config-environment"><div><small>2. SET THE DEVELOPER KEY</small><button onClick={() => void navigator.clipboard.writeText(clientGuide.environment!)}><Clipboard size={13} /> Copy</button></div><pre>{clientGuide.environment}</pre></div>}

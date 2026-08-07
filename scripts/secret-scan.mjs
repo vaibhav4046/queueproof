@@ -35,6 +35,14 @@ function git(args, options = {}) {
   return result.stdout;
 }
 
+const shallowState = git(["rev-parse", "--is-shallow-repository"]).trim();
+if (shallowState !== "false") {
+  throw new Error(
+    "Secret scan requires a full-history checkout; fetch complete history before scanning "
+      + "(for actions/checkout, set fetch-depth: 0).",
+  );
+}
+
 function isKnownSyntheticFixture(family, match, path) {
   if (family !== "Turso token") return false;
   const normalizedPath = path?.replaceAll("\\", "/") ?? "";

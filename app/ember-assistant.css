@@ -34,16 +34,16 @@ html { background: var(--ink); }
 body { min-width: 320px; overflow-x: hidden; color: var(--paper); background: var(--ink); }
 
 /* A quiet ember scrollbar keeps long receipts and modal sheets inside the same visual system. */
-* { scrollbar-width: thin; scrollbar-color: rgba(255, 154, 66, .38) #050403; }
+* { scrollbar-width: thin; scrollbar-color: #995020 #050403; }
 *::-webkit-scrollbar { width: 10px; height: 10px; }
 *::-webkit-scrollbar-track { background: #050403; }
 *::-webkit-scrollbar-thumb {
   min-height: 36px;
   border: 3px solid #050403;
   border-radius: 999px;
-  background: #5a321b;
+  background: #995020;
 }
-*::-webkit-scrollbar-thumb:hover { background: #8a481d; }
+*::-webkit-scrollbar-thumb:hover { background: #c46a2a; }
 
 .qp-app {
   --background: var(--ink);

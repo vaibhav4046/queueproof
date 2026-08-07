@@ -28,8 +28,11 @@ not an authentication bypass for a personal workspace.
 
 Use a clean temporary chat and ask: “Who escalated the AuthShield outage, what did engineering
 commit, and is the fix merged? Cite each returned source and preserve disagreement.” Confirm
-`initialize`, `tools/list`, and one cited read result. Record it as the **public demo**, not as a
-personal account connection.
+`initialize`, `tools/list`, and one cited read result. The structured result includes the grounded
+answer, evidence-linked claims, citation objects, contradictions, missing information, validation
+status, raw sanitized evidence, provider coverage, latency, HydraDB call count, and relative
+retrieval cost. Record it as the **public
+demo**, not as a personal account connection.
 
 ## 1. Configure personal-workspace OAuth once
 

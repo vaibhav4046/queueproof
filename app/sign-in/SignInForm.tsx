@@ -12,6 +12,7 @@ import styles from "./sign-in.module.css";
 
 type SignInFormProps = {
   creating: boolean;
+  initialError?: string;
   nextPath: string;
   socialProviders: QueueProofSocialProvider[];
   supabase: QueueProofBrowserConfig;
@@ -29,13 +30,20 @@ function SocialIcon({ provider }: { provider: QueueProofSocialProvider }) {
   return <SiSlack aria-hidden="true" size={16} />;
 }
 
-export function SignInForm({ creating, nextPath, socialProviders, supabase }: SignInFormProps) {
+export function SignInForm({
+  creating,
+  initialError = "",
+  nextPath,
+  socialProviders,
+  supabase,
+}: SignInFormProps) {
   const emailId = useId();
   const [email, setEmail] = useState("");
   const [pending, setPending] = useState(false);
   const [sent, setSent] = useState(false);
-  const [error, setError] = useState("");
-  const [socialPending, setSocialPending] = useState<QueueProofSocialProvider | null>(null);
+  const [error, setError] = useState(initialError);
+  const [socialPending, setSocialPending] =
+    useState<QueueProofSocialProvider | null>(null);
 
   function callbackUrl() {
     const callback = new URL("/auth/callback", window.location.origin);
@@ -49,7 +57,9 @@ export function SignInForm({ creating, nextPath, socialProviders, supabase }: Si
     setError("");
     const client = createQueueProofBrowserClient(supabase);
     if (!client) {
-      setError("Account sign-in is temporarily unavailable. The public demo remains open.");
+      setError(
+        "Account sign-in is temporarily unavailable. The public demo remains open.",
+      );
       setSocialPending(null);
       return;
     }
@@ -58,7 +68,9 @@ export function SignInForm({ creating, nextPath, socialProviders, supabase }: Si
       options: { redirectTo: callbackUrl() },
     });
     if (authError) {
-      setError(`We could not continue with ${SOCIAL_PROVIDER_LABELS[provider]}. Try work email instead.`);
+      setError(
+        `We could not continue with ${SOCIAL_PROVIDER_LABELS[provider]}. Try work email instead.`,
+      );
       setSocialPending(null);
     }
   }
@@ -70,7 +82,9 @@ export function SignInForm({ creating, nextPath, socialProviders, supabase }: Si
     setError("");
     const client = createQueueProofBrowserClient(supabase);
     if (!client) {
-      setError("Account sign-in is temporarily unavailable. The public demo remains open.");
+      setError(
+        "Account sign-in is temporarily unavailable. The public demo remains open.",
+      );
       setPending(false);
       return;
     }
@@ -99,7 +113,10 @@ export function SignInForm({ creating, nextPath, socialProviders, supabase }: Si
         <Mail size={18} />
         <div>
           <strong>Check your inbox.</strong>
-          <span>Open the QueueProof link sent to {email.trim()}. It expires automatically.</span>
+          <span>
+            Open the QueueProof link sent to {email.trim()}. It expires
+            automatically.
+          </span>
         </div>
       </div>
     );
@@ -108,7 +125,10 @@ export function SignInForm({ creating, nextPath, socialProviders, supabase }: Si
   return (
     <div className={styles.authMethods}>
       {socialProviders.length ? (
-        <div className={styles.socialMethods} aria-label="Social sign in options">
+        <div
+          className={styles.socialMethods}
+          aria-label="Social sign in options"
+        >
           {socialProviders.map((provider) => (
             <button
               className={styles.social}
@@ -117,14 +137,18 @@ export function SignInForm({ creating, nextPath, socialProviders, supabase }: Si
               onClick={() => void continueWith(provider)}
               disabled={pending || Boolean(socialPending)}
             >
-              {socialPending === provider
-                ? <LoaderCircle className={styles.spinner} size={17} />
-                : <SocialIcon provider={provider} />}
+              {socialPending === provider ? (
+                <LoaderCircle className={styles.spinner} size={17} />
+              ) : (
+                <SocialIcon provider={provider} />
+              )}
               <span>Continue with {SOCIAL_PROVIDER_LABELS[provider]}</span>
               <ArrowRight aria-hidden="true" size={15} />
             </button>
           ))}
-          <div className={styles.divider}><span>or use work email</span></div>
+          <div className={styles.divider}>
+            <span>or use work email</span>
+          </div>
         </div>
       ) : null}
       <form className={styles.form} onSubmit={submit}>
@@ -142,12 +166,28 @@ export function SignInForm({ creating, nextPath, socialProviders, supabase }: Si
           onChange={(event) => setEmail(event.target.value)}
           disabled={pending || Boolean(socialPending)}
         />
-        <button className={styles.primary} type="submit" disabled={pending || Boolean(socialPending) || !email.trim()}>
-          {pending ? <LoaderCircle className={styles.spinner} size={17} /> : <Mail size={17} />}
-          {pending ? "Sending secure link…" : creating ? "Create my private workspace" : "Email me a sign-in link"}
+        <button
+          className={styles.primary}
+          type="submit"
+          disabled={pending || Boolean(socialPending) || !email.trim()}
+        >
+          {pending ? (
+            <LoaderCircle className={styles.spinner} size={17} />
+          ) : (
+            <Mail size={17} />
+          )}
+          {pending
+            ? "Sending secure link…"
+            : creating
+              ? "Create my private workspace"
+              : "Email me a sign-in link"}
           <ArrowRight aria-hidden="true" size={16} />
         </button>
-        {error ? <p className={styles.formError} role="alert">{error}</p> : null}
+        {error ? (
+          <p className={styles.formError} role="alert">
+            {error}
+          </p>
+        ) : null}
       </form>
     </div>
   );

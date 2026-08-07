@@ -384,7 +384,7 @@ describe("QueueProof MCP", () => {
             app_provider: "github",
             url: "https://github.com/helios/demo/issues/1?token=private-link-token&view=compact",
           },
-          { id: "source-injection", title: "Untrusted source", connector_id: "hydra-selected", app_provider: "github" },
+          { id: "source-injection", title: "ENG-456 untrusted source", connector_id: "hydra-selected", app_provider: "github" },
           { id: "source-other", title: "Must not leak", connector_id: "hydra-other", app_provider: "slack" },
         ],
         chunks: [
@@ -576,6 +576,22 @@ describe("QueueProof MCP", () => {
     expect(body).toContain('"type":"noauth"');
     expect(body).not.toContain('"type":"oauth2"');
     expect(JSON.stringify(tools[0]?.inputSchema)).not.toMatch(/connectorIds|sourceIds/);
+    const outputSchema = JSON.stringify(tools[0]?.outputSchema);
+    for (const field of [
+      "answer",
+      "claims",
+      "citations",
+      "contradictions",
+      "missingInformation",
+      "validation",
+      "evidence",
+      "providerCoverage",
+      "latencyMs",
+      "callCount",
+      "estimatedCostUnits",
+    ]) {
+      expect(outputSchema).toContain(`"${field}"`);
+    }
 
     const resourcesResponse = await POST(new Request("https://queueproof.example/mcp/demo", {
       method: "POST",
@@ -601,28 +617,55 @@ describe("QueueProof MCP", () => {
       /workspaceId|database|collection|connectorId|sourceId/i,
     );
 
-    const query = vi.fn().mockImplementation(async (input: { metadata_filters?: Record<string, string> }) => {
-      const connector = demoConnectors.find((candidate) =>
-        candidate.hydraId === input.metadata_filters?.connector_id,
-      )!;
+    const query = vi.fn().mockImplementation(async (input: {
+      query: string;
+      max_results: number;
+      metadata_filters?: Record<string, string>;
+    }) => {
+      const selected = input.metadata_filters?.connector_id
+        ? demoConnectors.filter((candidate) =>
+            candidate.hydraId === input.metadata_filters?.connector_id,
+          )
+        : demoConnectors;
+      const exactLookup = /BUG-123/i.test(input.query) && !/who filed/i.test(input.query);
+      const namedLinearLookup = /BUG-123 in Linear/i.test(input.query);
+      const multiHop = /who filed/i.test(input.query);
       return {
         ok: true,
         status: 200,
-        requestId: `demo-${connector.provider}`,
+        requestId: `demo-${selected.map((connector) => connector.provider).join("-")}`,
         latencyMs: 2,
         error: null,
         data: {
-          sources: [{
+          sources: selected.map((connector) => ({
             id: `source-${connector.provider}`,
             connector_id: connector.hydraId,
             app_provider: connector.provider,
             title: `${connector.provider} receipt`,
-          }],
-          chunks: [{
+          })),
+          chunks: selected.map((connector) => ({
             id: `source-${connector.provider}`,
             chunk_id: `chunk-${connector.provider}`,
-            chunk_content: `${connector.provider} supports the AuthShield finding.`,
-          }],
+            chunk_content: exactLookup
+              ? connector.provider === "github"
+                ? "BUG-123 is the AuthShield incident and the fix is merged."
+                : connector.provider === "linear"
+                  ? namedLinearLookup
+                    ? "BUG-123 is owned by the Linear platform team."
+                    : "BUG-1234 is an unrelated neighboring ticket."
+                  : "Unrelated customer billing discussion."
+              : multiHop
+                ? connector.provider === "linear"
+                  ? "Priya Raman filed BUG-123 for the AuthShield project."
+                  : connector.provider === "slack"
+                    ? "Priya told the customer the fix would ship by Friday."
+                    : "The AuthShield fix was merged in commit abc123."
+                : connector.provider === "github"
+                  ? "The AuthShield fix was merged in commit abc123."
+                  : connector.provider === "slack"
+                    ? "Priya Raman escalated the AuthShield outage for Northwind."
+                    : "Priya filed the AuthShield incident and engineering committed to Friday.",
+          })),
         },
       };
     });
@@ -641,27 +684,207 @@ describe("QueueProof MCP", () => {
           method: "tools/call",
           params: {
             name: "queueproof_search",
-            arguments: { query: "What happened to AuthShield?", mode: "fast" },
+            arguments: { query: "Who escalated the AuthShield outage, what did engineering commit to, and was the fix merged?", mode: "fast" },
           },
         }),
       }));
       const searchRpc = parseMcpResponse(await searchResponse.text());
-      expect(searchRpc.result?.structuredContent).toMatchObject({
-        callCount: 3,
+      type DemoClaim = {
+        text: string;
+        evidenceIds: string[];
+        providers: string[];
+      };
+      type DemoContradiction = {
+        summary: string;
+        evidenceIds: string[];
+        providers: string[];
+      };
+      const result = searchRpc.result?.structuredContent as {
+        answer: string;
+        claims: DemoClaim[];
+        citations: Array<{
+          evidenceId: string;
+          sourceId: string;
+          provider: string;
+          title: string;
+          timestamp: string | null;
+          url: string | null;
+        }>;
+        contradictions: DemoContradiction[];
+        missingInformation: string[];
+        validation: {
+          status: "grounded" | "partial" | "abstained";
+          claimCount: number;
+          citedClaimCount: number;
+          evidenceCount: number;
+          providerCoverage: string[];
+        };
+        evidence: Array<{ evidenceId: string; provider: string }>;
+        providerCoverage: string[];
+        callCount: number;
+        estimatedCostUnits: number;
+        partial: boolean;
+        failedScopeCount: number;
+      };
+      expect(result).toMatchObject({
+        answer: expect.any(String),
+        citations: expect.any(Array),
+        contradictions: expect.any(Array),
+        missingInformation: expect.any(Array),
+        callCount: 1,
+        estimatedCostUnits: 1,
         partial: false,
         failedScopeCount: 0,
       });
-      const providerCoverage = (searchRpc.result?.structuredContent as {
+      expect(result.answer).not.toMatch(/^Insufficient evidence\b/);
+      expect(result.claims.length).toBeGreaterThan(0);
+      expect(result.validation.status).not.toBe("abstained");
+      expect(result.validation).toMatchObject({
+        claimCount: result.claims.length,
+        citedClaimCount: result.claims.length,
+        evidenceCount: result.evidence.length,
+      });
+      const returnedEvidenceIds = new Set(result.evidence.map((item) => item.evidenceId));
+      expect(result.citations.length).toBeGreaterThan(0);
+      for (const citation of result.citations) {
+        expect(returnedEvidenceIds.has(citation.evidenceId)).toBe(true);
+      }
+      for (const item of [...result.claims, ...result.contradictions]) {
+        expect(item.evidenceIds.length).toBeGreaterThan(0);
+        for (const evidenceId of item.evidenceIds) {
+          expect(returnedEvidenceIds.has(evidenceId)).toBe(true);
+        }
+      }
+      const groundedProviders = [...new Set(
+        result.claims.flatMap((claim) => claim.providers),
+      )].sort();
+      expect([...result.validation.providerCoverage].sort()).toEqual(groundedProviders);
+      expect([...result.providerCoverage].sort()).toEqual(["github", "linear", "slack"]);
+      expect(query).toHaveBeenCalledTimes(1);
+
+      query.mockClear();
+      const exactResponse = await POST(new Request("https://queueproof.example/mcp/demo", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 73,
+          method: "tools/call",
+          params: {
+            name: "queueproof_search",
+            arguments: { query: "What is BUG-123?", mode: "auto" },
+          },
+        }),
+      }));
+      const exactRpc = parseMcpResponse(await exactResponse.text());
+      const exact = exactRpc.result?.structuredContent as {
+        evidence: Array<{ evidenceId: string; provider: string; excerpt: string }>;
         providerCoverage: string[];
-      }).providerCoverage;
-      expect([...providerCoverage].sort()).toEqual(["github", "linear", "slack"]);
-      expect(query).toHaveBeenCalledTimes(3);
+        callCount: number;
+      };
+      expect(exact.callCount).toBe(1);
+      expect(exact.evidence).toHaveLength(1);
+      expect(exact.evidence[0]).toMatchObject({
+        provider: "github",
+        excerpt: expect.stringContaining("BUG-123"),
+      });
+      expect(JSON.stringify(exact)).not.toContain("BUG-1234");
+      expect(JSON.stringify(exact)).not.toContain("billing discussion");
+      expect(exact.providerCoverage).toEqual(["github"]);
+      expect(query).toHaveBeenCalledTimes(1);
+      expect(query).toHaveBeenLastCalledWith(expect.objectContaining({
+        query: "BUG-123 What is BUG-123?",
+        max_results: 6,
+      }));
+
+      query.mockClear();
+      const namedProviderResponse = await POST(new Request("https://queueproof.example/mcp/demo", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 75,
+          method: "tools/call",
+          params: {
+            name: "queueproof_search",
+            arguments: { query: "What is BUG-123 in Linear?", mode: "auto" },
+          },
+        }),
+      }));
+      const namedProviderRpc = parseMcpResponse(await namedProviderResponse.text());
+      const namedProvider = namedProviderRpc.result?.structuredContent as {
+        evidence: Array<{ provider: string; excerpt: string }>;
+        callCount: number;
+      };
+      expect(namedProvider.callCount).toBe(1);
+      expect(namedProvider.evidence).toEqual([
+        expect.objectContaining({ provider: "linear", excerpt: expect.stringContaining("BUG-123") }),
+      ]);
+      expect(query).toHaveBeenCalledTimes(1);
+      expect(query).toHaveBeenLastCalledWith(expect.objectContaining({
+        max_results: 6,
+        metadata_filters: {
+          connector_id: "demo-linear",
+          provider: "linear",
+        },
+      }));
+
+      query.mockClear();
+      const multiHopResponse = await POST(new Request("https://queueproof.example/mcp/demo", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 74,
+          method: "tools/call",
+          params: {
+            name: "queueproof_search",
+            arguments: {
+              query: "Who filed BUG-123, which project are they working on, and what did they say about the fix?",
+              mode: "auto",
+            },
+          },
+        }),
+      }));
+      const multiHopRpc = parseMcpResponse(await multiHopResponse.text());
+      const multiHop = multiHopRpc.result?.structuredContent as {
+        evidence: Array<{ provider: string; excerpt: string }>;
+        providerCoverage: string[];
+        callCount: number;
+      };
+      expect(multiHop.callCount).toBe(1);
+      expect([...multiHop.providerCoverage].sort()).toEqual(["github", "linear", "slack"]);
+      expect(multiHop.evidence).toEqual(expect.arrayContaining([
+        expect.objectContaining({ provider: "linear", excerpt: expect.stringContaining("BUG-123") }),
+        expect.objectContaining({ provider: "slack", excerpt: expect.stringContaining("Friday") }),
+        expect.objectContaining({ provider: "github", excerpt: expect.stringContaining("merged") }),
+      ]));
+      expect(query).toHaveBeenCalledTimes(1);
+      expect(query).toHaveBeenLastCalledWith(expect.objectContaining({
+        max_results: 12,
+      }));
     } finally {
       clientSpy.mockRestore();
     }
 
     const app = readFileSync(new URL("../app/QueueProofApp.tsx", import.meta.url), "utf8");
     expect(app).toContain('const demoEndpoint = `${publicOrigin}/mcp/demo`');
+    expect(app).toContain("targetEndpoint = readOnly ? demoEndpoint : endpoint");
+    expect(app).toContain("LIVE · NO AUTH");
+    expect(app).toContain("Synthetic Helios · live HydraDB retrieval · read-only.");
+    expect(app).toContain("runPublicDemoProof");
+    expect(app).toContain("Run live proof");
+    expect(app).toContain("relative cost unit");
+    expect(app).toContain('{ type: "http", url: targetEndpoint, timeout: 60000 }');
     expect(app).toContain("fixed to synthetic Helios data, rate-limited, and exposes one focused investigation tool");
   });
 

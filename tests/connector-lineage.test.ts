@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   connectorLineageMetadataFilter,
+  connectorVerificationProviderCoverage,
   sourceAttestedByScopedConnectorQuery,
   sourceBelongsToConnector,
 } from "../lib/server/hydradb-shapes";
@@ -45,6 +46,20 @@ describe("connector proof lineage", () => {
   it("rejects provider-only and foreign-connector records", () => {
     expect(sourceBelongsToConnector({ app_provider: "slack" }, "hydra-slack-1", selected)).toBe(false);
     expect(sourceBelongsToConnector({ connector_id: "hydra-slack-2" }, "hydra-slack-1", selected)).toBe(false);
+  });
+
+  it("never leaks unrelated envelope providers into a connector receipt", () => {
+    const extracted = [
+      { connector_id: "hydra-github-1", app_provider: "github" },
+      { connector_id: "hydra-linear-1", app_provider: "linear" },
+      { connector_id: "hydra-slack-1", app_provider: "slack" },
+    ];
+    const matching = extracted.filter((source) =>
+      sourceBelongsToConnector(source, "hydra-github-1", new Set()),
+    );
+
+    expect(connectorVerificationProviderCoverage(matching, "github")).toEqual(["github"]);
+    expect(connectorVerificationProviderCoverage([], "github")).toEqual([]);
   });
 });
 

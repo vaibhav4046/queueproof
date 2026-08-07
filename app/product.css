@@ -580,7 +580,7 @@ details > summary { color: var(--muted); }
 .relationship-item:last-child { border-bottom: 0; }
 .relationship-item strong { overflow: hidden; color: var(--paper); font: 570 12px/1.35 var(--sans); text-overflow: ellipsis; }
 .relationship-item span { overflow: hidden; color: var(--muted); font-size: 10px; line-height: 1.45; text-overflow: ellipsis; }
-.relationship-item.node-contradiction { border-left: 2px solid var(--amber); background: #fff8ef; }
+.relationship-item.node-contradiction { border-left: 2px solid var(--amber); background: rgba(166,95,21,.12); }
 .evidence-graph-status { margin-top: 10px; color: var(--faint); }
 input,
 select,

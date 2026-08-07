@@ -9,8 +9,9 @@ import {
   sourceBelongsToConnector,
 } from "../../../lib/server/hydradb-shapes";
 import { requireDb } from "../../../lib/server/runtime";
+import { synthesiseGroundedAnswer } from "../../../lib/server/synthesis";
 import { createId } from "../../../lib/server/store";
-import { planRetrieval } from "../../retrieval/src";
+import { planRetrieval, providersNamedInQuestion, recordIdentifiers, retrievalModeCost } from "../../retrieval/src";
 import {
   hostileQueryReason,
   isPotentialPromptInjection,
@@ -485,26 +486,66 @@ export function buildQueueProofServer(
     const scope = await validateSearchScope(input);
     const plan = planRetrieval(input.query);
     const mode = input.mode === "auto" ? plan.mode : input.mode;
+    const availableProviders = scope.kind === "connectors"
+      ? scope.connectors.map((connector) => connector.provider)
+      : [];
+    const namedScopedProviders = providersNamedInQuestion(input.query, availableProviders);
+    const identifiers = [...new Set(recordIdentifiers(input.query).map((value) => value.toUpperCase()))];
+    const compoundQuestion = /[,;]|\b(?:and|also|across|between|compare|versus|vs\.?)\b/i.test(input.query);
+    const narrowExactLookup =
+      plan.mode === "fast" &&
+      mode === "fast" &&
+      identifiers.length === 1 &&
+      namedScopedProviders.length <= 1 &&
+      !compoundQuestion;
+    const exactIdentifier = narrowExactLookup ? identifiers[0] : null;
+    const retrievalQuery = exactIdentifier ? `${exactIdentifier} ${input.query}` : input.query;
     const hydra = await hydraClientForWorkspace(workspaceId);
     const startedAt = Date.now();
+
+    const selectedConnectors = scope.kind === "connectors" && narrowExactLookup && namedScopedProviders.length === 1
+      ? scope.connectors.filter((connector) => connector.provider === namedScopedProviders[0])
+      : scope.kind === "connectors"
+        ? scope.connectors
+        : [];
+    const connectorQueryGroups = scope.kind === "connectors"
+      ? [...selectedConnectors.reduce((groups, connector) => {
+          const key = `${connector.database}\u0000${connector.collection ?? ""}`;
+          const current = groups.get(key) ?? {
+            kind: "connector_group" as const,
+            database: connector.database,
+            collection: connector.collection,
+            connectors: [] as typeof selectedConnectors,
+          };
+          current.connectors.push(connector);
+          groups.set(key, current);
+          return groups;
+        }, new Map<string, {
+          kind: "connector_group";
+          database: string;
+          collection: string | null;
+          connectors: typeof selectedConnectors;
+        }>()).values()]
+      : [];
     const queryScopes = scope.kind === "connectors"
-      ? scope.connectors.map((connector) => ({ kind: "connector" as const, connector }))
+      ? connectorQueryGroups
       : scope.groups.map((group) => ({ kind: "documents" as const, group }));
+
     const responses = await Promise.all(queryScopes.map(async (queryScope) => {
-      if (queryScope.kind === "connector") {
-        const lineageMetadataFilters = connectorLineageMetadataFilter(
-          queryScope.connector.hydradbConnectorId,
-          queryScope.connector.provider,
-        );
+      if (queryScope.kind === "connector_group") {
+        const singleton = queryScope.connectors.length === 1 ? queryScope.connectors[0] : null;
+        const lineageMetadataFilters = singleton
+          ? connectorLineageMetadataFilter(singleton.hydradbConnectorId, singleton.provider)
+          : undefined;
         const response = await hydra.query({
-          database: queryScope.connector.database,
-          ...(queryScope.connector.collection ? { collections: [queryScope.connector.collection] } : {}),
-          metadata_filters: lineageMetadataFilters,
-          query: input.query,
+          database: queryScope.database,
+          ...(queryScope.collection ? { collections: [queryScope.collection] } : {}),
+          ...(lineageMetadataFilters ? { metadata_filters: lineageMetadataFilters } : {}),
+          query: retrievalQuery,
           type: "knowledge",
           query_by: plan.queryBy,
           mode,
-          max_results: 12,
+          max_results: narrowExactLookup ? 6 : 12,
           query_apps: true,
           graph_context: plan.graphContext,
           recency_bias: plan.recencyBias,
@@ -514,11 +555,11 @@ export function buildQueueProofServer(
       const response = await hydra.query({
         database: queryScope.group.database,
         ids: queryScope.group.sourceIds,
-        query: input.query,
+        query: retrievalQuery,
         type: "knowledge",
         query_by: plan.queryBy,
         mode,
-        max_results: 12,
+        max_results: narrowExactLookup ? 6 : 12,
         query_apps: false,
         graph_context: plan.graphContext,
         recency_bias: plan.recencyBias,
@@ -541,27 +582,32 @@ export function buildQueueProofServer(
           })
           .map((source) => ({ source, chunks: extracted.chunks, provider: "document" }));
       }
-      const connector = result.connector;
-      return extracted.sources
-        .filter((source) =>
-          sourceBelongsToConnector(source, connector.hydradbConnectorId, connector.selectedResourceIds) ||
+      return extracted.sources.flatMap((source) => {
+        const strictOwner = result.connectors.find((connector) =>
+          sourceBelongsToConnector(source, connector.hydradbConnectorId, connector.selectedResourceIds),
+        );
+        const singleton = result.connectors.length === 1 ? result.connectors[0] : null;
+        const attestedOwner = !strictOwner && singleton && result.lineageMetadataFilters &&
           sourceAttestedByScopedConnectorQuery({
             source,
-            connectorId: connector.hydradbConnectorId,
-            connectorProvider: connector.provider,
+            connectorId: singleton.hydradbConnectorId,
+            connectorProvider: singleton.provider,
             scopeConnectorCount: 1,
-            providerConnectorCount: connector.providerConnectorCount,
+            providerConnectorCount: singleton.providerConnectorCount,
             purpose: "queue",
             lineageMetadataFilters: result.lineageMetadataFilters,
             responseOk: result.response.ok,
             responseStatus: result.response.status,
             requestId: result.response.requestId,
-          }),
-        )
-        .map((source) => ({ source, chunks: extracted.chunks, provider: connector.provider }));
+          })
+            ? singleton
+            : null;
+        const owner = strictOwner ?? attestedOwner;
+        return owner ? [{ source, chunks: extracted.chunks, provider: owner.provider }] : [];
+      });
     });
 
-    const evidence = accepted.flatMap(({ source, chunks, provider }, sourceIndex) => {
+    const dedupedEvidence = accepted.flatMap(({ source, chunks, provider }, sourceIndex) => {
       const sourceId = firstString(source, ["id", "source_id", "context_id"]) ?? `source-${sourceIndex + 1}`;
       const metadata = { ...record(source.additional_metadata), ...record(source.metadata) };
       const title = firstString(source, ["title", "subject", "name", "filename"]) ??
@@ -596,8 +642,40 @@ export function buildQueueProofServer(
       });
     }).filter((item, index, items) =>
       items.findIndex((candidate) => candidate.evidenceId === item.evidenceId && candidate.provider === item.provider) === index,
-    ).slice(0, 48);
+    );
+    const evidence = (exactIdentifier
+      ? dedupedEvidence.filter((item) =>
+          recordIdentifiers(`${item.sourceId} ${item.title} ${item.excerpt}`)
+            .some((identifier) => identifier.toUpperCase() === exactIdentifier),
+        )
+      : dedupedEvidence
+    ).slice(0, exactIdentifier ? 6 : 48);
     const providers = [...new Set(evidence.map((item) => item.provider))];
+    const synthesis = synthesiseGroundedAnswer(
+      input.query,
+      evidence.map((item) => ({
+        id: item.evidenceId,
+        provider: item.provider,
+        title: item.title,
+        excerpt: item.excerpt,
+        timestamp: item.timestamp,
+        url: item.url,
+      })),
+    );
+    const citedEvidenceIds = new Set([
+      ...synthesis.claims.flatMap((claim) => claim.evidenceIds),
+      ...synthesis.contradictions.flatMap((contradiction) => contradiction.evidenceIds),
+    ]);
+    const citations = evidence
+      .filter((item) => citedEvidenceIds.has(item.evidenceId))
+      .map((item) => ({
+        evidenceId: item.evidenceId,
+        sourceId: item.sourceId,
+        provider: item.provider,
+        title: item.title,
+        timestamp: item.timestamp,
+        url: item.url,
+      }));
     return {
       plan: {
         category: plan.category,
@@ -606,10 +684,17 @@ export function buildQueueProofServer(
         reason: plan.reason,
       },
       mode,
+      answer: synthesis.answer,
+      claims: synthesis.claims,
+      citations,
+      contradictions: synthesis.contradictions,
+      missingInformation: synthesis.missingInformation,
+      validation: synthesis.validation,
       evidence,
       providerCoverage: providers,
       latencyMs: Date.now() - startedAt,
       callCount: responses.length,
+      estimatedCostUnits: responses.length * retrievalModeCost(mode),
       partial: successful.length !== responses.length,
       failedScopeCount: responses.length - successful.length,
     };
@@ -620,16 +705,44 @@ export function buildQueueProofServer(
     {
       title: "Search QueueProof evidence",
       description: demoSurface
-        ? "Use this when the user asks a cross-source work question about the synthetic Helios demo. QueueProof automatically searches every verified demo connector, preserves source IDs and disagreement, and returns missing proof. It cannot reveal credentials, sync a source, create a proposal, or write to a provider."
+        ? "Use this when the user asks a cross-source work question about the synthetic Helios demo. QueueProof searches verified demo evidence, returns a grounded answer with citations and disagreement, and reports missing proof, latency, call count, and relative retrieval cost. It cannot reveal credentials, sync a source, create a proposal, or write to a provider."
         : "Use this when the user asks a natural-language or exact-ID question that requires evidence from workspace connectors or uploaded documents. First list sources, then pass either verified connectorIds or indexed document sourceIds. QueueProof resolves and enforces database, collection, connector lineage, and document ownership server-side. It does not reveal credentials, sync sources, or write to providers.",
       inputSchema: searchSchema,
       outputSchema: z.object({
         plan: z.record(z.string(), z.unknown()),
         mode: z.enum(["fast", "thinking"]),
+        answer: z.string(),
+        claims: z.array(z.object({
+          text: z.string(),
+          evidenceIds: z.array(z.string()),
+          providers: z.array(z.string()),
+        })),
+        citations: z.array(z.object({
+          evidenceId: z.string(),
+          sourceId: z.string(),
+          provider: z.string(),
+          title: z.string(),
+          timestamp: z.string().nullable(),
+          url: z.string().nullable(),
+        })),
+        contradictions: z.array(z.object({
+          summary: z.string(),
+          evidenceIds: z.array(z.string()),
+          providers: z.array(z.string()),
+        })),
+        missingInformation: z.array(z.string()),
+        validation: z.object({
+          status: z.enum(["grounded", "partial", "abstained"]),
+          claimCount: z.number().int().nonnegative(),
+          citedClaimCount: z.number().int().nonnegative(),
+          evidenceCount: z.number().int().nonnegative(),
+          providerCoverage: z.array(z.string()),
+        }),
         evidence: z.array(z.record(z.string(), z.unknown())),
         providerCoverage: z.array(z.string()),
         latencyMs: z.number(),
         callCount: z.number(),
+        estimatedCostUnits: z.number().nonnegative(),
         partial: z.boolean(),
         failedScopeCount: z.number(),
       }),

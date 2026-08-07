@@ -2,6 +2,7 @@ import { apiError, noStoreJson } from "../../../../../lib/server/api";
 import { hydraClientForWorkspace } from "../../../../../lib/server/hydradb-account";
 import {
   connectorLineageMetadataFilter,
+  connectorVerificationProviderCoverage,
   extractQuerySources,
   extractResources,
   canonicalProvider,
@@ -123,7 +124,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
         });
         canaryCount = matching.length;
         sourceIds = matching.map((source) => String(source.id ?? "")).filter(Boolean);
-        providerCoverage = [...new Set(extracted.sources.map(providerFromSource).filter(Boolean))] as string[];
+        providerCoverage = connectorVerificationProviderCoverage(matching, connector.provider);
       }
     }
     const verified = resourceResponse.ok && connectorResponse.ok && canaryCount > 0 && !upstreamError;
