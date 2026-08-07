@@ -139,6 +139,11 @@ for (const benchmark of cases) {
     citationPrecision: grade.citationPrecision,
     citationCompleteness: grade.citationCompleteness,
     unsupportedClaimRate: grade.unsupportedClaimRate,
+    relevancePass: grade.relevancePass,
+    claimRelevancePrecision: grade.claimRelevancePrecision,
+    irrelevantClaimRate: grade.irrelevantClaimRate,
+    relevantClaimCount: grade.relevantClaimCount,
+    irrelevantClaims: grade.irrelevantClaims,
     invalidCitationIds: grade.invalidCitationIds,
     unsupportedClaims: grade.unsupportedClaims,
     citedSources: grade.citedSources,
@@ -179,6 +184,7 @@ const totalClaims = rows.reduce((sum, row) => sum + row.claimCount, 0);
 const totalSupportedClaims = rows.reduce((sum, row) => sum + row.supportedClaimCount, 0);
 const totalCitationPairs = rows.reduce((sum, row) => sum + row.claimCitationPairCount, 0);
 const totalSupportedCitationPairs = rows.reduce((sum, row) => sum + row.supportedClaimCitationPairCount, 0);
+const totalRelevantClaims = rows.reduce((sum, row) => sum + row.relevantClaimCount, 0);
 const ratio = (numerator, denominator) => denominator > 0 ? numerator / denominator : null;
 const requiredContradictionRows = rows.filter((row) => row.requiresContradiction);
 
@@ -220,11 +226,15 @@ const artifact = {
     citationPrecision: ratio(totalSupportedCitationPairs, totalCitationPairs),
     citationCompleteness: ratio(totalSupportedClaims, totalClaims),
     unsupportedClaimRate: ratio(totalClaims - totalSupportedClaims, totalClaims),
+    claimRelevancePrecision: ratio(totalRelevantClaims, totalClaims),
+    irrelevantClaimRate: ratio(totalClaims - totalRelevantClaims, totalClaims),
+    relevanceRequirementPasses: rows.filter((row) => row.relevancePass).length,
     providerRequirementPasses: rows.filter((row) => row.providerPass).length,
     contradictionRequirementPasses: requiredContradictionRows.filter((row) => row.contradictionPass).length,
     contradictionRequirementCases: requiredContradictionRows.length,
     zeroKnowinglyUnsupportedClaims: rows.every((row) => row.unsupportedClaims.length === 0 && row.invalidCitationIds.length === 0),
-    note: "Required facts are explicit frozen groups. Citation metrics require IDs to resolve and claim text to occur in a same-provider cited excerpt.",
+    zeroIrrelevantClaims: rows.every((row) => row.irrelevantClaims.length === 0),
+    note: "Required facts are explicit frozen groups. Citation metrics require IDs to resolve and claim text to occur in a same-provider cited excerpt; relevance precision requires every claim to carry at least one configured expected-fact signal.",
   },
   costModel: {
     unit: "weighted HydraDB query",
