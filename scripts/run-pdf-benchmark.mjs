@@ -274,6 +274,8 @@ const artifact = {
     max: calls.length ? Math.max(...calls) : null,
   },
   quality: {
+    scope: "document-only",
+    note: "Aggregate quality covers the fixed PDF rows only; the separate crossSource receipt carries its own relevance and citation metrics.",
     requiredFactAccuracy: ratio(totalMatchedFacts, totalRequiredFacts),
     citationPrecision: ratio(totalSupportedCitationPairs, totalCitationPairs),
     citationCompleteness: ratio(totalSupportedClaims, totalClaims),
