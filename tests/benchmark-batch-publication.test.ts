@@ -10,6 +10,7 @@ const beforeExpiry = new Date("2026-08-07T16:00:00.000Z");
 const testToken = (suffix: string) => `test-${suffix}-${"operator-".repeat(6)}`;
 
 function artifact(kind: "auto" | "fast" | "thinking" | "pdf", releaseSha: string) {
+  const rowProviders = kind === "pdf" ? ["document"] : ["github", "linear", "slack"];
   const base = {
     generatedAt: "2026-08-07T15:30:00.000Z",
     grader: "grounded-grader-v3",
@@ -22,11 +23,30 @@ function artifact(kind: "auto" | "fast" | "thinking" | "pdf", releaseSha: string
       id: `${kind}-case`,
       apiOk: true,
       pass: true,
-      mode: kind === "auto" ? "fast" : kind,
+      mode: kind === "auto" || kind === "pdf" ? "fast" : kind,
+      requestedMode: kind,
+      modeHonored: true,
+      matchedFactCount: 1,
+      requiredFactCount: 1,
+      requiredFactRecall: 1,
+      providers: rowProviders,
+      providerPass: true,
+      citationPass: true,
+      citationPrecision: 1,
+      citationCompleteness: 1,
+      unsupportedClaimRate: 0,
       relevancePass: true,
       relevancePrecision: 1,
       irrelevantClaimRate: 0,
+      claimCount: 1,
       relevantClaimCount: 1,
+      supportedClaimCount: 1,
+      claimCitationPairCount: 1,
+      supportedClaimCitationPairCount: 1,
+      documentReceipt: kind === "pdf",
+      exactIdPass: true,
+      invalidCitationIds: [] as string[],
+      unsupportedClaims: [] as Array<Record<string, unknown>>,
       irrelevantClaims: [] as Array<Record<string, unknown>>,
     }],
     quality: {
@@ -46,11 +66,30 @@ function artifact(kind: "auto" | "fast" | "thinking" | "pdf", releaseSha: string
       ...base,
       canaries: { beginning: true, middle: true, end: true },
       crossSource: {
+        apiOk: true,
         pass: true,
         providers: ["document", "github", "linear"],
+        nonDocumentProviders: ["github", "linear"],
+        requiredProviderRule: { document: true, minimumNonDocumentProviders: 2 },
+        documentProviderPass: true,
+        connectorProviderPass: true,
+        matchedFactCount: 2,
+        requiredFactCount: 2,
+        requiredFactRecall: 1,
+        citationPass: true,
+        citationPrecision: 1,
+        citationCompleteness: 1,
+        unsupportedClaimRate: 0,
         relevancePass: true,
         relevancePrecision: 1,
         irrelevantClaimRate: 0,
+        claimCount: 2,
+        relevantClaimCount: 2,
+        supportedClaimCount: 2,
+        citationCount: 2,
+        mode: "thinking",
+        invalidCitationIds: [],
+        unsupportedClaims: [],
         irrelevantClaims: [],
       },
     };
@@ -168,6 +207,21 @@ describe("one-time atomic benchmark publication", () => {
     const incompleteV3Row = artifacts(releaseSha);
     incompleteV3Row.fast.rows[0].relevantClaimCount = Number.NaN;
     expect((await publishBatch(request({ artifacts: incompleteV3Row }, token))).status).toBe(400);
+
+    const zeroClaimReceipt = artifacts(releaseSha);
+    zeroClaimReceipt.fast.rows[0].claimCount = 0;
+    zeroClaimReceipt.fast.rows[0].relevantClaimCount = 0;
+    zeroClaimReceipt.fast.rows[0].supportedClaimCount = 0;
+    expect((await publishBatch(request({ artifacts: zeroClaimReceipt }, token))).status).toBe(400);
+
+    const whitespaceConnector = artifacts(releaseSha);
+    (whitespaceConnector.auto as { connectors: string[] }).connectors = ["github", "linear", "   "];
+    expect((await publishBatch(request({ artifacts: whitespaceConnector }, token))).status).toBe(400);
+
+    const whitespaceCrossSourceProvider = artifacts(releaseSha);
+    (whitespaceCrossSourceProvider.pdf as { crossSource: { providers: string[] } })
+      .crossSource.providers = ["document", "github", "   "];
+    expect((await publishBatch(request({ artifacts: whitespaceCrossSourceProvider }, token))).status).toBe(400);
 
     const anotherRelease = artifacts(releaseSha);
     anotherRelease.thinking.release.commitSha = "5".repeat(40);

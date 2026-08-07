@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetStorageCache, resolveStorage } from "../lib/server/d1-compat";
 
 /**
@@ -17,6 +17,11 @@ function sqliteStorage() {
   if (!resolved.database) throw new Error(`storage unavailable: ${resolved.detail}`);
   return resolved;
 }
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  resetStorageCache();
+});
 
 describe("resolveStorage", () => {
   beforeEach(() => resetStorageCache());
@@ -209,3 +214,103 @@ describe("CompatDatabase (sqlite backend)", () => {
     expect(rows.results[0].created_at).toBeTruthy();
   });
 });
+
+
+describe("CompatDatabase (libSQL Hrana transaction protocol)", () => {
+  it("skips COMMIT and runs ROLLBACK when a middle write fails", async () => {
+    type Condition = {
+      type: "ok" | "error" | "not" | "and" | "or" | "is_autocommit";
+      step?: number;
+      cond?: Condition;
+      conds?: Condition[];
+    };
+    type Step = { condition?: Condition; stmt: { sql: string } };
+    type StepResult = {
+      cols: Array<{ name: string }>;
+      rows: unknown[][];
+      affected_row_count: number;
+      last_insert_rowid: string;
+    };
+    const result = (): StepResult => ({
+      cols: [],
+      rows: [],
+      affected_row_count: 1,
+      last_insert_rowid: "0",
+    });
+    const executed: string[] = [];
+
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      expect(String(input)).toMatch(/\/v3\/pipeline$/);
+      const requestBody = JSON.parse(String(init?.body)) as {
+        requests: Array<{ type: string; batch?: { steps: Step[] } }>;
+      };
+      expect(requestBody.requests.map((request) => request.type)).toEqual(["batch", "close"]);
+      const steps = requestBody.requests[0].batch?.steps;
+      if (!steps) throw new Error("Mock expected a Hrana batch request.");
+
+      const stepResults: Array<StepResult | null> = [];
+      const stepErrors: Array<{ message: string } | null> = [];
+      let inTransaction = false;
+      const conditionEnabled = (condition: Condition): boolean => {
+        if (condition.type === "ok") return stepResults[condition.step!] !== null;
+        if (condition.type === "error") return stepErrors[condition.step!] !== null;
+        if (condition.type === "not") return !conditionEnabled(condition.cond!);
+        if (condition.type === "and") return condition.conds!.every(conditionEnabled);
+        if (condition.type === "or") return condition.conds!.some(conditionEnabled);
+        if (condition.type === "is_autocommit") return !inTransaction;
+        throw new Error("Unknown mock Hrana condition.");
+      };
+
+      for (const step of steps) {
+        if (step.condition && !conditionEnabled(step.condition)) {
+          stepResults.push(null);
+          stepErrors.push(null);
+          continue;
+        }
+        const sql = step.stmt.sql;
+        executed.push(sql);
+        if (sql === "FAIL MIDDLE") {
+          stepResults.push(null);
+          stepErrors.push({ message: "middle write failed" });
+          continue;
+        }
+        if (sql === "BEGIN") inTransaction = true;
+        if (sql === "COMMIT" || sql === "ROLLBACK") inTransaction = false;
+        stepResults.push(result());
+        stepErrors.push(null);
+      }
+
+      return new Response(JSON.stringify({
+        baton: null,
+        results: [
+          {
+            type: "ok",
+            response: {
+              type: "batch",
+              result: { step_results: stepResults, step_errors: stepErrors },
+            },
+          },
+          { type: "ok", response: { type: "close" } },
+        ],
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const resolved = resolveStorage({
+      TURSO_DATABASE_URL: "libsql://example.turso.io",
+      TURSO_AUTH_TOKEN: "test-token",
+    });
+    const db = resolved.database!;
+    await expect(db.batch([
+      db.prepare("INSERT FIRST"),
+      db.prepare("FAIL MIDDLE"),
+      db.prepare("INSERT LAST"),
+    ])).rejects.toThrow("middle write failed");
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(executed).toEqual(["BEGIN", "INSERT FIRST", "FAIL MIDDLE", "ROLLBACK"]);
+    expect(executed).not.toContain("COMMIT");
+    expect(executed).not.toContain("INSERT LAST");
+  });
+});
+
