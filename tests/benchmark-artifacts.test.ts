@@ -18,7 +18,24 @@ const artifact = {
   releaseVerified: true,
   cases: 1,
   passed: 1,
-  rows: [{ id: "case-1", apiOk: true, pass: true, mode: "fast", modeHonored: true }],
+  quality: {
+    relevancePrecision: 1,
+    irrelevantClaimRate: 0,
+    relevanceRequirementPasses: 1,
+    zeroIrrelevantClaims: true,
+  },
+  rows: [{
+    id: "case-1",
+    apiOk: true,
+    pass: true,
+    mode: "fast",
+    modeHonored: true,
+    relevancePass: true,
+    relevancePrecision: 1,
+    irrelevantClaimRate: 0,
+    relevantClaimCount: 1,
+    irrelevantClaims: [],
+  }],
 };
 
 function request(input: unknown, token = publishToken) {
@@ -94,14 +111,57 @@ describe("release-bound benchmark artifacts", () => {
     ).bind(workspaceId).first<{ kind: string; releaseSha: string }>();
     expect(stored).toEqual({ kind: "auto", releaseSha });
 
+    const pdfArtifact = {
+      ...artifact,
+      requestedMode: undefined,
+      quality: { ...artifact.quality, scope: "document-only" },
+      crossSource: {
+        pass: true,
+        relevancePass: true,
+        relevancePrecision: 1,
+        irrelevantClaimRate: 0,
+        irrelevantClaims: [],
+        providers: ["document", "github", "slack"],
+        connectorProviderPass: true,
+        citationPass: true,
+      },
+      document: { filename: "proof.pdf", pages: 346, sha256: "reviewed-pdf-sha" },
+    };
+    expect((await publishArtifact(request({ kind: "pdf", artifact: pdfArtifact }))).status).toBe(200);
+
     const response = await readLab();
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.results.live).toMatchObject({
       storage: "durable",
       grader: "grounded-grader-v3",
+      quality: {
+        relevancePrecision: 1,
+        irrelevantClaimRate: 0,
+        zeroIrrelevantClaims: true,
+      },
+      rows: [{
+        relevancePrecision: 1,
+        irrelevantClaimRate: 0,
+      }],
       release: { commitSha: releaseSha },
     });
+    expect(body.results.pdf).toMatchObject({
+      storage: "durable",
+      quality: {
+        scope: "document-only",
+        relevancePrecision: 1,
+        irrelevantClaimRate: 0,
+        zeroIrrelevantClaims: true,
+      },
+      crossSource: {
+        pass: true,
+        relevancePass: true,
+        relevancePrecision: 1,
+        irrelevantClaimRate: 0,
+      },
+    });
+    expect(JSON.stringify(body.results.pdf)).not.toContain("irrelevantClaims");
     expect(body.results.currentRelease.commitSha).toBe(releaseSha);
   });
 
