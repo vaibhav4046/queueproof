@@ -85,12 +85,30 @@ sources, documents, receipts, queue, and MCP clients are isolated from every oth
 Credential configuration, connector mutation, document uploads, proposal history, approvals,
 MCP administration, and external writes require an authenticated workspace owner. The historic
 [`/owner`](https://queueproof.vercel.app/owner) access-token flow is a transition path only and can
-be disabled with `QUEUEPROOF_LEGACY_OWNER_SIGNIN=false`. Neither Auth0 nor legacy session secrets
-are exposed to browser JavaScript.
+be used during hybrid development. A complete production Auth0 configuration resolves to
+Auth0-only web identity and disables legacy owner sign-in when the selectors are omitted; explicit
+production `hybrid`, `legacy`, or legacy-enabled settings fail startup validation. Set
+`QUEUEPROOF_AUTH_MODE=auth0` and `QUEUEPROOF_LEGACY_OWNER_SIGNIN=false` in Vercel when you want that
+policy visible in deployment configuration. Neither Auth0 nor legacy session secrets are exposed
+to browser JavaScript.
 
-`QUEUEPROOF_PUBLIC_WORKSPACE_ID` selects the exact public workspace. A deployment with multiple
-workspaces and no selector fails closed. Public queries are rate-limited. Secrets are encrypted at
-rest and are never returned by the API.
+`QUEUEPROOF_PUBLIC_WORKSPACE_ID` selects the exact public workspace, which must also contain an
+explicit `user:public-access` membership. If either is missing, QueueProof fails closed instead of
+guessing which tenant to expose—even when the database has only one workspace. Public queries are
+rate-limited. Secrets are encrypted at rest and are never returned by the API.
+
+Provision that membership once from a trusted operator shell with the production Turso variables
+already loaded (standalone scripts do not automatically load `.env.local`):
+
+```bash
+pnpm public:provision -- --workspace ws_<exact-existing-id>
+```
+
+The command verifies the workspace exists, atomically upserts only the fixed public user and a
+non-owner `member` role, records an audit event, and is safe to repeat. It never creates a
+workspace and is never called by a request. Then set `QUEUEPROOF_PUBLIC_ACCESS=true` and the same
+`QUEUEPROOF_PUBLIC_WORKSPACE_ID`, redeploy, and keep the exact workspace assertion in the release
+gate. See [public workspace provisioning](docs/PUBLIC_WORKSPACE_PROVISIONING.md).
 
 ## Architecture
 
@@ -136,11 +154,16 @@ pnpm dev
 
 For hosted storage, set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` instead of
 `QUEUEPROOF_SQLITE_PATH`. Add HydraDB credentials through the private Sources UI; do not commit
-them to an environment file. `LINEAR_API_KEY` is optional and is needed only for an approved
-external Linear write. A hosted multi-user deployment uses the four `AUTH0_*` values plus
-`QUEUEPROOF_AUTH_MODE=hybrid` (or `auth0` after retiring the legacy path). Never commit those
-values. See [remote MCP setup](docs/REMOTE_MCP_SETUP.md) for the separate Auth0 API/client needed
-by ChatGPT.
+them to an environment file. `LINEAR_API_KEY` is optional and must be paired with
+`QUEUEPROOF_LINEAR_EXECUTION_WORKSPACE_ID`; the deployment-wide key can execute only for that
+exact workspace and only for the stable deployment-owner actor. Auth0 personal workspaces never
+inherit it. A hosted production multi-user deployment uses the four `AUTH0_*` values. With the
+web-auth selectors omitted, the complete production set resolves to `auth0` and disables legacy
+owner sign-in; explicit unsafe production modes are rejected. Setting
+`QUEUEPROOF_AUTH_MODE=auth0` and `QUEUEPROOF_LEGACY_OWNER_SIGNIN=false` remains the clearest
+operator-visible configuration. Hybrid mode remains available only for deliberate development
+migrations. Never commit those values. See
+[remote MCP setup](docs/REMOTE_MCP_SETUP.md) for the separate Auth0 API/client needed by ChatGPT.
 
 ## Verify
 
@@ -148,6 +171,8 @@ The pull-request CI workflow installs the committed lockfile and runs these dete
 gates on Node.js 22.13:
 
 ```bash
+pnpm audit:dependencies
+pnpm scan:secrets
 pnpm typecheck
 pnpm lint
 pnpm test
@@ -155,6 +180,10 @@ pnpm benchmark:router
 pnpm build
 pnpm deploy:check
 ```
+
+`pnpm build` is the exact native Next.js webpack build used by Vercel. The historical
+Cloudflare/vinext compatibility build remains available as `pnpm build:cloudflare`; it is not a
+substitute for the production gate.
 
 For local shell acceptance, start the built app in one terminal and run the check in another:
 
@@ -184,8 +213,8 @@ invented dollar costs.
 - [Connector proof](docs/CONNECTOR_PROOF.md)
 - [Large-PDF proof](docs/LARGE_PDF_PROOF.md)
 - [Security model](docs/SECURITY.md)
-- [Secret-scan evidence](audit/secret-scan-2026-08-05.md)
-- [Dependency audit](audit/dependency-audit-2026-08-04.md)
+- [Historical secret-scan receipt (superseded; CI scans each candidate commit)](audit/secret-scan-2026-08-05.md)
+- [Historical dependency receipt (superseded; CI audits the current lockfile)](audit/dependency-audit-2026-08-04.md)
 - [Judging matrix](docs/JUDGING_MATRIX.md)
 - [Hackathon form answers](docs/HACKATHON_FORM.md)
 

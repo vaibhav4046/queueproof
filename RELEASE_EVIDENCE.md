@@ -41,6 +41,8 @@ Run the following against the exact commit that will be submitted:
 
 ```bash
 pnpm install --frozen-lockfile
+pnpm audit:dependencies
+pnpm scan:secrets
 pnpm typecheck
 pnpm lint
 pnpm test

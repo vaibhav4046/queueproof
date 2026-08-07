@@ -24,10 +24,26 @@ describe("Auth0 configuration", () => {
     });
   });
 
-  it("defaults a complete Marketplace installation to a hybrid rollout", () => {
+  it("defaults a complete non-production configuration to a hybrid development rollout", () => {
     expect(queueProofAuthMode(complete)).toBe("hybrid");
     expect(auth0WebEnabled(complete)).toBe(true);
     expect(legacyOwnerSignInEnabled(complete)).toBe(true);
+  });
+
+  it("defaults a complete production installation to Auth0-only web identity", () => {
+    const production = { ...complete, VERCEL_ENV: "production" };
+    expect(queueProofAuthMode(production)).toBe("auth0");
+    expect(auth0WebEnabled(production)).toBe(true);
+    expect(legacyOwnerSignInEnabled(production)).toBe(false);
+  });
+
+  it("disables legacy owner authentication for a production Auth0 deployment", () => {
+    expect(legacyOwnerSignInEnabled({
+      ...complete,
+      NODE_ENV: "production",
+      QUEUEPROOF_AUTH_MODE: "hybrid",
+      QUEUEPROOF_LEGACY_OWNER_SIGNIN: "true",
+    })).toBe(false);
   });
 
   it("rejects partial configuration and honors an auth0-only legacy cutoff", () => {

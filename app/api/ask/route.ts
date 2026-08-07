@@ -36,6 +36,11 @@ import {
 } from "../../../packages/contracts/src";
 import { buildProofGraphView, createQueryWorkflowRecorder } from "../../../lib/server/query-workflow";
 import { compileContradictionAction } from "../../../lib/server/grounded-action";
+import {
+  isPublicAccessActor,
+  publicDtoForActor,
+  publicQueryReference,
+} from "../../../lib/server/public-dto";
 
 type Connector = { id: string; hydradbConnectorId: string; provider: string; database: string; collection: string | null };
 type RetrievalScope = {
@@ -380,19 +385,23 @@ export async function POST(request: Request) {
           const candidates = sourceChunks.length ? sourceChunks : [source];
           candidates.forEach((candidate, chunkIndex) => {
             const chunk = record(candidate);
-            const excerpt = (textFrom(chunk, ["chunk_content", "content", "text", "excerpt"]) ??
+            const rawExcerpt = (textFrom(chunk, ["chunk_content", "content", "text", "excerpt"]) ??
               textFrom(source, ["content", "text", "excerpt", "description"]) ?? "")
               .replace(/\s+/g, " ").trim().slice(0, 6_000);
-            if (!excerpt || isPotentialPromptInjection(excerpt)) return;
+            if (!rawExcerpt || isPotentialPromptInjection(rawExcerpt)) return;
+            const excerpt = redactSecrets(rawExcerpt);
             const chunkId = textFrom(chunk, ["chunk_id", "chunkId"]);
+            const rawUrl = textFrom(source, ["url", "source_url", "web_url", "permalink"]);
             const retained = {
               id: chunkId ?? `${sourceId}:chunk:${chunkIndex}`,
               sourceId,
               provider,
-              title: textFrom(source, ["title", "subject", "name", "filename"]) ?? `${provider} source`,
+              title: redactSecrets(
+                textFrom(source, ["title", "subject", "name", "filename"]) ?? `${provider} source`,
+              ),
               excerpt,
               timestamp: textFrom(source, ["timestamp", "source_timestamp", "updated_at", "created_at"]),
-              url: textFrom(source, ["url", "source_url", "web_url", "permalink"]),
+              url: rawUrl ? redactSecrets(rawUrl) : null,
               connectorId: owningConnector?.id ?? `document:${sourceId}`,
             } satisfies RetrievedEvidence;
             evidence.push(retained);
@@ -767,7 +776,13 @@ export async function POST(request: Request) {
       targetId: runId, outcome: synthesis.evidence.length ? "success" : "failure",
       metadata: { sourceCount: synthesis.evidence.length, connectorCount: connectors.results.length,
         callCount: trace.length, validation: synthesis.validation, trace } });
-    return noStoreJson({ ok: true, ...responsePayload });
+    const publicQueryId = isPublicAccessActor(actor)
+      ? await publicQueryReference(workspaceId, runId)
+      : runId;
+    return noStoreJson(publicDtoForActor(actor, { ok: true, ...responsePayload }, {
+      workspaceId,
+      referenceAliases: [{ raw: runId, public: publicQueryId }],
+    }));
   } catch (error) {
     if (failureContext) {
       try {

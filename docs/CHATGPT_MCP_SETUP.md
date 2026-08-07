@@ -41,17 +41,20 @@ Verify these public responses before opening ChatGPT:
   points to that metadata URL.
 - No secret, token, workspace ID, or private source content appears in either response.
 
-## 3. Test the ChatGPT custom app before publication
+## 3. Test privately before publication
 
-In ChatGPT **Settings → Apps/Connectors → Advanced settings**, create the custom MCP app using:
+Enable developer mode from ChatGPT **Settings → Security and login**. Then open **Plugins**, choose
+the option to add a private/custom MCP plugin, and use:
 
 - Server URL: `https://queueproof.vercel.app/mcp`
 - Authentication: OAuth
 
-Complete Auth0 consent off-camera. After connecting, open a clean temporary chat and run a harmless
-read-only check such as “List my QueueProof connectors, then tell me which are verified.” Confirm
-that ChatGPT discovers the QueueProof tools and that the result belongs to the signed-in user's
-private workspace.
+The exact labels can vary by account rollout; follow OpenAI's current connect guide rather than an
+old Apps/Connectors screenshot. Complete Auth0 consent off-camera. If Auth0 returns “dynamic client
+registration is disabled,” stop and configure CIMD, constrained DCR, or a dedicated client in
+Auth0—application code cannot bypass it. After connecting, refresh the plugin metadata, open a new
+clean temporary chat, and run a harmless read-only check such as “Show the sources QueueProof can
+search and which are verified.” Confirm tool discovery and a workspace-safe result.
 
 Do not call sync, proposal, approval, execution, or provider-write paths for the connection test.
 
@@ -71,11 +74,13 @@ settings, OAuth screens, tool payload inspectors, emails, tenant/client IDs, and
 
 ## 5. Rotate exposed credentials
 
-If any Vercel or Auth0 credential was pasted into chat, a recording, terminal output, or issue,
-rotate or revoke it after the connection test. Deleting the transcript is not revocation. Redeploy
-after rotating the Auth0 client secret or session secret, then repeat the harmless read-only smoke.
+The Vercel token, Auth0 client secret, and Auth0 application session secret previously pasted into
+chat must be rotated before the connection test. Deleting the transcript is not revocation. Use the
+owner-controlled Vercel/Auth0 dashboards, redeploy through the normal release process, then repeat
+the harmless read-only smoke. Never paste replacement values into documentation or chat.
 
 Official references: [OpenAI MCP authentication](https://developers.openai.com/plugins/build/auth),
+[OpenAI connect and test](https://developers.openai.com/plugins/deploy/connect-chatgpt),
 [Auth0 Next.js SDK](https://auth0.com/docs/quickstart/webapp/nextjs),
 [Auth0 CIMD](https://auth0.com/docs/get-started/auth0-overview/create-applications/register-applications-with-cimd),
 and [Auth0 dynamic client registration](https://auth0.com/docs/get-started/applications/dynamic-client-registration).

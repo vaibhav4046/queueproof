@@ -3,10 +3,11 @@
 ## Supported path
 
 The repository contains and tests a Claude Code project configuration for QueueProof's remote HTTP
-MCP endpoint. Authentication is an environment-backed bearer token. A Claude web custom connector
-is **not claimed as connected**: that path commonly depends on interactive authorization, while
-QueueProof's production OAuth issuer and a successful web-client tool call must be verified before
-the claim is made.
+MCP endpoint. Authentication is an environment-backed bearer token. Claude also supports remote
+custom connectors: Pro/Max users add them under **Customize → Connectors**, while Team/Enterprise
+owners add the connector for the organization and members then connect. QueueProof's Claude web
+connector is **not claimed as connected** until its production OAuth consent, tool discovery, and a
+read-only call are recorded on one deployed release.
 
 ## Claude Code setup
 
@@ -58,7 +59,8 @@ Then, in Claude Code:
 2. Call `queueproof_health`.
 3. Call `queueproof_list_connectors`; treat only stored proof states as observations, not an
    evergreen connector guarantee.
-4. Use `queueproof_ask` for an exact-ID or cross-source question with the correct database.
+4. Use `queueproof_search` for an exact-ID or cross-source question with connectorIds returned by
+   `queueproof_list_connectors`, or indexed sourceIds returned by `queueproof_list_documents`.
 5. Inspect provider coverage, source IDs, mode, latency, and call count in the tool result.
 6. Read `queueproof_get_next_actions`, then fetch one returned packet ID with
    `queueproof_get_execution_packet`.
@@ -89,14 +91,18 @@ constraints, evidence, and approval requirement without claiming the action ran.
 
 ## Claude web status
 
-Do not add QueueProof as a Claude web custom connector unless the production protected-resource
-metadata returns a configured authorization server and the end-to-end consent flow has been tested.
-The present bearer setup alone is not proof of Claude web compatibility. If that infrastructure is
-added later, record the production SHA, OAuth issuer, scopes granted, tool discovery, and one live
-read-only tool receipt without exposing tokens.
+The publisher may privately add `https://queueproof.vercel.app/mcp` as a Claude remote custom
+connector only after protected-resource discovery returns the configured authorization server.
+Review the requested scopes, complete OAuth off-camera, and start with `queueproof:read`. The
+present bearer setup alone is not proof of Claude web compatibility. Record the production SHA,
+OAuth issuer, scopes granted, tool discovery, and one live read-only receipt without exposing
+tokens. Do not say QueueProof is in a Claude directory or available to every user; organization
+availability depends on the Claude plan and owner controls.
 
 ## Teardown
 
 Revoke the client from **Connect AI**, unset `QUEUEPROOF_MCP_TOKEN`, and remove or restore the local
 `.mcp.json` backup. Revocation, expiry, workspace binding, and audience checks are enforced by the
 server.
+
+Official client reference: [Claude remote custom connectors](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp).

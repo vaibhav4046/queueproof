@@ -225,7 +225,13 @@
   font-size: 11px;
 }
 
-.helpLinks a { color: inherit; text-decoration: none; }
+.helpLinks a {
+  color: inherit;
+  text-decoration: none;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
 .helpLinks a:hover { color: var(--auth-paper); }
 
 .page :focus-visible {

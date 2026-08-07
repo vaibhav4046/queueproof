@@ -50,7 +50,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
             <ul className={styles.proofList} aria-label="QueueProof account benefits">
               <li><Check size={15} /> Your sources stay in your workspace</li>
               <li><Check size={15} /> Missing evidence stays visible</li>
-              <li><Check size={15} /> The same identity works from ChatGPT</li>
+              <li><Check size={15} /> One account is designed for web and ChatGPT</li>
             </ul>
           </div>
         </section>
@@ -100,6 +100,8 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
           <nav className={styles.helpLinks} aria-label="Account help">
             <Link href="/method">How QueueProof works</Link>
             <Link href="/developer">Use with ChatGPT</Link>
+            <Link href="/privacy">Privacy</Link>
+            <Link href="/support">Support</Link>
           </nav>
         </section>
       </div>

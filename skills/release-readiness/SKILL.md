@@ -1,11 +1,11 @@
 ---
 name: release-readiness
-description: Determine release readiness from evidence, blockers, commitments, and conflicts.
-version: 1.0.0
+description: Assess a named release against user-specified gates using cited QueueProof evidence and explicit unknowns.
+version: 1.1.0
 ---
 # Release readiness
 
-Retrieve the release entity, timeline, conflicts, and next actions. Evaluate declared gates without converting absent evidence into a pass.
+List connectors and documents, then search returned verified connectorIds or indexed sourceIds for the exact release ID and each declared gate. Use ranked actions or packets for persisted blockers when relevant. Return ready, not ready, or insufficient evidence; preserve source disagreements and never convert absent evidence into a pass. QueueProof currently exposes no dedicated release-entity, timeline, or conflict detector over MCP.
 
-Required tools: `queueproof_get_entity`, `queueproof_get_timeline`, `queueproof_list_conflicts`, `queueproof_get_next_actions`.
+Core tools: `queueproof_list_connectors`, `queueproof_list_documents`, `queueproof_search`, `queueproof_get_next_actions`, `queueproof_get_execution_packet`.
 Permissions: read release-scoped evidence. No write permission.

@@ -1,1 +1,1 @@
-{"request":"Is release 2.4 ready?","expected_tools":["queueproof_get_entity","queueproof_list_conflicts"]}
+{"request":"Is release 2.4 ready?","expected_tools":["queueproof_list_connectors","queueproof_list_documents","queueproof_search"]}

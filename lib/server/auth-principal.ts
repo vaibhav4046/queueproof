@@ -52,27 +52,63 @@ export async function ensureExternalPrincipalWorkspace(
   const internalEmail = `${digest}@auth.queueproof.invalid`;
   const externalEmail = clean(input.email, 254) || null;
   const displayName = safeName(input, "My QueueProof");
+  const hasDisplayProfile = Boolean(clean(input.displayName, 120) || externalEmail);
+  const hasEmailVerification = typeof input.emailVerified === "boolean";
   const workspaceName = displayName === "My QueueProof" ? displayName : `${displayName}'s QueueProof`;
   const slug = `personal-${digest.slice(0, 16)}`;
   const avatarUrl = clean(input.avatarUrl, 2_000) || null;
   const db = requireDb();
+
+  const existingIdentity = await db.prepare(
+    `SELECT user_id AS userId FROM auth_identities
+     WHERE issuer = ? AND subject = ? LIMIT 1`,
+  ).bind(issuer, subject).first<{ userId: string }>();
+  if (existingIdentity && existingIdentity.userId !== userId) {
+    throw new Response(
+      "This external identity conflicts with an existing QueueProof account.",
+      { status: 409 },
+    );
+  }
+  const existingMemberships = await db.prepare(
+    `SELECT workspace_id AS workspaceId FROM workspace_members
+     WHERE user_id = ? ORDER BY workspace_id ASC LIMIT 2`,
+  ).bind(userId).all<{ workspaceId: string }>();
+  if (
+    existingMemberships.results.length > 1 ||
+    (existingMemberships.results.length === 1 &&
+      existingMemberships.results[0]?.workspaceId !== workspaceId)
+  ) {
+    throw new Response(
+      "This account has an ambiguous workspace membership. Contact the QueueProof owner.",
+      { status: 409 },
+    );
+  }
 
   await db.batch([
     db.prepare(
       `INSERT OR IGNORE INTO users (id, email, display_name) VALUES (?, ?, ?)`,
     ).bind(userId, internalEmail, displayName),
     db.prepare(
-      `UPDATE users SET display_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-    ).bind(displayName, userId),
+      `UPDATE users SET
+         display_name = CASE WHEN ? = 1 THEN ? ELSE display_name END,
+         updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`,
+    ).bind(hasDisplayProfile ? 1 : 0, displayName, userId),
     db.prepare(
       `INSERT INTO auth_identities
        (id, user_id, issuer, subject, email, email_verified, display_name, avatar_url)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(issuer, subject) DO UPDATE SET
-         email = excluded.email,
-         email_verified = excluded.email_verified,
-         display_name = excluded.display_name,
-         avatar_url = excluded.avatar_url,
+         email = COALESCE(excluded.email, auth_identities.email),
+         email_verified = CASE
+           WHEN ? = 1 THEN excluded.email_verified
+           ELSE auth_identities.email_verified
+         END,
+         display_name = CASE
+           WHEN ? = 1 THEN excluded.display_name
+           ELSE auth_identities.display_name
+         END,
+         avatar_url = COALESCE(excluded.avatar_url, auth_identities.avatar_url),
          updated_at = CURRENT_TIMESTAMP`,
     ).bind(
       identityId,
@@ -83,6 +119,8 @@ export async function ensureExternalPrincipalWorkspace(
       input.emailVerified ? 1 : 0,
       displayName,
       avatarUrl,
+      hasEmailVerification ? 1 : 0,
+      hasDisplayProfile ? 1 : 0,
     ),
     db.prepare(
       `INSERT OR IGNORE INTO workspaces (id, slug, name) VALUES (?, ?, ?)`,
@@ -92,6 +130,25 @@ export async function ensureExternalPrincipalWorkspace(
        VALUES (?, ?, ?, 'owner')`,
     ).bind(membershipId, workspaceId, userId),
   ]);
+
+  const persistedIdentity = await db.prepare(
+    `SELECT ai.user_id AS userId, ai.email, ai.email_verified AS emailVerified,
+            COALESCE(ai.display_name, u.display_name) AS displayName
+     FROM auth_identities ai
+     JOIN users u ON u.id = ai.user_id
+     WHERE ai.issuer = ? AND ai.subject = ? LIMIT 1`,
+  ).bind(issuer, subject).first<{
+    userId: string;
+    email: string | null;
+    emailVerified: number | boolean;
+    displayName: string | null;
+  }>();
+  if (!persistedIdentity || persistedIdentity.userId !== userId) {
+    throw new Response(
+      "This external identity conflicts with an existing QueueProof account.",
+      { status: 409 },
+    );
+  }
 
   const memberships = await db.prepare(
     `SELECT workspace_id AS workspaceId FROM workspace_members
@@ -107,8 +164,8 @@ export async function ensureExternalPrincipalWorkspace(
   return {
     userId,
     workspaceId,
-    email: externalEmail ?? internalEmail,
-    displayName,
-    emailVerified: Boolean(input.emailVerified),
+    email: persistedIdentity.email ?? internalEmail,
+    displayName: persistedIdentity.displayName ?? displayName,
+    emailVerified: Boolean(persistedIdentity.emailVerified),
   };
 }

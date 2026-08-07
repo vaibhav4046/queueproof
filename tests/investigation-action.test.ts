@@ -27,11 +27,17 @@ describe("new investigation action", () => {
 
   it("uses a flat technical surface instead of a pill or decorative effect", () => {
     expect(baseRule).toContain("min-height: 46px");
-    expect(baseRule).toContain("border-radius: 7px");
+    expect(baseRule).toContain("border-radius: 10px");
     expect(baseRule).toContain("background: var(--panel)");
-    expect(baseRule).toContain("box-shadow: inset 2px 0 var(--ember)");
-    expect(baseRule).not.toMatch(/999px|linear-gradient|backdrop-filter/);
+    expect(baseRule).not.toMatch(/999px|linear-gradient|backdrop-filter|box-shadow/);
     expect(css).toMatch(/\.new-investigation-inline \{[^}]*min-height: 44px/);
+  });
+
+  it("aligns the brand, investigation action, and navigation to one rail grid", () => {
+    expect(css).toMatch(/\.app-sidebar \.brand \{[^}]*padding:\s*0;/);
+    expect(css).toMatch(/\.app-sidebar \.new-investigation \{[^}]*grid-template-columns:\s*36px minmax\(0, 1fr\) 20px/);
+    expect(css).toMatch(/\.app-header\.app-sidebar nav > a \{[^}]*grid-template-columns:\s*36px minmax\(0, 1fr\)/);
+    expect(css).toContain("@media (min-width: 981px) and (max-height: 780px)");
   });
 
   it("keeps adjacent high-visibility actions contextual and touch-safe", () => {

@@ -45,3 +45,4 @@ describe("deterministic ranking", () => {
     expect(counterfactual(base, { urgency: 18 }).delta).toBeCloseTo(2.78, 8);
   });
 });
+

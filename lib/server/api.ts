@@ -1,5 +1,3 @@
-import { redactSecrets } from "../../packages/security/src";
-
 export function noStoreJson(data: unknown, init: ResponseInit = {}) {
   const headers = new Headers(init.headers);
   headers.set("Cache-Control", "no-store, max-age=0");
@@ -10,8 +8,10 @@ export function noStoreJson(data: unknown, init: ResponseInit = {}) {
 
 export function apiError(error: unknown) {
   if (error instanceof Response) return error;
-  const message = redactSecrets(error instanceof Error ? error.message : "Unexpected server error.");
-  return noStoreJson({ ok: false, error: message }, { status: 500 });
+  // Provider, SQL, and transport errors are operational evidence for server logs, not a public
+  // API contract. Deliberate client errors are thrown as Response objects above; every other
+  // failure gets one generic production-safe body so schema/provider details cannot escape.
+  return noStoreJson({ ok: false, error: "Unexpected server error." }, { status: 500 });
 }
 
 /** A JSON request body large enough for any legitimate QueueProof payload. */

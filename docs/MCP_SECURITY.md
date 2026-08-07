@@ -41,7 +41,8 @@ execution requires a stored provider response ID.
 - Tool calls update client activity and produce a workspace audit event without logging the
   bearer value.
 - Tool inputs use bounded Zod schemas. SQL table names and sort orders are allowlisted.
-- Resources reject a URI whose workspace variable does not match the authenticated token.
+- Resources use fixed `queueproof://current/...` URIs and resolve the workspace only from the
+  authenticated token; no workspace variable is accepted from a client.
 
 ## OAuth boundary
 
@@ -60,7 +61,12 @@ consent flow and harmless read-only tool call succeed.
 
 - Connector data must have verified connector/resource lineage; provider labels alone do not
   establish origin.
-- Document evidence must match the indexed HydraDB source ID.
+- Search accepts QueueProof connectorIds or indexed document sourceIds, never a client-selected
+  database or collection. Connector queries add the exact server-resolved connector lineage
+  filter, and returned sources must match that connector/resource or a fully attested
+  single-connector receipt.
+- Document queries are grouped by their server-resolved database, and returned evidence must match
+  an explicitly requested indexed HydraDB source ID.
 - Tool output must retain provider/source identifiers and distinguish missing proof.
 - Instructions found in Slack, email, issues, documents, titles, excerpts, or URLs are data. They
   cannot grant scope, request secrets, change the workspace, or authorize a write.

@@ -62,11 +62,11 @@ it with a guess.
 
 ## Coding-agent workflow
 
-A Codex or Claude Code client connects to `https://queueproof.vercel.app/mcp` with a scoped,
-expiring bearer token. It discovers implemented tools, retrieves task evidence, reads the ranked
-action and Execution Packet, and uses those constraints during repository work. MCP can create a
-bounded Linear proposal only with explicit scope and workspace-owned evidence; it cannot approve
-or execute the provider action.
+A Codex or Claude Code client can be configured for `https://queueproof.vercel.app/mcp` with OAuth
+or a scoped, expiring bearer token. After a current authenticated receipt, it can discover
+implemented tools, retrieve task evidence by verified connectorId or indexed sourceId, and read a
+ranked action and Execution Packet. MCP can create a bounded Linear proposal only with explicit
+scope and workspace-owned evidence; it cannot approve or execute the provider action.
 
 Authenticated production client status: **PENDING CURRENT MCP RECEIPT**. Do not name a connected
 client in the demo until `initialize`, `tools/list`, and a read-only tool call succeed against the
@@ -116,7 +116,8 @@ request ID, latency, provider coverage, and relative query work in the receipt.
 Canonical endpoint: `https://queueproof.vercel.app/mcp` over HTTP MCP with bearer authentication.
 Tokens are hashed, workspace-bound, scoped, expiring, revocable, and audience-restricted. Read is
 the default. The product registers implemented read, sync, result-recording, and proposal tools plus
-workspace queue/changes/connectors resources; it currently registers no MCP prompts. Auth0 web
+sanitized `queueproof://current/connectors` and `queueproof://current/queue-snapshots` resources; it
+registers no fake change-diff resource and currently registers no MCP prompts. Auth0 web
 identity and the OAuth MCP resource-server path are implemented, including exact JWT
 issuer/audience/scope validation and per-subject workspace binding. A named ChatGPT connection is
 claimed only after current-release consent, discovery, and one harmless read-only tool receipt.

@@ -128,3 +128,4 @@ if (failed.length === 0) {
   console.log(`${failed.length} of ${results.length} checks failed. First blocker: ${failed[0].name} — ${failed[0].detail}`);
   process.exitCode = 1;
 }
+

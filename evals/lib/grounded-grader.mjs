@@ -230,3 +230,4 @@ export function summarisePdfCanaries(rows) {
     asArray(rows).find((row) => row?.kind === kind)?.pass === true,
   ]));
 }
+

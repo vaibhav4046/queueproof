@@ -1,1 +1,1 @@
-{"request":"Audit this week's commitments","expected_tools":["queueproof_get_commitments","queueproof_get_untracked_commitments"]}
+{"request":"Audit this week's commitments","expected_tools":["queueproof_list_connectors","queueproof_search"]}

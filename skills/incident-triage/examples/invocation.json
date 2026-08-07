@@ -1,1 +1,1 @@
-{"request":"Triage the current checkout incident","expected_tools":["queueproof_get_entity","queueproof_get_timeline","queueproof_list_conflicts"]}
+{"request":"Triage the current checkout incident","expected_tools":["queueproof_list_connectors","queueproof_search"]}

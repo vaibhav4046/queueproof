@@ -30,3 +30,4 @@ describe("assertSafeExternalUrl", () => {
     expect(() => assertSafeExternalUrl(target)).toThrow(/Private-network/);
   });
 });
+

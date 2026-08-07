@@ -54,8 +54,16 @@ async function serve(request: Request) {
   }
   const origin = request.headers.get("origin");
   const requestUrl = new URL(request.url);
-  if (origin && new URL(origin).origin !== requestUrl.origin) {
-    return noStoreJson({ error: "Origin is not allowed." }, { status: 403 });
+  if (origin) {
+    let originValue: string;
+    try {
+      originValue = new URL(origin).origin;
+    } catch {
+      return noStoreJson({ error: "Origin is not allowed." }, { status: 403 });
+    }
+    if (originValue !== requestUrl.origin) {
+      return noStoreJson({ error: "Origin is not allowed." }, { status: 403 });
+    }
   }
   const authorization = request.headers.get("authorization");
   const token = authorization?.startsWith("Bearer ") ? authorization.slice(7) : "";
@@ -63,7 +71,9 @@ async function serve(request: Request) {
   let clientId = "queueproof-static-client";
   let persistedClientId: string | null = null;
   let actorId = "mcp:queueproof-static-client";
-  let scopes: QueueProofMcpScope[] = ["queueproof:read", "queueproof:propose", "queueproof:sync"];
+  // Static compatibility credentials are read-only. Elevated capabilities are granted
+  // only by an Auth0 claim or a persisted QueueProof token with explicit scopes.
+  let scopes: QueueProofMcpScope[] = ["queueproof:read"];
   const jwtShaped = token.split(".").length === 3;
 
   // JWTs are handled by one strict path. A malformed or wrong-audience JWT must never

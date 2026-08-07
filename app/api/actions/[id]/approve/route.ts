@@ -1,4 +1,5 @@
 import { apiError, noStoreJson } from "../../../../../lib/server/api";
+import { deploymentLinearCredential } from "../../../../../lib/server/action-execution";
 import { requirePrivateControlActor, requireRequestActor } from "../../../../../lib/server/identity";
 import { requireDb, runtimeEnv } from "../../../../../lib/server/runtime";
 import { audit, createId, ensureCoreSchema, requireWorkspaceForUser } from "../../../../../lib/server/store";
@@ -114,15 +115,19 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       riskClass: "high",
     });
 
-    const apiKey = (runtimeEnv() as Record<string, unknown>).LINEAR_API_KEY;
-    if (typeof apiKey !== "string" || !apiKey) {
+    const apiKey = deploymentLinearCredential({
+      actorId: actor.id,
+      workspaceId,
+      env: runtimeEnv() as Record<string, unknown>,
+    });
+    if (!apiKey) {
       return noStoreJson(
         {
           ok: true,
           approved: true,
           executed: false,
           message:
-            "Approval recorded. Execution is not possible: LINEAR_API_KEY is not configured on this deployment.",
+            "Approval recorded. External Linear execution is not configured for this workspace.",
         },
         { status: 202 },
       );

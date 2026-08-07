@@ -41,3 +41,4 @@ export const runtimeBindings = new Proxy({} as Record<string, unknown>, {
 
 export const storageBackend = storage.backend;
 export const storageDetail = storage.detail;
+

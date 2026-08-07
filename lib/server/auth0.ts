@@ -36,9 +36,17 @@ export function queueProofAuthMode(
     return configured;
   }
 
-  // Marketplace installations inject all four Auth0 values. Treat that complete set as
-  // an intentional hybrid rollout while preserving legacy-only behavior everywhere else.
-  return auth0Config(env) ? "hybrid" : "legacy";
+  // A complete Auth0 set is enough to select the safe hosted identity path in production.
+  // Development keeps the hybrid migration default so an operator can deliberately retire the
+  // legacy owner flow after testing. Explicit production hybrid/legacy modes are rejected by the
+  // runtime validator; this default only prevents a complete integration from crashing because
+  // an otherwise redundant mode variable was omitted.
+  if (auth0Config(env)) {
+    const production =
+      value(env, "NODE_ENV") === "production" || value(env, "VERCEL_ENV") === "production";
+    return production ? "auth0" : "hybrid";
+  }
+  return "legacy";
 }
 
 export function auth0Config(
@@ -75,6 +83,10 @@ export function auth0WebEnabled(
 export function legacyOwnerSignInEnabled(
   env: Record<string, unknown> = runtimeEnv() as Record<string, unknown>,
 ): boolean {
+  const production = value(env, "NODE_ENV") === "production" || value(env, "VERCEL_ENV") === "production";
+  // A complete production Auth0 boundary retires the shared deployment-owner secret even
+  // before startup validation reports a stale hybrid configuration.
+  if (production && auth0Config(env)) return false;
   const explicit = value(env, "QUEUEPROOF_LEGACY_OWNER_SIGNIN");
   if (explicit === "true") return true;
   if (explicit === "false") return false;

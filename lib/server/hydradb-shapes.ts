@@ -22,6 +22,28 @@ export function extractResources(value: unknown): Array<Record<string, unknown>>
   return Array.isArray(root.resources) ? root.resources.map(record) : [];
 }
 
+/**
+ * Extract connector records returned by HydraDB's account-scoped list endpoint.
+ *
+ * The endpoint is typed as a generic object by the current SDK, while the connector
+ * record itself has a published snake_case contract. Accept the small set of envelope
+ * shapes used by HydraDB without treating arbitrary nested objects as connectors.
+ */
+export function extractConnectors(value: unknown): Array<Record<string, unknown>> {
+  const outer = record(value);
+  const data = outer.data;
+  const containers = [value, data, unwrapHydra(value)];
+  for (const container of containers) {
+    if (Array.isArray(container)) return container.map(record);
+    const candidate = record(container);
+    for (const key of ["connectors", "items", "results"]) {
+      if (Array.isArray(candidate[key])) return (candidate[key] as unknown[]).map(record);
+    }
+    if (typeof candidate.connector_id === "string") return [candidate];
+  }
+  return [];
+}
+
 export function extractQuerySources(value: unknown) {
   const root = unwrapHydra(value);
   const sources = Array.isArray(root.sources) ? root.sources.map(record) : [];

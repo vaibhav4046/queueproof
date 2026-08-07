@@ -67,7 +67,8 @@ export function mcpOAuthConfig(
       resourceUrl.protocol !== "https:" ||
       resourceUrl.pathname !== "/mcp" ||
       resourceUrl.search ||
-      resourceUrl.hash
+      resourceUrl.hash ||
+      (value(env, "VERCEL_ENV") === "production" && resourceUrl.toString() !== QUEUEPROOF_MCP_RESOURCE)
     ) return null;
     return {
       mode,

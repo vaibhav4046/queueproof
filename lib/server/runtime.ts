@@ -6,6 +6,7 @@ export type RuntimeEnv = {
   QUEUEPROOF_ENCRYPTION_KEY?: string;
   QUEUEPROOF_TEST_MODE?: string;
   QUEUEPROOF_BASE_URL?: string;
+  QUEUEPROOF_HYDRADB_BASE_URL?: string;
   QUEUEPROOF_MCP_AUDIENCE?: string;
   QUEUEPROOF_MCP_TOKEN?: string;
   QUEUEPROOF_MCP_WORKSPACE_ID?: string;
@@ -15,6 +16,7 @@ export type RuntimeEnv = {
   QUEUEPROOF_LEGACY_OWNER_SIGNIN?: string;
   QUEUEPROOF_MCP_AUTH_MODE?: string;
   QUEUEPROOF_MCP_RESOURCE?: string;
+  QUEUEPROOF_LINEAR_EXECUTION_WORKSPACE_ID?: string;
   QUEUEPROOF_ALLOW_LOCAL_IDENTITY?: string;
   AUTH0_DOMAIN?: string;
   AUTH0_CLIENT_ID?: string;
@@ -22,6 +24,7 @@ export type RuntimeEnv = {
   AUTH0_SECRET?: string;
   APP_BASE_URL?: string;
   OPENAI_APPS_CHALLENGE?: string;
+  LINEAR_API_KEY?: string;
 };
 
 export function runtimeEnv(): RuntimeEnv {

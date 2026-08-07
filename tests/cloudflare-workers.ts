@@ -31,3 +31,4 @@ export const env = new Proxy(process.env as Record<string, unknown>, {
     return property in target;
   },
 });
+

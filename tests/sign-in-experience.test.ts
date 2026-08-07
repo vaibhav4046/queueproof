@@ -31,9 +31,9 @@ describe("QueueProof account and ChatGPT entry experience", () => {
   it("makes ChatGPT the primary no-key path and keeps developer tokens collapsed", () => {
     expect(app).toContain('label: "ChatGPT", mobileLabel: "ChatGPT"');
     expect(app).toContain('const CHATGPT_PLUGINS_URL = "https://chatgpt.com/plugins"');
-    expect(app).toContain("No API project, client secret, or connection key.");
+    expect(app).toContain("without creating an API project or pasting a connection key");
     expect(app).toContain("Search QueueProof and select Add");
-    expect(app).toContain("Public search requires OpenAI review and publisher release.");
+    expect(app).toContain("OpenAI review, and publisher release remain required before public search.");
     expect(app).toContain('className="advanced-connect"');
     expect(app).toContain("Developer setup for other MCP clients");
   });

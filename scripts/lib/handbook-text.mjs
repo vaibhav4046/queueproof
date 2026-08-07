@@ -459,3 +459,4 @@ export function fillerPage(kind, pageNumber) {
   const page = generator(rng, pageNumber);
   return { runningHead: page.runningHead, lines: capToFrame(page.lines) };
 }
+

@@ -17,9 +17,12 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "dev": "node ./node_modules/vinext/dist/cli.js dev",
-    "build": "node ./node_modules/vinext/dist/cli.js build",
-    "start": "node ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --env-file .env.local",
+    "dev": "node ./node_modules/next/dist/bin/next dev --webpack",
+    "build": "node ./node_modules/next/dist/bin/next build --webpack",
+    "start": "node ./node_modules/next/dist/bin/next start",
+    "dev:cloudflare": "node ./node_modules/vinext/dist/cli.js dev",
+    "build:cloudflare": "node ./node_modules/vinext/dist/cli.js build",
+    "start:cloudflare": "node ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --env-file .env.local",
     "lint": "node ./node_modules/eslint/bin/eslint.js . --ignore-pattern dist --ignore-pattern .next",
     "typecheck": "node ./node_modules/typescript/bin/tsc --noEmit",
     "test": "node ./node_modules/vitest/vitest.mjs run --config vitest.config.ts --pool=threads --maxWorkers=1 --fileParallelism=false",
@@ -33,12 +36,15 @@
     "benchmark:router": "node --experimental-strip-types scripts/run-evals.mjs --fixture",
     "benchmark:pdf": "node scripts/run-pdf-benchmark.mjs",
     "eval": "node --experimental-strip-types scripts/run-evals.mjs",
+    "audit:dependencies": "pnpm audit --audit-level moderate",
+    "scan:secrets": "node scripts/secret-scan.mjs",
     "doctor": "node scripts/doctor.mjs",
     "seed:test": "node scripts/seed-test.mjs",
     "generate:large-pdf": "node scripts/generate-large-pdf.mjs",
     "deploy:check": "node scripts/deploy-check.mjs",
     "deploy:prod": "node scripts/deploy-prod.mjs",
     "release:verify": "node scripts/release-gate.mjs",
+    "public:provision": "node --experimental-transform-types scripts/provision-public-workspace.mjs",
     "db:generate": "node ./node_modules/drizzle-kit/bin.cjs generate"
   },
   "dependencies": {
@@ -68,6 +74,7 @@
     "drizzle-kit": "0.31.10",
     "eslint": "9.39.4",
     "eslint-config-next": "16.3.0",
+    "js-yaml": "4.3.1",
     "react-server-dom-webpack": "19.2.8",
     "tailwindcss": "4.2.1",
     "typescript": "5.9.3",
@@ -79,16 +86,9 @@
   "overrides": {
     "fast-uri": "3.1.5",
     "hono": "4.13.0",
+    "js-yaml": "4.3.1",
     "postcss": "8.5.25",
     "undici": "7.29.0"
-  },
-  "pnpm": {
-    "overrides": {
-      "fast-uri": "3.1.5",
-      "hono": "4.13.0",
-      "postcss": "8.5.25",
-      "undici": "7.29.0"
-    }
   },
   "type": "module"
 }

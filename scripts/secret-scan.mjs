@@ -16,7 +16,9 @@ const families = [
   ["Google credential", /\b(?:AIza[0-9A-Za-z_-]{35}|GOCSPX-[0-9A-Za-z_-]{20,})\b/g],
   ["Private-key header", /-----BEGIN (?:RSA |EC |OPENSSH |DSA |ENCRYPTED )?PRIVATE KEY-----/g],
   ["Turso token", /\b(?:turso|libsql)[_-]?(?:auth[_-]?)?(?:token|key)\b\s*[:=]\s*["']?(?:eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}|[A-Za-z0-9_-]{64,})/gi],
-  ["Vercel token", /\b(?:vercel[_-]?(?:auth[_-]?)?token|VERCEL_TOKEN)\b\s*[:=]\s*["']?[A-Za-z0-9_-]{20,}/g],
+  ["Vercel token", /\b(?:vcp_[A-Za-z0-9_-]{20,}|vercel[_-]?(?:auth[_-]?)?token\b\s*[:=]\s*["']?[A-Za-z0-9_-]{20,})/gi],
+  ["Auth0 secret", /\bauth0(?:[_-]?client[_-]?secret|[_-]?secret)\b\s*[:=]\s*["']?[A-Za-z0-9_.~+\/-]{20,}/gi],
+  ["QueueProof encryption key", /\bqueueproof[_-]?encryption[_-]?key\b\s*[:=]\s*["']?[A-Za-z0-9_.~+\/-]{20,}/gi],
   ["Attio-labelled 64-hex", /\battio\b[^\r\n]{0,80}\b[0-9a-f]{64}\b/gi],
 ];
 

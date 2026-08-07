@@ -4,6 +4,7 @@ import { requirePrivateControlActor, requireRequestActor } from "../../../lib/se
 import { requireDb } from "../../../lib/server/runtime";
 import { audit, createId, requireOwnerWorkspaceForUser, requireWorkspaceForUser } from "../../../lib/server/store";
 import { genericProviderAdapter } from "../../../packages/connectors/src";
+import { publicDtoForActor, publicStorageReference } from "../../../lib/server/public-dto";
 
 export async function GET() {
   try {
@@ -25,7 +26,17 @@ export async function GET() {
       )
       .bind(String(workspace.id))
       .all();
-    return noStoreJson({ ok: true, connectors: result.results });
+    const workspaceId = String(workspace.id);
+    const referenceAliases = result.results.flatMap((connector) => {
+      const id = (connector as Record<string, unknown>).id;
+      return typeof id === "string"
+        ? [{ raw: id, public: publicStorageReference(workspaceId, "connector", id) }]
+        : [];
+    });
+    return noStoreJson(publicDtoForActor(actor, { ok: true, connectors: result.results }, {
+      workspaceId,
+      referenceAliases,
+    }));
   } catch (error) {
     return apiError(error);
   }

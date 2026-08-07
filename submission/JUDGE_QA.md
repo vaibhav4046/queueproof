@@ -82,9 +82,10 @@ and a current-release read-only ChatGPT tool call are recorded and tested end to
 
 ## Does it work in Claude and Codex?
 
-The repository contains tested config shapes and a CLI verifier for Claude Code and Codex. Say
-**configured**, **connected**, or **verified workflow** only according to the current receipt.
-Claude web is not claimed from bearer configuration alone.
+The repository contains tested config shapes and a CLI verifier for Claude Code and Codex. Claude
+also supports remote custom connectors, but QueueProof claims only the client surfaces proven by a
+current authenticated read receipt. Say **configured**, **connected**, or **verified workflow** only
+according to that receipt; bearer configuration alone is not a Claude web connection.
 
 ## How is the release reproducible?
 
