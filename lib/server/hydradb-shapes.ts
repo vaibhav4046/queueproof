@@ -133,6 +133,24 @@ export function providerFromSource(source: Record<string, unknown>): string | nu
 }
 
 /**
+ * Provider coverage for one connector verification receipt.
+ *
+ * The caller must pass only sources already proven to belong to the connector.
+ * Coverage can therefore attest exactly the connector's canonical provider and
+ * can never inherit unrelated providers returned in the wider query envelope.
+ */
+export function connectorVerificationProviderCoverage(
+  matchingSources: Array<Record<string, unknown>>,
+  connectorProvider: string,
+): string[] {
+  const expected = canonicalProvider(connectorProvider);
+  if (!expected) return [];
+  return matchingSources.some((source) => providerFromSource(source) === expected)
+    ? [expected]
+    : [];
+}
+
+/**
  * HydraDB system metadata applied to every object synced by one connector.
  *
  * Top-level `metadata_filters` keys query tenant metadata, so this filter makes
