@@ -494,7 +494,7 @@ export async function POST(request: Request) {
       preliminaryEvidence = dedupeEvidence();
       preliminary = synthesiseGroundedAnswer(question, preliminaryEvidence);
     }
-    if (!deliveryRepairAttempted && shouldRunFastCoverageRepair({
+    if (!narrowExactLookup && !deliveryRepairAttempted && shouldRunFastCoverageRepair({
       category: plan.category,
       plannedMode: plan.mode,
       evidenceProviders: preliminary.evidence.map((item) => item.provider),
