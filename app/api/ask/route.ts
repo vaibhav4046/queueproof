@@ -447,8 +447,28 @@ export async function POST(request: Request) {
       const deduped = evidence.filter((item, index, all) =>
         all.findIndex((candidate) => `${candidate.provider}:${candidate.id}` === `${item.provider}:${item.id}`) === index,
       );
-      if (!exactIdentifier) return deduped;
-      return deduped.filter((item) =>
+      // The public Helios demo shares a real GitHub connector with QueueProof's
+      // implementation repository. Keep CI/release write-ups out of synthetic
+      // business answers when multiple independent engineering-only signals
+      // make a record unambiguously self-referential. Private workspaces are
+      // never filtered by this demo-specific curation guard.
+      const demoSafeEvidence = isPublicAccessActor(actor)
+        ? deduped.filter((item) => {
+            if (item.provider !== "github") return true;
+            const content = `${item.title} ${item.excerpt}`;
+            const engineeringSignals = [
+              /\b(?:TypeScript|ESLint|Vitest|Webpack|Vinext)\b/i,
+              /\b\d+\s+tests?\s+passed\b/i,
+              /\b(?:exact preview|benchmark artifact|secret scans?|diff whitespace check)\b/i,
+              /\/api\/health\/live\b/i,
+              /\bdeployment:\s*(?:dpl_|https:\/\/)\S*/i,
+              /\b(?:production|preview)\s+build\s+passed\b/i,
+            ].filter((pattern) => pattern.test(content)).length;
+            return engineeringSignals < 2;
+          })
+        : deduped;
+      if (!exactIdentifier) return demoSafeEvidence;
+      return demoSafeEvidence.filter((item) =>
         recordIdentifiers(`${item.sourceId} ${item.title} ${item.excerpt}`)
           .some((identifier) => identifier.toUpperCase() === exactIdentifier),
       ).slice(0, 6);
