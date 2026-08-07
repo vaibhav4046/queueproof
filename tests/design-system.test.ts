@@ -93,7 +93,7 @@ describe("production design system", () => {
   });
 
   it("keeps long proof surfaces branded and proportionate on 4K canvases", () => {
-    expect(ember).toContain("scrollbar-color: rgba(255, 154, 66, .38) #050403");
+    expect(ember).toContain("scrollbar-color: #995020 #050403");
     expect(ember).toContain("*::-webkit-scrollbar-thumb");
     expect(ember).toContain("@media (min-width: 1920px)");
     expect(ember).toMatch(/\.proof-screen \{ width:\s*min\(1180px, 100%\)/);
