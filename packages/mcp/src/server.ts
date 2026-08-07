@@ -685,21 +685,14 @@ export function buildQueueProofServer(
       ...synthesis.claims.flatMap((claim) => claim.evidenceIds),
       ...synthesis.contradictions.flatMap((contradiction) => contradiction.evidenceIds),
     ]);
-    // Expose only receipts that support a returned claim or contradiction.
-    // A quarantined prompt-injection receipt remains visible so clients can
-    // explain the omission without reproducing its untrusted instructions.
-    const exposedEvidenceIds = new Set([
-      ...citedEvidenceIds,
-      ...evidence
-        .filter((item) => item.promptInjectionDetected)
-        .map((item) => item.evidenceId),
-    ]);
-    const exposedEvidence = evidence.filter((item) => exposedEvidenceIds.has(item.evidenceId));
-    const providerCoverage = synthesis.validation.providerCoverage;
+    // Expose exactly the receipts that support a returned claim or
+    // contradiction. Unreferenced retrieval candidates—including quarantined
+    // prompt-injection text—remain outside the MCP payload.
+    const exposedEvidence = evidence.filter((item) => citedEvidenceIds.has(item.evidenceId));
+    const providerCoverage = [...new Set(exposedEvidence.map((item) => item.provider))];
     const validation = {
       ...synthesis.validation,
       evidenceCount: exposedEvidence.length,
-      providerCoverage,
     };
     const citations = exposedEvidence
       .filter((item) => citedEvidenceIds.has(item.evidenceId))
