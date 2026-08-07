@@ -2,7 +2,7 @@ import { DEPLOYMENT_OWNER_ACTOR_ID } from "./identity";
 
 /**
  * Resolve the legacy deployment-wide Linear credential only for its explicitly bound
- * operator workspace. Auth0 users own personal QueueProof workspaces, but that must never
+ * operator workspace. Supabase users own personal QueueProof workspaces, but that must never
  * let them spend or write through the deployment operator's provider account.
  */
 export function deploymentLinearCredential(input: {

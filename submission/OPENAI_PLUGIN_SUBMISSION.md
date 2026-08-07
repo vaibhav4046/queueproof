@@ -30,7 +30,7 @@ a current production receipt.
 | Support | `https://queueproof.vercel.app/support` |
 | Privacy policy | `https://queueproof.vercel.app/privacy` |
 | Terms | `https://queueproof.vercel.app/terms` |
-| Authentication | OAuth 2.1 through Auth0; request only `queueproof:read` for v1 |
+| Authentication | OAuth 2.1 through Supabase; request `openid profile email`; QueueProof maps the grant to read-only |
 | Logo | `public/queueproof-icon-v2-512.png` |
 | UI declaration | No custom ChatGPT UI in v1; normal MCP tool results only |
 | Countries/regions | Publisher must choose truthfully in the portal |
@@ -118,25 +118,18 @@ general web search, coding, arithmetic, or unrelated personal questions.
 
 ## OAuth and protected-resource checklist
 
-1. Keep the first-party QueueProof web app and the OpenAI plugin as separate OAuth clients. Never
-   reuse or expose the web client secret in plugin configuration.
-2. In Auth0, confirm an API whose identifier/audience is exactly
-   `https://queueproof.vercel.app/mcp`, RS256 signing, and the three documented permissions.
-3. Enable Resource Parameter Compatibility so the OAuth `resource` value is honored.
-4. Prefer **Client ID Metadata Documents (CIMD)** when the Auth0 tenant supports them. Confirm the
-   issuer's discovery metadata and supported token-endpoint authentication method. QueueProof must
-   echo the protected resource in authorization and token requests.
-5. If CIMD is unavailable, explicitly enable and constrain **Dynamic Client Registration (DCR)** or
-   register a dedicated client using the exact redirect URI OpenAI supplies. “DCR disabled” is a
-   stop condition, not something application code can bypass.
-6. Use Authorization Code + PKCE, least-privilege `queueproof:read`, the exact MCP audience, and a
-   token lifetime/revocation policy appropriate for the reviewer account.
-7. Before submission, complete one production consent flow, `initialize`, `tools/list`, and one
+1. Enable Supabase OAuth 2.1 Server and use
+   `https://queueproof.vercel.app/oauth/authorize` as the custom consent URL.
+2. Apply and enable `public.queueproof_access_token_hook`. OAuth tokens must carry the exact
+   audience `https://queueproof.vercel.app/mcp`; ordinary browser-session tokens must not.
+3. Enable **Dynamic Client Registration (DCR)** for MCP, or register a dedicated public client
+   using the exact redirect URI OpenAI supplies. Never reuse a confidential client secret.
+4. Confirm the issuer discovery metadata, JWKS, PKCE support, and token endpoint.
+5. Request the standard scopes `openid profile email`. Supabase does not support custom OAuth
+   scopes in this release; QueueProof maps a valid client token to internal read-only access.
+6. Before submission, complete one production consent flow, `initialize`, `tools/list`, and one
    harmless read-only tool call against the same deployment. Record no bearer value or client
    secret.
-
-The Auth0 client ID, client secret, and application session secret previously shared in a chat must
-be rotated before any production receipt. Deleting a chat is not credential revocation.
 
 ## Domain verification
 
@@ -152,17 +145,15 @@ challenge token.
 
 ## Publisher-only submission sequence
 
-1. Rotate every credential exposed in conversation or recording and redeploy through the normal
-   owner-controlled release process.
-2. Verify the publisher identity and organization, and confirm the submitter has
+1. Verify the publisher identity and organization, and confirm the submitter has
    **Apps Management: Write**.
-3. Confirm the monitored support contact, legal publisher name, countries, logo rights, privacy
+2. Confirm the monitored support contact, legal publisher name, countries, logo rights, privacy
    copy, terms, and policy attestations. See `PUBLIC_PAGES_REVIEW_COPY.md`.
-4. Verify signed-out website/support/privacy/terms responses and the reviewer account.
-5. In ChatGPT developer mode, add the private Universal MCP URL, complete OAuth off-camera, refresh
+3. Verify signed-out website/support/privacy/terms responses and the reviewer account.
+4. In ChatGPT developer mode, add the private Universal MCP URL, complete OAuth off-camera, refresh
    metadata, start a new clean conversation, and run all 5+3 cases.
-6. Save a sanitized receipt using the template below. Then submit the new plugin for OpenAI review.
-7. Respond to review findings. Approval does **not** publish automatically. The verified owner must
+5. Save a sanitized receipt using the template below. Then submit the new plugin for OpenAI review.
+6. Respond to review findings. Approval does **not** publish automatically. The verified owner must
    select **Publish**. Only after publication may marketing say users can search QueueProof in the
    shared ChatGPT/Codex Plugins Directory.
 
@@ -175,7 +166,8 @@ Tested at (UTC): <timestamp>
 Client surface: <ChatGPT developer mode | Codex | Claude>
 OAuth issuer: <issuer URL>
 MCP resource: https://queueproof.vercel.app/mcp
-Granted scopes: queueproof:read
+OAuth scopes: openid profile email
+QueueProof permission: queueproof:read
 Protocol: <negotiated MCP version>
 Tool metadata hash/export: <sanitized artifact>
 Read tool: <tool name>

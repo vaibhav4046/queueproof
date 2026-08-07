@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { generateKeyPair, SignJWT } from "jose";
 import {
-  authenticateAuth0McpToken,
+  authenticateSupabaseMcpToken,
   mcpBearerChallenge,
   type McpOAuthConfig,
 } from "../lib/server/mcp-auth";
@@ -10,12 +10,13 @@ import { ensureCoreSchema } from "../lib/server/store";
 
 const config: McpOAuthConfig = {
   mode: "hybrid",
-  issuer: "https://tenant.example.auth0.com/",
+  issuer: "https://project.supabase.co/auth/v1",
   resource: "https://queueproof.vercel.app/mcp",
-  jwksUrl: "https://tenant.example.auth0.com/.well-known/jwks.json",
+  jwksUrl: "https://project.supabase.co/auth/v1/.well-known/jwks.json",
+  authorizationServer: "https://project.supabase.co/auth/v1",
 };
 
-describe("Auth0 MCP access tokens", () => {
+describe("Supabase MCP access tokens", () => {
   let publicKey: CryptoKey;
   let privateKey: CryptoKey;
 
@@ -29,25 +30,28 @@ describe("Auth0 MCP access tokens", () => {
     issuer?: string;
     audience?: string;
     scope?: string;
+    includeClientId?: boolean;
+    permissions?: string[];
   } = {}) {
     return new SignJWT({
-      scope: input.scope ?? "queueproof:read",
-      client_id: "chatgpt-test-client",
+      scope: input.scope ?? "openid profile email",
+      ...(input.includeClientId === false ? {} : { client_id: "chatgpt-test-client" }),
+      ...(input.permissions ? { queueproof_permissions: input.permissions } : {}),
     })
       .setProtectedHeader({ alg: "RS256", kid: "test-key" })
       .setIssuer(input.issuer ?? config.issuer)
       .setAudience(input.audience ?? config.resource)
-      .setSubject(input.subject ?? "auth0|mcp-user")
+      .setSubject(input.subject ?? "00000000-0000-4000-8000-000000000001")
       .setIssuedAt()
       .setExpirationTime("5m")
       .sign(privateKey);
   }
 
   it("accepts a valid signed token and binds it to one persisted workspace client", async () => {
-    const authenticated = await authenticateAuth0McpToken(await token(), { config, key: publicKey });
+    const authenticated = await authenticateSupabaseMcpToken(await token(), { config, key: publicKey });
     expect(authenticated.scopes).toEqual(["queueproof:read"]);
-    expect(authenticated.workspaceId).toMatch(/^ws_auth0_/);
-    expect(authenticated.userId).toMatch(/^user:auth0:/);
+    expect(authenticated.workspaceId).toMatch(/^ws_external_/);
+    expect(authenticated.userId).toMatch(/^user:external:/);
     const client = await requireDb().prepare(
       `SELECT workspace_id AS workspaceId, auth_method AS authMethod,
               external_client_id AS externalClientId, user_id AS userId
@@ -55,25 +59,36 @@ describe("Auth0 MCP access tokens", () => {
     ).bind(authenticated.persistedClientId).first<Record<string, string>>();
     expect(client).toMatchObject({
       workspaceId: authenticated.workspaceId,
-      authMethod: "auth0",
+      authMethod: "supabase",
       externalClientId: "chatgpt-test-client",
       userId: authenticated.userId,
     });
   });
 
-  it("rejects wrong issuer, wrong audience, and missing read scope", async () => {
-    await expect(authenticateAuth0McpToken(await token({ issuer: "https://attacker.example/" }), {
+  it("rejects wrong issuer, wrong audience, and non-OAuth session tokens", async () => {
+    await expect(authenticateSupabaseMcpToken(await token({ issuer: "https://attacker.example/" }), {
       config,
       key: publicKey,
     })).rejects.toThrow();
-    await expect(authenticateAuth0McpToken(await token({ audience: "https://other.example/mcp" }), {
+    await expect(authenticateSupabaseMcpToken(await token({ audience: "https://other.example/mcp" }), {
       config,
       key: publicKey,
     })).rejects.toThrow();
-    await expect(authenticateAuth0McpToken(await token({ scope: "queueproof:propose" }), {
+    await expect(authenticateSupabaseMcpToken(await token({ includeClientId: false }), {
       config,
       key: publicKey,
-    })).rejects.toMatchObject({ status: 403 });
+    })).rejects.toThrow(/client identifier/i);
+  });
+
+  it("accepts only trusted custom QueueProof permission claims", async () => {
+    const authenticated = await authenticateSupabaseMcpToken(await token({
+      permissions: ["queueproof:propose", "queueproof:sync", "unknown"],
+    }), { config, key: publicKey });
+    expect(authenticated.scopes).toEqual([
+      "queueproof:read",
+      "queueproof:propose",
+      "queueproof:sync",
+    ]);
   });
 
   it("emits the exact resource-metadata challenge ChatGPT needs", () => {
@@ -81,7 +96,7 @@ describe("Auth0 MCP access tokens", () => {
       error: "invalid_token",
       description: "Sign in again.",
     })).toBe(
-      'Bearer resource_metadata="https://queueproof.vercel.app/.well-known/oauth-protected-resource/mcp", scope="queueproof:read", error="invalid_token", error_description="Sign in again."',
+      'Bearer resource_metadata="https://queueproof.vercel.app/.well-known/oauth-protected-resource/mcp", scope="openid profile email", error="invalid_token", error_description="Sign in again."',
     );
   });
 });

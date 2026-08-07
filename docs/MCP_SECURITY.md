@@ -46,14 +46,15 @@ execution requires a stored provider response ID.
 
 ## OAuth boundary
 
-`/.well-known/oauth-protected-resource/mcp` describes the canonical resource and pinned Auth0
+`/.well-known/oauth-protected-resource/mcp` describes the canonical resource and pinned Supabase
 issuer. It returns 200 only when the complete OAuth resource-server mode is valid; otherwise it
 returns 503. QueueProof verifies JWT signatures, exact issuer/audience/resource, lifetime, subject,
-and scopes, then maps the subject to one private workspace. Auth0—not QueueProof—owns consent,
+and OAuth client identity, then maps the subject to one private workspace. Supabase—not QueueProof—owns consent,
 PKCE, token exchange, refresh, and authorization-server revocation.
 
-The first-party web application and ChatGPT must never share a client ID. A ChatGPT connection uses
-a separate CIMD, DCR, or manually registered client and begins with `queueproof:read`. Metadata is
+Supabase's OAuth server uses standard `openid profile email` scopes; those describe identity, not
+QueueProof tool permissions. Every valid QueueProof-audience token begins read-only. A ChatGPT
+connection uses DCR or a dedicated registered client. Metadata is
 configuration evidence, not an end-to-end receipt; name a client only after a current production
 consent flow and harmless read-only tool call succeed.
 

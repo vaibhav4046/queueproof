@@ -1,8 +1,8 @@
 import {
-  auth0SignInConfigured,
   getRequestActor,
   legacySignInConfigured,
   signInConfigured,
+  supabaseSignInConfigured,
 } from "./identity";
 import { requireDb, runtimeEnv } from "./runtime";
 import { ensureCoreSchema, workspaceForUser } from "./store";
@@ -28,7 +28,7 @@ export type WorkspaceView =
   | {
       kind: "sign_in_required";
       signInConfigured: boolean;
-      auth0Configured: boolean;
+      supabaseConfigured: boolean;
       legacySignInConfigured: boolean;
     }
   | { kind: "no_workspace"; actor: ActorView }
@@ -49,7 +49,7 @@ export type ActorView = {
   localDevelopment: boolean;
   publicAccess: boolean;
   authenticated: boolean;
-  authType: "auth0" | "legacy" | "gateway" | "local" | "public";
+  authType: "supabase" | "legacy" | "gateway" | "local" | "public";
   emailVerified: boolean;
 };
 
@@ -100,7 +100,7 @@ export async function loadWorkspaceView(): Promise<WorkspaceView> {
     return {
       kind: "sign_in_required",
       signInConfigured: signInConfigured(),
-      auth0Configured: auth0SignInConfigured(),
+      supabaseConfigured: supabaseSignInConfigured(),
       legacySignInConfigured: legacySignInConfigured(),
     };
   }

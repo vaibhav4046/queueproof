@@ -5,20 +5,34 @@ import { describe, expect, it } from "vitest";
 describe("QueueProof account and ChatGPT entry experience", () => {
   const root = process.cwd();
   const signIn = readFileSync(join(root, "app/sign-in/page.tsx"), "utf8");
+  const signInForm = readFileSync(join(root, "app/sign-in/SignInForm.tsx"), "utf8");
+  const callback = readFileSync(join(root, "app/auth/callback/route.ts"), "utf8");
   const signInCss = readFileSync(join(root, "app/sign-in/sign-in.module.css"), "utf8");
   const app = readFileSync(join(root, "app/QueueProofApp.tsx"), "utf8");
   const sidebarCss = readFileSync(join(root, "app/ember-assistant.css"), "utf8");
 
-  it("uses one branded pre-auth route without fake credential or provider fields", () => {
+  it("keeps passwordless account entry on the branded QueueProof route", () => {
     expect(signIn).toContain("Your work,");
     expect(signIn).toContain("<QueueProofLogo");
     expect(signIn).toContain("<EmberBackdrop");
-    expect(signIn).toContain('href={authHref}');
-    expect(signIn).toContain('"/auth/login?screen_hint=signup"');
-    expect(signIn).not.toMatch(/<input|<form|GoogleIcon|AppleIcon|@paper-design|GrainGradient/);
+    expect(signIn).toContain("<SignInForm");
+    expect(signIn).not.toMatch(/GoogleIcon|AppleIcon|@paper-design|GrainGradient|\/auth\/login/);
+    expect(signInForm).toContain("signInWithOtp");
+    expect(signInForm).toContain('type="email"');
+    expect(signInForm).toContain('new URL("/auth/callback", window.location.origin)');
+    expect(signInForm).not.toMatch(/type="password"|service_role|client_secret/i);
+    expect(callback).toContain("exchangeCodeForSession");
     expect(signInCss).toContain("@media (prefers-reduced-motion: reduce)");
     expect(signInCss).toContain("@media (forced-colors: active)");
     expect(signInCss).toContain("outline: 2px solid var(--auth-ember-bright)");
+  });
+
+  it("provides a branded, read-only-first OAuth consent surface for AI clients", () => {
+    const consent = readFileSync(join(root, "app/oauth/authorize/ConsentClient.tsx"), "utf8");
+    expect(consent).toContain("Allow read-only access");
+    expect(consent).toContain("approveAuthorization");
+    expect(consent).toContain("denyAuthorization");
+    expect(consent).toContain("never gives the client your HydraDB key");
   });
 
   it("keeps public account links on the branded route", () => {

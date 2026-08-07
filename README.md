@@ -79,18 +79,18 @@ compare relative query work; they are not dollars. See [connector proof](docs/CO
 
 The public deployment remains a shared, read-oriented judge workspace. Visitors can inspect
 receipts, ask bounded questions, and review queue packets. **Sign in** and **Create account** use
-Auth0; each external subject is provisioned a deterministic private QueueProof workspace whose
+the branded Supabase magic-link flow; each external subject is provisioned a deterministic private QueueProof workspace whose
 sources, documents, receipts, queue, and MCP clients are isolated from every other account.
 
 Credential configuration, connector mutation, document uploads, proposal history, approvals,
 MCP administration, and external writes require an authenticated workspace owner. The historic
 [`/owner`](https://queueproof.vercel.app/owner) access-token flow is a transition path only and can
-be used during hybrid development. A complete production Auth0 configuration resolves to
-Auth0-only web identity and disables legacy owner sign-in when the selectors are omitted; explicit
+be used during hybrid development. A complete production Supabase configuration resolves to
+Supabase-only web identity and disables legacy owner sign-in when the selectors are omitted; explicit
 production `hybrid`, `legacy`, or legacy-enabled settings fail startup validation. Set
-`QUEUEPROOF_AUTH_MODE=auth0` and `QUEUEPROOF_LEGACY_OWNER_SIGNIN=false` in Vercel when you want that
-policy visible in deployment configuration. Neither Auth0 nor legacy session secrets are exposed
-to browser JavaScript.
+`QUEUEPROOF_AUTH_MODE=supabase` and `QUEUEPROOF_LEGACY_OWNER_SIGNIN=false` in Vercel when you want that
+policy visible in deployment configuration. Only the Supabase publishable key reaches browser
+JavaScript; service-role credentials and legacy session secrets do not.
 
 `QUEUEPROOF_PUBLIC_WORKSPACE_ID` selects the exact public workspace, which must also contain an
 explicit `user:public-access` membership. If either is missing, QueueProof fails closed instead of
@@ -156,14 +156,15 @@ For hosted storage, set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` instead of
 `QUEUEPROOF_SQLITE_PATH`. Add HydraDB credentials through the private Sources UI; do not commit
 them to an environment file. `LINEAR_API_KEY` is optional and must be paired with
 `QUEUEPROOF_LINEAR_EXECUTION_WORKSPACE_ID`; the deployment-wide key can execute only for that
-exact workspace and only for the stable deployment-owner actor. Auth0 personal workspaces never
-inherit it. A hosted production multi-user deployment uses the four `AUTH0_*` values. With the
-web-auth selectors omitted, the complete production set resolves to `auth0` and disables legacy
+exact workspace and only for the stable deployment-owner actor. Supabase personal workspaces never
+inherit it. A hosted production multi-user deployment uses `NEXT_PUBLIC_SUPABASE_URL` and
+`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. With the web-auth selectors omitted, the complete production set resolves to `supabase` and disables legacy
 owner sign-in; explicit unsafe production modes are rejected. Setting
-`QUEUEPROOF_AUTH_MODE=auth0` and `QUEUEPROOF_LEGACY_OWNER_SIGNIN=false` remains the clearest
+`QUEUEPROOF_AUTH_MODE=supabase` and `QUEUEPROOF_LEGACY_OWNER_SIGNIN=false` remains the clearest
 operator-visible configuration. Hybrid mode remains available only for deliberate development
 migrations. Never commit those values. See
-[remote MCP setup](docs/REMOTE_MCP_SETUP.md) for the separate Auth0 API/client needed by ChatGPT.
+[remote MCP setup](docs/REMOTE_MCP_SETUP.md) for Supabase OAuth-server and ChatGPT setup.
+The complete provider configuration is in [Supabase authentication setup](docs/SUPABASE_AUTH_SETUP.md).
 
 ## Verify
 

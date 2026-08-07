@@ -23,17 +23,18 @@ export function validateRuntimeConfig(
   const onVercel = value("VERCEL") === "1" || Boolean(value("VERCEL_ENV"));
   const linearApiKey = value("LINEAR_API_KEY");
   const linearExecutionWorkspaceId = value("QUEUEPROOF_LINEAR_EXECUTION_WORKSPACE_ID");
-  const auth0Keys = ["AUTH0_DOMAIN", "AUTH0_CLIENT_ID", "AUTH0_CLIENT_SECRET", "AUTH0_SECRET"];
-  const auth0Values = auth0Keys.map(value);
-  const anyAuth0 = auth0Values.some(Boolean);
-  const completeAuth0 = auth0Values.every(Boolean);
-  const validAuthMode = ["legacy", "hybrid", "auth0"].includes(authMode) ? authMode : "";
-  const effectiveAuthMode = validAuthMode || (completeAuth0
-    ? (production ? "auth0" : "hybrid")
+  const supabaseUrl = value("NEXT_PUBLIC_SUPABASE_URL") || value("SUPABASE_URL");
+  const supabasePublishableKey = value("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY") ||
+    value("SUPABASE_PUBLISHABLE_KEY") || value("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  const anySupabase = Boolean(supabaseUrl || supabasePublishableKey);
+  const completeSupabase = Boolean(supabaseUrl && supabasePublishableKey);
+  const validAuthMode = ["legacy", "hybrid", "supabase"].includes(authMode) ? authMode : "";
+  const effectiveAuthMode = validAuthMode || (completeSupabase
+    ? (production ? "supabase" : "hybrid")
     : "legacy");
   const effectiveLegacyOwnerSignIn = legacyOwnerSignIn === "true" || legacyOwnerSignIn === "false"
     ? legacyOwnerSignIn
-    : (completeAuth0 && production ? "false" : effectiveAuthMode === "auth0" ? "false" : "true");
+    : (completeSupabase && production ? "false" : effectiveAuthMode === "supabase" ? "false" : "true");
 
   if (encryptionKey && encryptionKey.length < 32) {
     issues.push({ key: "QUEUEPROOF_ENCRYPTION_KEY", message: "must contain at least 32 characters" });
@@ -56,8 +57,8 @@ export function validateRuntimeConfig(
       message: "is required when public access is enabled",
     });
   }
-  if (authMode && !["legacy", "hybrid", "auth0"].includes(authMode)) {
-    issues.push({ key: "QUEUEPROOF_AUTH_MODE", message: "must be legacy, hybrid, or auth0" });
+  if (authMode && !["legacy", "hybrid", "supabase"].includes(authMode)) {
+    issues.push({ key: "QUEUEPROOF_AUTH_MODE", message: "must be legacy, hybrid, or supabase" });
   }
   if (legacyOwnerSignIn && !["true", "false"].includes(legacyOwnerSignIn)) {
     issues.push({ key: "QUEUEPROOF_LEGACY_OWNER_SIGNIN", message: "must be exactly true or false" });
@@ -74,24 +75,33 @@ export function validateRuntimeConfig(
       message: "cannot trust upstream identity headers on a direct Vercel deployment",
     });
   }
-  if (mcpAuthMode && !["opaque", "hybrid", "auth0"].includes(mcpAuthMode)) {
-    issues.push({ key: "QUEUEPROOF_MCP_AUTH_MODE", message: "must be opaque, hybrid, or auth0" });
+  if (mcpAuthMode && !["opaque", "hybrid", "supabase"].includes(mcpAuthMode)) {
+    issues.push({ key: "QUEUEPROOF_MCP_AUTH_MODE", message: "must be opaque, hybrid, or supabase" });
   }
-  if (anyAuth0 && !completeAuth0) {
-    issues.push({ key: "AUTH0_*", message: "must be configured as a complete four-value set" });
+  if (anySupabase && !completeSupabase) {
+    issues.push({ key: "SUPABASE_PUBLIC_CONFIG", message: "must provide a URL and publishable key together" });
   }
-  if (value("AUTH0_SECRET") && !/^[a-f0-9]{64}$/i.test(value("AUTH0_SECRET"))) {
-    issues.push({ key: "AUTH0_SECRET", message: "must be a 32-byte hex value" });
+  if (supabaseUrl) {
+    try {
+      const url = new URL(supabaseUrl);
+      const local = url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "::1";
+      if ((url.protocol !== "https:" && !(local && !production && url.protocol === "http:")) ||
+          url.username || url.password || url.search || url.hash || url.pathname !== "/") {
+        throw new Error("invalid Supabase URL");
+      }
+    } catch {
+      issues.push({ key: "NEXT_PUBLIC_SUPABASE_URL", message: "must be a trusted HTTPS project origin" });
+    }
   }
-  if (completeAuth0 && !/^[a-z0-9.-]+$/i.test(value("AUTH0_DOMAIN").replace(/^https?:\/\//i, "").replace(/\/+$/, ""))) {
-    issues.push({ key: "AUTH0_DOMAIN", message: "must be an Auth0 hostname" });
+  if (supabasePublishableKey && supabasePublishableKey.length < 20) {
+    issues.push({ key: "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", message: "is not a valid publishable key" });
   }
-  if ((authMode === "hybrid" || authMode === "auth0") && !completeAuth0) {
-    issues.push({ key: "QUEUEPROOF_AUTH_MODE", message: "requires the complete AUTH0_* configuration" });
+  if ((authMode === "hybrid" || authMode === "supabase") && !completeSupabase) {
+    issues.push({ key: "QUEUEPROOF_AUTH_MODE", message: "requires the complete Supabase public configuration" });
   }
-  if (mcpAuthMode === "hybrid" || mcpAuthMode === "auth0") {
-    if (!completeAuth0) {
-      issues.push({ key: "QUEUEPROOF_MCP_AUTH_MODE", message: "requires the complete AUTH0_* configuration" });
+  if (mcpAuthMode === "hybrid" || mcpAuthMode === "supabase") {
+    if (!completeSupabase) {
+      issues.push({ key: "QUEUEPROOF_MCP_AUTH_MODE", message: "requires the complete Supabase public configuration" });
     }
     try {
       const resource = new URL(value("QUEUEPROOF_MCP_RESOURCE"));
@@ -118,16 +128,16 @@ export function validateRuntimeConfig(
     if (value("QUEUEPROOF_ALLOW_LOCAL_IDENTITY") === "true") {
       issues.push({ key: "QUEUEPROOF_ALLOW_LOCAL_IDENTITY", message: "local identity is forbidden in production" });
     }
-    if (completeAuth0 && effectiveAuthMode !== "auth0") {
+    if (completeSupabase && effectiveAuthMode !== "supabase") {
       issues.push({
         key: "QUEUEPROOF_AUTH_MODE",
-        message: "must resolve to auth0 in production when Auth0 is configured",
+        message: "must resolve to supabase in production when Supabase is configured",
       });
     }
-    if (completeAuth0 && effectiveLegacyOwnerSignIn !== "false") {
+    if (completeSupabase && effectiveLegacyOwnerSignIn !== "false") {
       issues.push({
         key: "QUEUEPROOF_LEGACY_OWNER_SIGNIN",
-        message: "must resolve to false in production when Auth0 is configured",
+        message: "must resolve to false in production when Supabase is configured",
       });
     }
   }

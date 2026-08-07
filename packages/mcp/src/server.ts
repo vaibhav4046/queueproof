@@ -31,9 +31,11 @@ const readOnly = {
 
 const externalRead = { ...readOnly, openWorldHint: true };
 
-const readSecurity = [{ type: "oauth2", scopes: ["queueproof:read"] }] as const;
-const syncSecurity = [{ type: "oauth2", scopes: ["queueproof:read", "queueproof:sync"] }] as const;
-const proposeSecurity = [{ type: "oauth2", scopes: ["queueproof:read", "queueproof:propose"] }] as const;
+// Supabase currently supports standard OIDC scopes only. QueueProof's read/propose/sync
+// permissions remain server-side claims and determine which tools are registered.
+const readSecurity = [{ type: "oauth2", scopes: ["openid", "profile", "email"] }] as const;
+const syncSecurity = readSecurity;
+const proposeSecurity = readSecurity;
 
 /** OpenAI compatibility mirror for MCP clients that read auth policy from tool metadata. */
 const securityMeta = (schemes: readonly { type: "oauth2"; scopes: readonly string[] }[]) => ({

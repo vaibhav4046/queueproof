@@ -66,7 +66,7 @@ prove the claim for every named service provider.
 
 ### Service providers
 
-> QueueProof currently relies on Auth0 for authentication, HydraDB for connector indexing and
+> QueueProof currently relies on Supabase for authentication and OAuth, HydraDB for connector indexing and
 > retrieval, Turso/libSQL for durable application records, and Vercel for application hosting.
 > The publisher must update this list when the production data path changes.
 

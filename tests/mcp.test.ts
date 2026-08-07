@@ -68,7 +68,7 @@ describe("QueueProof MCP", () => {
         openWorldHint: expect.any(Boolean),
       });
       expect(tool._meta?.securitySchemes).toEqual(expect.arrayContaining([
-        expect.objectContaining({ type: "oauth2", scopes: expect.arrayContaining(["queueproof:read"]) }),
+        expect.objectContaining({ type: "oauth2", scopes: ["openid", "profile", "email"] }),
       ]));
     }
     expect(Object.keys(server._registeredResources ?? {}).sort()).toEqual([

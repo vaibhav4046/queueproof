@@ -8,15 +8,15 @@ describe("external identity tenancy", () => {
 
   it("keeps the same subject and workspace when an email changes", async () => {
     const first = await ensureExternalPrincipalWorkspace({
-      issuer: "https://tenant.example.auth0.com/",
-      subject: "auth0|stable-subject",
+      issuer: "https://project.supabase.co/auth/v1",
+      subject: "00000000-0000-4000-8000-000000000010",
       email: "first@example.test",
       emailVerified: true,
       displayName: "First Name",
     });
     const second = await ensureExternalPrincipalWorkspace({
-      issuer: "https://tenant.example.auth0.com/",
-      subject: "auth0|stable-subject",
+      issuer: "https://project.supabase.co/auth/v1",
+      subject: "00000000-0000-4000-8000-000000000010",
       email: "changed@example.test",
       emailVerified: true,
       displayName: "Updated Name",
@@ -31,16 +31,16 @@ describe("external identity tenancy", () => {
 
   it("keeps the web profile when the same subject arrives through MCP without profile claims", async () => {
     const web = await ensureExternalPrincipalWorkspace({
-      issuer: "https://tenant.example.auth0.com/",
-      subject: "auth0|shared-web-mcp-subject",
+      issuer: "https://project.supabase.co/auth/v1",
+      subject: "00000000-0000-4000-8000-000000000020",
       email: "person@example.test",
       emailVerified: true,
       displayName: "Person Name",
       avatarUrl: "https://images.example.test/person.png",
     });
     const mcp = await ensureExternalPrincipalWorkspace({
-      issuer: "https://tenant.example.auth0.com/",
-      subject: "auth0|shared-web-mcp-subject",
+      issuer: "https://project.supabase.co/auth/v1",
+      subject: "00000000-0000-4000-8000-000000000020",
     });
 
     expect(mcp.userId).toBe(web.userId);
@@ -66,13 +66,13 @@ describe("external identity tenancy", () => {
   it("never merges different subjects that share an email address", async () => {
     const shared = "shared@example.test";
     const first = await ensureExternalPrincipalWorkspace({
-      issuer: "https://tenant.example.auth0.com/",
-      subject: "auth0|subject-a",
+      issuer: "https://project.supabase.co/auth/v1",
+      subject: "00000000-0000-4000-8000-000000000031",
       email: shared,
     });
     const second = await ensureExternalPrincipalWorkspace({
-      issuer: "https://tenant.example.auth0.com/",
-      subject: "auth0|subject-b",
+      issuer: "https://project.supabase.co/auth/v1",
+      subject: "00000000-0000-4000-8000-000000000032",
       email: shared,
     });
     expect(second.userId).not.toBe(first.userId);
@@ -93,8 +93,8 @@ describe("external identity tenancy", () => {
     ]);
 
     const principal = await ensureExternalPrincipalWorkspace({
-      issuer: "https://tenant.example.auth0.com/",
-      subject: "auth0|private-after-public",
+      issuer: "https://project.supabase.co/auth/v1",
+      subject: "00000000-0000-4000-8000-000000000040",
       email: "private@example.test",
     });
     expect(principal.workspaceId).not.toBe(publicWorkspaceId);

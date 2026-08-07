@@ -46,4 +46,11 @@ describe("production browser security policy", () => {
     expect(mediaDirective).not.toContain("https:");
     expect(mediaDirective).not.toContain("*");
   });
+
+  it("allows only the public Supabase API origin family needed by branded auth", () => {
+    const csp = headerMap["content-security-policy"];
+    expect(csp).toContain("connect-src 'self'");
+    expect(csp).toContain("https://*.supabase.co");
+    expect(csp).not.toContain("supabase.com");
+  });
 });

@@ -48,10 +48,11 @@
     "db:generate": "node ./node_modules/drizzle-kit/bin.cjs generate"
   },
   "dependencies": {
-    "@auth0/nextjs-auth0": "4.26.0",
     "@hydradb/sdk": "2.1.2",
     "@modelcontextprotocol/server": "2.0.0",
     "@opentelemetry/api": "1.9.0",
+    "@supabase/ssr": "0.12.4",
+    "@supabase/supabase-js": "2.112.2",
     "commander": "14.0.2",
     "drizzle-orm": "0.45.2",
     "jose": "6.2.8",

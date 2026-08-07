@@ -27,7 +27,7 @@ export default function PrivacyPage() {
         },
         {
           title: "Service providers",
-          body: <p>QueueProof uses Auth0 for account authentication, HydraDB for connector indexing and retrieval, Turso/libSQL for durable application records, and Vercel for application hosting. Data sent to an AI client is also governed by that client provider&apos;s terms and privacy controls.</p>,
+          body: <p>QueueProof uses Supabase for passwordless account authentication and OAuth authorization, HydraDB for connector indexing and retrieval, Turso/libSQL for durable application records, and Vercel for application hosting. Data sent to an AI client is also governed by that client provider&apos;s terms and privacy controls.</p>,
         },
         {
           title: "Your choices",

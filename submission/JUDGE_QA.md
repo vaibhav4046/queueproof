@@ -77,7 +77,7 @@ the web control plane, and execution counts only after the provider response ID 
 
 Bearer tokens are hashed, workspace-bound, scoped, expiring, revocable, and audience-restricted.
 Anonymous, invalid, expired, revoked, and wrong-audience requests fail closed. Retrieved text is
-untrusted evidence. Auth0 OAuth is claimed only when the external issuer/API/client consent flow
+untrusted evidence. Supabase OAuth is claimed only when the external issuer/client consent flow
 and a current-release read-only ChatGPT tool call are recorded and tested end to end.
 
 ## Does it work in Claude and Codex?

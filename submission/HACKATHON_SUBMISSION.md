@@ -117,7 +117,7 @@ Canonical endpoint: `https://queueproof.vercel.app/mcp` over HTTP MCP with beare
 Tokens are hashed, workspace-bound, scoped, expiring, revocable, and audience-restricted. Read is
 the default. The product registers implemented read, sync, result-recording, and proposal tools plus
 sanitized `queueproof://current/connectors` and `queueproof://current/queue-snapshots` resources; it
-registers no fake change-diff resource and currently registers no MCP prompts. Auth0 web
+registers no fake change-diff resource and currently registers no MCP prompts. Supabase web
 identity and the OAuth MCP resource-server path are implemented, including exact JWT
 issuer/audience/scope validation and per-subject workspace binding. A named ChatGPT connection is
 claimed only after current-release consent, discovery, and one harmless read-only tool receipt.

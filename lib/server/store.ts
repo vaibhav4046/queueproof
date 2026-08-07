@@ -388,7 +388,7 @@ export async function workspaceForUser(userId: string) {
   await ensureCoreSchema();
   const db = requireDb();
   // Public access must resolve to one deliberate workspace that is explicitly assigned to
-  // the public actor. Never fall back to a singleton: after Auth0 onboarding that one
+  // the public actor. Never fall back to a singleton: after personal-account onboarding that one
   // workspace could be a real user's private tenant on a fresh or misconfigured deploy.
   if (userId === "user:public-access") {
     const configuredId = runtimeEnv().QUEUEPROOF_PUBLIC_WORKSPACE_ID?.trim();

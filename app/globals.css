@@ -143,8 +143,8 @@ input, select { width: 100%; min-height: 42px; border: 1px solid var(--line); pa
 .gateway-screen { min-height: 100vh; position: relative; overflow: hidden; background: var(--ink); }.gateway-image { object-fit: cover; object-position: 60% center; filter: brightness(.72) contrast(1.08) saturate(.88); animation: reveal 1s ease both; }.gateway-shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(6,8,6,.99) 0 29%, rgba(6,8,6,.75) 48%, rgba(6,8,6,.12) 75%), linear-gradient(0deg, rgba(6,8,6,.92), transparent 35%); }.gateway-copy { position: relative; z-index: 3; width: min(740px, 90%); padding: 16vh 0 10vh clamp(28px, 8vw, 125px); }.gateway-copy h1 { margin: 25px 0; font: 400 clamp(52px, 7vw, 102px)/.87 var(--serif); letter-spacing: -.07em; text-transform: uppercase; }.gateway-copy h1 em { color: var(--acid); font-style: italic; text-transform: none; }.gateway-copy > p { max-width: 620px; margin-bottom: 29px; color: var(--muted); font-size: 15px; line-height: 1.68; }.trust-row { display: flex; gap: 22px; margin-top: 29px; color: var(--faint); font: 600 8px var(--mono); text-transform: uppercase; }.trust-row span { display: flex; align-items: center; gap: 6px; }.trust-row svg { color: var(--acid); }
 .onboarding-screen { min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; background: var(--ink); }.onboarding-art { min-height: 100vh; position: relative; overflow: hidden; }.onboarding-art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, var(--ink)), linear-gradient(0deg, var(--ink), transparent 40%); }.onboarding-art img { object-fit: cover; object-position: 58% center; filter: brightness(.65) contrast(1.08); }.onboarding-card { width: min(620px, calc(100% - 70px)); align-self: center; padding: clamp(30px, 5vw, 65px); border: 1px solid rgba(255,116,23,.25); background: rgba(10,14,10,.92); box-shadow: 0 40px 120px #0008; }.onboarding-card > svg { margin-top: 36px; color: var(--acid); }.step-code { color: var(--faint); font: 650 8px var(--mono); letter-spacing: .15em; }.onboarding-card h1 { margin: 17px 0; font: 400 clamp(39px, 5vw, 67px)/.94 var(--serif); letter-spacing: -.055em; }.onboarding-card p { color: var(--muted); font-size: 12px; line-height: 1.65; }.onboarding-card label { display: flex; flex-direction: column; gap: 8px; margin: 26px 0 14px; color: var(--muted); font: 620 8px var(--mono); letter-spacing: .09em; text-transform: uppercase; }.onboarding-card .primary-button { width: 100%; }
 .account-onboarding { align-self: center; }
-.auth0-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 28px; }
-.auth0-actions :is(.primary-button,.secondary-button) { min-height: 48px; width: 100%; }
+.identity-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 28px; }
+.identity-actions :is(.primary-button,.secondary-button) { min-height: 48px; width: 100%; }
 .legacy-signin { margin-top: 22px; border-top: 1px solid var(--line); padding-top: 18px; }
 .legacy-signin > summary { min-height: 44px; display: flex; align-items: center; gap: 8px; color: var(--muted); cursor: pointer; font: 650 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
 .legacy-signin form { padding-top: 4px; }
@@ -2069,7 +2069,7 @@ body { min-height: 100dvh; background: var(--ink); }
 .receipt-replay-step > div { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
 .receipt-replay-step .secondary-button { min-height: 40px; padding-inline: 14px; }
 @media (max-width: 680px) {
-  .auth0-actions { grid-template-columns: 1fr; }
+  .identity-actions { grid-template-columns: 1fr; }
   .receipt-wait-note,
   .receipt-replay-controls { width: calc(100% - 32px); }
   .receipt-replay-controls,

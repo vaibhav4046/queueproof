@@ -9,14 +9,14 @@ const credentialEnv = {
 };
 
 describe("deployment Linear execution credential boundary", () => {
-  it("never lends the deployment credential to an Auth0 personal workspace", () => {
+  it("never lends the deployment credential to a personal Supabase workspace", () => {
     expect(deploymentLinearCredential({
-      actorId: "user:auth0:alice",
+      actorId: "user:external:alice",
       workspaceId: "ws_operator",
       env: credentialEnv,
     })).toBeNull();
     expect(deploymentLinearCredential({
-      actorId: "user:auth0:alice",
+      actorId: "user:external:alice",
       workspaceId: "ws_alice",
       env: credentialEnv,
     })).toBeNull();

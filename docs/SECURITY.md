@@ -2,11 +2,12 @@
 
 ## Identity and tenancy
 
-- Auth0 is the primary hosted identity path. Its SDK session is stored in an encrypted,
-  `httpOnly`, same-site cookie; issuer plus immutable subject is the tenant key.
+- Supabase passwordless auth is the primary hosted identity path. The SSR client stores its
+  refresh state in `httpOnly`, same-site cookies and `getClaims()` verifies the JWT before use;
+  issuer plus immutable subject is the tenant key.
 - A legacy owner path uses a versioned JSON payload signed with HMAC-SHA-256. It is separately
   gated, remains available for intentional hybrid development, and is disabled for production
-  whenever Auth0 is configured. A complete production Auth0 set defaults to Auth0-only with the
+  whenever Supabase is configured. A complete production Supabase pair defaults to Supabase-only with the
   legacy path off when selectors are omitted; explicit production hybrid/legacy settings fail
   validation.
 - Safe legacy-cookie support reads the server-appended expiry after the final delimiter,
@@ -60,7 +61,7 @@ owner-only and return 403 for the public actor.
 - HydraDB credentials are encrypted at rest with AES-GCM and a random IV; only a
   fingerprint is returned to the browser.
 - The optional deployment-wide Linear execution key is usable only by the stable deployment-owner
-  actor in the exact workspace named by `QUEUEPROOF_LINEAR_EXECUTION_WORKSPACE_ID`. Auth0 personal
+  actor in the exact workspace named by `QUEUEPROOF_LINEAR_EXECUTION_WORKSPACE_ID`. Supabase personal
   workspaces may store local approvals but never inherit that provider credential.
 - Before verification, a HydraDB credential may be sent only to the official API origin or one
   alternative origin deliberately pinned in server configuration. A caller-provided public HTTPS
@@ -111,9 +112,10 @@ repeat the scan for the submitted commit as required by
 
 - Opaque MCP tokens are random bearer values stored only as hashes. They carry scopes, expiry,
   revocation, client identity, and audience.
-- Auth0 access tokens are accepted only in enabled OAuth/hybrid mode and must be RS256 JWTs with
-  the exact pinned issuer and canonical MCP audience/resource, valid lifetime, subject, and
-  `queueproof:read` scope. JWT failures never fall through to opaque authentication.
+- Supabase OAuth tokens are accepted only in enabled OAuth/hybrid mode and must be ES256 or RS256
+  JWTs with the exact pinned issuer and canonical MCP audience/resource, valid lifetime, subject,
+  and OAuth `client_id`. A valid token begins with QueueProof read access; proposal/sync require a
+  trusted server-issued `queueproof_permissions` claim. JWT failures never fall through to opaque authentication.
 - MCP search accepts only QueueProof connector IDs or indexed document source IDs returned by list
   tools. Database, collection, and connector lineage are resolved server-side, and every returned
   source is filtered back to the requested connector/resource or document ID.

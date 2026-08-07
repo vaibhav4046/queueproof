@@ -11,8 +11,9 @@ evidence that QueueProof has been submitted, approved, published, or connected t
 - Client ID Metadata Documents are preferred when supported. Dynamic Client Registration remains
   an alternative; a predefined dedicated client can also be used. QueueProof's first-party web app
   and OpenAI plugin must not share an OAuth client.
-- QueueProof must keep `queueproof:read` as the initial grant. Sync and proposal scopes require an
-  explicit later choice. No MCP tool may imply approval/execution authority.
+- Supabase exposes standard `openid profile email` scopes. QueueProof maps that initial OAuth
+  grant to internal `queueproof:read`; sync and proposal permissions require a trusted server
+  claim. No MCP tool may imply approval/execution authority.
 
 Source: [OpenAI plugin authentication](https://developers.openai.com/plugins/build/auth).
 
@@ -66,7 +67,7 @@ Sources: [metadata guidance](https://developers.openai.com/plugins/guides/optimi
 - Tool descriptions, annotations, OAuth metadata, read-only scope filtering, result sanitization,
   hostile-query rejection, untrusted-source omission, and workflow-skill references have regression
   coverage.
-- Public submission is still blocked on credential rotation, end-to-end Auth0 CIMD/DCR or dedicated
+- Public submission is still blocked on end-to-end Supabase DCR or dedicated
   client verification, a current ChatGPT read receipt, a monitored support contact and final legal
   fields, verified publisher permissions, a portal domain token, OpenAI review, and explicit Publish.
 

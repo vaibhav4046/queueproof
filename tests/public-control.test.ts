@@ -51,7 +51,7 @@ describe("public sandbox control boundary", () => {
     expect(app).toContain("Sign in to prepare a change");
   });
 
-  it("offers Auth0 entry points and namespaces browser history by workspace", () => {
+  it("offers branded account entry points and namespaces browser history by workspace", () => {
     expect(app).toContain('href="/sign-in"');
     expect(app).toContain('href="/sign-in?mode=signup"');
     expect(app).toContain('"queueproof.recent-investigations.v2"');

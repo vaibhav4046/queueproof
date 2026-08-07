@@ -12,10 +12,10 @@ benchmark receipt version through `/api/health/live`.
 
 - `QUEUEPROOF_ENCRYPTION_KEY`: at least 32 random characters.
 - `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`: required together.
-- The complete Auth0 web set (`AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`,
-  `AUTH0_SECRET`) plus the production auth-mode boundary documented in `.env.example`.
-- `QUEUEPROOF_MCP_RESOURCE=https://queueproof.vercel.app/mcp` and a separately configured Auth0
-  API/client for ChatGPT OAuth.
+- The Supabase project URL and publishable key (`NEXT_PUBLIC_SUPABASE_URL`,
+  `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`) plus the production auth-mode boundary in `.env.example`.
+- `QUEUEPROOF_MCP_RESOURCE=https://queueproof.vercel.app/mcp`, Supabase OAuth 2.1 enabled with
+  `/oauth/authorize` as the consent URL, and the QueueProof access-token hook enabled.
 - `QUEUEPROOF_PUBLIC_ACCESS=true` and an exact `QUEUEPROOF_PUBLIC_WORKSPACE_ID` only for the
   bounded judge workspace. That workspace must already have an explicit non-owner
   `user:public-access` membership.
@@ -55,6 +55,9 @@ an indexed document, public/legal routes, icons/manifest, OAuth metadata, and an
 boundaries. `/api/mcp` remains a compatibility alias.
 
 Deployment is not connector verification. After deployment, a user must authorise HydraDB and provider accounts, select resources, request sync, and run canary verification. Record the resulting connector receipt without copying private source data into public artifacts.
+
+Follow [Supabase authentication setup](docs/SUPABASE_AUTH_SETUP.md) for branded magic-link email,
+callback allowlists, OAuth consent, the MCP audience hook, and live client verification.
 
 Rollback by promoting the last known-good Vercel production deployment. Database migrations are
 forward-only; back up Turso before destructive schema work.

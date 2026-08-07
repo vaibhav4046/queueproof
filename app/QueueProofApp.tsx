@@ -546,7 +546,7 @@ export default function QueueProofApp({
   if (view.kind === "sign_in_required") {
     return <SignIn
       signInConfigured={view.signInConfigured}
-      auth0Configured={view.auth0Configured}
+      supabaseConfigured={view.supabaseConfigured}
       legacySignInConfigured={view.legacySignInConfigured}
       onSignedIn={reloadWorkspace}
     />;
@@ -749,7 +749,7 @@ function AccountControl({ actor, workspaceId, mobile = false, verifiedCount = 0 
     } catch {
       // Privacy cleanup is best-effort when storage is disabled by the browser.
     }
-    if (actor.authType === "auth0") {
+    if (actor.authType === "supabase") {
       router.push("/auth/logout");
       return;
     }
@@ -771,7 +771,7 @@ function AccountControl({ actor, workspaceId, mobile = false, verifiedCount = 0 
       <span>{actor.displayName}</span>
     </summary>
     <div className="account-popover">
-      <small>{actor.authType === "auth0" ? "Private Auth0 workspace" : "Private owner workspace"}</small>
+      <small>{actor.authType === "supabase" ? "Private QueueProof workspace" : "Private owner workspace"}</small>
       <strong>{actor.displayName}</strong>
       {mobile && <span className="mobile-ready"><i className={verifiedCount ? "status-orb live" : "status-orb"} />{verifiedCount} verified source{verifiedCount === 1 ? "" : "s"}</span>}
       <button type="button" onClick={() => void signOut()}>Sign out</button>
@@ -818,15 +818,15 @@ function BootError({
   );
 }
 
-/** Auth0 is the primary account path; the deployment token remains a labelled operator fallback. */
+/** Supabase magic-link auth is the primary account path; the token is an operator fallback. */
 function SignIn({
   signInConfigured,
-  auth0Configured,
+  supabaseConfigured,
   legacySignInConfigured,
   onSignedIn,
 }: {
   signInConfigured: boolean;
-  auth0Configured: boolean;
+  supabaseConfigured: boolean;
   legacySignInConfigured: boolean;
   onSignedIn: () => Promise<unknown>;
 }) {
@@ -865,7 +865,7 @@ function SignIn({
             no workspace can be reached.
           </p>
           <ul className="setup-list">
-            <li>Attach Auth0 in Vercel Marketplace, or configure the transitional owner path.</li>
+            <li>Connect Supabase Auth, or configure the transitional owner path.</li>
           </ul>
           <a className="primary-button" href="/api/health/dependencies">
             View diagnostics <ArrowRight size={15} />
@@ -885,11 +885,11 @@ function SignIn({
         <UserRound size={30} />
         <h1>Your private evidence workspace.</h1>
         <p>Sign in to connect your own HydraDB sources and keep investigations separate. The same account can authorize ChatGPT after the publisher completes the OAuth rollout.</p>
-        {auth0Configured && <div className="auth0-actions">
+        {supabaseConfigured && <div className="identity-actions">
           <a className="primary-button" href="/sign-in"><UserRound size={15} /> Sign in</a>
           <a className="secondary-button" href="/sign-in?mode=signup"><UserPlus size={15} /> Create account</a>
         </div>}
-        {legacySignInConfigured && <details className="legacy-signin" open={!auth0Configured}>
+        {legacySignInConfigured && <details className="legacy-signin" open={!supabaseConfigured}>
           <summary><LockKeyhole size={14} /> Deployment owner access</summary>
           <form onSubmit={submit}>
             <p>Operator fallback only. The token is exchanged for a signed, expiring, httpOnly cookie and is never stored in the browser.</p>
@@ -902,7 +902,7 @@ function SignIn({
                 autoComplete="current-password"
                 required
                 minLength={16}
-                autoFocus={!auth0Configured}
+                autoFocus={!supabaseConfigured}
               />
             </label>
             <label>

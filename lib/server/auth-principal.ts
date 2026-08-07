@@ -45,10 +45,10 @@ export async function ensureExternalPrincipalWorkspace(
 
   await ensureCoreSchema();
   const digest = await sha256(`${issuer}\0${subject}`);
-  const userId = `user:auth0:${digest}`;
-  const workspaceId = `ws_auth0_${digest.slice(0, 32)}`;
-  const identityId = `identity_auth0_${digest.slice(0, 32)}`;
-  const membershipId = `member_auth0_${digest.slice(0, 32)}`;
+  const userId = `user:external:${digest}`;
+  const workspaceId = `ws_external_${digest.slice(0, 32)}`;
+  const identityId = `identity_external_${digest.slice(0, 32)}`;
+  const membershipId = `member_external_${digest.slice(0, 32)}`;
   const internalEmail = `${digest}@auth.queueproof.invalid`;
   const externalEmail = clean(input.email, 254) || null;
   const displayName = safeName(input, "My QueueProof");

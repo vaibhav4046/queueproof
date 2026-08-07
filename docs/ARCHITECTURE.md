@@ -31,12 +31,12 @@ Web / JSON API / MCP client
 
 ## 1. Identity and workspace boundary
 
-The server resolves an actor in strict trust order: Auth0 session, versioned HMAC-signed
+The server resolves an actor in strict trust order: verified Supabase session, versioned HMAC-signed
 legacy owner session, configured trusted identity gateway, opted-in non-production local actor,
-then the opted-in public demo actor. Auth0 identity is the pinned issuer plus immutable `sub`;
+then the opted-in public demo actor. Supabase identity is the pinned issuer plus immutable `sub`;
 email is mutable profile data and never a tenant key. A subject is provisioned exactly one
 deterministic personal workspace, and ambiguous membership fails closed. Caller-provided
-workspace IDs do not select operational rows. Production Auth0 deployments disable the legacy
+workspace IDs do not select operational rows. Production Supabase deployments disable the legacy
 owner secret, and direct Vercel deployments reject the OpenAI Sites header-trust mode.
 
 Public demo mode is a shared evidence sandbox. Reads, grounded questions, and queue review
@@ -141,8 +141,8 @@ Writes are split into proposal, approval, execution, and provider confirmation.
 
 MCP reads the same persisted packets used by the web and API surfaces. Legacy tokens are stored
 as hashes and carry scopes, expiry, revocation state, and an audience. In OAuth mode QueueProof is
-the resource server: it verifies Auth0 RS256 access tokens against a configuration-pinned JWKS,
-issuer, canonical `/mcp` audience/resource, lifetime, subject, and required scope, then resolves
+the resource server: it verifies Supabase ES256/RS256 OAuth tokens against a configuration-pinned
+JWKS, issuer, canonical `/mcp` audience/resource, lifetime, subject, and OAuth `client_id`, then resolves
 that subject to its one personal workspace. A JWT-shaped credential never falls through to the
 legacy token path.
 

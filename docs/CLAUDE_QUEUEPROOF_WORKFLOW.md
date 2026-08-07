@@ -93,7 +93,8 @@ constraints, evidence, and approval requirement without claiming the action ran.
 
 The publisher may privately add `https://queueproof.vercel.app/mcp` as a Claude remote custom
 connector only after protected-resource discovery returns the configured authorization server.
-Review the requested scopes, complete OAuth off-camera, and start with `queueproof:read`. The
+Review the standard `openid profile email` scopes, complete OAuth off-camera, and confirm that
+QueueProof reports internal read-only access. The
 present bearer setup alone is not proof of Claude web compatibility. Record the production SHA,
 OAuth issuer, scopes granted, tool discovery, and one live read-only receipt without exposing
 tokens. Do not say QueueProof is in a Claude directory or available to every user; organization

@@ -56,44 +56,40 @@ describe("runtime configuration", () => {
     })).toEqual([]);
   });
 
-  it("fails closed on partial Auth0 and OAuth MCP configuration", () => {
+  it("fails closed on partial Supabase and OAuth MCP configuration", () => {
     const partial = validateRuntimeConfig({
-      AUTH0_DOMAIN: "tenant.example.auth0.com",
+      NEXT_PUBLIC_SUPABASE_URL: "https://project.supabase.co",
       QUEUEPROOF_AUTH_MODE: "hybrid",
       QUEUEPROOF_MCP_AUTH_MODE: "hybrid",
       QUEUEPROOF_MCP_RESOURCE: "http://queueproof.example/mcp",
     });
     expect(partial.map((issue) => issue.key)).toEqual(expect.arrayContaining([
-      "AUTH0_*",
+      "SUPABASE_PUBLIC_CONFIG",
       "QUEUEPROOF_AUTH_MODE",
       "QUEUEPROOF_MCP_AUTH_MODE",
       "QUEUEPROOF_MCP_RESOURCE",
     ]));
   });
 
-  it("accepts a complete Auth0 web and canonical MCP resource boundary", () => {
+  it("accepts complete Supabase web auth and the canonical MCP resource boundary", () => {
     expect(validateRuntimeConfig({
-      AUTH0_DOMAIN: "tenant.example.auth0.com",
-      AUTH0_CLIENT_ID: "client",
-      AUTH0_CLIENT_SECRET: "client-secret",
-      AUTH0_SECRET: "a".repeat(64),
+      NEXT_PUBLIC_SUPABASE_URL: "https://project.supabase.co",
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test_value_123456789",
       QUEUEPROOF_AUTH_MODE: "hybrid",
       QUEUEPROOF_MCP_AUTH_MODE: "hybrid",
       QUEUEPROOF_MCP_RESOURCE: "https://queueproof.vercel.app/mcp",
     })).toEqual([]);
   });
 
-  it("defaults complete production Auth0 to Auth0-only and rejects explicit legacy rollout modes", () => {
-    const auth0Production = {
+  it("defaults complete production Supabase to Supabase-only and rejects legacy rollout modes", () => {
+    const supabaseProduction = {
       ...validProduction,
-      AUTH0_DOMAIN: "tenant.example.auth0.com",
-      AUTH0_CLIENT_ID: "client",
-      AUTH0_CLIENT_SECRET: "client-secret",
-      AUTH0_SECRET: "a".repeat(64),
+      NEXT_PUBLIC_SUPABASE_URL: "https://project.supabase.co",
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test_value_123456789",
     };
-    expect(validateRuntimeConfig(auth0Production, { production: true })).toEqual([]);
+    expect(validateRuntimeConfig(supabaseProduction, { production: true })).toEqual([]);
     const unsafeRollout = validateRuntimeConfig({
-      ...auth0Production,
+      ...supabaseProduction,
       QUEUEPROOF_AUTH_MODE: "hybrid",
       QUEUEPROOF_LEGACY_OWNER_SIGNIN: "true",
     }, { production: true });
@@ -102,15 +98,15 @@ describe("runtime configuration", () => {
       key: "QUEUEPROOF_LEGACY_OWNER_SIGNIN",
     }));
     expect(validateRuntimeConfig({
-      ...auth0Production,
+      ...supabaseProduction,
       QUEUEPROOF_AUTH_MODE: "legacy",
       QUEUEPROOF_LEGACY_OWNER_SIGNIN: "false",
     }, { production: true })).toContainEqual(expect.objectContaining({
       key: "QUEUEPROOF_AUTH_MODE",
     }));
     expect(validateRuntimeConfig({
-      ...auth0Production,
-      QUEUEPROOF_AUTH_MODE: "auth0",
+      ...supabaseProduction,
+      QUEUEPROOF_AUTH_MODE: "supabase",
       QUEUEPROOF_LEGACY_OWNER_SIGNIN: "false",
     }, { production: true })).toEqual([]);
   });
@@ -129,11 +125,9 @@ describe("runtime configuration", () => {
   it("rejects a non-canonical OAuth resource in production", () => {
     const issues = validateRuntimeConfig({
       ...validProduction,
-      AUTH0_DOMAIN: "tenant.example.auth0.com",
-      AUTH0_CLIENT_ID: "client",
-      AUTH0_CLIENT_SECRET: "client-secret",
-      AUTH0_SECRET: "a".repeat(64),
-      QUEUEPROOF_AUTH_MODE: "auth0",
+      NEXT_PUBLIC_SUPABASE_URL: "https://project.supabase.co",
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test_value_123456789",
+      QUEUEPROOF_AUTH_MODE: "supabase",
       QUEUEPROOF_LEGACY_OWNER_SIGNIN: "false",
       QUEUEPROOF_MCP_AUTH_MODE: "hybrid",
       QUEUEPROOF_MCP_RESOURCE: "https://other.example/mcp",
