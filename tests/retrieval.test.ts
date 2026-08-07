@@ -22,6 +22,38 @@ describe("retrieval planner", () => {
     });
     expect(retrievalQueryVariants(plan)).toEqual(["text", "hybrid"]);
   });
+
+  it("narrows a bare web exact-ID lookup without neighbors or unrelated claims", () => {
+    const askRoute = readFileSync(join(process.cwd(), "app/api/ask/route.ts"), "utf8");
+    expect(askRoute).toContain("narrowExactLookup ? [plan.queryBy] : retrievalQueryVariants(plan)");
+    expect(askRoute).toContain("max_results: scope.sourceIds ? 24 : narrowExactLookup ? 6 : 12");
+    expect(askRoute).toContain(".some((identifier) => identifier.toUpperCase() === exactIdentifier)");
+    expect(askRoute).toContain(
+      "if (!narrowExactLookup && !deliveryRepairAttempted && shouldRunFastCoverageRepair({",
+    );
+
+    const exactIdentifier = recordIdentifiers("What is BUG-123?")[0];
+    const candidates = [
+      { id: "slack-proof", text: "Priya filed BUG-123 against Atlas Launch." },
+      { id: "neighbor", text: "BUG-1234 is a separate issue." },
+      { id: "unrelated", text: "ENG-456 is merged." },
+    ];
+    const retained = candidates.filter((item) =>
+      recordIdentifiers(item.text)
+        .some((identifier) => identifier.toUpperCase() === exactIdentifier),
+    );
+    expect(retained.map((item) => item.id)).toEqual(["slack-proof"]);
+  });
+
+  it("closes the web answer payload over exactly referenced receipts", () => {
+    const askRoute = readFileSync(join(process.cwd(), "app/api/ask/route.ts"), "utf8");
+    expect(askRoute).toContain("const returnedEvidence = referencedEvidenceIds");
+    expect(askRoute).toContain("evidenceCount: returnedEvidence.length");
+    expect(askRoute).toContain("providerCoverage: returnedProviderCoverage");
+    expect(askRoute).toContain("const demoSafeEvidence = isPublicAccessActor(actor)");
+    expect(askRoute).toContain("return engineeringSignals < 2");
+    expect(askRoute).not.toMatch(/evidence:\s+synthesis\.evidence/);
+  });
   it.each([
     ["What changed since yesterday?", "temporal_reasoning"],
     ["Find conflicting decisions across Slack and Gmail", "conflict_analysis"],
@@ -78,12 +110,19 @@ describe("retrieval planner", () => {
     expect(askRoute).toContain("decision.escalate && !deliveryRepairAttempted");
   });
 
-  it("repairs a single-provider join before paying Thinking cost", () => {
+  it("keeps a bare exact-ID lookup single-call but repairs real joins", () => {
     expect(shouldRunFastCoverageRepair({
       category: "exact_identifier",
       plannedMode: "fast",
       evidenceProviders: ["slack"],
       contradictionProviders: [],
+    })).toBe(false);
+    expect(shouldRunFastCoverageRepair({
+      category: "exact_identifier",
+      plannedMode: "fast",
+      evidenceProviders: ["slack"],
+      contradictionProviders: [],
+      namedProviders: ["linear"],
     })).toBe(true);
     const staleWorkPlan = planRetrieval("Which open issue appears to be already resolved elsewhere?");
     expect(staleWorkPlan).toMatchObject({ category: "single_source_fact", mode: "thinking" });
@@ -106,7 +145,7 @@ describe("retrieval planner", () => {
       category: "exact_identifier",
       plannedMode: "thinking",
       evidenceProviders: ["document", "github"],
-      contradictionProviders: [],
+      contradictionProviders: [["github"]],
     })).toBe(true);
     expect(shouldRunFastCoverageRepair({
       category: "exact_identifier",

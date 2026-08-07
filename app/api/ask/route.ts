@@ -182,16 +182,33 @@ export async function POST(request: Request) {
     let routingReason = automatic
       ? "Auto began with Fast retrieval and will escalate only when the first grounded check proves a coverage gap."
       : plan.reason;
-    // Exact-identifier questions retrieve more precisely when the identifier
-    // leads the HydraDB query text (the router already classified this query as
-    // exact_identifier; this is the honest execution of that plan). Call count
-    // and cost are unchanged — only the query string is anchored.
-    const identifiers = [...new Set(recordIdentifiers(question))];
+    // A bare exact-ID lookup is a direct keyed read, not a cross-source
+    // investigation. Match the public MCP contract: one lexical lane, at most
+    // six candidates, and exact post-retrieval filtering. Compound questions
+    // keep the full multi-hop planner and its bounded repair logic.
+    const identifiers = [...new Set(recordIdentifiers(question).map((value) => value.toUpperCase()))];
+    const namedConnectorProviders = providersNamedInQuestion(
+      question,
+      connectors.results.map((connector) => connector.provider),
+    );
+    const compoundQuestion = /[,;]|\b(?:and|also|across|between|compare|versus|vs\.?)\b/i.test(question);
+    const narrowExactLookup =
+      plan.mode === "fast" &&
+      primaryMode === "fast" &&
+      identifiers.length === 1 &&
+      namedConnectorProviders.length <= 1 &&
+      !compoundQuestion;
+    const exactIdentifier = narrowExactLookup ? identifiers[0] : null;
     const intentTerms = retrievalIntentTerms(question);
-    const retrievalQuery = [identifiers.join(" "), question, ...intentTerms].filter(Boolean).join(" ");
+    const retrievalQuery = exactIdentifier
+      ? `${exactIdentifier} ${question}`
+      : [identifiers.join(" "), question, ...intentTerms].filter(Boolean).join(" ");
     const evidence: RetrievedEvidence[] = [];
     const trace: RetrievalCallTrace[] = [];
-    const connectorScopes = [...connectors.results.reduce((map, connector) => {
+    const connectorScopePool = narrowExactLookup && namedConnectorProviders.length === 1
+      ? connectors.results.filter((connector) => connector.provider === namedConnectorProviders[0])
+      : connectors.results;
+    const connectorScopes = [...connectorScopePool.reduce((map, connector) => {
       const key = `${connector.database}\u0000${connector.collection ?? ""}`;
       const current = map.get(key) ?? {
         database: connector.database,
@@ -289,7 +306,7 @@ export async function POST(request: Request) {
             // Document-scoped retrieval asks deeper: a 346-page handbook needs a
             // wider net so exact-fact chunks in the middle/end are not missed by
             // relevance ranking. Connector scopes stay at 12 to bound evidence.
-            max_results: scope.sourceIds ? 24 : 12,
+            max_results: scope.sourceIds ? 24 : narrowExactLookup ? 6 : 12,
             ...(scope.sourceIds ? { ids: scope.sourceIds } : {}),
             query_apps: !scope.sourceIds,
             graph_context: callGraphUsage,
@@ -426,11 +443,43 @@ export async function POST(request: Request) {
       }));
     };
 
-    const dedupeEvidence = () => evidence.filter((item, index, all) =>
-      all.findIndex((candidate) => `${candidate.provider}:${candidate.id}` === `${item.provider}:${item.id}`) === index,
-    );
+    const dedupeEvidence = () => {
+      const deduped = evidence.filter((item, index, all) =>
+        all.findIndex((candidate) => `${candidate.provider}:${candidate.id}` === `${item.provider}:${item.id}`) === index,
+      );
+      // The public Helios demo shares a real GitHub connector with QueueProof's
+      // implementation repository. Keep CI/release write-ups out of synthetic
+      // business answers when multiple independent engineering-only signals
+      // make a record unambiguously self-referential. Private workspaces are
+      // never filtered by this demo-specific curation guard.
+      const demoSafeEvidence = isPublicAccessActor(actor)
+        ? deduped.filter((item) => {
+            if (item.provider !== "github") return true;
+            const content = `${item.title} ${item.excerpt}`;
+            const engineeringSignals = [
+              /\b(?:TypeScript|ESLint|Vitest|Webpack|Vinext)\b/i,
+              /\b\d+\s+tests?\s+passed\b/i,
+              /\b(?:exact preview|benchmark artifact|secret scans?|diff whitespace check)\b/i,
+              /\/api\/health\/live\b/i,
+              /\bdeployment:\s*(?:dpl_|https:\/\/)\S*/i,
+              /\b(?:production|preview)\s+build\s+passed\b/i,
+            ].filter((pattern) => pattern.test(content)).length;
+            return engineeringSignals < 2;
+          })
+        : deduped;
+      if (!exactIdentifier) return demoSafeEvidence;
+      return demoSafeEvidence.filter((item) =>
+        recordIdentifiers(`${item.sourceId} ${item.title} ${item.excerpt}`)
+          .some((identifier) => identifier.toUpperCase() === exactIdentifier),
+      ).slice(0, 6);
+    };
 
-    await runQueryBatch(retrievalQuery, retrievalQueryVariants(plan), "primary", primaryQueryMode);
+    await runQueryBatch(
+      retrievalQuery,
+      narrowExactLookup ? [plan.queryBy] : retrievalQueryVariants(plan),
+      "primary",
+      primaryQueryMode,
+    );
     let preliminaryEvidence = dedupeEvidence();
     let preliminary = synthesiseGroundedAnswer(question, preliminaryEvidence);
     const connectorRepairAllowed = requestedSourceIds.length === 0 || payload.includeConnectors === true;
@@ -465,11 +514,7 @@ export async function POST(request: Request) {
       preliminaryEvidence = dedupeEvidence();
       preliminary = synthesiseGroundedAnswer(question, preliminaryEvidence);
     }
-    const namedConnectorProviders = providersNamedInQuestion(
-      question,
-      connectors.results.map((connector) => connector.provider),
-    );
-    if (!deliveryRepairAttempted && shouldRunFastCoverageRepair({
+    if (!narrowExactLookup && !deliveryRepairAttempted && shouldRunFastCoverageRepair({
       category: plan.category,
       plannedMode: plan.mode,
       evidenceProviders: preliminary.evidence.map((item) => item.provider),
@@ -580,28 +625,37 @@ export async function POST(request: Request) {
       `Evaluated ${synthesis.claims.length} atomic claims and preserved ${synthesis.contradictions.length} contradiction records.`,
       { callCount: trace.length, latencyMs: Date.now() - started },
     );
-    const citedIds = new Set([
+    const referencedEvidenceIds = [...new Set([
       ...synthesis.claims.flatMap((claim) => claim.evidenceIds),
       ...synthesis.contradictions.flatMap((contradiction) => contradiction.evidenceIds),
-    ]);
-    const citations = [...citedIds]
-      .map((id) => synthesis.evidence.find((item) => item.id === id))
-      .filter((item): item is NonNullable<typeof item> => Boolean(item))
-      .map((item) => ({
-        id: item.id,
-        provider: item.provider,
-        title: item.title,
-        excerpt: item.excerpt,
-        timestamp: item.timestamp,
-        url: item.url,
-      }));
+    ])];
+    // Close the public web payload over exactly the receipts referenced by a
+    // returned claim or contradiction. Retrieval candidates remain available
+    // to routing telemetry, but cannot appear as uncited "additional" proof.
+    const returnedEvidence = referencedEvidenceIds
+      .map((id) => deduped.find((item) => item.id === id))
+      .filter((item): item is NonNullable<typeof item> => Boolean(item));
+    const returnedProviderCoverage = [...new Set(returnedEvidence.map((item) => item.provider))];
+    const validation = {
+      ...synthesis.validation,
+      evidenceCount: returnedEvidence.length,
+      providerCoverage: returnedProviderCoverage,
+    };
+    const citations = returnedEvidence.map((item) => ({
+      id: item.id,
+      provider: item.provider,
+      title: item.title,
+      excerpt: item.excerpt,
+      timestamp: item.timestamp,
+      url: item.url,
+    }));
     await recorder.record(
       "validating",
       `Validation retained ${synthesis.validation.citedClaimCount} cited claims and removed unsupported prose before rendering.`,
       { callCount: trace.length, latencyMs: Date.now() - started },
     );
     const queryTerms = new Set(question.toLowerCase().match(/[a-z0-9-]{4,}/g) ?? []);
-    const currentEvidenceIds = new Set(deduped.flatMap((item) => [item.id, item.sourceId]));
+    const currentEvidenceIds = new Set(returnedEvidence.flatMap((item) => [item.id, item.sourceId]));
     const queue = await listQueueForWorkspace(workspaceId);
     type PriorityQueueItem = {
       taskId?: unknown; title?: unknown; project?: unknown; customer?: unknown;
@@ -623,7 +677,7 @@ export async function POST(request: Request) {
         const packetEvidenceIds = new Set((packet.evidence ?? []).flatMap((entry) =>
           [entry.sourceId, entry.id].filter((id): id is string => Boolean(id)),
         ));
-        const linkedEvidence = deduped.filter((evidenceItem) =>
+        const linkedEvidence = returnedEvidence.filter((evidenceItem) =>
           packetEvidenceIds.has(evidenceItem.id) || packetEvidenceIds.has(evidenceItem.sourceId),
         );
         return { item, packet, overlap, linkedEvidence };
@@ -659,7 +713,7 @@ export async function POST(request: Request) {
       ? null
       : compileContradictionAction({
         queryId: runId,
-        evidence: deduped,
+        evidence: returnedEvidence,
         contradictions: synthesis.contradictions,
       });
     const relatedPriority = queuePriority.length
@@ -696,7 +750,7 @@ export async function POST(request: Request) {
         routing_reason: routingReason,
         hydradb_call_count: trace.length,
         total_latency_ms: totalLatencyMs,
-        provider_coverage: synthesis.validation.providerCoverage,
+        provider_coverage: returnedProviderCoverage,
         receipt_count: citations.length,
         metadata_filters: payload.metadataFilters ?? {},
         graph_usage: actualGraphUsage,
@@ -705,9 +759,9 @@ export async function POST(request: Request) {
       },
       routing_reason: routingReason,
     });
-    const finalStage = synthesis.validation.status === "abstained" || !synthesis.evidence.length
+    const finalStage = validation.status === "abstained" || !returnedEvidence.length
       ? "abstained"
-      : synthesis.validation.status === "partial" || synthesis.missingInformation.length
+      : validation.status === "partial" || synthesis.missingInformation.length
         ? "partial"
         : "complete";
     await recorder.record(
@@ -722,7 +776,7 @@ export async function POST(request: Request) {
     );
     const graph = buildProofGraphView({
       providers: recorder.providers(),
-      evidence: synthesis.evidence,
+      evidence: returnedEvidence,
       claims: groundedContract.claims,
       contradictions: synthesis.contradictions,
       priorityItems: groundedContract.priority_items,
@@ -748,9 +802,9 @@ export async function POST(request: Request) {
       question: redactSecrets(question),
       ...groundedContract,
       workflow,
-      evidence: synthesis.evidence,
+      evidence: returnedEvidence,
       missingInformation: synthesis.missingInformation,
-      validation: synthesis.validation,
+      validation,
       trace: {
         runId,
         category: plan.category,
@@ -773,9 +827,15 @@ export async function POST(request: Request) {
     await recorder.persistReceipt({ workflow, result: responsePayload });
     failureContext = null;
     await audit({ workspaceId, actorId: actor.id, operation: "ask.run", targetType: "query_run",
-      targetId: runId, outcome: synthesis.evidence.length ? "success" : "failure",
-      metadata: { sourceCount: synthesis.evidence.length, connectorCount: connectors.results.length,
-        callCount: trace.length, validation: synthesis.validation, trace } });
+      targetId: runId, outcome: returnedEvidence.length ? "success" : "failure",
+      metadata: {
+        sourceCount: returnedEvidence.length,
+        retrievedCandidateCount: deduped.length,
+        connectorCount: connectors.results.length,
+        callCount: trace.length,
+        validation,
+        trace,
+      } });
     const publicQueryId = isPublicAccessActor(actor)
       ? await publicQueryReference(workspaceId, runId)
       : runId;
