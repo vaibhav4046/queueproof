@@ -576,6 +576,20 @@ describe("QueueProof MCP", () => {
     expect(body).toContain('"type":"noauth"');
     expect(body).not.toContain('"type":"oauth2"');
     expect(JSON.stringify(tools[0]?.inputSchema)).not.toMatch(/connectorIds|sourceIds/);
+    const outputSchema = JSON.stringify(tools[0]?.outputSchema);
+    for (const field of [
+      "answer",
+      "claims",
+      "contradictions",
+      "missingInformation",
+      "validation",
+      "evidence",
+      "providerCoverage",
+      "latencyMs",
+      "callCount",
+    ]) {
+      expect(outputSchema).toContain(`"${field}"`);
+    }
 
     const resourcesResponse = await POST(new Request("https://queueproof.example/mcp/demo", {
       method: "POST",
@@ -646,23 +660,62 @@ describe("QueueProof MCP", () => {
         }),
       }));
       const searchRpc = parseMcpResponse(await searchResponse.text());
-      expect(searchRpc.result?.structuredContent).toMatchObject({
+      type DemoClaim = {
+        text: string;
+        evidenceIds: string[];
+        providers: string[];
+      };
+      type DemoContradiction = {
+        summary: string;
+        evidenceIds: string[];
+        providers: string[];
+      };
+      const result = searchRpc.result?.structuredContent as {
+        answer: string;
+        claims: DemoClaim[];
+        contradictions: DemoContradiction[];
+        missingInformation: string[];
+        validation: {
+          status: "grounded" | "partial" | "abstained";
+          claimCount: number;
+          citedClaimCount: number;
+          evidenceCount: number;
+          providerCoverage: string[];
+        };
+        evidence: Array<{ evidenceId: string; provider: string }>;
+        providerCoverage: string[];
+        callCount: number;
+        partial: boolean;
+        failedScopeCount: number;
+      };
+      expect(result).toMatchObject({
         answer: expect.any(String),
-        claims: expect.any(Array),
         contradictions: expect.any(Array),
         missingInformation: expect.any(Array),
-        validation: expect.objectContaining({
-          status: expect.stringMatching(/^(?:grounded|partial|abstained)$/),
-          evidenceCount: expect.any(Number),
-        }),
         callCount: 3,
         partial: false,
         failedScopeCount: 0,
       });
-      const providerCoverage = (searchRpc.result?.structuredContent as {
-        providerCoverage: string[];
-      }).providerCoverage;
-      expect([...providerCoverage].sort()).toEqual(["github", "linear", "slack"]);
+      expect(result.answer).not.toMatch(/^Insufficient evidence\b/);
+      expect(result.claims.length).toBeGreaterThan(0);
+      expect(result.validation.status).not.toBe("abstained");
+      expect(result.validation).toMatchObject({
+        claimCount: result.claims.length,
+        citedClaimCount: result.claims.length,
+        evidenceCount: result.evidence.length,
+      });
+      const returnedEvidenceIds = new Set(result.evidence.map((item) => item.evidenceId));
+      for (const item of [...result.claims, ...result.contradictions]) {
+        expect(item.evidenceIds.length).toBeGreaterThan(0);
+        for (const evidenceId of item.evidenceIds) {
+          expect(returnedEvidenceIds.has(evidenceId)).toBe(true);
+        }
+      }
+      const groundedProviders = [...new Set(
+        result.claims.flatMap((claim) => claim.providers),
+      )].sort();
+      expect([...result.validation.providerCoverage].sort()).toEqual(groundedProviders);
+      expect([...result.providerCoverage].sort()).toEqual(["github", "linear", "slack"]);
       expect(query).toHaveBeenCalledTimes(3);
     } finally {
       clientSpy.mockRestore();
