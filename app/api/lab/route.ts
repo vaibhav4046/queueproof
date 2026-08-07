@@ -41,7 +41,7 @@ const isCurrentReleaseArtifact = (artifact: Artifact | null, currentSha: string 
 const isStrictLiveArtifact = (artifact: Artifact | null, currentSha: string | null) => {
   const rows = artifact?.rows;
   return isCurrentReleaseArtifact(artifact, currentSha) &&
-    artifact?.status === "measured" && artifact.grader === "grounded-grader-v2" &&
+    artifact?.status === "measured" && artifact.grader === "grounded-grader-v3" &&
     Array.isArray(rows) && rows.length > 0 && artifact.cases === rows.length;
 };
 
@@ -141,7 +141,9 @@ const publicLiveArtifact = (artifact: Artifact | null): Artifact | null => {
     latencyMs: pick(artifact.latencyMs, ["p50", "p95", "min", "max"]),
     quality: pick(artifact.quality, [
       "requiredFactAccuracy", "requiredFactRecall", "citationPrecision",
-      "citationCompleteness", "unsupportedClaimRate", "note",
+      "citationCompleteness", "unsupportedClaimRate", "claimRelevancePrecision",
+    "irrelevantClaimRate", "zeroIrrelevantClaims", "claimRelevancePrecision",
+      "irrelevantClaimRate", "zeroIrrelevantClaims", "note",
     ]),
     release: publicRelease(artifact.release),
     rows: rows.map((row) => {
