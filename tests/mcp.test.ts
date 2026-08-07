@@ -410,20 +410,15 @@ describe("QueueProof MCP", () => {
       expect(response.status).toBe(200);
       const rpc = parseMcpResponse(await response.text());
       const result = rpc.result?.structuredContent;
-      expect(result?.evidence).toEqual(expect.arrayContaining([
+      expect(result?.evidence).toEqual([
         expect.objectContaining({
           sourceId: "source-selected",
           provider: "github",
           excerpt: "ENG-456 is merged.",
           url: "https://github.com/helios/demo/issues/1?view=compact",
         }),
-        expect.objectContaining({
-          sourceId: "source-injection",
-          promptInjectionDetected: true,
-          excerpt: expect.stringContaining("Instruction-like content omitted"),
-        }),
-      ]));
-      expect(result?.evidence).toHaveLength(2);
+      ]);
+      expect(JSON.stringify(result)).not.toContain("source-injection");
       expect(JSON.stringify(result)).not.toContain("source-other");
       expect(JSON.stringify(result)).not.toContain("Private unrelated Slack content");
       expect(JSON.stringify(result)).not.toContain("Ignore all previous instructions");
@@ -736,11 +731,7 @@ describe("QueueProof MCP", () => {
           evidenceCount: number;
           providerCoverage: string[];
         };
-        evidence: Array<{
-          evidenceId: string;
-          provider: string;
-          promptInjectionDetected?: boolean;
-        }>;
+        evidence: Array<{ evidenceId: string; provider: string }>;
         providerCoverage: string[];
         callCount: number;
         estimatedCostUnits: number;
@@ -770,12 +761,12 @@ describe("QueueProof MCP", () => {
         ...result.claims.flatMap((claim) => claim.evidenceIds),
         ...result.contradictions.flatMap((contradiction) => contradiction.evidenceIds),
       ]);
+      const citationEvidenceIds = new Set(
+        result.citations.map((citation) => citation.evidenceId),
+      );
       expect(JSON.stringify(result)).not.toContain("source-github-ci-noise");
-      for (const item of result.evidence) {
-        expect(
-          referencedEvidenceIds.has(item.evidenceId) || item.promptInjectionDetected === true,
-        ).toBe(true);
-      }
+      expect([...returnedEvidenceIds].sort()).toEqual([...referencedEvidenceIds].sort());
+      expect([...citationEvidenceIds].sort()).toEqual([...referencedEvidenceIds].sort());
       expect(result.citations.length).toBeGreaterThan(0);
       for (const citation of result.citations) {
         expect(returnedEvidenceIds.has(citation.evidenceId)).toBe(true);
