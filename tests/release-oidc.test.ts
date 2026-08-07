@@ -11,7 +11,13 @@ describe("autonomous exact-release benchmark publication", () => {
     expect(route).toContain('const GITHUB_OIDC_ISSUER = "https://token.actions.githubusercontent.com"');
     expect(route).toContain('const GITHUB_OIDC_AUDIENCE = "https://queueproof.vercel.app/api/lab/artifacts/batch"');
     expect(route).toContain('const GITHUB_REPOSITORY = "vaibhav4046/queueproof"');
+    expect(route).toContain('const GITHUB_REPOSITORY_OWNER_ID = "115102797"');
     expect(route).toContain('const GITHUB_REPOSITORY_ID = "1319245359"');
+    expect(route).toContain(
+      "`repo:vaibhav4046@${GITHUB_REPOSITORY_OWNER_ID}/queueproof@${GITHUB_REPOSITORY_ID}:ref:refs/heads/main`",
+    );
+    expect(route).toContain("subject !== GITHUB_OIDC_SUBJECT");
+    expect(route).not.toContain("subject.startsWith");
     expect(route).toContain('visibility !== "private"');
     expect(route).toContain('ref !== "refs/heads/main"');
     expect(route).toContain('eventName !== "push"');
