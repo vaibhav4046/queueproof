@@ -182,12 +182,15 @@ const publicPdfArtifact = (artifact: Artifact | null): Artifact | null => artifa
   latencyMs: pick(artifact.latencyMs, ["p50", "p95", "min", "max"]),
   calls: pick(artifact.calls, ["median", "mean", "min", "max"]),
   quality: pick(artifact.quality, [
-    "requiredFactAccuracy", "requiredFactRecall", "citationPrecision",
+    "scope", "note", "requiredFactAccuracy", "requiredFactRecall", "citationPrecision",
     "citationCompleteness", "unsupportedClaimRate", "relevancePrecision",
     "irrelevantClaimRate", "relevanceRequirementPasses",
     "zeroKnowinglyUnsupportedClaims", "zeroIrrelevantClaims",
   ]),
-  crossSource: pick(artifact.crossSource, ["status", "pass"]),
+  crossSource: pick(artifact.crossSource, [
+    "pass", "providers", "connectorProviderPass", "citationPass",
+    "relevancePass", "relevancePrecision", "irrelevantClaimRate",
+  ]),
   release: publicRelease(artifact.release),
 } : null;
 
