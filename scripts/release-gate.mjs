@@ -132,9 +132,22 @@ const webFlagship = await runPublicAsk(
   "Who escalated the AuthShield outage, what did engineering commit to, and is the fix already merged?",
 );
 assertWebEvidenceClosure(webFlagship, "Web flagship answer");
+assert.equal(webFlagship.claims.length, 4,
+  `Web flagship returned ${webFlagship.claims.length} claims; expected exactly 4.`);
+assert.equal(webFlagship.citations.length, 4,
+  `Web flagship returned ${webFlagship.citations.length} citations; expected exactly 4.`);
+assert.equal(webFlagship.evidence.length, 4,
+  `Web flagship returned ${webFlagship.evidence.length} receipts; expected exactly 4.`);
+assert.equal(webFlagship.trace?.callCount, 1,
+  `Web flagship used ${webFlagship.trace?.callCount} HydraDB calls; expected exactly 1.`);
+assert.deepEqual(
+  [...new Set(webFlagship.evidence.map((item) => item.provider))].sort(),
+  ["github", "linear", "slack"],
+  "Web flagship must close over exactly Linear, GitHub, and Slack.",
+);
 assert.doesNotMatch(
   JSON.stringify(webFlagship.evidence),
-  /\b\d+\s+tests?\s+passed\b|\/api\/health\/live|\bexact preview\b|\bbenchmark artifact\b/i,
+  /\b(?:TypeScript|ESLint|Vitest|Webpack|Vinext)\b|\b\d+\s+tests?\s+passed\b|\b(?:exact preview|benchmark artifact|secret scans?|diff whitespace check)\b|\/api\/health\/live\b|\bdeployment:\s*(?:dpl_|https:\/\/)\S*|\b(?:production|preview)\s+build\s+passed\b/i,
   "The web flagship retained QueueProof CI or release-note noise.",
 );
 
@@ -143,8 +156,16 @@ assertWebEvidenceClosure(webExactId, "Web exact-ID answer");
 assert.equal(webExactId.trace?.mode, "fast", "A bare web exact-ID lookup must stay in Fast mode.");
 assert.equal(webExactId.trace?.callCount, 1,
   `Web exact-ID lookup used ${webExactId.trace?.callCount} HydraDB calls; expected exactly 1.`);
+assert.equal(webExactId.claims.length, 1,
+  `Web exact-ID lookup returned ${webExactId.claims.length} claims; expected exactly 1.`);
+assert.equal(webExactId.citations.length, 1,
+  `Web exact-ID lookup returned ${webExactId.citations.length} citations; expected exactly 1.`);
 assert.equal(webExactId.evidence.length, 1,
   `Web exact-ID lookup returned ${webExactId.evidence.length} receipts; expected exactly 1.`);
+assert.equal(webExactId.contradictions.length, 0,
+  "Web exact-ID lookup must not manufacture a contradiction.");
+assert.equal(webExactId.priority_items?.length, 0,
+  "Web exact-ID lookup must not attach an unrelated action.");
 assert.equal(webExactId.evidence[0]?.provider, "slack",
   "The reviewed BUG-123 web receipt must come from Slack.");
 assert.match(
