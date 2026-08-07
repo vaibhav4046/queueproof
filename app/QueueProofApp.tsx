@@ -2148,6 +2148,15 @@ function AgentScreen({ workspace, setError, setNotice, readOnly, publicOrigin }:
   const [writeScopes, setWriteScopes] = useState(false);
   const [freshToken, setFreshToken] = useState("");
   const [busy, setBusy] = useState(false);
+  const [demoBusy, setDemoBusy] = useState(false);
+  const [demoProof, setDemoProof] = useState<{
+    answer: string;
+    providerCoverage: string[];
+    latencyMs: number;
+    callCount: number;
+    estimatedCostUnits: number;
+    validation?: { status?: string };
+  } | null>(null);
   const endpoint = `${publicOrigin}/mcp`;
   const demoEndpoint = `${publicOrigin}/mcp/demo`;
   const load = useCallback(() => {
@@ -2235,6 +2244,77 @@ function AgentScreen({ workspace, setError, setNotice, readOnly, publicOrigin }:
     }
   }
 
+  async function runPublicDemoProof() {
+    setDemoBusy(true);
+    setDemoProof(null);
+    setError("");
+    try {
+      const response = await fetch(demoEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: Date.now(),
+          method: "tools/call",
+          params: {
+            name: "queueproof_search",
+            arguments: {
+              query: "Who escalated the AuthShield outage, what did engineering commit to, and is the fix already merged?",
+              mode: "auto",
+            },
+          },
+        }),
+      });
+      const body = await response.text();
+      const payload = (() => {
+        try {
+          return JSON.parse(body) as Record<string, unknown>;
+        } catch {
+          const data = body
+            .split(/\r?\n/)
+            .filter((line) => line.startsWith("data:"))
+            .map((line) => line.slice(5).trim())
+            .filter(Boolean)
+            .at(-1);
+          return data ? JSON.parse(data) as Record<string, unknown> : null;
+        }
+      })();
+      const rpcResult = payload?.result as Record<string, unknown> | undefined;
+      const structured = rpcResult?.structuredContent as {
+        answer?: unknown;
+        providerCoverage?: unknown;
+        latencyMs?: unknown;
+        callCount?: unknown;
+        estimatedCostUnits?: unknown;
+        validation?: { status?: unknown };
+      } | undefined;
+      if (!response.ok || !structured || typeof structured.answer !== "string") {
+        throw new Error("The live MCP proof did not return a structured answer.");
+      }
+      setDemoProof({
+        answer: structured.answer,
+        providerCoverage: Array.isArray(structured.providerCoverage)
+          ? structured.providerCoverage.map(String)
+          : [],
+        latencyMs: Number(structured.latencyMs ?? 0),
+        callCount: Number(structured.callCount ?? 0),
+        estimatedCostUnits: Number(structured.estimatedCostUnits ?? 0),
+        validation: {
+          status: typeof structured.validation?.status === "string"
+            ? structured.validation.status
+            : undefined,
+        },
+      });
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "The live MCP proof could not run.");
+    } finally {
+      setDemoBusy(false);
+    }
+  }
+
   return <section className="screen agent-screen connect-ai-screen">
     <div className="screen-heading"><div><span className="eyebrow"><Bot size={13} /> {readOnly ? "Live public MCP demo" : "QueueProof in ChatGPT"}</span><h1>{readOnly ? <>Connect now.<br /><em>Ask with proof.</em></> : <>Add once.<br /><em>Ask from ChatGPT.</em></>}</h1><p>{readOnly ? "Connect any Streamable HTTP MCP client to the read-only synthetic Helios demo. No account, API key, or provider permission is required." : "After publisher approval, ordinary users will add QueueProof, sign in to their workspace, and ask for evidence without creating an API project or pasting a connection key."}</p></div></div>
     <div className="integration-promise"><span><Bot size={17} /><strong>{readOnly ? "Copy demo URL" : "Add QueueProof"}</strong></span><ChevronRight size={14} /><span><UserRound size={17} /><strong>{readOnly ? "No authentication" : "Sign in once"}</strong></span><ChevronRight size={14} /><span><Search size={17} /><strong>Ask with receipts</strong></span></div>
@@ -2258,7 +2338,8 @@ function AgentScreen({ workspace, setError, setNotice, readOnly, publicOrigin }:
             </button>
             <div className="preview-install">
               <p><strong>Synthetic Helios · live HydraDB retrieval · read-only.</strong></p>
-              <div><code>{demoEndpoint}</code><button type="button" onClick={() => void copyMcpEndpoint(demoEndpoint, "public demo")}><Clipboard size={13} /> Copy URL</button></div>
+              <div><code>{demoEndpoint}</code><button type="button" onClick={() => void copyMcpEndpoint(demoEndpoint, "public demo")}><Clipboard size={13} /> Copy URL</button><button type="button" onClick={() => void runPublicDemoProof()} disabled={demoBusy}>{demoBusy ? <LoaderCircle className="spin" size={13} /> : <Play size={13} />} {demoBusy ? "Running…" : "Run live proof"}</button></div>
+              {demoProof && <div className="proof-seal" role="status"><CircleCheck size={21} /><div><strong>{demoProof.validation?.status ?? "measured"} · {demoProof.providerCoverage.join(" · ")}</strong><span>{demoProof.callCount} HydraDB call{demoProof.callCount === 1 ? "" : "s"} · {demoProof.latencyMs.toLocaleString()} ms · {demoProof.estimatedCostUnits} relative cost unit{demoProof.estimatedCostUnits === 1 ? "" : "s"}</span><small>{demoProof.answer}</small></div></div>}
             </div>
             <details className="preview-install">
               <summary>Directory and personal-workspace status</summary>
