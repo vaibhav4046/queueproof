@@ -1,3 +1,4 @@
+import { createRemoteJWKSet, jwtVerify } from "jose";
 import { apiError, noStoreJson } from "../../../../../lib/server/api";
 import { requireDb, runtimeEnv } from "../../../../../lib/server/runtime";
 import { createId, ensureCoreSchema } from "../../../../../lib/server/store";
@@ -15,6 +16,13 @@ const CONNECTOR_PROVIDERS = new Set([
   "github", "gitlab", "gmail", "google-calendar", "google-drive", "intercom",
   "jira", "linear", "notion", "posthog", "shortcut", "slack", "stripe", "twitter",
 ]);
+const GITHUB_OIDC_ISSUER = "https://token.actions.githubusercontent.com";
+const GITHUB_OIDC_AUDIENCE = "https://queueproof.vercel.app/api/lab/artifacts/batch";
+const GITHUB_REPOSITORY = "vaibhav4046/queueproof";
+const GITHUB_REPOSITORY_ID = "1319245359";
+const GITHUB_OIDC_KEYS = createRemoteJWKSet(
+  new URL("https://token.actions.githubusercontent.com/.well-known/jwks"),
+);
 // SHA-256 of a 256-bit one-time token. The preimage is never committed or logged.
 const COMMITTED_OPERATOR_TOKEN_HASH =
   "c0802a40caa795a2e1ae472efbb0d402b3ea713a68ac75fff10b6efc5fbbfc61";
@@ -81,6 +89,47 @@ function releaseIdentity() {
     sha: process.env.VERCEL_GIT_COMMIT_SHA || process.env.QUEUEPROOF_RELEASE_SHA || "",
     ref: process.env.VERCEL_GIT_COMMIT_REF || process.env.QUEUEPROOF_RELEASE_REF || "",
   };
+}
+
+async function authorisePublisher(request: Request, current: { sha: string; ref: string }) {
+  const suppliedToken = request.headers.get("x-queueproof-benchmark-once")?.trim() ?? "";
+  if (suppliedToken.length >= 32 && suppliedToken.length <= 512) {
+    const suppliedHash = await sha256(suppliedToken);
+    if (constantTimeEqual(suppliedHash, operatorTokenHash())) return suppliedHash;
+  }
+
+  const authorization = request.headers.get("authorization")?.trim() ?? "";
+  if (!authorization.toLowerCase().startsWith("bearer ")) return null;
+  const token = authorization.slice(7).trim();
+  if (!token) return null;
+  try {
+    const { payload } = await jwtVerify(token, GITHUB_OIDC_KEYS, {
+      issuer: GITHUB_OIDC_ISSUER,
+      audience: GITHUB_OIDC_AUDIENCE,
+      algorithms: ["RS256"],
+    });
+    const repository = typeof payload.repository === "string" ? payload.repository : "";
+    const repositoryId = typeof payload.repository_id === "string" ? payload.repository_id : "";
+    const visibility = typeof payload.repository_visibility === "string" ? payload.repository_visibility : "";
+    const ref = typeof payload.ref === "string" ? payload.ref : "";
+    const sha = typeof payload.sha === "string" ? payload.sha.toLowerCase() : "";
+    const eventName = typeof payload.event_name === "string" ? payload.event_name : "";
+    const subject = typeof payload.sub === "string" ? payload.sub : "";
+    if (
+      repository !== GITHUB_REPOSITORY ||
+      repositoryId !== GITHUB_REPOSITORY_ID ||
+      visibility !== "private" ||
+      ref !== "refs/heads/main" ||
+      eventName !== "push" ||
+      sha !== current.sha.toLowerCase() ||
+      !subject.startsWith(`repo:${GITHUB_REPOSITORY}:`)
+    ) return null;
+    // All short-lived OIDC tokens for one exact production release map to one
+    // durable consumption identity so retries preserve atomic one-time semantics.
+    return sha256(`github-oidc:${GITHUB_REPOSITORY_ID}:${current.sha.toLowerCase()}`);
+  } catch {
+    return null;
+  }
 }
 
 function strictQuality(artifact: Row) {
@@ -236,19 +285,22 @@ type ConsumedToken = { releaseSha: string; artifactSetHash: string };
 /**
  * One-time, exact-release benchmark publication.
  *
- * This is intentionally separate from the long-lived operator endpoint. A batch is
- * validated in full before its token is consumed, then the token receipt, four artifact
- * rows, and audit event commit atomically. The raw token is never stored.
+ * This is deliberately separate from the long-lived operator endpoint. A batch is
+ * validated in full before its publisher identity is consumed, then the credential
+ * receipt, four artifact rows, and audit event commit atomically. Raw credentials are
+ * never stored.
  */
 export async function POST(request: Request) {
   try {
     if (process.env.VERCEL_ENV && process.env.VERCEL_ENV !== "production") return hidden();
     if (Date.now() >= Date.parse(OPERATOR_TOKEN_EXPIRES_AT)) return hidden();
 
-    const suppliedToken = request.headers.get("x-queueproof-benchmark-once")?.trim() ?? "";
-    if (suppliedToken.length < 32 || suppliedToken.length > 512) return hidden();
-    const suppliedHash = await sha256(suppliedToken);
-    if (!constantTimeEqual(suppliedHash, operatorTokenHash())) return hidden();
+    const current = releaseIdentity();
+    if (!/^[0-9a-f]{40}$/i.test(current.sha) || !current.ref) {
+      return noStoreJson({ ok: false, error: "The running release has no verifiable SHA and ref." }, { status: 503 });
+    }
+    const publisherHash = await authorisePublisher(request, current);
+    if (!publisherHash) return hidden();
 
     const raw = await readBoundedBody(request);
     if (!raw) return noStoreJson({ ok: false, error: "Benchmark batch cannot be empty." }, { status: 400 });
@@ -271,10 +323,6 @@ export async function POST(request: Request) {
       return noStoreJson({ ok: false, error: "Provide exactly auto, fast, thinking, and pdf artifacts." }, { status: 400 });
     }
 
-    const current = releaseIdentity();
-    if (!/^[0-9a-f]{40}$/i.test(current.sha) || !current.ref) {
-      return noStoreJson({ ok: false, error: "The running release has no verifiable SHA and ref." }, { status: 503 });
-    }
     const normalised = new Map<ArtifactKind, Awaited<ReturnType<typeof normaliseArtifact>>>();
     for (const kind of ARTIFACT_KINDS) {
       normalised.set(kind, await normaliseArtifact(kind, suppliedArtifacts[kind], current));
@@ -304,7 +352,7 @@ export async function POST(request: Request) {
     const readConsumed = () => db.prepare(
       `SELECT release_sha AS releaseSha, artifact_set_hash AS artifactSetHash
        FROM benchmark_publication_tokens WHERE token_hash = ? LIMIT 1`,
-    ).bind(suppliedHash).first<ConsumedToken>();
+    ).bind(publisherHash).first<ConsumedToken>();
     const readStored = () => db.prepare(
       `SELECT kind, artifact_hash AS artifactHash FROM benchmark_artifacts
        WHERE workspace_id = ? AND release_sha = ? AND kind IN ('auto', 'fast', 'thinking', 'pdf')`,
@@ -329,7 +377,7 @@ export async function POST(request: Request) {
         consumed.releaseSha === current.sha && consumed.artifactSetHash === artifactSetHash &&
         rowsMatch(stored.results)
       ) return success(true);
-      return noStoreJson({ ok: false, error: "This one-time publisher has already been consumed." }, { status: 409 });
+      return noStoreJson({ ok: false, error: "This publisher identity has already been consumed." }, { status: 409 });
     }
 
     const stored = await readStored();
@@ -343,7 +391,7 @@ export async function POST(request: Request) {
         `INSERT INTO benchmark_publication_tokens
          (token_hash, workspace_id, release_sha, artifact_set_hash, expires_at, used_at)
          VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-      ).bind(suppliedHash, workspaceId, current.sha, artifactSetHash, OPERATOR_TOKEN_EXPIRES_AT),
+      ).bind(publisherHash, workspaceId, current.sha, artifactSetHash, OPERATOR_TOKEN_EXPIRES_AT),
     ];
     for (const kind of ARTIFACT_KINDS) {
       if (storedByKind.has(kind)) continue;
@@ -377,8 +425,8 @@ export async function POST(request: Request) {
     try {
       await db.batch(statements);
     } catch (error) {
-      // A racing identical request may win the unique token insert. Confirm the entire
-      // committed set before treating that race as an idempotent success.
+      // A racing identical request may win the unique publisher insert. Confirm the
+      // entire committed set before treating that race as an idempotent success.
       const racedToken = await readConsumed();
       const racedRows = await readStored();
       if (
