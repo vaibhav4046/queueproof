@@ -123,8 +123,15 @@ const metadata = await metadataResponse.json();
 assert.equal(metadata.resource, `${base}/mcp`, "MCP metadata must bind the canonical resource exactly.");
 assert.ok(Array.isArray(metadata.authorization_servers) && metadata.authorization_servers.length === 1,
   "MCP metadata must advertise exactly one authorization server.");
-for (const scope of ["queueproof:read", "queueproof:propose", "queueproof:sync"]) {
+// Supabase advertises standard identity scopes. QueueProof maps a verified OAuth
+// identity to its internal read permission; write/sync permissions are deliberately
+// not requestable through this public OAuth grant.
+for (const scope of ["openid", "profile", "email"]) {
   assert.ok(metadata.scopes_supported?.includes(scope), `MCP metadata is missing ${scope}.`);
+}
+for (const internalScope of ["queueproof:propose", "queueproof:sync"]) {
+  assert.ok(!metadata.scopes_supported?.includes(internalScope),
+    `MCP metadata must not advertise internal ${internalScope} through Supabase OAuth.`);
 }
 
 for (const path of ["/mcp", "/api/mcp"]) {
