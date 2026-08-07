@@ -174,6 +174,21 @@ for (const unavailableTool of [
     `The public MCP demo exposed ${unavailableTool}.`);
 }
 
+const demoResourceResponse = await fetch(`${base}/mcp/demo`, {
+  method: "POST",
+  headers: {
+    accept: "application/json, text/event-stream",
+    "content-type": "application/json",
+  },
+  body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "resources/list", params: {} }),
+});
+assert.equal(demoResourceResponse.status, 200, "The public MCP demo resource list must return 200.");
+const demoResourceBody = await demoResourceResponse.text();
+assert.match(demoResourceBody, /queueproof:\/\/demo\/guide/,
+  "The public MCP demo is missing its safe routing guide.");
+assert.doesNotMatch(demoResourceBody, /workspaceId|database|collection|connectorId|sourceId/i,
+  "The public MCP demo guide exposed an internal identifier.");
+
 const challengeResponse = await fetch(`${base}/.well-known/openai-apps-challenge`, {
   headers: { accept: "text/plain" },
 });

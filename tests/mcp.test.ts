@@ -577,6 +577,30 @@ describe("QueueProof MCP", () => {
     expect(body).not.toContain('"type":"oauth2"');
     expect(JSON.stringify(tools[0]?.inputSchema)).not.toMatch(/connectorIds|sourceIds/);
 
+    const resourcesResponse = await POST(new Request("https://queueproof.example/mcp/demo", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 72,
+        method: "resources/list",
+        params: {},
+      }),
+    }));
+    const resourcesRpc = parseMcpResponse(await resourcesResponse.text());
+    expect(resourcesRpc.result?.resources).toEqual([expect.objectContaining({
+      uri: "queueproof://demo/guide",
+      name: "queueproof-demo-guide",
+      title: "QueueProof synthetic demo guide",
+      mimeType: "application/json",
+    })]);
+    expect(JSON.stringify(resourcesRpc.result?.resources)).not.toMatch(
+      /workspaceId|database|collection|connectorId|sourceId/i,
+    );
+
     const query = vi.fn().mockImplementation(async (input: { metadata_filters?: Record<string, string> }) => {
       const connector = demoConnectors.find((candidate) =>
         candidate.hydraId === input.metadata_filters?.connector_id,
@@ -623,11 +647,14 @@ describe("QueueProof MCP", () => {
       }));
       const searchRpc = parseMcpResponse(await searchResponse.text());
       expect(searchRpc.result?.structuredContent).toMatchObject({
-        providerCoverage: ["github", "linear", "slack"],
         callCount: 3,
         partial: false,
         failedScopeCount: 0,
       });
+      const providerCoverage = (searchRpc.result?.structuredContent as {
+        providerCoverage: string[];
+      }).providerCoverage;
+      expect([...providerCoverage].sort()).toEqual(["github", "linear", "slack"]);
       expect(query).toHaveBeenCalledTimes(3);
     } finally {
       clientSpy.mockRestore();
@@ -759,6 +786,7 @@ function parseMcpResponse(body: string) {
     result?: {
       structuredContent?: Record<string, unknown>;
       tools?: Array<Record<string, unknown>>;
+      resources?: Array<Record<string, unknown>>;
     };
   };
 }
