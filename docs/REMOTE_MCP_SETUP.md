@@ -94,7 +94,7 @@ token.
 | `queueproof_list_connectors` | Read sanitized connector IDs, search coordinates, and proof states |
 | `queueproof_list_documents` | Read sanitized document ingestion receipts and search coordinates |
 | `queueproof_verify_connector` | Read a stored verification receipt |
-| `queueproof_search` | Search verified connectorIds or indexed document sourceIds and return lineage-filtered, sanitized evidence excerpts |
+| `queueproof_search` | Search verified connectorIds or indexed document sourceIds and return a grounded answer, cited claims, contradictions, missing information, validation, sanitized evidence, provider coverage, latency, and HydraDB call count |
 | `queueproof_get_next_actions` | Read the latest positive-score ranked actions |
 | `queueproof_get_execution_packet` | Read a workspace-owned packet |
 | `queueproof_explain_priority`, `queueproof_compare_priorities` | Read persisted ranking details |
