@@ -22,6 +22,14 @@ describe("existing HydraDB connector import UI", () => {
     expect(app).toContain("await reloadConnectors();");
   });
 
+  it("renders and submits the provider's supported authentication method", () => {
+    expect(app).toContain("providerAuthChoices(selected?.authTypes)");
+    expect(app).toContain("HydraDB-hosted OAuth is preferred when available");
+    expect(app).toContain("authType: authType || undefined");
+    expect(app).toContain("/oauth|hosted|connect/i.test(choice.id)");
+    expect(app).toContain("setAuthType(providerAuthChoices(nextProvider?.authTypes)[0]?.id");
+  });
+
   it("states the proof boundary before import and after success", () => {
     expect(app).toContain("Account access is not retrieval proof.");
     expect(app).toContain("choose an exact resource scope, sync it, and pass QueueProof’s canary check");
