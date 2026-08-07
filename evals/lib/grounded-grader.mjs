@@ -148,19 +148,21 @@ function contradictionClauseSignals(clause, provider, topicalAnchors) {
       token.length < 3 ||
       token === provider ||
       /^\d+$/.test(token) ||
-      NON_TOPICAL_TOKENS.has(token) ||
       CONTRADICTION_STOP_TOKENS.has(token)
     ) continue;
     if (CONTRADICTION_STATE_TOKENS.has(token)) signals.add(token);
-    else if (!topicalAnchors.some((anchor) => anchor.split(" ").includes(token))) signals.add(token);
+    else if (
+      !NON_TOPICAL_TOKENS.has(token) &&
+      !topicalAnchors.some((anchor) => anchor.split(" ").includes(token))
+    ) signals.add(token);
   }
   return [...signals];
 }
 
 function contradictionHasAttributedDifference(citations, summary, topicalAnchors) {
-  const clauses = normaliseGradeText(summary)
-    .split(/\b(?:but|however|whereas|while)\b|[;.!?]+/)
-    .map((clause) => clause.trim())
+  const clauses = String(summary ?? "")
+    .split(/\b(?:but|however|whereas|while)\b|[;.!?]+/i)
+    .map(normaliseGradeText)
     .filter(Boolean);
   const signalSets = citations.map((citation) => {
     const provider = normaliseGradeText(citation?.provider);
