@@ -647,6 +647,14 @@ describe("QueueProof MCP", () => {
       }));
       const searchRpc = parseMcpResponse(await searchResponse.text());
       expect(searchRpc.result?.structuredContent).toMatchObject({
+        answer: expect.any(String),
+        claims: expect.any(Array),
+        contradictions: expect.any(Array),
+        missingInformation: expect.any(Array),
+        validation: expect.objectContaining({
+          status: expect.stringMatching(/^(?:grounded|partial|abstained)$/),
+          evidenceCount: expect.any(Number),
+        }),
         callCount: 3,
         partial: false,
         failedScopeCount: 0,
