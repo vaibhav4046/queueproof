@@ -17,9 +17,9 @@ history, browser profile, or unsupported client claim.
 | 1:55–2:10 | Today / queue | Open top ranked task | deterministic score, components, penalties, confidence | Positive-score persisted item |
 | 2:10–2:25 | Execution packet / Review | Open packet, then proposal status without submitting | evidence, acceptance criteria, permissions, `proposed ≠ executed` | No provider write; no approve/execute control through MCP |
 | 2:25–2:51 | Proof tests | Show release identity, router/PDF rows, mode comparison | SHA, failures/review states, calls, latency, units | `/api/health/live` and `/api/lab` same SHA; bracket values replaced |
-| 2:51–3:20 | ChatGPT | Clean new chat; enter sanitized prompt; reveal read tool result | QueueProof label, tool use, cited evidence | OAuth + initialize + tools/list + harmless read receipt on same release |
-| 3:20–3:29 | Codex | Crop to a fresh task canvas or sanitized terminal result | server name, tools discovered, read-only result | Authenticated same-release receipt; no token/env/config path |
-| 3:29–3:38 | Claude | Crop to fresh conversation canvas | connector name, read-only tool result | Authenticated same-release receipt; no sidebar/history/profile |
+| 2:51–3:20 | ChatGPT | Add the no-auth public demo in a clean client, enter sanitized prompt, reveal read result | QueueProof label, tool use, cited synthetic evidence | `/mcp/demo` + initialize + tools/list + harmless read on same release; label it public demo |
+| 3:20–3:29 | Codex | Crop to a fresh task canvas or sanitized terminal result | server name, tools discovered, read-only result | Same-release `/mcp/demo` receipt; no token/env/config path |
+| 3:29–3:38 | Claude | Crop to fresh conversation canvas | connector name, read-only tool result | Same-release `/mcp/demo` receipt; no sidebar/history/profile |
 | 3:38–3:50 | Close | Return to QueueProof cited answer | citations and approval boundary | Stable hold through final word |
 
 ## Sanitized client prompt
@@ -30,7 +30,8 @@ history, browser profile, or unsupported client claim.
 
 ## Privacy framing for ChatGPT, Codex, and Claude
 
-- Start each client from a new synthetic conversation after authentication is complete.
+- Start each client from a new synthetic conversation. Use `/mcp/demo` with no authentication for
+  the public Helios proof; use `/mcp` only after personal OAuth is complete.
 - Collapse sidebars before capture and keep them closed. Crop out chat history, workspace switcher,
   account avatar/profile, email, bookmarks, extensions, downloads, password manager, and OS tray.
 - Keep the pointer away from navigation edges that reopen hidden history.
@@ -54,4 +55,5 @@ history, browser profile, or unsupported client claim.
 - Also verify 1280×800 and 390×844 product paths, keyboard focus, 200% zoom, and reduced motion.
 
 If any named client gate fails, use the conditional replacement in `VIDEO_SCRIPT_4_MINUTES.md` and
-omit that screen. A documented setup is not a connected-client demo.
+omit that screen. A documented setup is not a connected-client demo, and a public-demo receipt is
+not a personal-workspace OAuth receipt.

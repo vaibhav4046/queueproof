@@ -776,6 +776,8 @@ body { min-width: 320px; overflow-x: hidden; color: var(--paper); background: va
 .preview-install { margin: 0 18px 18px; border-top: 1px solid var(--hairline); }
 .preview-install > summary { min-height: 44px; display: flex; align-items: center; color: var(--paper-secondary); cursor: pointer; font-size: 11px; }
 .preview-install > p { margin: 0 0 12px; color: var(--paper-muted); font-size: 11px; line-height: 1.5; }
+.preview-install > p strong { color: var(--paper-secondary); }
+.preview-install > .preview-private { margin-top: 14px; }
 .preview-install > div { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 8px; padding: 9px; border: 1px solid var(--hairline); border-radius: 8px; background: #080705; }
 .preview-install code { min-width: 0; overflow: hidden; color: #e6c5ae; font: 10px var(--mono); text-overflow: ellipsis; white-space: nowrap; }
 .preview-install button { min-height: 36px; display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 6px; padding: 0 9px; color: var(--paper); background: rgba(255,255,255,.06); cursor: pointer; font-size: 10px; }

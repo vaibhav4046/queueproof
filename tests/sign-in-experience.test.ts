@@ -54,7 +54,9 @@ describe("QueueProof account and ChatGPT entry experience", () => {
     expect(app).toContain('const CHATGPT_PLUGINS_URL = "https://chatgpt.com/plugins"');
     expect(app).toContain("without creating an API project or pasting a connection key");
     expect(app).toContain("Search QueueProof and select Add");
-    expect(app).toContain("OpenAI review, and publisher release remain required before public search.");
+    expect(app).toContain("Personal OAuth, OpenAI review, and publisher release remain separate gates");
+    expect(app).toContain("Add this as a custom MCP server with no authentication");
+    expect(app).toContain('const demoEndpoint = `${publicOrigin}/mcp/demo`');
     expect(app).toContain('className="advanced-connect"');
     expect(app).toContain("Developer setup for other MCP clients");
   });

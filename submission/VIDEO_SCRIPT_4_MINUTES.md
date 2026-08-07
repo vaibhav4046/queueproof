@@ -57,15 +57,15 @@ client lines supported by current receipts.
 ### 2:51–3:20 — ChatGPT plugin
 
 > The same contract is available through remote MCP. In a clean ChatGPT conversation, QueueProof
-> discovers only tools allowed by this read-only grant. I can ask the AuthShield question, receive
-> source-level evidence, and open a priority packet without exposing an API key or reconnecting each
-> source. The user signs in; the publisher owns OAuth.
+> discovers only tools allowed by the public-demo grant. I can ask the AuthShield question, receive
+> source-level evidence, and open a priority packet without an API key. This proof is deliberately
+> bound to synthetic Helios data; personal workspaces use the separate OAuth endpoint.
 
 ### 3:20–3:38 — Codex and Claude, conditional
 
-> Codex and Claude use the same remote contract. Each must pass OAuth or a scoped token check,
-> discover tools, and complete a harmless read before we call it connected. Results can guide an
-> agent, but retrieved content never overrides repository policy, approval, or provider permissions.
+> Codex and Claude use the same read-only demo contract. Each must discover the allowed tools and
+> complete a harmless read before we call it connected. Results can guide an agent, but retrieved
+> content never overrides repository policy, approval, or provider permissions.
 
 ### 3:38–3:50 — close
 
@@ -74,12 +74,13 @@ client lines supported by current receipts.
 
 ## Conditional client replacement lines
 
-Do not show or narrate a named client without a same-release authenticated receipt.
+Do not show or narrate a named client without a same-release live receipt. Label a no-auth Helios
+receipt as the public demo; never present it as personal-workspace OAuth.
 
 - **ChatGPT not verified:** replace 2:51–3:20 with: “QueueProof exposes a standards-based remote MCP
-  endpoint with protected-resource discovery and read-only-first scopes. The private ChatGPT OAuth
-  test is pending, so this demo makes no connected or public-directory claim.” Show only the
-  sanitized developer contract, not a mocked ChatGPT screen.
+  endpoint with protected-resource discovery and read-only-first scopes. The live ChatGPT test is
+  pending, so this demo makes no connected or public-directory claim.” Show only the sanitized
+  developer contract, not a mocked ChatGPT screen.
 - **Codex or Claude not verified:** name only the client with a receipt. For any unverified client,
   say: “The setup contract is documented; an authenticated read receipt is still pending.”
 - **No clients verified:** use the recovered time to show document provenance and a second citation.
