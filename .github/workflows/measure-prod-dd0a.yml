@@ -1,0 +1,85 @@
+name: Measure production dd0a v3
+
+on:
+  push:
+    branches:
+      - agent/measure-prod-3c44
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      QUEUEPROOF_URL: https://queueproof.vercel.app
+      EXPECTED_PROD_SHA: dd0a52146cadba5c3ed128b9e5d0f7152bef0322
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Confirm exact canonical production
+        run: |
+          node - <<'NODE'
+          const expected = process.env.EXPECTED_PROD_SHA;
+          const response = await fetch(`${process.env.QUEUEPROOF_URL}/api/health/live?measure=${Date.now()}`, { headers: { 'Cache-Control': 'no-store' } });
+          const body = await response.json();
+          if (!response.ok || body?.status !== 'live' || body?.environment !== 'production' || body?.release?.target !== 'production' || body?.release?.commitSha !== expected || body?.release?.benchmarkReceiptVersion !== 'grounded-grader-v3') throw new Error(`Production mismatch: ${JSON.stringify(body)}`);
+          console.log(`Measuring exact production ${expected}`);
+          NODE
+      - name: Verify release gate
+        run: node scripts/release-gate.mjs --url "$QUEUEPROOF_URL" --sha "$EXPECTED_PROD_SHA"
+      - name: Measure Auto
+        continue-on-error: true
+        run: node scripts/run-live-benchmark.mjs --url "$QUEUEPROOF_URL" --mode auto --out evals/results/prod-auto.json
+      - name: Measure Fast
+        continue-on-error: true
+        run: node scripts/run-live-benchmark.mjs --url "$QUEUEPROOF_URL" --mode fast --out evals/results/prod-fast.json
+      - name: Measure Thinking
+        continue-on-error: true
+        run: node scripts/run-live-benchmark.mjs --url "$QUEUEPROOF_URL" --mode thinking --out evals/results/prod-thinking.json
+      - name: Measure PDF
+        continue-on-error: true
+        run: node scripts/run-pdf-benchmark.mjs --url "$QUEUEPROOF_URL" --out evals/results/prod-pdf.json
+      - name: Enforce strict complete matrix
+        run: |
+          node - <<'NODE'
+          const fs = await import('node:fs/promises');
+          const expected = process.env.EXPECTED_PROD_SHA;
+          const files = {auto:'prod-auto.json', fast:'prod-fast.json', thinking:'prod-thinking.json', pdf:'prod-pdf.json'};
+          const summary = {};
+          let failed = false;
+          for (const [kind, file] of Object.entries(files)) {
+            try {
+              const a = JSON.parse(await fs.readFile(`evals/results/${file}`, 'utf8'));
+              const rows = Array.isArray(a.rows) ? a.rows : [];
+              const quality = a.quality ?? {};
+              const ok = a?.release?.commitSha === expected && a?.grader === 'grounded-grader-v3' && a?.releaseVerified === true && a?.cases === rows.length && a?.passed === rows.length && rows.length > 0 && rows.every(r => r.pass === true && r.relevancePass === true && r.relevancePrecision === 1 && r.irrelevantClaimRate === 0 && Array.isArray(r.irrelevantClaims) && r.irrelevantClaims.length === 0) && quality.requiredFactAccuracy === 1 && quality.citationPrecision === 1 && quality.citationCompleteness === 1 && quality.unsupportedClaimRate === 0 && quality.relevancePrecision === 1 && quality.irrelevantClaimRate === 0;
+              const pdfExtra = kind !== 'pdf' || (a?.canaries?.beginning === true && a?.canaries?.middle === true && a?.canaries?.end === true && a?.crossSource?.pass === true && a?.crossSource?.relevancePass === true && a?.crossSource?.relevancePrecision === 1 && a?.crossSource?.irrelevantClaimRate === 0);
+              summary[kind] = { ok: ok && pdfExtra, cases: a.cases, passed: a.passed, p50: a?.latencyMs?.p50, p95: a?.latencyMs?.p95, providers: a.connectors ?? a?.crossSource?.providers ?? [] };
+              if (!ok || !pdfExtra) failed = true;
+            } catch (error) {
+              summary[kind] = { ok:false, error: error instanceof Error ? error.message : String(error) };
+              failed = true;
+            }
+          }
+          console.log(JSON.stringify(summary, null, 2));
+          if (failed) process.exit(1);
+          NODE
+      - name: Upload measured receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: queueproof-prod-dd0a-v3
+          path: evals/results/prod-*.json
+          if-no-files-found: warn
+          retention-days: 7
