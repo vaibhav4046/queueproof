@@ -14,7 +14,7 @@
     "queueproof": "./cli/queueproof.mjs"
   },
   "engines": {
-    "node": ">=22.13.0"
+    "node": "22.x"
   },
   "scripts": {
     "dev": "node ./node_modules/next/dist/bin/next dev --webpack",
