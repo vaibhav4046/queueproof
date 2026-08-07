@@ -662,6 +662,20 @@ export function buildQueueProofServer(
         url: item.url,
       })),
     );
+    const citedEvidenceIds = new Set([
+      ...synthesis.claims.flatMap((claim) => claim.evidenceIds),
+      ...synthesis.contradictions.flatMap((contradiction) => contradiction.evidenceIds),
+    ]);
+    const citations = evidence
+      .filter((item) => citedEvidenceIds.has(item.evidenceId))
+      .map((item) => ({
+        evidenceId: item.evidenceId,
+        sourceId: item.sourceId,
+        provider: item.provider,
+        title: item.title,
+        timestamp: item.timestamp,
+        url: item.url,
+      }));
     return {
       plan: {
         category: plan.category,
@@ -672,6 +686,7 @@ export function buildQueueProofServer(
       mode,
       answer: synthesis.answer,
       claims: synthesis.claims,
+      citations,
       contradictions: synthesis.contradictions,
       missingInformation: synthesis.missingInformation,
       validation: synthesis.validation,
@@ -679,6 +694,7 @@ export function buildQueueProofServer(
       providerCoverage: providers,
       latencyMs: Date.now() - startedAt,
       callCount: responses.length,
+      estimatedCostUnits: responses.length * retrievalModeCost(mode),
       partial: successful.length !== responses.length,
       failedScopeCount: responses.length - successful.length,
     };
@@ -689,7 +705,7 @@ export function buildQueueProofServer(
     {
       title: "Search QueueProof evidence",
       description: demoSurface
-        ? "Use this when the user asks a cross-source work question about the synthetic Helios demo. QueueProof automatically searches every verified demo connector, preserves source IDs and disagreement, and returns missing proof. It cannot reveal credentials, sync a source, create a proposal, or write to a provider."
+        ? "Use this when the user asks a cross-source work question about the synthetic Helios demo. QueueProof searches verified demo evidence, returns a grounded answer with citations and disagreement, and reports missing proof, latency, call count, and relative retrieval cost. It cannot reveal credentials, sync a source, create a proposal, or write to a provider."
         : "Use this when the user asks a natural-language or exact-ID question that requires evidence from workspace connectors or uploaded documents. First list sources, then pass either verified connectorIds or indexed document sourceIds. QueueProof resolves and enforces database, collection, connector lineage, and document ownership server-side. It does not reveal credentials, sync sources, or write to providers.",
       inputSchema: searchSchema,
       outputSchema: z.object({
@@ -700,6 +716,14 @@ export function buildQueueProofServer(
           text: z.string(),
           evidenceIds: z.array(z.string()),
           providers: z.array(z.string()),
+        })),
+        citations: z.array(z.object({
+          evidenceId: z.string(),
+          sourceId: z.string(),
+          provider: z.string(),
+          title: z.string(),
+          timestamp: z.string().nullable(),
+          url: z.string().nullable(),
         })),
         contradictions: z.array(z.object({
           summary: z.string(),
@@ -718,6 +742,7 @@ export function buildQueueProofServer(
         providerCoverage: z.array(z.string()),
         latencyMs: z.number(),
         callCount: z.number(),
+        estimatedCostUnits: z.number().nonnegative(),
         partial: z.boolean(),
         failedScopeCount: z.number(),
       }),
