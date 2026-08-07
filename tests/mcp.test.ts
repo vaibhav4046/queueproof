@@ -881,6 +881,9 @@ describe("QueueProof MCP", () => {
     expect(app).toContain("targetEndpoint = readOnly ? demoEndpoint : endpoint");
     expect(app).toContain("LIVE · NO AUTH");
     expect(app).toContain("Synthetic Helios · live HydraDB retrieval · read-only.");
+    expect(app).toContain("runPublicDemoProof");
+    expect(app).toContain("Run live proof");
+    expect(app).toContain("relative cost unit");
     expect(app).toContain('{ type: "http", url: targetEndpoint, timeout: 60000 }');
     expect(app).toContain("fixed to synthetic Helios data, rate-limited, and exposes one focused investigation tool");
   });
