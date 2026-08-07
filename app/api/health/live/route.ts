@@ -18,7 +18,7 @@ export async function GET() {
       deploymentUrl: process.env.VERCEL_URL || null,
       deploymentTimestamp:
         process.env.QUEUEPROOF_DEPLOYMENT_TIMESTAMP || process.env.QUEUEPROOF_BUILD_TIMESTAMP || null,
-      benchmarkReceiptVersion: "grounded-grader-v2",
+      benchmarkReceiptVersion: "grounded-grader-v3",
     },
   });
 }
