@@ -189,7 +189,7 @@ describe("production design system", () => {
     expect(app).toContain("irrelevantClaimRate?: number");
     expect(app).toContain("zeroIrrelevantClaims?: boolean");
     expect(app).toContain("const perfectRelevance");
-    expect(app).toContain("&& liveRelevanceMet;");
+    expect(app).toContain("&& liveRelevanceMet && pdfGatesMet;");
     expect(app).toContain("const pdfGatesMet");
     expect(app).toContain("CLAIM RELEVANCE");
     expect(app).toContain("CITATIONS + RELEVANCE");
