@@ -12,7 +12,7 @@ const MAX_REQUEST_BYTES = 2_000_000;
 const OPERATOR_TOKEN_EXPIRES_AT = "2026-08-08T06:00:00.000Z";
 // SHA-256 of a 256-bit one-time token. The preimage is never committed or logged.
 const COMMITTED_OPERATOR_TOKEN_HASH =
-  "c0802a40caa795a2e1ae472efbb0d402b3ea713a68ac75fff10b6efc5fbbfc61";
+  "253715057fc1c5f83e7649b052a19e5a11472748723ca1df2345a43bc81c7a09";
 
 const record = (value: unknown): Row =>
   typeof value === "object" && value !== null && !Array.isArray(value) ? value as Row : {};
