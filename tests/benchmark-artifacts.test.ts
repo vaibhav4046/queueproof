@@ -100,6 +100,17 @@ describe("release-bound benchmark artifacts", () => {
     expect(response.status).toBe(400);
   });
 
+  it("rejects a v3 artifact with incomplete relevance receipts", async () => {
+    configure();
+    const incomplete = {
+      ...artifact,
+      quality: undefined,
+      rows: [{ id: "case-1", apiOk: true, pass: true, mode: "fast", modeHonored: true }],
+    };
+    const response = await publishArtifact(request({ kind: "auto", artifact: incomplete }));
+    expect(response.status).toBe(400);
+  });
+
   it("upserts the strict artifact and serves it as current durable evidence", async () => {
     configure();
     const published = await publishArtifact(request({ kind: "auto", artifact }));
