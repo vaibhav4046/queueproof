@@ -276,6 +276,36 @@ export function evidenceFollowUpTerms(question: string, passages: string[]): str
     .map(([phrase]) => phrase);
 }
 
+const staleTrackedStateQuestion = (question: string) => {
+  const normalized = question.toLowerCase();
+  return /\bopen\s+(?:issue|ticket)\b[^?]{0,100}\b(?:resolved|complete|completed|closed|merged|shipped|elsewhere)\b/.test(normalized) ||
+    /\bappears?(?:\s+\w+){0,5}\s+resolved\s+elsewhere\b/.test(normalized) ||
+    /\b(?:tracker|tracking|issue|ticket)\b[^?]{0,90}\b(?:still\s+)?(?:show(?:s|ing)?|remain(?:s|ing)?|stay(?:s|ing)?)?[^?]{0,30}\bopen\b/.test(normalized);
+};
+
+const trackerOpenStateAssertion =
+  /\b(?:still\s+(?:showing\s+as\s+)?open|remains?\s+open|issue\s+is\s+open|ticket\s+still\s+open|status(?:\s+is|:)?\s+open)\b/i;
+
+/**
+ * When a first-hop receipt contains both a delivery record and a tracker record,
+ * the repair must follow the identifier attached to the open tracker state. Sending
+ * every identifier back to a hybrid search can let the incident/release ID dominate
+ * and return the same provider again. This extracts only IDs from sentences that
+ * independently assert the tracker is open; it is entirely evidence-derived.
+ */
+export function trackerStateIdentifiers(question: string, passages: string[]): string[] {
+  if (!staleTrackedStateQuestion(question)) return [];
+  const identifiers: string[] = [];
+  for (const passage of passages.slice(0, 16)) {
+    const segments = passage.replace(/\s+/g, " ").trim().split(/(?<=[.!?])\s+/);
+    for (const segment of segments) {
+      if (!trackerOpenStateAssertion.test(segment)) continue;
+      identifiers.push(...recordIdentifiers(segment));
+    }
+  }
+  return [...new Set(identifiers)];
+}
+
 /**
  * Build the actual second-hop query from identifiers and entities proven by the
  * first retrieval. Repeating the whole natural-language question makes a
@@ -288,13 +318,18 @@ export function evidenceFollowUpTerms(question: string, passages: string[]): str
  * user's question or a retained first-hop passage.
  */
 export function focusedEvidenceFollowUpQuery(question: string, passages: string[]): string | null {
-  const exactIds = [
-    ...recordIdentifiers(question),
-    ...passages.slice(0, 16).flatMap(recordIdentifiers),
-  ];
+  const trackerIds = trackerStateIdentifiers(question, passages);
+  const exactIds = trackerIds.length
+    ? [...recordIdentifiers(question), ...trackerIds]
+    : [
+        ...recordIdentifiers(question),
+        ...passages.slice(0, 16).flatMap(recordIdentifiers),
+      ];
   const terms = [
     ...exactIds,
-    ...evidenceFollowUpTerms(question, passages),
+    ...evidenceFollowUpTerms(question, passages).filter((term) =>
+      trackerIds.length === 0 || !recordIdentifiers(term).length || trackerIds.includes(term),
+    ),
     ...retrievalIntentTerms(question),
   ];
   const seen = new Set<string>();
