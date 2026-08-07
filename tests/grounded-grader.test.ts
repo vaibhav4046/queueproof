@@ -56,7 +56,7 @@ describe("grounded benchmark grader", () => {
       citationCompleteness: 1,
       unsupportedClaimRate: 0,
       relevancePass: true,
-      claimRelevancePrecision: 1,
+      relevancePrecision: 1,
       irrelevantClaimRate: 0,
     });
   });
@@ -147,12 +147,70 @@ describe("grounded benchmark grader", () => {
 
     expect(result.citationPass).toBe(true);
     expect(result.relevancePass).toBe(false);
-    expect(result.claimRelevancePrecision).toBeCloseTo(2 / 3);
+    expect(result.relevancePrecision).toBeCloseTo(2 / 3);
     expect(result.irrelevantClaimRate).toBeCloseTo(1 / 3);
     expect(result.irrelevantClaims).toEqual([
       expect.objectContaining({ index: 2, text: expect.stringMatching(/medical billing/i) }),
     ]);
+    expect(result.supportedProviders).toEqual(["linear", "slack"]);
     expect(result.pass).toBe(false);
+  });
+
+  it("passes the same grounded answer after irrelevant evidence is removed", () => {
+    const result = gradeGroundedAnswer({
+      answer: "The billing migration deadline is 14 August and Slack says 7 August.",
+      claims: [
+        { text: "The billing migration deadline is 14 August.", citation_ids: ["linear-date"], providers: ["linear"] },
+        { text: "Slack says 7 August.", citation_ids: ["slack-date"], providers: ["slack"] },
+      ],
+      citations: [
+        { id: "linear-date", provider: "linear", title: "Deadline", excerpt: "The billing migration deadline is 14 August." },
+        { id: "slack-date", provider: "slack", title: "Finance", excerpt: "Slack says 7 August." },
+      ],
+      providerCoverage: ["linear", "slack"],
+      requiredFacts: [
+        { id: "subject", anyOf: ["billing migration"] },
+        { id: "first", anyOf: ["7 August"] },
+        { id: "second", anyOf: ["14 August"] },
+      ],
+      requiredProviders: ["linear", "slack"],
+    });
+
+    expect(result.relevancePrecision).toBe(1);
+    expect(result.irrelevantClaims).toEqual([]);
+    expect(result.supportedProviders).toEqual(["linear", "slack"]);
+    expect(result.pass).toBe(true);
+  });
+
+  it("treats a supported contradiction-only receipt as relevant provider proof", () => {
+    const result = gradeGroundedAnswer({
+      answer: "Linear says 14 August; Slack moved the deadline earlier.",
+      claims: [
+        { text: "Linear says 14 August.", citation_ids: ["linear-date"], providers: ["linear"] },
+        { text: "Slack moved the deadline earlier.", citation_ids: ["slack-date"], providers: ["slack"] },
+      ],
+      citations: [
+        { id: "linear-date", provider: "linear", title: "Tracked deadline", excerpt: "Linear says 14 August." },
+        { id: "slack-date", provider: "slack", title: "Finance thread", excerpt: "Slack moved the deadline earlier." },
+      ],
+      contradictions: [{
+        summary: "Linear and Slack disagree on the deadline.",
+        evidenceIds: ["linear-date", "slack-date"],
+        providers: ["linear", "slack"],
+      }],
+      providerCoverage: ["linear", "slack"],
+      requiredFacts: [{ id: "tracked-date", anyOf: ["14 August"] }],
+      requiredProviders: ["linear", "slack"],
+      requiresContradiction: true,
+    });
+
+    expect(result.relevancePrecision).toBe(1);
+    expect(result.citedSources).toEqual([
+      expect.objectContaining({ id: "linear-date", relevant: true }),
+      expect.objectContaining({ id: "slack-date", relevant: true }),
+    ]);
+    expect(result.supportedProviders).toEqual(["linear", "slack"]);
+    expect(result.pass).toBe(true);
   });
 
   it("requires a contradiction to cite two distinct providers when requested", () => {
