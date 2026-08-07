@@ -216,6 +216,14 @@ function relevance(question: string, text: string, provider?: string) {
   // matches; a citation-backed answer cannot be composed from those fragments.
   if (!supportsCommittedGeneralAvailabilityDate(question, text)) return 0;
   if (/\bpromise\b/.test(q) && !/\b(promise|promised|commit|committed)\b/.test(candidate)) return 0;
+  // Missing-tracker questions ask for negative evidence, not merely a nearby
+  // promise or issue. The retained evidence unit must itself assert absence.
+  const missingTrackerQuestion =
+    /\b(?:no|without|missing|lacks?)\b[^?]{0,70}\b(?:issue|ticket|track(?:ed|ing)?)\b/.test(q) ||
+    /\b(?:issue|ticket)\b[^?]{0,50}\b(?:missing|absent|not tracked)\b/.test(q);
+  const missingTrackerAssertion =
+    /\b(?:no (?:linear )?(?:issue|ticket)|not tracked(?: in [a-z0-9_-]+)?|without (?:an? )?(?:issue|ticket)|lacks? (?:an? )?(?:issue|ticket))\b/.test(candidate);
+  if (missingTrackerQuestion && !missingTrackerAssertion) return 0;
   if (/\b(disagree|conflict)\w*\b/.test(q) && anchors.length >= 2 && anchorMatches < 2 && identifierScore === 0) return 0;
   if (/\bopen\b/.test(q) && /\b(resolved|complete|completed|closed)\b/.test(q)) {
     const hasTrackedState = /\b(issue|ticket|tracked|tracking|open)\b/.test(candidate);
@@ -708,9 +716,26 @@ function contradictions(question: string, relevantEvidence: SynthesisEvidence[])
       "tracked issue";
     const sameReceipt = completed.id === open.id;
     const trackedBridgeCandidates = completed.id === open.id && staleBridgeQuestion(question)
-      ? selected.filter((item) => item.provider !== completed.provider &&
-          /\b(?:against|filed|issue|record|ticket|track(?:ed|ing)?)\b/i.test(`${item.title} ${item.excerpt}`) &&
-          crossSourceBridgeScore(question, `${item.title}. ${item.excerpt}`, item.provider, selected) > 0)
+      ? selected.filter((item) => {
+          if (item.provider === completed.provider) return false;
+          const corpus = `${item.title} ${item.excerpt}`;
+          const namesTrackedEntity = trackedEntity === "tracked issue" ||
+            corpus.toUpperCase().includes(trackedEntity.toUpperCase());
+          const independentlyReportsOpen =
+            /\b(?:still\s+(?:showing\s+as\s+)?open|remains?\s+open|issue\s+is\s+open|ticket\s+still\s+open|status(?:\s+is|:)?\s+open)\b/i.test(corpus);
+          return namesTrackedEntity && independentlyReportsOpen &&
+            /\b(?:against|filed|issue|record|ticket|track(?:ed|ing)?)\b/i.test(corpus) &&
+            crossSourceBridgeScore(question, `${item.title}. ${item.excerpt}`, item.provider, selected) > 0;
+        }).sort((left, right) => {
+          const score = (item: SynthesisEvidence) => {
+            const corpus = `${item.title} ${item.excerpt}`;
+            let value = 0;
+            if (trackedEntity !== "tracked issue" && corpus.toUpperCase().includes(trackedEntity.toUpperCase())) value += 8;
+            if (/\b(?:still\s+(?:showing\s+as\s+)?open|remains?\s+open|issue\s+is\s+open|ticket\s+still\s+open|status(?:\s+is|:)?\s+open)\b/i.test(corpus)) value += 6;
+            return value;
+          };
+          return score(right) - score(left);
+        })
       : [];
     // A Thinking follow-up may add another related provider after the Fast
     // baseline has already found the tracker receipt. Prefer the eligible
@@ -722,7 +747,7 @@ function contradictions(question: string, relevantEvidence: SynthesisEvidence[])
     result.push({
       summary: sameReceipt
         ? trackedBridge
-          ? `${completed.provider} reports the code complete while ${trackedEntity} remains open; ${trackedBridge.provider} independently records the linked incident and tracked work.`
+          ? `${completed.provider} reports the code complete while ${trackedBridge.provider} reports ${trackedEntity} remains open.`
           : `${completed.provider} receipt reports the code complete while ${trackedEntity} remains open in its cited tracking state.`
         : `${completed.provider} reports the work complete while ${open.provider} reports ${trackedEntity} remains open.`,
       evidenceIds: [...new Set([completed.id, open.id, ...(trackedBridge ? [trackedBridge.id] : [])])],
