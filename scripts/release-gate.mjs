@@ -135,6 +135,28 @@ for (const path of ["/mcp", "/api/mcp"]) {
   assert.deepEqual(await response.json(), { error: "invalid_token" }, `${path} returned an unexpected auth body.`);
 }
 
+const demoMcpResponse = await fetch(`${base}/mcp/demo`, {
+  method: "POST",
+  headers: {
+    accept: "application/json, text/event-stream",
+    "content-type": "application/json",
+  },
+  body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }),
+});
+assert.equal(demoMcpResponse.status, 200, "The read-only public MCP demo must return 200.");
+const demoMcpBody = await demoMcpResponse.text();
+assert.match(demoMcpBody, /queueproof_search/, "The public MCP demo is missing its search tool.");
+assert.match(demoMcpBody, /\"type\":\"noauth\"/, "Public MCP tools must advertise noauth.");
+assert.doesNotMatch(demoMcpBody, /\"type\":\"oauth2\"/, "Public MCP tools must not claim OAuth.");
+for (const unavailableTool of [
+  "queueproof_sync_connector",
+  "queueproof_propose_action",
+  "queueproof_report_execution_result",
+]) {
+  assert.doesNotMatch(demoMcpBody, new RegExp(unavailableTool),
+    `The public MCP demo exposed ${unavailableTool}.`);
+}
+
 const challengeResponse = await fetch(`${base}/.well-known/openai-apps-challenge`, {
   headers: { accept: "text/plain" },
 });
@@ -146,5 +168,5 @@ if (challengeResponse.status === 200) {
 }
 console.log(
   `PASS  production ${intendedSha} (${health.release.deploymentId}) serves the ember-assistant-v1 marker, ` +
-  "binds /api/lab to the same release, serves the full public route/icon surface, enforces MCP OAuth, and returns the branded 404",
+  "binds /api/lab to the same release, serves the full public route/icon surface, enforces MCP OAuth, verifies the read-only public MCP demo, and returns the branded 404",
 );

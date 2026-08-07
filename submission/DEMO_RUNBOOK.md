@@ -42,15 +42,21 @@ multiple production requests merely to obtain a prettier response.
 
 ## MCP preflight
 
-If a real expiring token is available in the recording environment:
+For the synthetic judge path, add `https://queueproof.vercel.app/mcp/demo` with **No
+authentication**. Confirm `initialize`, `tools/list`, one harmless cited read, and that sync,
+proposal, report, approval, and execution tools are absent. Label this proof as the public Helios
+demo.
+
+For a separate personal-workspace proof, if a real expiring token is available in the recording
+environment:
 
 ```bash
 QUEUEPROOF_URL=https://queueproof.vercel.app node cli/queueproof.mjs mcp verify
 ```
 
 Record one safe read-only tool call. Never show the environment value. If no token-backed call is
-complete, describe MCP as implemented/configurable and say the authenticated client receipt is
-pending. Anonymous 401 is not proof of an authenticated workflow.
+complete, say personal OAuth is pending while the public demo is independently verified. Anonymous
+401 is not proof of an authenticated workflow.
 
 ## Recording order
 
@@ -79,8 +85,8 @@ pending. Anonymous 401 is not proof of an authenticated workflow.
   the failure with a screenshot.
 - **Query returns partial/abstained:** narrate the missing proof honestly. Do not rerun until a
   desired answer appears.
-- **MCP unavailable:** omit the named-client claim and show the documented endpoint/security
-  contract.
+- **Public MCP unavailable:** omit the named-client claim and show the documented endpoint/security
+  contract. Do not substitute a screenshot or a local mock.
 
 ## Final handoff
 

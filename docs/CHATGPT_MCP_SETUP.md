@@ -12,7 +12,25 @@ their email on QueueProof, and approve read-only access. A URL alone supports pr
 does not create a searchable listing: the verified publisher must complete OpenAI review and
 explicitly publish the approved version.
 
-## 1. Configure Supabase once
+## Fastest judge test: synthetic read-only demo
+
+Before directory approval or personal OAuth is complete, a judge can add QueueProof as a custom
+MCP server with no credentials:
+
+- Server URL: `https://queueproof.vercel.app/mcp/demo`
+- Authentication: **No authentication**
+
+This endpoint is intentionally limited to the synthetic Helios workspace. It advertises only
+`noauth` read tools, enforces durable per-client and deployment-wide rate limits, and cannot sync a
+connector, prepare a proposal, approve a change, or execute a provider write. It is not an
+authentication bypass for a personal workspace.
+
+Use a clean temporary chat and ask: “Who escalated the AuthShield outage, what did engineering
+commit, and is the fix merged? Cite each returned source and preserve disagreement.” Confirm
+`initialize`, `tools/list`, and one cited read result. Record it as the **public demo**, not as a
+personal account connection.
+
+## 1. Configure personal-workspace OAuth once
 
 1. Set QueueProof's production site URL to `https://queueproof.vercel.app` and allow
    `https://queueproof.vercel.app/auth/callback` as a redirect URL.
@@ -43,22 +61,24 @@ Before opening ChatGPT, verify:
   `resource_metadata` points to that document; and
 - neither response contains a token, workspace ID, HydraDB coordinate, or private source text.
 
-## 3. Test privately before publication
+## 3. Test a personal workspace privately before publication
 
-In ChatGPT developer mode, add a private/custom MCP plugin:
+In ChatGPT developer mode, add a second private/custom MCP plugin:
 
 - Server URL: `https://queueproof.vercel.app/mcp`
 - Authentication: OAuth
 
 Use a clean temporary chat and run a harmless read-only prompt: “Show the sources QueueProof can
-search and which are verified.” Confirm `initialize`, `tools/list`, and a workspace-safe result.
-Do not call sync, proposal, approval, execution, or provider-write paths during connection proof.
+search and which are verified.” Confirm OAuth consent, `initialize`, `tools/list`, and a
+workspace-safe result. Do not call sync, proposal, approval, execution, or provider-write paths
+during connection proof.
 
 ## 4. Record the receipt
 
-Before saying QueueProof is connected to ChatGPT, record the exact production SHA and deployment
-ID, Supabase issuer, canonical MCP resource, negotiated protocol, discovered tool names, one
-successful read-only call, and anonymous/invalid-token rejection. Never record bearer values.
+For the public demo, record the exact production SHA and deployment ID, `/mcp/demo`, negotiated
+protocol, discovered read-only tool names, one successful call, and the absence of write tools. For
+a personal connection, also record the Supabase issuer, canonical `/mcp` resource, OAuth consent,
+and anonymous/invalid-token rejection. Never record bearer values.
 
 For video, crop ChatGPT to the clean conversation canvas. Hide sidebar, history, profile,
 settings, email addresses, OAuth screens, tool inspectors, and identifiers.

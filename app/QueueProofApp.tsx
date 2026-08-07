@@ -2113,6 +2113,7 @@ function AgentScreen({ workspace, setError, setNotice, readOnly, publicOrigin }:
   const [freshToken, setFreshToken] = useState("");
   const [busy, setBusy] = useState(false);
   const endpoint = `${publicOrigin}/mcp`;
+  const demoEndpoint = `${publicOrigin}/mcp/demo`;
   const load = useCallback(() => {
     if (readOnly) return Promise.resolve();
     return api<{ tokens: McpToken[] }>("/api/mcp-tokens").then((data) => setTokens(data.tokens));
@@ -2162,10 +2163,10 @@ function AgentScreen({ workspace, setError, setNotice, readOnly, publicOrigin }:
     return guides[clientType] ?? guides.generic;
   }, [clientType, endpoint]);
 
-  async function copyMcpEndpoint() {
+  async function copyMcpEndpoint(value = endpoint, label = "OAuth") {
     try {
-      await navigator.clipboard.writeText(endpoint);
-      setNotice("QueueProof's OAuth MCP connection URL was copied.");
+      await navigator.clipboard.writeText(value);
+      setNotice(`QueueProof's ${label} MCP connection URL was copied.`);
     } catch {
       setError("The browser could not copy the connection URL. Select it manually instead.");
     }
@@ -2191,8 +2192,10 @@ function AgentScreen({ workspace, setError, setNotice, readOnly, publicOrigin }:
           <Bot size={16} /> Open ChatGPT Plugins <ExternalLink size={14} />
         </a>
         <details className="preview-install">
-          <summary>Testing before directory approval</summary>
-          <p>After the separate ChatGPT OAuth client is configured, workspace testers can add this OAuth MCP URL once as a custom connector. Ordinary users will not need this step after publication.</p>
+          <summary>Test QueueProof before directory approval</summary>
+          <p><strong>Public demo.</strong> Add this as a custom MCP server with no authentication. It is fixed to synthetic Helios data, rate-limited, and exposes read tools only.</p>
+          <div><code>{demoEndpoint}</code><button type="button" onClick={() => void copyMcpEndpoint(demoEndpoint, "public demo")}><Clipboard size={13} /> Copy URL</button></div>
+          <p className="preview-private"><strong>Personal workspace.</strong> Use the OAuth endpoint after private account authorization is enabled.</p>
           <div><code>{endpoint}</code><button type="button" onClick={() => void copyMcpEndpoint()}><Clipboard size={13} /> Copy URL</button></div>
         </details>
       </article>
@@ -2205,7 +2208,7 @@ function AgentScreen({ workspace, setError, setNotice, readOnly, publicOrigin }:
           <li><CircleCheck size={16} /><span><strong>Return cited evidence</strong><small>Claims, receipts, disagreements, and missing proof stay visible.</small></span></li>
           <li><LockKeyhole size={16} /><span><strong>Keep provider writes separate</strong><small>ChatGPT cannot approve or execute an external change.</small></span></li>
         </ul>
-        <p><strong>Current release status:</strong> the MCP endpoint and protected-resource metadata are implemented. End-to-end ChatGPT OAuth validation, OpenAI review, and publisher release remain required before public search.</p>
+        <p><strong>Current release status:</strong> the read-only Helios demo can be added directly as a custom MCP server. Personal OAuth, OpenAI review, and publisher release remain separate gates before the directory listing is searchable.</p>
       </aside>
     </div>
 

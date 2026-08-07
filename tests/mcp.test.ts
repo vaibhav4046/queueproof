@@ -5,6 +5,7 @@ import * as hydraAccount from "../lib/server/hydradb-account";
 import { requireDb } from "../lib/server/runtime";
 import { createId, ensureCoreSchema } from "../lib/server/store";
 import { sha256 } from "../packages/security/src";
+import { provisionPublicWorkspaceMembership } from "../scripts/lib/public-workspace-provisioning";
 
 /**
  * The previous version of this file asserted that POSTing to /mcp with no credentials
@@ -158,6 +159,7 @@ describe("QueueProof MCP", () => {
     expect(response.status).toBe(200);
     const body = await response.text();
     expect(body).toContain("queueproof_search");
+    expect(body).toContain('"type":"oauth2"');
     expect(body).not.toContain("queueproof_sync_connector");
     expect(body).not.toContain("queueproof_propose_action");
     expect(body).not.toContain("queueproof_report_execution_result");
@@ -523,6 +525,58 @@ describe("QueueProof MCP", () => {
     expect(compatibility.GET).toBe(canonical.GET);
     expect(compatibility.POST).toBe(canonical.POST);
     expect(compatibility.DELETE).toBe(canonical.DELETE);
+  });
+
+  it("offers a separately rate-limited, read-only MCP surface for the synthetic public demo", async () => {
+    const db = requireDb();
+    const workspaceId = createId("ws_public_mcp");
+    await db.prepare("INSERT INTO workspaces (id, slug, name) VALUES (?, ?, ?)")
+      .bind(workspaceId, `public-mcp-${crypto.randomUUID()}`, "Public MCP demo")
+      .run();
+    await provisionPublicWorkspaceMembership(db, workspaceId);
+    vi.stubEnv("QUEUEPROOF_PUBLIC_ACCESS", "true");
+    vi.stubEnv("QUEUEPROOF_PUBLIC_WORKSPACE_ID", workspaceId);
+
+    const { POST } = await import("../app/mcp/demo/route");
+    const response = await POST(new Request("https://queueproof.example/mcp/demo", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 70,
+        method: "tools/list",
+        params: {},
+      }),
+    }));
+
+    expect(response.status).toBe(200);
+    const body = await response.text();
+    expect(body).toContain("queueproof_search");
+    expect(body).toContain('"type":"noauth"');
+    expect(body).not.toContain('"type":"oauth2"');
+    expect(body).not.toContain("queueproof_sync_connector");
+    expect(body).not.toContain("queueproof_propose_action");
+    expect(body).not.toContain("queueproof_report_execution_result");
+
+    const app = readFileSync(new URL("../app/QueueProofApp.tsx", import.meta.url), "utf8");
+    expect(app).toContain('const demoEndpoint = `${publicOrigin}/mcp/demo`');
+    expect(app).toContain("fixed to synthetic Helios data, rate-limited, and exposes read tools only");
+  });
+
+  it("keeps the public MCP demo fail-closed when the reviewed workspace is unavailable", async () => {
+    vi.stubEnv("QUEUEPROOF_PUBLIC_ACCESS", "true");
+    vi.stubEnv("QUEUEPROOF_PUBLIC_WORKSPACE_ID", createId("ws_missing_public_mcp"));
+    const { POST } = await import("../app/mcp/demo/route");
+    const response = await POST(new Request("https://queueproof.example/mcp/demo", {
+      method: "POST",
+    }));
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      error: "The QueueProof public workspace is not provisioned.",
+    });
   });
 
   it("chains a ranked next action to its workspace-owned execution packet", async () => {

@@ -33,13 +33,17 @@ const externalRead = { ...readOnly, openWorldHint: true };
 
 // Supabase currently supports standard OIDC scopes only. QueueProof's read/propose/sync
 // permissions remain server-side claims and determine which tools are registered.
-const readSecurity = [{ type: "oauth2", scopes: ["openid", "profile", "email"] }] as const;
-const syncSecurity = readSecurity;
-const proposeSecurity = readSecurity;
+const oauthSecurity = [{ type: "oauth2", scopes: ["openid", "profile", "email"] }] as const;
+
+type ToolSecurityScheme =
+  | { type: "noauth" }
+  | { type: "oauth2"; scopes: readonly string[] };
 
 /** OpenAI compatibility mirror for MCP clients that read auth policy from tool metadata. */
-const securityMeta = (schemes: readonly { type: "oauth2"; scopes: readonly string[] }[]) => ({
-  securitySchemes: schemes.map((scheme) => ({ type: scheme.type, scopes: [...scheme.scopes] })),
+const securityMeta = (schemes: readonly ToolSecurityScheme[]) => ({
+  securitySchemes: schemes.map((scheme) => scheme.type === "noauth"
+    ? { type: scheme.type }
+    : { type: scheme.type, scopes: [...scheme.scopes] }),
 });
 
 const record = (value: unknown): Record<string, unknown> =>
@@ -169,7 +173,13 @@ const rankingResultFromRow = (row: Record<string, unknown>) => ({
 export function buildQueueProofServer(
   workspaceId: string,
   scopes: string[] = ["queueproof:read", "queueproof:propose", "queueproof:sync"],
+  authentication: "oauth" | "none" = "oauth",
 ) {
+  const readSecurity: readonly ToolSecurityScheme[] = authentication === "none"
+    ? [{ type: "noauth" }]
+    : oauthSecurity;
+  const syncSecurity = readSecurity;
+  const proposeSecurity = readSecurity;
   const server = new McpServer(
     {
       name: "queueproof",
@@ -1019,8 +1029,12 @@ export const queueProofMcpHandler = createMcpHandler(
   { legacy: "stateless", responseMode: "auto" },
 );
 
-export function createWorkspaceMcpHandler(workspaceId: string, scopes?: string[]) {
-  return createMcpHandler(() => buildQueueProofServer(workspaceId, scopes), {
+export function createWorkspaceMcpHandler(
+  workspaceId: string,
+  scopes?: string[],
+  authentication: "oauth" | "none" = "oauth",
+) {
+  return createMcpHandler(() => buildQueueProofServer(workspaceId, scopes, authentication), {
     legacy: "stateless",
     responseMode: "auto",
   });
