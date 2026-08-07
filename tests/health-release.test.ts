@@ -24,7 +24,7 @@ describe("live release identity", () => {
       deploymentId: "dpl_release_receipt",
       deploymentUrl: "queueproof-release.example.vercel.app",
       deploymentTimestamp: "2026-08-06T17:20:00.000Z",
-      benchmarkReceiptVersion: "grounded-grader-v2",
+      benchmarkReceiptVersion: "grounded-grader-v3",
     });
   });
 
@@ -60,7 +60,7 @@ describe("live release identity", () => {
       deploymentId: null,
       deploymentUrl: null,
       deploymentTimestamp: null,
-      benchmarkReceiptVersion: "grounded-grader-v2",
+      benchmarkReceiptVersion: "grounded-grader-v3",
     });
   });
 
@@ -78,7 +78,7 @@ describe("live release identity", () => {
     expect(script).toContain("payload.deployment ?? payload");
     expect(script).toContain("/api/health/live");
     expect(script).toContain("/api/lab");
-    expect(script).toContain('benchmarkReceiptVersion !== "grounded-grader-v2"');
+    expect(script).toContain('benchmarkReceiptVersion !== "grounded-grader-v3"');
     expect(gate).toContain('health.status, "live"');
     expect(gate).toContain('typeof health.release.commitRef === "string"');
   });
