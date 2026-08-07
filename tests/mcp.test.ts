@@ -914,12 +914,12 @@ describe("QueueProof MCP", () => {
         callCount: number;
       };
       expect(multiHop.callCount).toBe(1);
-      expect([...multiHop.providerCoverage].sort()).toEqual(["github", "linear", "slack"]);
-      expect(multiHop.evidence).toEqual(expect.arrayContaining([
+      // Retrieval stays broad for a compound exact-ID question, but only the
+      // provider actually cited by synthesis is advertised or returned.
+      expect(multiHop.providerCoverage).toEqual(["linear"]);
+      expect(multiHop.evidence).toEqual([
         expect.objectContaining({ provider: "linear", excerpt: expect.stringContaining("BUG-123") }),
-        expect.objectContaining({ provider: "slack", excerpt: expect.stringContaining("Friday") }),
-        expect.objectContaining({ provider: "github", excerpt: expect.stringContaining("merged") }),
-      ]));
+      ]);
       expect(query).toHaveBeenCalledTimes(1);
       expect(query).toHaveBeenLastCalledWith(expect.objectContaining({
         max_results: 12,
