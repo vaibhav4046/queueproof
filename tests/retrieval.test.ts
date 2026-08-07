@@ -50,6 +50,8 @@ describe("retrieval planner", () => {
     expect(askRoute).toContain("const returnedEvidence = referencedEvidenceIds");
     expect(askRoute).toContain("evidenceCount: returnedEvidence.length");
     expect(askRoute).toContain("providerCoverage: returnedProviderCoverage");
+    expect(askRoute).toContain("const demoSafeEvidence = isPublicAccessActor(actor)");
+    expect(askRoute).toContain("return engineeringSignals < 2");
     expect(askRoute).not.toMatch(/evidence:\s+synthesis\.evidence/);
   });
   it.each([
