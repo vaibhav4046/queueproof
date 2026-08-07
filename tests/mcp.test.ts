@@ -628,6 +628,7 @@ describe("QueueProof MCP", () => {
           )
         : demoConnectors;
       const exactLookup = /BUG-123/i.test(input.query) && !/who filed/i.test(input.query);
+      const namedLinearLookup = /BUG-123 in Linear/i.test(input.query);
       const multiHop = /who filed/i.test(input.query);
       return {
         ok: true,
@@ -649,7 +650,9 @@ describe("QueueProof MCP", () => {
               ? connector.provider === "github"
                 ? "BUG-123 is the AuthShield incident and the fix is merged."
                 : connector.provider === "linear"
-                  ? "BUG-1234 is an unrelated neighboring ticket."
+                  ? namedLinearLookup
+                    ? "BUG-123 is owned by the Linear platform team."
+                    : "BUG-1234 is an unrelated neighboring ticket."
                   : "Unrelated customer billing discussion."
               : multiHop
                 ? connector.provider === "linear"
@@ -791,6 +794,41 @@ describe("QueueProof MCP", () => {
       expect(query).toHaveBeenLastCalledWith(expect.objectContaining({
         query: "BUG-123 What is BUG-123?",
         max_results: 6,
+      }));
+
+      query.mockClear();
+      const namedProviderResponse = await POST(new Request("https://queueproof.example/mcp/demo", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 75,
+          method: "tools/call",
+          params: {
+            name: "queueproof_search",
+            arguments: { query: "What is BUG-123 in Linear?", mode: "auto" },
+          },
+        }),
+      }));
+      const namedProviderRpc = parseMcpResponse(await namedProviderResponse.text());
+      const namedProvider = namedProviderRpc.result?.structuredContent as {
+        evidence: Array<{ provider: string; excerpt: string }>;
+        callCount: number;
+      };
+      expect(namedProvider.callCount).toBe(1);
+      expect(namedProvider.evidence).toEqual([
+        expect.objectContaining({ provider: "linear", excerpt: expect.stringContaining("BUG-123") }),
+      ]);
+      expect(query).toHaveBeenCalledTimes(1);
+      expect(query).toHaveBeenLastCalledWith(expect.objectContaining({
+        max_results: 6,
+        metadata_filters: {
+          connector_id: "demo-linear",
+          provider: "linear",
+        },
       }));
 
       query.mockClear();
