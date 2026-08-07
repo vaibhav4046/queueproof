@@ -104,7 +104,9 @@ export function shouldRunFastCoverageRepair(input: {
   );
   if (input.category === "exact_identifier" && namedConnectorMissing) return true;
   if (providerCount > 1) return false;
-  if (input.category === "exact_identifier") return true;
+  // A bare exact-ID lookup is already complete when one attributable receipt
+  // supports it. Only a planned Thinking join or an explicitly named missing
+  // provider earns a repair call; otherwise Fast stays one-call.
   if (input.plannedMode !== "thinking") return false;
   return input.contradictionProviders.some((providers) => new Set(providers.filter(Boolean)).size < 2);
 }
