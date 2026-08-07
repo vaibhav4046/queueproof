@@ -16,6 +16,7 @@ import {
   coverageRepairProviderOrder,
   decideAutoEscalation,
   focusedEvidenceFollowUpQuery,
+  focusedProviderEvidenceFollowUpQuery,
   planRetrieval,
   providersNamedInQuestion,
   recordIdentifiers,
@@ -561,7 +562,12 @@ export async function POST(request: Request) {
               ),
             } satisfies RetrievalScope));
           if (!providerScopes.length) continue;
-          await runQueryBatch(repairQuery, ["hybrid"], "follow_up", "fast", providerScopes);
+          const providerRepairQuery = focusedProviderEvidenceFollowUpQuery(
+            question,
+            preliminary.evidence.map((item) => `${item.title}. ${item.excerpt}`),
+            targetProvider,
+          ) ?? repairQuery;
+          await runQueryBatch(providerRepairQuery, ["hybrid"], "follow_up", "fast", providerScopes);
           const repairedProviders = new Set(dedupeEvidence().map((item) => item.provider));
           missingNamedProviders.delete(targetProvider);
           // When the user named providers, check every still-missing named lane.

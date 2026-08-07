@@ -316,6 +316,68 @@ export function focusedEvidenceFollowUpQuery(question: string, passages: string[
   return selected.length ? selected.join(" ") : null;
 }
 
+
+/**
+ * Provider-scoped Fast repair should lead with the join keys explicitly tied to
+ * the connector being queried. A first-hop receipt can mention several IDs from
+ * different systems (for example an incident, a PR and a Linear issue). Sending
+ * all of them into a single Linear repair lets the incident ID outrank the actual
+ * tracker ID. This helper keeps only IDs found in sentences that name the target
+ * provider, then adds the bounded state language already derived from the user
+ * question. If no provider-linked identifier is proven, it falls back to the
+ * generic evidence-derived follow-up rather than inventing one.
+ */
+export function focusedProviderEvidenceFollowUpQuery(
+  question: string,
+  passages: string[],
+  targetProvider: string,
+): string | null {
+  const providerKey = targetProvider.toLowerCase();
+  const providerLabel = providerKey.replace(/[_-]+/g, " ");
+  const aliases = [providerLabel, ...(PROVIDER_ALIASES[providerKey] ?? [])]
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const providerPattern = new RegExp(
+    `(^|[^a-z0-9])(?:${aliases.map(escapeRegExp).join("|")})([^a-z0-9]|$)`,
+    "i",
+  );
+  const linkedIds: string[] = [];
+  const linkedPassages: string[] = [];
+
+  for (const passage of passages.slice(0, 16)) {
+    const units = passage.split(/(?<=[.!?])\s+|\n+/).map((unit) => unit.trim()).filter(Boolean);
+    for (const unit of units) {
+      if (!providerPattern.test(unit)) continue;
+      linkedPassages.push(unit);
+      linkedIds.push(...recordIdentifiers(unit));
+    }
+  }
+
+  const exactIds = [...new Set(linkedIds)];
+  if (!exactIds.length) return focusedEvidenceFollowUpQuery(question, passages);
+  const intentTerms = retrievalIntentTerms(question);
+  const terms = [
+    ...exactIds,
+    ...intentTerms,
+    ...(intentTerms.length ? [] : evidenceFollowUpTerms(question, linkedPassages).slice(0, 4)),
+  ];
+  const seen = new Set<string>();
+  const selected: string[] = [];
+  let length = 0;
+  for (const raw of terms) {
+    const term = raw.replace(/\s+/g, " ").trim();
+    const key = term.toLowerCase();
+    if (!term || seen.has(key)) continue;
+    const nextLength = length + (selected.length ? 1 : 0) + term.length;
+    if (nextLength > 180) continue;
+    seen.add(key);
+    selected.push(term);
+    length = nextLength;
+    if (selected.length >= 12) break;
+  }
+  return selected.length ? selected.join(" ") : null;
+}
+
 const exactId = /\b(?:[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d+|[0-9a-f]{8}-[0-9a-f-]{27,})\b/i;
 
 export function planRetrieval(query: string): RetrievalPlan {

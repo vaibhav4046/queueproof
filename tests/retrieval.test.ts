@@ -6,6 +6,7 @@ import {
   coverageRepairProviderOrder,
   evidenceFollowUpTerms,
   focusedEvidenceFollowUpQuery,
+  focusedProviderEvidenceFollowUpQuery,
   isUnanchoredRecencyDeliveryQuestion,
   planRetrieval,
   recordIdentifiers,
@@ -220,6 +221,30 @@ describe("evidence-derived follow-up terms", () => {
     );
     expect(query).toBe("ENG-456 AuthShield merged shipped still open tracked state");
     expect(query).not.toContain("Which open issue");
+  });
+
+  it("targets only the identifier explicitly tied to the missing provider", () => {
+    const passages = [
+      "AuthShield fix merged in GitHub PR-8871 for incident INC-2031. Linear issue ENG-456 is still showing as open even though the code shipped.",
+    ];
+    expect(focusedProviderEvidenceFollowUpQuery(
+      "Which open issue appears to be already resolved elsewhere?",
+      passages,
+      "linear",
+    )).toBe("ENG-456 merged shipped still open tracked state");
+    expect(focusedProviderEvidenceFollowUpQuery(
+      "Which open issue appears to be already resolved elsewhere?",
+      passages,
+      "linear",
+    )).not.toMatch(/INC-2031|PR-8871/);
+  });
+
+  it("falls back safely when evidence proves no provider-linked identifier", () => {
+    expect(focusedProviderEvidenceFollowUpQuery(
+      "Which open issue appears to be already resolved elsewhere?",
+      ["AuthShield shipped in GitHub. The tracked record is ENG-456."],
+      "linear",
+    )).toBe("ENG-456 AuthShield merged shipped still open tracked state");
   });
 
   it("retains an identifier from the question while adding cross-source entities", () => {
