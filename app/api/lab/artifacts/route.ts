@@ -62,8 +62,8 @@ export async function POST(request: Request) {
     if (!validKind(kind) || Object.keys(artifact).length === 0) {
       return noStoreJson({ ok: false, error: "Provide a valid artifact kind and object." }, { status: 400 });
     }
-    if (artifact.grader !== "grounded-grader-v2" || artifact.releaseVerified !== true) {
-      return noStoreJson({ ok: false, error: "Only strict, release-verified grounded-grader-v2 artifacts are accepted." }, { status: 400 });
+    if (artifact.grader !== "grounded-grader-v3" || artifact.releaseVerified !== true) {
+      return noStoreJson({ ok: false, error: "Only strict, release-verified grounded-grader-v3 artifacts are accepted." }, { status: 400 });
     }
     const rows = artifact.rows;
     if (!Array.isArray(rows) || rows.length === 0 || artifact.cases !== rows.length) {
