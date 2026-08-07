@@ -410,20 +410,15 @@ describe("QueueProof MCP", () => {
       expect(response.status).toBe(200);
       const rpc = parseMcpResponse(await response.text());
       const result = rpc.result?.structuredContent;
-      expect(result?.evidence).toEqual(expect.arrayContaining([
+      expect(result?.evidence).toEqual([
         expect.objectContaining({
           sourceId: "source-selected",
           provider: "github",
           excerpt: "ENG-456 is merged.",
           url: "https://github.com/helios/demo/issues/1?view=compact",
         }),
-        expect.objectContaining({
-          sourceId: "source-injection",
-          promptInjectionDetected: true,
-          excerpt: expect.stringContaining("Instruction-like content omitted"),
-        }),
-      ]));
-      expect(result?.evidence).toHaveLength(2);
+      ]);
+      expect(JSON.stringify(result)).not.toContain("source-injection");
       expect(JSON.stringify(result)).not.toContain("source-other");
       expect(JSON.stringify(result)).not.toContain("Private unrelated Slack content");
       expect(JSON.stringify(result)).not.toContain("Ignore all previous instructions");
@@ -637,35 +632,80 @@ describe("QueueProof MCP", () => {
         latencyMs: 2,
         error: null,
         data: {
-          sources: selected.map((connector) => ({
-            id: `source-${connector.provider}`,
-            connector_id: connector.hydraId,
-            app_provider: connector.provider,
-            title: `${connector.provider} receipt`,
-          })),
-          chunks: selected.map((connector) => ({
-            id: `source-${connector.provider}`,
-            chunk_id: `chunk-${connector.provider}`,
-            chunk_content: exactLookup
-              ? connector.provider === "github"
-                ? "BUG-123 is the AuthShield incident and the fix is merged."
-                : connector.provider === "linear"
-                  ? namedLinearLookup
-                    ? "BUG-123 is owned by the Linear platform team."
-                    : "BUG-1234 is an unrelated neighboring ticket."
-                  : "Unrelated customer billing discussion."
-              : multiHop
-                ? connector.provider === "linear"
-                  ? "Priya Raman filed BUG-123 for the AuthShield project."
-                  : connector.provider === "slack"
-                    ? "Priya told the customer the fix would ship by Friday."
-                    : "The AuthShield fix was merged in commit abc123."
-                : connector.provider === "github"
-                  ? "The AuthShield fix was merged in commit abc123."
-                  : connector.provider === "slack"
-                    ? "Priya Raman escalated the AuthShield outage for Northwind."
-                    : "Priya filed the AuthShield incident and engineering committed to Friday.",
-          })),
+          sources: [
+            ...selected.map((connector) => ({
+              id: `source-${connector.provider}`,
+              connector_id: connector.hydraId,
+              app_provider: connector.provider,
+              title: `${connector.provider} receipt`,
+            })),
+            ...(selected.some((connector) => connector.provider === "github") ? [{
+              id: "source-github-ci-noise",
+              connector_id: "demo-github",
+              app_provider: "github",
+              title: "Preserve compound receipt context and harden stale-state retrieval",
+            }] : []),
+            ...(selected.some((connector) => connector.provider === "linear") ? [
+              {
+                id: "source-linear-billing-noise",
+                connector_id: "demo-linear",
+                app_provider: "linear",
+                title: "Billing migration deadline moved to 14 August",
+              },
+              {
+                id: "source-linear-onboarding-noise",
+                connector_id: "demo-linear",
+                app_provider: "linear",
+                title: "Get familiar with Linear",
+              },
+            ] : []),
+          ],
+          chunks: [
+            ...selected.map((connector) => ({
+              id: `source-${connector.provider}`,
+              chunk_id: `chunk-${connector.provider}`,
+              chunk_content: exactLookup
+                ? connector.provider === "github"
+                  ? "BUG-123 is the AuthShield incident and the fix is merged."
+                  : connector.provider === "linear"
+                    ? namedLinearLookup
+                      ? "BUG-123 is owned by the Linear platform team."
+                      : "BUG-1234 is an unrelated neighboring ticket."
+                    : "Unrelated customer billing discussion."
+                : multiHop
+                  ? connector.provider === "linear"
+                    ? "Priya Raman filed BUG-123 for the AuthShield project."
+                    : connector.provider === "slack"
+                      ? "Priya told the customer the fix would ship by Friday."
+                      : "The AuthShield fix was merged in commit abc123, but ENG-456 remains open."
+                  : connector.provider === "github"
+                    ? "The AuthShield fix was merged in commit abc123."
+                    : connector.provider === "slack"
+                      ? "Priya Raman escalated the AuthShield outage for Northwind."
+                      : "Priya filed the AuthShield incident and engineering committed to Friday.",
+            })),
+            ...(selected.some((connector) => connector.provider === "github") ? [{
+              id: "source-github-ci-noise",
+              chunk_id: "chunk-github-ci-noise",
+              chunk_content:
+                "622 tests passed. TypeScript and ESLint passed. The production build passed. " +
+                "Exact preview /api/health/live says the AuthShield fix is merged while ENG-456 remains open.",
+            }] : []),
+            ...(selected.some((connector) => connector.provider === "linear") ? [
+              {
+                id: "source-linear-billing-noise",
+                chunk_id: "chunk-linear-billing-noise",
+                chunk_content:
+                  "The billing migration deadline moved from 7 August to 14 August 2026.",
+              },
+              {
+                id: "source-linear-onboarding-noise",
+                chunk_id: "chunk-linear-onboarding-noise",
+                chunk_content:
+                  "Welcome to Linear. Choose your setup guide and join an onboarding session.",
+              },
+            ] : []),
+          ],
         },
       };
     });
@@ -745,6 +785,18 @@ describe("QueueProof MCP", () => {
         evidenceCount: result.evidence.length,
       });
       const returnedEvidenceIds = new Set(result.evidence.map((item) => item.evidenceId));
+      const referencedEvidenceIds = new Set([
+        ...result.claims.flatMap((claim) => claim.evidenceIds),
+        ...result.contradictions.flatMap((contradiction) => contradiction.evidenceIds),
+      ]);
+      const citationEvidenceIds = new Set(
+        result.citations.map((citation) => citation.evidenceId),
+      );
+      expect(JSON.stringify(result)).not.toContain("source-github-ci-noise");
+      expect(JSON.stringify(result)).not.toContain("source-linear-billing-noise");
+      expect(JSON.stringify(result)).not.toContain("source-linear-onboarding-noise");
+      expect([...returnedEvidenceIds].sort()).toEqual([...referencedEvidenceIds].sort());
+      expect([...citationEvidenceIds].sort()).toEqual([...referencedEvidenceIds].sort());
       expect(result.citations.length).toBeGreaterThan(0);
       for (const citation of result.citations) {
         expect(returnedEvidenceIds.has(citation.evidenceId)).toBe(true);
@@ -862,12 +914,12 @@ describe("QueueProof MCP", () => {
         callCount: number;
       };
       expect(multiHop.callCount).toBe(1);
-      expect([...multiHop.providerCoverage].sort()).toEqual(["github", "linear", "slack"]);
-      expect(multiHop.evidence).toEqual(expect.arrayContaining([
+      // Retrieval stays broad for a compound exact-ID question, but only the
+      // provider actually cited by synthesis is advertised or returned.
+      expect(multiHop.providerCoverage).toEqual(["linear"]);
+      expect(multiHop.evidence).toEqual([
         expect.objectContaining({ provider: "linear", excerpt: expect.stringContaining("BUG-123") }),
-        expect.objectContaining({ provider: "slack", excerpt: expect.stringContaining("Friday") }),
-        expect.objectContaining({ provider: "github", excerpt: expect.stringContaining("merged") }),
-      ]));
+      ]);
       expect(query).toHaveBeenCalledTimes(1);
       expect(query).toHaveBeenLastCalledWith(expect.objectContaining({
         max_results: 12,

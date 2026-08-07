@@ -260,6 +260,36 @@ for (const item of [...demoSearch.claims, ...demoSearch.contradictions]) {
       `MCP result references missing evidence ${evidenceId}.`);
   }
 }
+const referencedEvidenceIds = new Set(
+  [...demoSearch.claims, ...demoSearch.contradictions]
+    .flatMap((item) => item.evidenceIds),
+);
+const citationEvidenceIds = new Set(
+  demoSearch.citations.map((citation) => citation.evidenceId),
+);
+assert.deepEqual(
+  [...demoEvidenceIds].sort(),
+  [...referencedEvidenceIds].sort(),
+  "MCP search returned an uncited or otherwise unreferenced evidence receipt.",
+);
+assert.deepEqual(
+  [...citationEvidenceIds].sort(),
+  [...referencedEvidenceIds].sort(),
+  "MCP citations must close over every returned claim and contradiction receipt.",
+);
+const returnedProviders = [...new Set(
+  demoSearch.evidence.map((item) => item.provider),
+)].sort();
+assert.deepEqual(
+  [...demoSearch.providerCoverage].sort(),
+  returnedProviders,
+  "MCP provider coverage must describe the returned evidence exactly.",
+);
+assert.doesNotMatch(
+  JSON.stringify(demoSearch.evidence),
+  /\b\d+\s+tests?\s+passed\b|\/api\/health\/live|\bexact preview\b|\bbenchmark artifact\b/i,
+  "The synthetic demo answer retained QueueProof CI or release-note noise.",
+);
 
 const exactIdResponse = await fetch(`${base}/mcp/demo`, {
   method: "POST",

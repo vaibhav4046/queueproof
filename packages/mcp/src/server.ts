@@ -643,14 +643,33 @@ export function buildQueueProofServer(
     }).filter((item, index, items) =>
       items.findIndex((candidate) => candidate.evidenceId === item.evidenceId && candidate.provider === item.provider) === index,
     );
+    // The public Helios demo shares a real GitHub connector with QueueProof's
+    // implementation repository. Keep CI/release write-ups out of synthetic
+    // business answers when multiple independent engineering-only signals make
+    // the record unambiguously self-referential. Private workspaces are never
+    // filtered by this demo-specific curation guard.
+    const demoSafeEvidence = demoSurface
+      ? dedupedEvidence.filter((item) => {
+          if (item.provider !== "github") return true;
+          const content = `${item.title} ${item.excerpt}`;
+          const engineeringSignals = [
+            /\b(?:TypeScript|ESLint|Vitest|Webpack|Vinext)\b/i,
+            /\b\d+\s+tests?\s+passed\b/i,
+            /\b(?:exact preview|benchmark artifact|secret scans?|diff whitespace check)\b/i,
+            /\/api\/health\/live\b/i,
+            /\bdeployment:\s*(?:dpl_|https:\/\/)\S*/i,
+            /\b(?:production|preview)\s+build\s+passed\b/i,
+          ].filter((pattern) => pattern.test(content)).length;
+          return engineeringSignals < 2;
+        })
+      : dedupedEvidence;
     const evidence = (exactIdentifier
-      ? dedupedEvidence.filter((item) =>
+      ? demoSafeEvidence.filter((item) =>
           recordIdentifiers(`${item.sourceId} ${item.title} ${item.excerpt}`)
             .some((identifier) => identifier.toUpperCase() === exactIdentifier),
         )
-      : dedupedEvidence
+      : demoSafeEvidence
     ).slice(0, exactIdentifier ? 6 : 48);
-    const providers = [...new Set(evidence.map((item) => item.provider))];
     const synthesis = synthesiseGroundedAnswer(
       input.query,
       evidence.map((item) => ({
@@ -666,7 +685,16 @@ export function buildQueueProofServer(
       ...synthesis.claims.flatMap((claim) => claim.evidenceIds),
       ...synthesis.contradictions.flatMap((contradiction) => contradiction.evidenceIds),
     ]);
-    const citations = evidence
+    // Expose exactly the receipts that support a returned claim or
+    // contradiction. Unreferenced retrieval candidates—including quarantined
+    // prompt-injection text—remain outside the MCP payload.
+    const exposedEvidence = evidence.filter((item) => citedEvidenceIds.has(item.evidenceId));
+    const providerCoverage = [...new Set(exposedEvidence.map((item) => item.provider))];
+    const validation = {
+      ...synthesis.validation,
+      evidenceCount: exposedEvidence.length,
+    };
+    const citations = exposedEvidence
       .filter((item) => citedEvidenceIds.has(item.evidenceId))
       .map((item) => ({
         evidenceId: item.evidenceId,
@@ -689,9 +717,9 @@ export function buildQueueProofServer(
       citations,
       contradictions: synthesis.contradictions,
       missingInformation: synthesis.missingInformation,
-      validation: synthesis.validation,
-      evidence,
-      providerCoverage: providers,
+      validation,
+      evidence: exposedEvidence,
+      providerCoverage,
       latencyMs: Date.now() - startedAt,
       callCount: responses.length,
       estimatedCostUnits: responses.length * retrievalModeCost(mode),
