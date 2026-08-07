@@ -40,6 +40,33 @@ type Provider = {
   indexedObjectTypes: unknown[]; setupGuide?: unknown; authTypes?: unknown[];
 };
 
+type ProviderAuthChoice = { id: string; label: string };
+
+function providerAuthChoices(values: unknown[] | undefined): ProviderAuthChoice[] {
+  const choices = (values ?? []).flatMap((value): ProviderAuthChoice[] => {
+    if (typeof value === "string" && value.trim()) {
+      const id = value.trim();
+      return [{ id, label: id.replaceAll("_", " ") }];
+    }
+    if (!value || typeof value !== "object") return [];
+    const entry = value as Record<string, unknown>;
+    const rawId = entry.id ?? entry.type ?? entry.value ?? entry.name;
+    if (typeof rawId !== "string" || !rawId.trim()) return [];
+    const id = rawId.trim();
+    const rawLabel = entry.label ?? entry.title ?? entry.display_name ?? entry.name;
+    return [{
+      id,
+      label: typeof rawLabel === "string" && rawLabel.trim()
+        ? rawLabel.trim()
+        : id.replaceAll("_", " "),
+    }];
+  });
+  const unique = [...new Map(choices.map((choice) => [choice.id, choice])).values()];
+  const preferred = (choice: ProviderAuthChoice) =>
+    /oauth|hosted|connect/i.test(choice.id) ? 0 : /token|key|secret/i.test(choice.id) ? 2 : 1;
+  return unique.sort((left, right) => preferred(left) - preferred(right));
+}
+
 type Connector = {
   id: string; hydradbConnectorId?: string; provider: string; name: string;
   state: string; database?: string; collection?: string | null;
@@ -1920,14 +1947,16 @@ function SourceSetup({ onClose, onDone, setError }: { onClose: () => void; onDon
   const [database, setDatabase] = useState("");
   const [collection, setCollection] = useState("");
   const [accountScope, setAccountScope] = useState("");
+  const [authType, setAuthType] = useState("");
   const [credentials, setCredentials] = useState<Record<string, string>>({});
   const [newDatabase, setNewDatabase] = useState("");
   const [busy, setBusy] = useState(true);
   const dialogRef = useDialogBehavior<HTMLFormElement>(true, onClose);
   const selected = providers.find((item) => item.id === providerId);
+  const authChoices = providerAuthChoices(selected?.authTypes);
   useEffect(() => {
     void Promise.all([api<{ providers: Provider[] }>("/api/providers"), api<{ databases: string[] }>("/api/databases")])
-      .then(([providerData, databaseData]) => { setProviders(providerData.providers); setDatabases(databaseData.databases); setProviderId(providerData.providers[0]?.id ?? ""); setDatabase(databaseData.databases[0] ?? ""); })
+      .then(([providerData, databaseData]) => { const firstProvider = providerData.providers[0]; setProviders(providerData.providers); setDatabases(databaseData.databases); setProviderId(firstProvider?.id ?? ""); setAuthType(providerAuthChoices(firstProvider?.authTypes)[0]?.id ?? ""); setDatabase(databaseData.databases[0] ?? ""); })
       .catch((reason: Error) => setError(reason.message)).finally(() => setBusy(false));
   }, [setError]);
   async function createDatabase() {
@@ -1938,11 +1967,11 @@ function SourceSetup({ onClose, onDone, setError }: { onClose: () => void; onDon
   }
   async function submit(event: FormEvent) {
     event.preventDefault(); if (!selected) return; setBusy(true); setError("");
-    try { await api("/api/connectors", { method: "POST", body: JSON.stringify({ provider: selected.id, name: selected.name, database, collection: collection || undefined, accountScope: accountScope || undefined, credentials }) }); await onDone(); }
+    try { await api("/api/connectors", { method: "POST", body: JSON.stringify({ provider: selected.id, name: selected.name, database, collection: collection || undefined, accountScope: accountScope || undefined, authType: authType || undefined, credentials }) }); await onDone(); }
     catch (reason) { setError(reason instanceof Error ? reason.message : "Connector creation failed."); }
     finally { setBusy(false); }
   }
-  return <div className="modal-layer" role="presentation"><form ref={dialogRef} className="modal-card source-modal" role="dialog" aria-modal="true" aria-labelledby="source-setup-title" tabIndex={-1} onSubmit={submit}><button type="button" className="modal-close" data-dialog-initial aria-label="Close source setup" onClick={onClose}><X size={16} /></button><span className="eyebrow"><Plus size={13} /> New evidence source</span><h2 id="source-setup-title">Connect from the live catalogue.</h2><p>QueueProof renders this form from HydraDB’s current provider contract. It never guesses provider credentials.</p>{busy && !providers.length ? <div className="modal-loading" role="status"><LoaderCircle className="spin" /> Hydrating provider contracts…</div> : <div className="setup-form"><label>Provider<select value={providerId} onChange={(event) => { setProviderId(event.target.value); setCredentials({}); }} required>{providers.filter((item) => item.available).map((item) => <option key={item.id} value={item.id}>{item.name} · {item.supportClass}</option>)}</select></label><div className="two-cols"><label>HydraDB database<select value={database} onChange={(event) => setDatabase(event.target.value)} required><option value="" disabled>Select database</option>{databases.map((item) => <option key={item} value={item}>{item}</option>)}</select></label><label>Collection <small>optional isolation</small><input value={collection} onChange={(event) => setCollection(event.target.value)} placeholder="team-work" /></label></div>{!databases.length && <div className="database-create"><input value={newDatabase} onChange={(event) => setNewDatabase(event.target.value)} placeholder="Create database name" aria-label="Create database name" /><button type="button" className="secondary-button" onClick={() => void createDatabase()}>Create</button></div>}<label>Provider account scope <small>recommended for multi-account safety</small><input value={accountScope} onChange={(event) => setAccountScope(event.target.value)} placeholder="workspace / org / account identifier" /></label><div className="credential-grid">{selected?.credentialFields.map((field) => <label key={field.name}>{field.title || field.name}{field.required && <b> required</b>}{field.enum?.length ? <select value={credentials[field.name] ?? ""} onChange={(event) => setCredentials((current) => ({ ...current, [field.name]: event.target.value }))} required={field.required}><option value="">Select</option>{field.enum.map((value) => <option key={value} value={value}>{value}</option>)}</select> : <input type={field.format === "password" || /token|secret|password|key/i.test(field.name) ? "password" : "text"} value={credentials[field.name] ?? ""} onChange={(event) => setCredentials((current) => ({ ...current, [field.name]: event.target.value }))} required={field.required} autoComplete="off" />}{field.description && <small>{field.description}</small>}</label>)}</div>{selected && !selected.credentialFields.length && <div className="inline-warning"><CircleAlert size={14} />This provider contract exposes no credential fields. QueueProof will submit no credentials only if HydraDB marks that valid.</div>}<button className="primary-button" disabled={busy || !database || !selected}>{busy ? <LoaderCircle className="spin" size={15} /> : <ArrowRight size={15} />} Create connector</button></div>}</form></div>;
+  return <div className="modal-layer" role="presentation"><form ref={dialogRef} className="modal-card source-modal" role="dialog" aria-modal="true" aria-labelledby="source-setup-title" tabIndex={-1} onSubmit={submit}><button type="button" className="modal-close" data-dialog-initial aria-label="Close source setup" onClick={onClose}><X size={16} /></button><span className="eyebrow"><Plus size={13} /> New evidence source</span><h2 id="source-setup-title">Connect from the live catalogue.</h2><p>QueueProof renders this form from HydraDB’s current provider contract. It never guesses provider credentials.</p>{busy && !providers.length ? <div className="modal-loading" role="status"><LoaderCircle className="spin" /> Hydrating provider contracts…</div> : <div className="setup-form"><label>Provider<select value={providerId} onChange={(event) => { const nextId = event.target.value; const nextProvider = providers.find((item) => item.id === nextId); setProviderId(nextId); setAuthType(providerAuthChoices(nextProvider?.authTypes)[0]?.id ?? ""); setCredentials({}); }} required>{providers.filter((item) => item.available).map((item) => <option key={item.id} value={item.id}>{item.name} · {item.supportClass}</option>)}</select></label>{authChoices.length > 0 && <label>Connection method <small>HydraDB-hosted OAuth is preferred when available</small><select value={authType} onChange={(event) => setAuthType(event.target.value)} required>{authChoices.map((choice) => <option key={choice.id} value={choice.id}>{choice.label}</option>)}</select></label>}<div className="two-cols"><label>HydraDB database<select value={database} onChange={(event) => setDatabase(event.target.value)} required><option value="" disabled>Select database</option>{databases.map((item) => <option key={item} value={item}>{item}</option>)}</select></label><label>Collection <small>optional isolation</small><input value={collection} onChange={(event) => setCollection(event.target.value)} placeholder="team-work" /></label></div>{!databases.length && <div className="database-create"><input value={newDatabase} onChange={(event) => setNewDatabase(event.target.value)} placeholder="Create database name" aria-label="Create database name" /><button type="button" className="secondary-button" onClick={() => void createDatabase()}>Create</button></div>}<label>Provider account scope <small>recommended for multi-account safety</small><input value={accountScope} onChange={(event) => setAccountScope(event.target.value)} placeholder="workspace / org / account identifier" /></label><div className="credential-grid">{selected?.credentialFields.map((field) => <label key={field.name}>{field.title || field.name}{field.required && <b> required</b>}{field.enum?.length ? <select value={credentials[field.name] ?? ""} onChange={(event) => setCredentials((current) => ({ ...current, [field.name]: event.target.value }))} required={field.required}><option value="">Select</option>{field.enum.map((value) => <option key={value} value={value}>{value}</option>)}</select> : <input type={field.format === "password" || /token|secret|password|key/i.test(field.name) ? "password" : "text"} value={credentials[field.name] ?? ""} onChange={(event) => setCredentials((current) => ({ ...current, [field.name]: event.target.value }))} required={field.required} autoComplete="off" />}{field.description && <small>{field.description}</small>}</label>)}</div>{selected && !selected.credentialFields.length && <div className="inline-warning"><CircleAlert size={14} />This provider contract exposes no credential fields. QueueProof will submit no credentials only if HydraDB marks that valid.</div>}<button className="primary-button" disabled={busy || !database || !selected}>{busy ? <LoaderCircle className="spin" size={15} /> : <ArrowRight size={15} />} Create connector</button></div>}</form></div>;
 }
 
 function ProofModal({ data, returnFocusRef, onClose, onConfigured, setError }: { data: Record<string, unknown>; returnFocusRef?: { readonly current: HTMLElement | null }; onClose: () => void; onConfigured: () => Promise<void>; setError: (value: string) => void }) {
