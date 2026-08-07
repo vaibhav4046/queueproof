@@ -261,6 +261,37 @@ for (const item of [...demoSearch.claims, ...demoSearch.contradictions]) {
   }
 }
 
+const exactIdResponse = await fetch(`${base}/mcp/demo`, {
+  method: "POST",
+  headers: {
+    accept: "application/json, text/event-stream",
+    "content-type": "application/json",
+  },
+  body: JSON.stringify({
+    jsonrpc: "2.0",
+    id: 4,
+    method: "tools/call",
+    params: {
+      name: "queueproof_search",
+      arguments: { query: "What is BUG-123?", mode: "auto" },
+    },
+  }),
+});
+assert.equal(exactIdResponse.status, 200, "The public MCP exact-ID search must return 200.");
+const exactIdRpc = parseMcpResponse(await exactIdResponse.text());
+assert.ifError(exactIdRpc.error);
+const exactIdSearch = exactIdRpc.result?.structuredContent;
+assert.equal(exactIdSearch?.mode, "fast", "A single exact-ID lookup must stay in Fast mode.");
+assert.ok(exactIdSearch?.callCount <= 2,
+  `Exact-ID search used ${exactIdSearch?.callCount} HydraDB calls; expected at most 2.`);
+assert.ok(Array.isArray(exactIdSearch?.evidence) && exactIdSearch.evidence.length > 0 &&
+  exactIdSearch.evidence.length <= 6,
+"Exact-ID search must retain between 1 and 6 receipts.");
+for (const item of exactIdSearch.evidence) {
+  assert.match(`${item.sourceId ?? ""} ${item.title ?? ""} ${item.excerpt ?? ""}`, /\bBUG-123\b/i,
+    "Exact-ID search retained an unrelated or neighboring receipt.");
+}
+
 const challengeResponse = await fetch(`${base}/.well-known/openai-apps-challenge`, {
   headers: { accept: "text/plain" },
 });
