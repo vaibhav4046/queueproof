@@ -1,0 +1,82 @@
+name: Final release evidence
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: queueproof-final-release-evidence
+  cancel-in-progress: true
+
+jobs:
+  verify-benchmark-publish:
+    if: contains(github.event.head_commit.message, '[release-evidence]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      QUEUEPROOF_URL: https://queueproof.vercel.app
+    steps:
+      - name: Check out exact release
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: pnpm
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Wait for exact production SHA
+        run: node scripts/wait-for-production.mjs --url "$QUEUEPROOF_URL" --sha "$GITHUB_SHA" --timeout-ms 1200000 --interval-ms 15000
+
+      - name: Verify production release gate
+        run: node scripts/release-gate.mjs --url "$QUEUEPROOF_URL" --sha "$GITHUB_SHA"
+
+      - name: Measure Auto
+        run: node scripts/run-live-benchmark.mjs --url "$QUEUEPROOF_URL" --mode auto --out evals/results/release-auto.json
+
+      - name: Measure Fast
+        run: node scripts/run-live-benchmark.mjs --url "$QUEUEPROOF_URL" --mode fast --out evals/results/release-fast.json
+
+      - name: Measure Thinking
+        run: node scripts/run-live-benchmark.mjs --url "$QUEUEPROOF_URL" --mode thinking --out evals/results/release-thinking.json
+
+      - name: Measure 346-page document suite
+        run: node scripts/run-pdf-benchmark.mjs --url "$QUEUEPROOF_URL" --out evals/results/release-pdf.json
+
+      - name: Atomically publish exact-release evidence
+        run: >-
+          node scripts/publish-release-benchmarks.mjs
+          --url "$QUEUEPROOF_URL"
+          --sha "$GITHUB_SHA"
+          --auto evals/results/release-auto.json
+          --fast evals/results/release-fast.json
+          --thinking evals/results/release-thinking.json
+          --pdf evals/results/release-pdf.json
+
+      - name: Preserve benchmark receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: queueproof-release-evidence-${{ github.sha }}
+          path: |
+            evals/results/release-auto.json
+            evals/results/release-fast.json
+            evals/results/release-thinking.json
+            evals/results/release-pdf.json
+          if-no-files-found: ignore
+          retention-days: 7
