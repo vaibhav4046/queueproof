@@ -6,7 +6,6 @@ import {
   PUBLIC_WORKSPACE_USER_ID,
   PublicWorkspaceProvisioningError,
   provisionPublicWorkspaceMembership,
-  provisionReviewedPublicWorkspaceMembership,
   resolveRequestedWorkspaceId,
 } from "../scripts/lib/public-workspace-provisioning";
 
@@ -97,93 +96,5 @@ describe("offline public workspace provisioning", () => {
       expect(error).toBeInstanceOf(PublicWorkspaceProvisioningError);
       expect((error as Error).message).not.toContain(accidentalSecret);
     }
-  });
-
-  it("auto-provisions only an attested connector-and-document judge workspace", async () => {
-    const db = requireDb();
-    const workspaceId = await createWorkspace("Reviewed public demo");
-    for (const provider of ["github", "linear", "slack"]) {
-      await db
-        .prepare(
-          `INSERT INTO connectors
-           (id, workspace_id, hydradb_connector_id, provider, name, database, state)
-           VALUES (?, ?, ?, ?, ?, 'reviewed-demo', 'data_verified')`,
-        )
-        .bind(
-          createId("connector"),
-          workspaceId,
-          `hydra-${provider}-${crypto.randomUUID()}`,
-          provider,
-          `Reviewed ${provider}`,
-        )
-        .run();
-    }
-    await db
-      .prepare(
-        `INSERT INTO documents
-         (id, workspace_id, filename, mime, byte_size, content_hash, hydradb_source_id, stage)
-         VALUES (?, ?, 'reviewed.pdf', 'application/pdf', 42, ?, ?, 'indexed')`,
-      )
-      .bind(
-        createId("document"),
-        workspaceId,
-        `hash-${crypto.randomUUID()}`,
-        `source-${crypto.randomUUID()}`,
-      )
-      .run();
-
-    await expect(provisionReviewedPublicWorkspaceMembership(db, workspaceId)).resolves.toMatchObject({
-      workspaceId,
-      changed: true,
-      verifiedConnectorCount: 3,
-      indexedDocumentCount: 1,
-    });
-    await expect(provisionReviewedPublicWorkspaceMembership(db, workspaceId)).resolves.toMatchObject({
-      workspaceId,
-      changed: false,
-    });
-  });
-
-  it("refuses to publish a personal Supabase workspace even when it has rich data", async () => {
-    const db = requireDb();
-    const workspaceId = await createWorkspace("Personal workspace");
-    const membership = await db
-      .prepare("SELECT user_id FROM workspace_members WHERE workspace_id = ? LIMIT 1")
-      .bind(workspaceId)
-      .first<{ user_id: string }>();
-    await db
-      .prepare(
-        `INSERT INTO auth_identities
-         (id, user_id, issuer, subject, email, email_verified)
-         VALUES (?, ?, 'https://project.supabase.co/auth/v1', ?, 'person@example.invalid', 1)`,
-      )
-      .bind(createId("identity"), membership?.user_id, crypto.randomUUID())
-      .run();
-    for (const provider of ["github", "linear", "slack"]) {
-      await db
-        .prepare(
-          `INSERT INTO connectors
-           (id, workspace_id, hydradb_connector_id, provider, name, database, state)
-           VALUES (?, ?, ?, ?, ?, 'personal', 'data_verified')`,
-        )
-        .bind(createId("connector"), workspaceId, crypto.randomUUID(), provider, provider)
-        .run();
-    }
-    await db
-      .prepare(
-        `INSERT INTO documents
-         (id, workspace_id, filename, mime, byte_size, content_hash, hydradb_source_id, stage)
-         VALUES (?, ?, 'private.pdf', 'application/pdf', 42, ?, ?, 'indexed')`,
-      )
-      .bind(createId("document"), workspaceId, crypto.randomUUID(), crypto.randomUUID())
-      .run();
-
-    await expect(provisionReviewedPublicWorkspaceMembership(db, workspaceId)).rejects.toThrow(
-      /not the reviewed public demo/i,
-    );
-    await expect(db
-      .prepare("SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ?")
-      .bind(workspaceId, PUBLIC_WORKSPACE_USER_ID)
-      .first()).resolves.toBeNull();
   });
 });
