@@ -57,9 +57,10 @@ client lines supported by current receipts.
 ### 2:51–3:20 — ChatGPT plugin
 
 > The same contract is available through remote MCP. In a clean ChatGPT conversation, QueueProof
-> discovers only tools allowed by the public-demo grant. I can ask the AuthShield question, receive
-> source-level evidence, and preserve the tracking conflict without an API key. This proof is deliberately
-> bound to synthetic Helios data; personal workspaces use the separate OAuth endpoint.
+> discovers only tools allowed by the public-demo grant. I can ask the AuthShield question and receive
+> a grounded answer with cited claims, the tracking contradiction, missing-proof status, provider
+> coverage, latency, call count, and the sanitized source receipts—without an API key. This proof is
+> deliberately bound to synthetic Helios data; personal workspaces use the separate OAuth endpoint.
 
 ### 3:20–3:38 — Codex and Claude, conditional
 
