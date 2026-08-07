@@ -55,6 +55,9 @@ describe("grounded benchmark grader", () => {
       citationPrecision: 1,
       citationCompleteness: 1,
       unsupportedClaimRate: 0,
+      relevancePass: true,
+      claimRelevancePrecision: 1,
+      irrelevantClaimRate: 0,
     });
   });
 
@@ -118,6 +121,38 @@ describe("grounded benchmark grader", () => {
     expect(unsupported.unsupportedClaims).toHaveLength(1);
     expect(unsupported.citationPrecision).toBe(0);
     expect(unsupported.pass).toBe(false);
+  });
+
+  it("fails a fully cited claim that carries no expected-fact signal", () => {
+    const result = gradeGroundedAnswer({
+      answer: "The billing migration deadline is 14 August and Slack says 7 August. Medical billing fraud creates healthcare waste.",
+      claims: [
+        { text: "The billing migration deadline is 14 August.", citation_ids: ["linear-date"], providers: ["linear"] },
+        { text: "Slack says 7 August.", citation_ids: ["slack-date"], providers: ["slack"] },
+        { text: "Medical billing fraud creates healthcare waste.", citation_ids: ["gmail-noise"], providers: ["gmail"] },
+      ],
+      citations: [
+        { id: "linear-date", provider: "linear", title: "Deadline", excerpt: "The billing migration deadline is 14 August." },
+        { id: "slack-date", provider: "slack", title: "Finance", excerpt: "Slack says 7 August." },
+        { id: "gmail-noise", provider: "gmail", title: "Healthcare", excerpt: "Medical billing fraud creates healthcare waste." },
+      ],
+      providerCoverage: ["gmail", "linear", "slack"],
+      requiredFacts: [
+        { id: "subject", anyOf: ["billing migration"] },
+        { id: "first", anyOf: ["7 August"] },
+        { id: "second", anyOf: ["14 August"] },
+      ],
+      requiredProviders: ["linear", "slack"],
+    });
+
+    expect(result.citationPass).toBe(true);
+    expect(result.relevancePass).toBe(false);
+    expect(result.claimRelevancePrecision).toBeCloseTo(2 / 3);
+    expect(result.irrelevantClaimRate).toBeCloseTo(1 / 3);
+    expect(result.irrelevantClaims).toEqual([
+      expect.objectContaining({ index: 2, text: expect.stringMatching(/medical billing/i) }),
+    ]);
+    expect(result.pass).toBe(false);
   });
 
   it("requires a contradiction to cite two distinct providers when requested", () => {
