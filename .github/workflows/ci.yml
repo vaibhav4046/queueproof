@@ -65,3 +65,78 @@ jobs:
 
       - name: Verify deployment bindings
         run: pnpm deploy:check
+
+  publish_release_benchmarks:
+    name: Publish release-bound benchmarks
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'agent/publish-release-98dcc72-benchmarks'
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      QUEUEPROOF_BENCHMARK_TOKEN: ${{ secrets.QUEUEPROOF_BENCHMARK_TOKEN }}
+
+    steps:
+      - name: Check out the trusted same-repository PR
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Validate publisher access, artifacts, and serving release
+        shell: bash
+        run: |
+          set -euo pipefail
+          if (( ${#QUEUEPROOF_BENCHMARK_TOKEN} < 32 )); then
+            echo "::error::The QUEUEPROOF_BENCHMARK_TOKEN repository secret is unavailable or invalid."
+            exit 1
+          fi
+          node --input-type=module <<'NODE'
+          import { readFile } from "node:fs/promises";
+
+          const expectedSha = "98dcc72172f27a8e6a82a15973694203edf54255";
+          const files = new Map([
+            ["auto", "evals/results/release-auto-98dcc72.json"],
+            ["fast", "evals/results/release-fast-98dcc72.json"],
+            ["thinking", "evals/results/release-thinking-98dcc72.json"],
+            ["pdf", "evals/results/release-pdf-98dcc72.json"],
+          ]);
+          for (const [kind, file] of files) {
+            const artifact = JSON.parse(await readFile(file, "utf8"));
+            if (artifact.grader !== "grounded-grader-v2" || artifact.releaseVerified !== true) {
+              throw new Error(`${kind}: artifact is not strict and release-verified`);
+            }
+            if (artifact.release?.commitSha !== expectedSha || artifact.release?.commitRef !== "main") {
+              throw new Error(`${kind}: artifact is not bound to release ${expectedSha}`);
+            }
+            if (!Array.isArray(artifact.rows) || artifact.rows.length === 0 || artifact.cases !== artifact.rows.length) {
+              throw new Error(`${kind}: artifact cases do not match its measured rows`);
+            }
+            if (kind !== "pdf" && (artifact.requestedMode !== kind || artifact.status !== "measured")) {
+              throw new Error(`${kind}: artifact mode or measured status is invalid`);
+            }
+          }
+
+          const healthResponse = await fetch("https://queueproof.vercel.app/api/health/live", {
+            headers: { "Cache-Control": "no-store" },
+            signal: AbortSignal.timeout(15_000),
+          });
+          const health = await healthResponse.json();
+          if (!healthResponse.ok || health.status !== "live" || health.environment !== "production") {
+            throw new Error("QueueProof production is not live");
+          }
+          if (health.release?.commitSha !== expectedSha || health.release?.commitRef !== "main") {
+            throw new Error(`Production is not serving release ${expectedSha}`);
+          }
+          NODE
+
+      - name: Publish auto benchmark
+        run: node scripts/publish-benchmark-artifact.mjs --kind auto --file evals/results/release-auto-98dcc72.json --url https://queueproof.vercel.app
+
+      - name: Publish fast benchmark
+        run: node scripts/publish-benchmark-artifact.mjs --kind fast --file evals/results/release-fast-98dcc72.json --url https://queueproof.vercel.app
+
+      - name: Publish thinking benchmark
+        run: node scripts/publish-benchmark-artifact.mjs --kind thinking --file evals/results/release-thinking-98dcc72.json --url https://queueproof.vercel.app
+
+      - name: Publish PDF benchmark
+        run: node scripts/publish-benchmark-artifact.mjs --kind pdf --file evals/results/release-pdf-98dcc72.json --url https://queueproof.vercel.app
