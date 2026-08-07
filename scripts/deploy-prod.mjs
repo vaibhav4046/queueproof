@@ -115,7 +115,7 @@ if (
   health?.release?.target !== "production" ||
   health?.release?.deploymentId !== deployment.id ||
   health?.release?.deploymentTimestamp !== deploymentTimestamp ||
-  health?.release?.benchmarkReceiptVersion !== "grounded-grader-v2"
+  health?.release?.benchmarkReceiptVersion !== "grounded-grader-v3"
 ) {
   console.error("BLOCKED  canonical production did not converge on the new deployment identity.");
   process.exit(1);
