@@ -44,11 +44,22 @@ connectors.command("verify").argument("<id>").action((id) =>
   tool("queueproof_verify_connector", { connectorId: id }));
 program.command("sync").argument("<id>").action((id) =>
   tool("queueproof_sync_connector", { connectorId: id }));
-program.command("ask").argument("<question...>").requiredOption("--database <database>")
+program.command("ask").argument("<question...>")
+  .option("--connectors <ids>", "comma-separated connector IDs returned by connectors list")
+  .option("--sources <ids>", "comma-separated indexed document source IDs")
   .option("--mode <mode>", "fast, auto, or thinking", "auto")
-  .action((words, options) => tool("queueproof_ask", {
-    query: words.join(" "), database: options.database, mode: options.mode,
-  }));
+  .action((words, options) => {
+    const connectorIds = options.connectors?.split(",").map((value) => value.trim()).filter(Boolean);
+    const sourceIds = options.sources?.split(",").map((value) => value.trim()).filter(Boolean);
+    if (Boolean(connectorIds?.length) === Boolean(sourceIds?.length)) {
+      throw new Error("Choose exactly one of --connectors or --sources.");
+    }
+    return tool("queueproof_search", {
+      query: words.join(" "),
+      ...(connectorIds?.length ? { connectorIds } : { sourceIds }),
+      mode: options.mode,
+    });
+  });
 program.command("next").option("--limit <count>", "maximum actions", "10").action((options) =>
   tool("queueproof_get_next_actions", { limit: Number(options.limit) }));
 program.command("changes").option("--limit <count>", "maximum snapshots", "20").action((options) =>

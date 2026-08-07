@@ -12,3 +12,4 @@ const health = await fetch(`${base}/api/health/ready`, { headers: { "Cache-Contr
 if (!health.ok) throw new Error(`Readiness failed with ${health.status}`);
 console.log(JSON.stringify({ live: true, readiness: await health.json(),
   note: "Connector creation still requires provider-specific credentials through the encrypted web form." }, null, 2));
+

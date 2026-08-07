@@ -3,11 +3,11 @@ import {
   DEPLOYMENT_OWNER_ACTOR_ID,
   SESSION_COOKIE,
   accessTokenMatches,
-  auth0SignInConfigured,
   createSessionValue,
   getRequestActor,
   legacySignInConfigured,
   signInConfigured,
+  supabaseSignInConfigured,
 } from "../../../lib/server/identity";
 import { requireDb, runtimeEnv } from "../../../lib/server/runtime";
 import {
@@ -25,7 +25,7 @@ export async function GET() {
     {
       ok: true,
       signInConfigured: signInConfigured(),
-      auth0Configured: auth0SignInConfigured(),
+      supabaseConfigured: supabaseSignInConfigured(),
       legacySignInConfigured: legacySignInConfigured(),
       actor: actor ? {
         displayName: actor.displayName,
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
       {
         ok: false,
         error:
-          "Legacy owner sign-in is not configured on this deployment. Use Auth0 sign-in instead.",
+          "Legacy owner sign-in is not configured on this deployment. Use QueueProof email sign-in instead.",
       },
       { status: 503 },
     );

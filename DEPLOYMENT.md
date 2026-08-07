@@ -1,35 +1,70 @@
 # Deployment
 
-QueueProof targets OpenAI Sites backed by Cloudflare Workers. `.openai/hosting.json` declares `DB` (D1) and `FILES` (R2).
+> **Current runbook (7 August 2026).** QueueProof production runs as a native Next.js
+> application on Vercel with Turso/libSQL. Earlier OpenAI Sites, D1, and R2 instructions are
+> historical compatibility notes only; do not use them for the production release.
+
+The canonical service is `https://queueproof.vercel.app`. Vercel must build the exact reviewed
+GitHub commit and expose that SHA, ref, deployment ID, deployment URL, deployment timestamp, and
+benchmark receipt version through `/api/health/live`.
 
 ## Required production values
 
-- `QUEUEPROOF_ENCRYPTION_KEY`: 32 random bytes, base64 encoded.
-- `QUEUEPROOF_MCP_TOKEN` and `QUEUEPROOF_MCP_WORKSPACE_ID`: optional together; omit both to disable remote MCP.
-- `QUEUEPROOF_OAUTH_ISSUER`: only when a real issuer and callback policy exist.
-- `QUEUEPROOF_TEST_MODE=false`.
+- `QUEUEPROOF_ENCRYPTION_KEY`: at least 32 random characters.
+- `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`: required together.
+- The Supabase project URL and publishable key (`NEXT_PUBLIC_SUPABASE_URL`,
+  `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`) plus the production auth-mode boundary in `.env.example`.
+- `QUEUEPROOF_MCP_RESOURCE=https://queueproof.vercel.app/mcp`, Supabase OAuth 2.1 enabled with
+  `/oauth/authorize` as the consent URL, and the QueueProof access-token hook enabled.
+- `QUEUEPROOF_PUBLIC_ACCESS=true` and an exact `QUEUEPROOF_PUBLIC_WORKSPACE_ID` only for the
+  bounded judge workspace. That workspace must already have an explicit non-owner
+  `user:public-access` membership.
+- `QUEUEPROOF_TEST_MODE=false`, `QUEUEPROOF_LIVE_TEST=false`, and no trusted Sites identity proxy.
 
 Do not place a HydraDB key in the deployment environment. Each user submits a newly generated key through the encrypted web flow.
+
+Provision the deliberately public reviewer identity once, against the exact existing judge
+workspace, before enabling public access:
+
+```bash
+pnpm public:provision -- --workspace ws_<exact-existing-id>
+```
+
+The command requires the selected Turso/libSQL credentials in the shell, creates no workspace,
+and always persists the public identity as a non-owner member. Request handling never auto-grants
+membership.
 
 ## Release gate
 
 ```bash
 pnpm install --frozen-lockfile
+pnpm audit:dependencies
+pnpm scan:secrets
 pnpm typecheck
 pnpm lint
 pnpm test
+pnpm benchmark:router
 pnpm build
 pnpm deploy:check
 ```
 
-Apply `drizzle/0000_bent_living_mummy.sql` to the production D1 database. Then verify `/api/health/live`, `/api/health/ready`, `/api/health/dependencies`, desktop/mobile layouts, reduced motion, and canonical `/mcp` unauthenticated 401/disabled 503 behavior. `/api/mcp` is retained only as a compatibility alias.
+Publish through a reviewed GitHub branch, then deploy that exact clean commit to the existing
+Vercel project. Run `pnpm release:verify -- --url https://queueproof.vercel.app --sha <40-char-sha>`.
+The gate checks release identity, the ready public workspace, at least three verified connectors,
+an indexed document, public/legal routes, icons/manifest, OAuth metadata, and anonymous MCP
+boundaries. `/api/mcp` remains a compatibility alias.
 
 Deployment is not connector verification. After deployment, a user must authorise HydraDB and provider accounts, select resources, request sync, and run canary verification. Record the resulting connector receipt without copying private source data into public artifacts.
 
-Rollback by redeploying the last saved Sites version. Database migrations are forward-only; back up D1 before destructive schema work.
+Follow [Supabase authentication setup](docs/SUPABASE_AUTH_SETUP.md) for branded magic-link email,
+callback allowlists, OAuth consent, the MCP audience hook, and live client verification.
 
-## Vercel interface deployment
+Rollback by promoting the last known-good Vercel production deployment. Database migrations are
+forward-only; back up Turso before destructive schema work.
 
-`vercel.json` selects a native Next.js webpack build while `next.config.ts` replaces the Cloudflare runtime binding provider with environment variables. This preserves the original vinext/Cloudflare build.
+## Legacy compatibility
 
-Without an attached Vercel database, QueueProof serves a truthful public interface preview: `/api/health/live` is available, `/api/workspace` declares `storageAvailable=false`, and `/api/health/ready` remains 503. Do not describe this preview as a data-connected QueueProof control plane.
+The vinext/Cloudflare build remains useful for local compatibility testing, but it is not the
+production control plane. `.openai/hosting.json` and the original D1 migration are retained only
+for provenance. Current architecture, security, OAuth, and release instructions live in
+`README.md`, `docs/ARCHITECTURE.md`, `docs/SECURITY.md`, and `docs/REMOTE_MCP_SETUP.md`.

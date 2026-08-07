@@ -1,10 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Check, LockKeyhole, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Check, ShieldCheck } from "lucide-react";
 import { redirect } from "next/navigation";
 import { EmberBackdrop } from "@/components/queueproof/ember-backdrop";
 import { QueueProofLogo, QueueProofSymbol } from "../components/QueueProofLogo";
-import { auth0WebEnabled, getAuth0Client } from "../../lib/server/auth0";
+import {
+  createQueueProofServerClient,
+  supabaseConfig,
+  supabaseWebEnabled,
+} from "../../lib/server/supabase";
+import { SignInForm } from "./SignInForm";
 import styles from "./sign-in.module.css";
 
 export const dynamic = "force-dynamic";
@@ -16,19 +21,25 @@ export const metadata: Metadata = {
 };
 
 type SignInPageProps = {
-  searchParams: Promise<{ mode?: string | string[] }>;
+  searchParams: Promise<{ mode?: string | string[]; next?: string | string[] }>;
 };
 
+function safeNext(raw: string | string[] | undefined): string {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return value?.startsWith("/") && !value.startsWith("//") ? value : "/";
+}
+
 export default async function SignInPage({ searchParams }: SignInPageProps) {
-  const client = getAuth0Client();
-  const session = client ? await client.getSession() : null;
-  if (session) redirect("/");
+  const client = await createQueueProofServerClient();
+  const claims = client ? await client.auth.getClaims() : null;
+  if (claims?.data?.claims?.sub) redirect("/");
 
   const params = await searchParams;
   const mode = Array.isArray(params.mode) ? params.mode[0] : params.mode;
   const creating = mode === "signup";
-  const configured = auth0WebEnabled();
-  const authHref = creating ? "/auth/login?screen_hint=signup" : "/auth/login";
+  const config = supabaseConfig();
+  const configured = supabaseWebEnabled() && Boolean(config);
+  const nextPath = safeNext(params.next);
 
   return (
     <main className={styles.page} id="main-content">
@@ -50,7 +61,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
             <ul className={styles.proofList} aria-label="QueueProof account benefits">
               <li><Check size={15} /> Your sources stay in your workspace</li>
               <li><Check size={15} /> Missing evidence stays visible</li>
-              <li><Check size={15} /> The same identity works from ChatGPT</li>
+              <li><Check size={15} /> One account is designed for web and ChatGPT</li>
             </ul>
           </div>
         </section>
@@ -69,12 +80,12 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
                 : "Return to your private sources, investigations, approvals, and connected AI clients."}
             </p>
 
-            {configured ? (
-              <a className={styles.primary} href={authHref}>
-                <LockKeyhole size={16} />
-                {creating ? "Create account securely" : "Continue to secure sign in"}
-                <ArrowRight size={16} />
-              </a>
+            {configured && config ? (
+              <SignInForm
+                creating={creating}
+                nextPath={nextPath}
+                supabase={{ url: config.url, publishableKey: config.publishableKey }}
+              />
             ) : (
               <div className={styles.unavailable} role="status">
                 <ShieldCheck size={17} />
@@ -93,13 +104,15 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
               <ShieldCheck size={17} />
               <div>
                 <strong>Secure by default</strong>
-                <span>QueueProof never asks for a provider API key on this screen. Authentication continues through the configured identity service.</span>
+                <span>QueueProof never asks for a provider API key on this screen. Your sign-in link is single-purpose and returns to this QueueProof domain.</span>
               </div>
             </div>
           </div>
           <nav className={styles.helpLinks} aria-label="Account help">
             <Link href="/method">How QueueProof works</Link>
             <Link href="/developer">Use with ChatGPT</Link>
+            <Link href="/privacy">Privacy</Link>
+            <Link href="/support">Support</Link>
           </nav>
         </section>
       </div>

@@ -12,7 +12,7 @@ import {
 import { requirePrivateControlActor, requireRequestActor } from "../../../../../lib/server/identity";
 import { requireDb } from "../../../../../lib/server/runtime";
 import { audit, createId, requireOwnerWorkspaceForUser } from "../../../../../lib/server/store";
-import { sha256 } from "../../../../../packages/security/src";
+import { redactSecrets, redactSecretsDeep, sha256 } from "../../../../../packages/security/src";
 
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
   try {
@@ -49,9 +49,16 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     const selectedIds = cursorEntries.map((entry) => entry.id);
     const hasCursor = selectedSet.size > 0 && cursorEntries.length === selectedSet.size;
     const connectorDetail = connectorResponse.ok ? unwrapHydra(connectorResponse.data) : {};
-    const syncStatus = String(connectorDetail.sync_status ?? connectorDetail.syncStatus ?? connectorDetail.status ?? "unknown");
+    const syncStatus = redactSecrets(String(
+      connectorDetail.sync_status ?? connectorDetail.syncStatus ?? connectorDetail.status ?? "unknown",
+    ));
     const lastSuccessfulSync = connectorDetail.last_successful_sync_at ?? connectorDetail.lastSuccessfulSyncAt ?? null;
-    const upstreamError = connectorDetail.last_error ?? connectorDetail.lastError ?? null;
+    const rawUpstreamError = connectorDetail.last_error ?? connectorDetail.lastError ?? null;
+    const upstreamError = rawUpstreamError === null || rawUpstreamError === undefined
+      ? null
+      : typeof rawUpstreamError === "string"
+        ? redactSecrets(rawUpstreamError)
+        : JSON.stringify(redactSecretsDeep(rawUpstreamError));
     /**
      * Sync evidence: a provider cursor OR a recorded successful sync.
      *

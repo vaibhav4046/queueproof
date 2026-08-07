@@ -19,14 +19,14 @@ describe("CLI MCP client", () => {
       const request = JSON.parse(String(init.body));
       const result = request.method === "initialize"
         ? { protocolVersion: "2025-11-25", serverInfo: { name: "queueproof", version: "1" } }
-        : { tools: [{ name: "queueproof_health" }, { name: "queueproof_ask" }] };
+        : { tools: [{ name: "queueproof_health" }, { name: "queueproof_search" }] };
       return new Response(JSON.stringify({ jsonrpc: "2.0", id: request.id, result }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       });
     });
     const result = await verifyMcp({ endpoint: "https://queueproof.example/mcp", token: "qp_live_test", fetchImpl });
-    expect(result).toMatchObject({ connected: true, protocolVersion: "2025-11-25", tools: ["queueproof_health", "queueproof_ask"] });
+    expect(result).toMatchObject({ connected: true, protocolVersion: "2025-11-25", tools: ["queueproof_health", "queueproof_search"] });
     expect(fetchImpl).toHaveBeenCalledTimes(2);
     expect(fetchImpl.mock.calls[0]?.[1]?.headers).toMatchObject({ Authorization: "Bearer qp_live_test" });
   });

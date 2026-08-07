@@ -1,13 +1,14 @@
 import {
-  auth0SignInConfigured,
   getRequestActor,
   legacySignInConfigured,
   signInConfigured,
+  supabaseSignInConfigured,
 } from "./identity";
 import { requireDb, runtimeEnv } from "./runtime";
 import { ensureCoreSchema, workspaceForUser } from "./store";
 import { hydraAccountForWorkspace } from "./hydradb-account";
 import { listQueueForWorkspace } from "./queue";
+import { publicDtoForActor, publicStorageReference } from "./public-dto";
 
 /**
  * Single source of truth for "what should the user see right now".
@@ -27,7 +28,7 @@ export type WorkspaceView =
   | {
       kind: "sign_in_required";
       signInConfigured: boolean;
-      auth0Configured: boolean;
+      supabaseConfigured: boolean;
       legacySignInConfigured: boolean;
     }
   | { kind: "no_workspace"; actor: ActorView }
@@ -48,7 +49,7 @@ export type ActorView = {
   localDevelopment: boolean;
   publicAccess: boolean;
   authenticated: boolean;
-  authType: "auth0" | "legacy" | "gateway" | "local" | "public";
+  authType: "supabase" | "legacy" | "gateway" | "local" | "public";
   emailVerified: boolean;
 };
 
@@ -77,7 +78,7 @@ export type PublicEvidenceSummary = {
     id: string; filename: string; mime: string; byteSize: number; contentHash: string;
     database: string | null; hydradbSourceId: string | null; pageCount: number | null;
     indexedAt: string | null; processingDurationMs: number | null;
-    stage: string; error: string | null; createdAt: string;
+    stage: string; error: string | null; createdAt: string; sourceReceiptPresent: boolean;
   }>;
 };
 
@@ -99,7 +100,7 @@ export async function loadWorkspaceView(): Promise<WorkspaceView> {
     return {
       kind: "sign_in_required",
       signInConfigured: signInConfigured(),
-      auth0Configured: auth0SignInConfigured(),
+      supabaseConfigured: supabaseSignInConfigured(),
       legacySignInConfigured: legacySignInConfigured(),
     };
   }
@@ -134,13 +135,14 @@ export async function loadWorkspaceView(): Promise<WorkspaceView> {
     requireDb().prepare(
       `SELECT id, filename, mime, byte_size AS byteSize, content_hash AS contentHash,
               hydradb_database AS database, hydradb_source_id AS hydradbSourceId,
+              CASE WHEN hydradb_source_id IS NOT NULL AND trim(hydradb_source_id) != '' THEN 1 ELSE 0 END AS sourceReceiptPresent,
               page_count AS pageCount, indexed_at AS indexedAt,
               processing_duration_ms AS processingDurationMs, stage, error, created_at AS createdAt
        FROM documents WHERE workspace_id = ? ORDER BY created_at DESC LIMIT 100`,
     ).bind(workspaceId).all<PublicEvidenceSummary["documents"][number]>(),
     listQueueForWorkspace(workspaceId),
   ]);
-  return {
+  const view: WorkspaceView = {
     kind: "ready",
     storageBackend:
       typeof runtime.QUEUEPROOF_STORAGE_BACKEND === "string"
@@ -158,7 +160,35 @@ export async function loadWorkspaceView(): Promise<WorkspaceView> {
       verifiedAt: (account?.verified_at as string | undefined) ?? null,
       fingerprint: (account?.key_fingerprint as string | undefined) ?? null,
     },
-    evidence: { connectors: connectorRows.results ?? [], documents: documentRows.results ?? [] },
+    evidence: {
+      connectors: connectorRows.results ?? [],
+      documents: (documentRows.results ?? []).map((document) => ({
+        ...document,
+        sourceReceiptPresent: Boolean(document.sourceReceiptPresent),
+      })),
+    },
     queue,
   };
+  const queueRows = queue.items as unknown as Array<Record<string, unknown>>;
+  const referenceAliases = [
+    { raw: workspaceId, public: publicStorageReference(workspaceId, "workspace", workspaceId) },
+    ...(connectorRows.results ?? []).flatMap((connector) => typeof connector.id === "string"
+      ? [{ raw: connector.id, public: publicStorageReference(workspaceId, "connector", connector.id) }]
+      : []),
+    ...(documentRows.results ?? []).flatMap((document) => typeof document.id === "string"
+      ? [{ raw: document.id, public: publicStorageReference(workspaceId, "document", document.id) }]
+      : []),
+    ...queueRows.flatMap((item) => [
+      typeof item.taskId === "string"
+        ? { raw: item.taskId, public: publicStorageReference(workspaceId, "task", item.taskId) }
+        : null,
+      typeof item.packetId === "string"
+        ? { raw: item.packetId, public: publicStorageReference(workspaceId, "packet", item.packetId) }
+        : null,
+    ].filter((entry): entry is { raw: string; public: string } => Boolean(entry))),
+  ];
+  return publicDtoForActor(actor, view, {
+    workspaceId,
+    referenceAliases,
+  });
 }

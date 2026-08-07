@@ -9,3 +9,4 @@ services:
       - .:/workspace
     environment:
       QUEUEPROOF_TEST_MODE: "false"
+

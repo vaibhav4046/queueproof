@@ -35,11 +35,16 @@ describe("connector proof disclosure boundary", () => {
     await db.batch([
       db.prepare("INSERT INTO users (id, email, display_name) VALUES (?, ?, ?)")
         .bind(localActorId, "local-proof@example.invalid", "Local proof owner"),
+      db.prepare("INSERT INTO users (id, email, display_name) VALUES (?, ?, ?)")
+        .bind("user:public-access", "public-proof@example.invalid", "Public proof visitor"),
       db.prepare("INSERT INTO workspaces (id, slug, name) VALUES (?, ?, ?)")
         .bind(workspaceId, `proof-${workspaceId.slice(-8)}`, "Proof visibility"),
       db.prepare(
         "INSERT INTO workspace_members (id, workspace_id, user_id, role) VALUES (?, ?, ?, 'owner')",
       ).bind(createId("member"), workspaceId, localActorId),
+      db.prepare(
+        "INSERT INTO workspace_members (id, workspace_id, user_id, role) VALUES (?, ?, ?, 'member')",
+      ).bind(createId("member"), workspaceId, "user:public-access"),
       db.prepare(
         `INSERT INTO connectors
          (id, workspace_id, hydradb_connector_id, provider, name, database, state)
@@ -90,10 +95,12 @@ describe("connector proof disclosure boundary", () => {
     const { response, body } = await readProof();
 
     expect(response.status).toBe(200);
-    expect(body.resources.map((resource: { id: string }) => resource.id)).toEqual([
-      resourceIds.visible,
-    ]);
-    expect(body.verification.resourceIds).toEqual([resourceIds.visible]);
+    const publicResourceIds = body.resources.map((resource: { id: string }) => resource.id);
+    expect(publicResourceIds).toHaveLength(1);
+    expect(publicResourceIds[0]).toMatch(/^public-resource-/);
+    expect(body.verification.resourceIds).toEqual(publicResourceIds);
+    expect(JSON.stringify(body)).not.toContain(resourceIds.visible);
+    expect(JSON.stringify(body)).not.toContain("hydra-source");
     expect(body.proofFreshness).toMatchObject({
       status: "current",
       maxAgeHours: CONNECTOR_PROOF_MAX_AGE_HOURS,

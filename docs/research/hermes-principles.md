@@ -9,3 +9,4 @@ Accessed 2026-07-31. QueueProof adopts architectural principles, not source code
 - a controlled improvement loop that proposes tested diffs and requires approval.
 
 These ideas are expressed in original QueueProof contracts and the Circuit Shrine interface. Production skills are never self-replaced.
+

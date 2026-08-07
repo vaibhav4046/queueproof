@@ -1,7 +1,7 @@
 import {
   mcpOAuthConfig,
   QUEUEPROOF_MCP_RESOURCE,
-  QUEUEPROOF_MCP_SCOPES,
+  SUPABASE_OAUTH_SCOPES,
 } from "../../../../lib/server/mcp-auth";
 
 export async function GET() {
@@ -10,7 +10,7 @@ export async function GET() {
     {
       resource: oauth?.resource ?? QUEUEPROOF_MCP_RESOURCE,
       ...(oauth ? { authorization_servers: [oauth.issuer] } : {}),
-      scopes_supported: [...QUEUEPROOF_MCP_SCOPES],
+      scopes_supported: [...SUPABASE_OAUTH_SCOPES],
       bearer_methods_supported: ["header"],
       // The public developer screen is the canonical, maintained setup contract. Pointing
       // at a non-existent /docs/mcp route made standards-based discovery advertise a 404.

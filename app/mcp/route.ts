@@ -4,7 +4,7 @@ import { audit, ensureCoreSchema } from "../../lib/server/store";
 import { sha256 } from "../../packages/security/src";
 import { createWorkspaceMcpHandler } from "../../packages/mcp/src/server";
 import {
-  authenticateAuth0McpToken,
+  authenticateSupabaseMcpToken,
   mcpAuthMode,
   mcpBearerChallenge,
   mcpOAuthConfig,
@@ -54,8 +54,16 @@ async function serve(request: Request) {
   }
   const origin = request.headers.get("origin");
   const requestUrl = new URL(request.url);
-  if (origin && new URL(origin).origin !== requestUrl.origin) {
-    return noStoreJson({ error: "Origin is not allowed." }, { status: 403 });
+  if (origin) {
+    let originValue: string;
+    try {
+      originValue = new URL(origin).origin;
+    } catch {
+      return noStoreJson({ error: "Origin is not allowed." }, { status: 403 });
+    }
+    if (originValue !== requestUrl.origin) {
+      return noStoreJson({ error: "Origin is not allowed." }, { status: 403 });
+    }
   }
   const authorization = request.headers.get("authorization");
   const token = authorization?.startsWith("Bearer ") ? authorization.slice(7) : "";
@@ -63,7 +71,9 @@ async function serve(request: Request) {
   let clientId = "queueproof-static-client";
   let persistedClientId: string | null = null;
   let actorId = "mcp:queueproof-static-client";
-  let scopes: QueueProofMcpScope[] = ["queueproof:read", "queueproof:propose", "queueproof:sync"];
+  // Static compatibility credentials are read-only. Elevated capabilities are granted
+  // only by a trusted Supabase custom claim or a persisted QueueProof token with explicit scopes.
+  let scopes: QueueProofMcpScope[] = ["queueproof:read"];
   const jwtShaped = token.split(".").length === 3;
 
   // JWTs are handled by one strict path. A malformed or wrong-audience JWT must never
@@ -73,7 +83,7 @@ async function serve(request: Request) {
       return oauthUnauthorized(oauth?.resource, "invalid_token", "OAuth access is not enabled.");
     }
     try {
-      const authenticated = await authenticateAuth0McpToken(token, { config: oauth });
+      const authenticated = await authenticateSupabaseMcpToken(token, { config: oauth });
       workspaceId = authenticated.workspaceId;
       clientId = authenticated.clientId;
       persistedClientId = authenticated.persistedClientId;
@@ -89,7 +99,7 @@ async function serve(request: Request) {
     }
   }
 
-  if (token && !jwtShaped && runtime.DB && authMode !== "auth0") {
+  if (token && !jwtShaped && runtime.DB && authMode !== "supabase") {
     await ensureCoreSchema();
     const row = await requireDb().prepare(
       `SELECT mt.workspace_id AS workspaceId, mt.client_id AS clientId, mt.scopes_json AS scopesJson
@@ -121,7 +131,7 @@ async function serve(request: Request) {
     }
   }
   if (
-    !workspaceId && token && !jwtShaped && authMode !== "auth0" &&
+    !workspaceId && token && !jwtShaped && authMode !== "supabase" &&
     configuredToken && configuredWorkspaceId && await constantTimeEqual(token, configuredToken)
   ) {
     workspaceId = configuredWorkspaceId;

@@ -1,11 +1,11 @@
 ---
 name: source-conflict-resolution
-description: Reconstruct and explain contradictory source claims without erasing uncertainty.
-version: 1.0.0
+description: Reconstruct contradictory claims from cited QueueProof search evidence without erasing uncertainty.
+version: 1.1.0
 ---
 # Source conflict resolution
 
-List the conflict, inspect entity/timeline context, compare authority and freshness, and propose the smallest clarifying question. Never rewrite source history.
+List connectors, then search the exact subject or record ID using at least two verified connectorIds when available. Compare only returned claims, providers, timestamps, and excerpts; preserve both sides and propose the smallest clarifying question. QueueProof currently exposes no dedicated conflict list, entity, or timeline MCP tool, so do not claim a complete conflict inventory.
 
-Required tools: `queueproof_list_conflicts`, `queueproof_get_entity`, `queueproof_get_timeline`, `queueproof_search`.
+Core tools: `queueproof_list_connectors`, `queueproof_search`.
 Permissions: read-only.

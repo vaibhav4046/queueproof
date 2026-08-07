@@ -11,9 +11,26 @@ export function QueueProofSymbol({ className, ...props }: SVGProps<SVGSVGElement
 
 export function QueueProofLogo({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
-    <svg className={className} viewBox="0 0 166 36" fill="none" role="img" aria-label="QueueProof" {...props}>
-      <g transform="translate(0 0)"><QueueProofSymbol width="36" height="36" /></g>
-      <text x="47" y="24" fill="currentColor" fontFamily="var(--font-geist-sans), Geist, sans-serif" fontSize="18" fontWeight="680" letterSpacing="-.65">QueueProof</text>
+    <svg
+      className={className}
+      viewBox="0 0 166 36"
+      fill="none"
+      role="img"
+      aria-label="QueueProof"
+      shapeRendering="geometricPrecision"
+      textRendering="geometricPrecision"
+      {...props}
+    >
+      <g><QueueProofSymbol width="36" height="36" /></g>
+      <text
+        x="46"
+        y="24.25"
+        fill="currentColor"
+        fontFamily="var(--font-geist-sans), Geist, sans-serif"
+        fontSize="18"
+        fontWeight="670"
+        letterSpacing="-.68"
+      >QueueProof</text>
     </svg>
   );
 }

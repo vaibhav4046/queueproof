@@ -1,81 +1,70 @@
 # Connect QueueProof to ChatGPT
 
-QueueProof's canonical remote MCP resource is `https://queueproof.vercel.app/mcp`. The web app and
-ChatGPT use the same Auth0 tenant but **different OAuth clients**. QueueProof is the resource server;
-Auth0 is the authorization server.
+QueueProof's canonical remote MCP resource is `https://queueproof.vercel.app/mcp`. QueueProof is
+the resource server and Supabase Auth is the OAuth 2.1 authorization server. The branded email and
+consent screens remain on `queueproof.vercel.app`; users never create an API project or paste a
+connection key.
 
 ## End-user experience after publication
 
-People should not create an API project, OAuth client, or QueueProof connection key. They open the
-ChatGPT or Codex Plugins Directory, search **QueueProof**, select **Add**, and sign in to their
-QueueProof workspace. The universal MCP URL and OAuth registration are publisher infrastructure.
+People open the ChatGPT or Codex Plugins Directory, search **QueueProof**, select **Add**, enter
+their email on QueueProof, and approve read-only access. A URL alone supports private testing but
+does not create a searchable listing: the verified publisher must complete OpenAI review and
+explicitly publish the approved version.
 
-An MCP URL alone is enough for a private custom-connector test, but it does not create a searchable
-public listing. The verified publisher must complete OpenAI review and publish the approved entry.
-The prepared listing, test cases, and remaining owner actions are in
-[`submission/OPENAI_PLUGIN_SUBMISSION.md`](../submission/OPENAI_PLUGIN_SUBMISSION.md).
+## 1. Configure Supabase once
 
-## 1. Publisher preparation in Auth0
+1. Set QueueProof's production site URL to `https://queueproof.vercel.app` and allow
+   `https://queueproof.vercel.app/auth/callback` as a redirect URL.
+2. Enable Supabase OAuth 2.1 Server and set its authorization/consent URL to
+   `https://queueproof.vercel.app/oauth/authorize`.
+3. Apply `supabase/migrations/20260807000000_queueproof_mcp_claims.sql`, then select
+   `public.queueproof_access_token_hook` under **Authentication → Hooks → Custom Access Token**.
+4. Enable dynamic client registration for MCP clients, or create a dedicated public client with
+   the exact callback URL ChatGPT supplies. Authorization Code + PKCE is mandatory.
+5. Request only the standard identity scopes `openid profile email`. These Supabase scopes do not
+   grant QueueProof writes; every valid QueueProof-audience OAuth token starts read-only.
 
-1. Keep the Vercel Marketplace application for QueueProof web sign-in.
-2. In Auth0, create an API with identifier `https://queueproof.vercel.app/mcp` and RS256 signing.
-3. Add permissions `queueproof:read`, `queueproof:propose`, and `queueproof:sync`.
-4. Enable Auth0's Resource Parameter Compatibility so the MCP `resource` value is honored.
-5. Start ChatGPT with `queueproof:read` only. Add proposal/sync access only for a deliberate test.
-
-Use CIMD when the Auth0 tenant supports it. Otherwise enable carefully scoped dynamic client
-registration or create a separate ChatGPT application and copy the exact callback URL shown by
-ChatGPT into its allowed callbacks. Never reuse the QueueProof web client ID or its secret.
+The access-token hook changes the audience only when a token contains an OAuth `client_id`.
+Ordinary QueueProof browser sessions keep Supabase's default audience and cannot be replayed at
+`/mcp`.
 
 ## 2. Check the deployed resource
 
-The production deployment automatically selects hybrid MCP auth when the complete Marketplace
-Auth0 configuration is present. Hybrid mode preserves existing QueueProof bearer clients while
-accepting strictly verified Auth0 access tokens.
+The production deployment selects hybrid MCP auth when the Supabase public configuration is
+present. Hybrid preserves existing scoped QueueProof bearer clients while adding strictly
+verified Supabase OAuth access tokens.
 
-Verify these public responses before opening ChatGPT:
+Before opening ChatGPT, verify:
 
-- `GET /.well-known/oauth-protected-resource/mcp` returns 200, the exact canonical resource, and
-  the Auth0 issuer in `authorization_servers`.
-- Anonymous `GET /mcp` returns 401 with a `WWW-Authenticate` challenge whose `resource_metadata`
-  points to that metadata URL.
-- No secret, token, workspace ID, or private source content appears in either response.
+- `GET /.well-known/oauth-protected-resource/mcp` returns 200, the canonical resource, standard
+  OAuth scopes, and the exact Supabase issuer in `authorization_servers`;
+- anonymous `GET /mcp` returns 401 with a `WWW-Authenticate` challenge whose
+  `resource_metadata` points to that document; and
+- neither response contains a token, workspace ID, HydraDB coordinate, or private source text.
 
-## 3. Test the ChatGPT custom app before publication
+## 3. Test privately before publication
 
-In ChatGPT **Settings → Apps/Connectors → Advanced settings**, create the custom MCP app using:
+In ChatGPT developer mode, add a private/custom MCP plugin:
 
 - Server URL: `https://queueproof.vercel.app/mcp`
 - Authentication: OAuth
 
-Complete Auth0 consent off-camera. After connecting, open a clean temporary chat and run a harmless
-read-only check such as “List my QueueProof connectors, then tell me which are verified.” Confirm
-that ChatGPT discovers the QueueProof tools and that the result belongs to the signed-in user's
-private workspace.
-
-Do not call sync, proposal, approval, execution, or provider-write paths for the connection test.
+Use a clean temporary chat and run a harmless read-only prompt: “Show the sources QueueProof can
+search and which are verified.” Confirm `initialize`, `tools/list`, and a workspace-safe result.
+Do not call sync, proposal, approval, execution, or provider-write paths during connection proof.
 
 ## 4. Record the receipt
 
-Before saying “QueueProof is connected to ChatGPT,” record:
+Before saying QueueProof is connected to ChatGPT, record the exact production SHA and deployment
+ID, Supabase issuer, canonical MCP resource, negotiated protocol, discovered tool names, one
+successful read-only call, and anonymous/invalid-token rejection. Never record bearer values.
 
-- exact production SHA and deployment ID;
-- Auth0 issuer and canonical resource (never secrets);
-- negotiated MCP protocol version;
-- names returned by `tools/list`;
-- one successful read-only tool call and its workspace-safe result; and
-- anonymous and invalid-token rejection.
-
-For the video, crop ChatGPT to the clean conversation canvas. Hide sidebar, history, profile,
-settings, OAuth screens, tool payload inspectors, emails, tenant/client IDs, and all credentials.
-
-## 5. Rotate exposed credentials
-
-If any Vercel or Auth0 credential was pasted into chat, a recording, terminal output, or issue,
-rotate or revoke it after the connection test. Deleting the transcript is not revocation. Redeploy
-after rotating the Auth0 client secret or session secret, then repeat the harmless read-only smoke.
+For video, crop ChatGPT to the clean conversation canvas. Hide sidebar, history, profile,
+settings, email addresses, OAuth screens, tool inspectors, and identifiers.
 
 Official references: [OpenAI MCP authentication](https://developers.openai.com/plugins/build/auth),
-[Auth0 Next.js SDK](https://auth0.com/docs/quickstart/webapp/nextjs),
-[Auth0 CIMD](https://auth0.com/docs/get-started/auth0-overview/create-applications/register-applications-with-cimd),
-and [Auth0 dynamic client registration](https://auth0.com/docs/get-started/applications/dynamic-client-registration).
+[OpenAI connect and test](https://developers.openai.com/plugins/deploy/connect-chatgpt),
+[Supabase OAuth 2.1 server](https://supabase.com/docs/guides/auth/oauth-server),
+[Supabase MCP authentication](https://supabase.com/docs/guides/auth/oauth-server/mcp-authentication),
+and [Supabase custom access-token hook](https://supabase.com/docs/guides/auth/auth-hooks/custom-access-token-hook).

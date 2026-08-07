@@ -116,3 +116,4 @@ export function pdfPageCount(bytes: Uint8Array): number | null {
     .filter((count) => Number.isSafeInteger(count) && count > 0);
   return counts.length ? Math.max(...counts) : null;
 }
+

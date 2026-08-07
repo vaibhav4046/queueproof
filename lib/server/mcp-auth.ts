@@ -4,13 +4,13 @@ import {
   type JWTVerifyGetKey,
   type KeyInput,
 } from "jose";
-import { auth0Config } from "./auth0";
+import { supabaseConfig } from "./supabase";
 import { ensureExternalPrincipalWorkspace } from "./auth-principal";
 import { requireDb, runtimeEnv } from "./runtime";
 import { ensureCoreSchema } from "./store";
 import { sha256 } from "../../packages/security/src";
 
-export type McpAuthMode = "opaque" | "hybrid" | "auth0";
+export type McpAuthMode = "opaque" | "hybrid" | "supabase";
 
 export const QUEUEPROOF_MCP_RESOURCE = "https://queueproof.vercel.app/mcp";
 
@@ -20,13 +20,17 @@ export const QUEUEPROOF_MCP_SCOPES = [
   "queueproof:sync",
 ] as const;
 
+/** Scopes understood by Supabase's OAuth server; QueueProof permissions are server-side. */
+export const SUPABASE_OAUTH_SCOPES = ["openid", "profile", "email"] as const;
+
 export type QueueProofMcpScope = (typeof QUEUEPROOF_MCP_SCOPES)[number];
 
 export type McpOAuthConfig = {
-  mode: "hybrid" | "auth0";
+  mode: "hybrid" | "supabase";
   resource: string;
   issuer: string;
   jwksUrl: string;
+  authorizationServer: string;
 };
 
 export type McpAuthentication = {
@@ -35,7 +39,7 @@ export type McpAuthentication = {
   clientId: string;
   persistedClientId: string;
   scopes: QueueProofMcpScope[];
-  authMethod: "auth0";
+  authMethod: "supabase";
 };
 
 function value(env: Record<string, unknown>, key: string): string {
@@ -46,18 +50,18 @@ export function mcpAuthMode(
   env: Record<string, unknown> = runtimeEnv() as Record<string, unknown>,
 ): McpAuthMode {
   const mode = value(env, "QUEUEPROOF_MCP_AUTH_MODE");
-  if (mode === "opaque" || mode === "hybrid" || mode === "auth0") return mode;
+  if (mode === "opaque" || mode === "hybrid" || mode === "supabase") return mode;
   // A complete Marketplace install is an intentional production rollout. Hybrid keeps
   // existing opaque clients working while adding the strictly verified OAuth path.
-  return value(env, "VERCEL_ENV") === "production" && auth0Config(env) ? "hybrid" : "opaque";
+  return value(env, "VERCEL_ENV") === "production" && supabaseConfig(env) ? "hybrid" : "opaque";
 }
 
 export function mcpOAuthConfig(
   env: Record<string, unknown> = runtimeEnv() as Record<string, unknown>,
 ): McpOAuthConfig | null {
   const mode = mcpAuthMode(env);
-  const web = auth0Config(env);
-  if ((mode !== "hybrid" && mode !== "auth0") || !web) return null;
+  const web = supabaseConfig(env);
+  if ((mode !== "hybrid" && mode !== "supabase") || !web) return null;
   try {
     const configuredResource = value(env, "QUEUEPROOF_MCP_RESOURCE");
     const resourceUrl = new URL(
@@ -67,13 +71,15 @@ export function mcpOAuthConfig(
       resourceUrl.protocol !== "https:" ||
       resourceUrl.pathname !== "/mcp" ||
       resourceUrl.search ||
-      resourceUrl.hash
+      resourceUrl.hash ||
+      (value(env, "VERCEL_ENV") === "production" && resourceUrl.toString() !== QUEUEPROOF_MCP_RESOURCE)
     ) return null;
     return {
       mode,
       resource: resourceUrl.toString(),
       issuer: web.issuer,
-      jwksUrl: new URL(".well-known/jwks.json", web.issuer).toString(),
+      jwksUrl: web.jwksUrl,
+      authorizationServer: web.authorizationServer,
     };
   } catch {
     return null;
@@ -91,7 +97,7 @@ export function mcpBearerChallenge(
 ): string {
   const fields = [
     `resource_metadata="${mcpResourceMetadataUrl(resource)}"`,
-    `scope="queueproof:read"`,
+    `scope="${SUPABASE_OAUTH_SCOPES.join(" ")}"`,
   ];
   if (options.error) fields.push(`error="${options.error}"`);
   if (options.description) {
@@ -117,11 +123,15 @@ function remoteJwks(url: string): JWTVerifyGetKey {
 
 function tokenScopes(payload: Record<string, unknown>): QueueProofMcpScope[] {
   const declared = new Set<string>();
-  if (typeof payload.scope === "string") {
-    for (const scope of payload.scope.split(/\s+/)) if (scope) declared.add(scope);
+  // A valid QueueProof-audience OAuth token always starts read-only. Elevated grants are
+  // accepted only from a server-issued custom claim, never user_metadata.
+  declared.add("queueproof:read");
+  const permissions = payload.queueproof_permissions;
+  if (typeof permissions === "string") {
+    for (const permission of permissions.split(/\s+/)) if (permission) declared.add(permission);
   }
-  if (Array.isArray(payload.permissions)) {
-    for (const permission of payload.permissions) {
+  if (Array.isArray(permissions)) {
+    for (const permission of permissions) {
       if (typeof permission === "string") declared.add(permission);
     }
   }
@@ -130,8 +140,8 @@ function tokenScopes(payload: Record<string, unknown>): QueueProofMcpScope[] {
 
 type VerificationKey = JWTVerifyGetKey | KeyInput;
 
-/** Verify a signed Auth0 access token and bind it to one QueueProof workspace. */
-export async function authenticateAuth0McpToken(
+/** Verify a signed Supabase OAuth access token and bind it to one QueueProof workspace. */
+export async function authenticateSupabaseMcpToken(
   token: string,
   options: { config?: McpOAuthConfig; key?: VerificationKey } = {},
 ): Promise<McpAuthentication> {
@@ -143,7 +153,7 @@ export async function authenticateAuth0McpToken(
     token,
     options.key ?? remoteJwks(config.jwksUrl),
     {
-      algorithms: ["RS256"],
+      algorithms: ["ES256", "RS256"],
       issuer: config.issuer,
       audience: config.resource,
       requiredClaims: ["sub", "exp", "iat"],
@@ -153,19 +163,17 @@ export async function authenticateAuth0McpToken(
   const subject = typeof verified.payload.sub === "string" ? verified.payload.sub : "";
   if (!subject) throw new Error("The access token has no subject.");
   const scopes = tokenScopes(verified.payload as Record<string, unknown>);
-  if (!scopes.includes("queueproof:read")) {
-    throw new Response("The access token is missing queueproof:read.", { status: 403 });
-  }
+  const externalClientId = [verified.payload.client_id, verified.payload.azp]
+    .find((candidate): candidate is string => typeof candidate === "string" && candidate.length > 0)
+    ?.slice(0, 500);
+  if (!externalClientId) throw new Error("The access token has no OAuth client identifier.");
 
   const principal = await ensureExternalPrincipalWorkspace({
     issuer: config.issuer,
     subject,
   });
-  const externalClientId = [verified.payload.azp, verified.payload.client_id]
-    .find((candidate): candidate is string => typeof candidate === "string" && candidate.length > 0)
-    ?.slice(0, 500) ?? "oauth-client";
   const clientDigest = await sha256(`${config.issuer}\0${externalClientId}\0${principal.userId}`);
-  const persistedClientId = `mcp_auth0_${clientDigest.slice(0, 32)}`;
+  const persistedClientId = `mcp_supabase_${clientDigest.slice(0, 32)}`;
 
   await ensureCoreSchema();
   const db = requireDb();
@@ -173,7 +181,7 @@ export async function authenticateAuth0McpToken(
     `INSERT OR IGNORE INTO mcp_clients
      (id, workspace_id, client_type, scopes_json, status, auth_method, auth_issuer,
       external_client_id, user_id, last_handshake_at)
-     VALUES (?, ?, 'chatgpt-oauth', ?, 'connected', 'auth0', ?, ?, ?, CURRENT_TIMESTAMP)`,
+     VALUES (?, ?, 'chatgpt-oauth', ?, 'connected', 'supabase', ?, ?, ?, CURRENT_TIMESTAMP)`,
   ).bind(
     persistedClientId,
     principal.workspaceId,
@@ -195,6 +203,6 @@ export async function authenticateAuth0McpToken(
     clientId: externalClientId,
     persistedClientId,
     scopes,
-    authMethod: "auth0",
+    authMethod: "supabase",
   };
 }

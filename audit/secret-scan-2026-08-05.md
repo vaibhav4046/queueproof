@@ -1,5 +1,10 @@
 # Secret-scan evidence — 5 August 2026
 
+> [!WARNING]
+> **SUPERSEDED HISTORICAL RECEIPT.** This scan is pinned to the SHA below and predates the
+> current Vercel/Auth0 detection families. CI now runs `pnpm scan:secrets` on each candidate's
+> worktree and reachable history; a new release must use that same-commit receipt.
+
 ## Result
 
 **Pass: zero high-confidence credential candidates** in the release-candidate

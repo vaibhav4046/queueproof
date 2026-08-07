@@ -1,11 +1,11 @@
 ---
 name: engineering-handoff
-description: Build a bounded execution packet for an engineering agent or person.
-version: 1.0.0
+description: Present a bounded, evidence-backed QueueProof execution packet to an engineer or coding agent.
+version: 1.1.0
 ---
 # Engineering handoff
 
-Request an execution packet and preserve its constraints, acceptance criteria, evidence, permissions, and callback. Do not broaden scope.
+Use `queueproof_get_next_actions` if the user did not provide a packet ID, then retrieve the packet. Preserve its objective, constraints, acceptance criteria, dependencies, missing information, evidence, and permissions. Do not invent entity history or broaden scope. Reading a packet does not authorize repository or provider writes.
 
-Required tools: `queueproof_get_execution_packet`, `queueproof_get_entity`, `queueproof_get_timeline`.
-Permissions: read packet and sources. Execution uses only the packet's explicit permissions and approval boundary.
+Core tools: `queueproof_get_next_actions`, `queueproof_get_execution_packet`.
+Permissions: read packet and cited evidence. Execution requires the destination environment's separate authority and the packet's approval boundary.

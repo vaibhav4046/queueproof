@@ -12,3 +12,4 @@ export function getDb() {
 
   return drizzle(binding, { schema });
 }
+

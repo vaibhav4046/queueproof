@@ -448,6 +448,10 @@ const liveSection =
 
 const report = `# QueueProof benchmark report
 
+> This file proves the deterministic fixture run in this working tree. Any live artifact
+> appended below is pinned to its own deployment SHA and is historical unless that SHA matches
+> the running production release. The canonical current-release view is \`/benchmarks\`.
+
 Generated: ${generatedAt}
 Runner: \`node scripts/run-evals.mjs${wantsLive ? " --live" : ""}\`
 Fixtures: \`evals/fixtures/cases.json\` (${cases.length} ground truth cases, fictional company "Helios Robotics")
@@ -584,10 +588,11 @@ try {
       .join("\n");
     liveRunSection = [
       "",
-      "## Live connector run (strict grader; measured, not fixture)",
+      "## Historical live connector artifact (strict grader; release-pinned)",
       "",
       "Target " + live.target + ". Connectors: " + (live.connectors || []).join(", ") +
-        ". Generated " + live.generatedAt + ". Grader: `" + GROUNDED_GRADER_VERSION + "`.",
+        ". Generated " + live.generatedAt + ". Release: `" +
+        (live.release?.commitSha || "unknown") + "`. Grader: `" + GROUNDED_GRADER_VERSION + "`.",
       "",
       "| Case | Mode | Latency | Sources | Providers in evidence |",
       "| --- | --- | --- | --- | --- |",
@@ -605,7 +610,8 @@ try {
         "%. Citation completeness: " + ((live.quality?.citationCompleteness ?? 0) * 100).toFixed(1) +
         "%. Unsupported-claim rate: " + ((live.quality?.unsupportedClaimRate ?? 0) * 100).toFixed(1) + "%.",
       "",
-      "These are real end-to-end measurements against connected providers.",
+      "These are real end-to-end measurements against the release SHA printed above.",
+      "They are not a current-candidate score unless that SHA matches production.",
       "The sample is small and is not presented as a stable distribution.",
       "",
     ].join("\n");

@@ -77,14 +77,15 @@ the web control plane, and execution counts only after the provider response ID 
 
 Bearer tokens are hashed, workspace-bound, scoped, expiring, revocable, and audience-restricted.
 Anonymous, invalid, expired, revoked, and wrong-audience requests fail closed. Retrieved text is
-untrusted evidence. Auth0 OAuth is claimed only when the external issuer/API/client consent flow
+untrusted evidence. Supabase OAuth is claimed only when the external issuer/client consent flow
 and a current-release read-only ChatGPT tool call are recorded and tested end to end.
 
 ## Does it work in Claude and Codex?
 
-The repository contains tested config shapes and a CLI verifier for Claude Code and Codex. Say
-**configured**, **connected**, or **verified workflow** only according to the current receipt.
-Claude web is not claimed from bearer configuration alone.
+The repository contains tested config shapes and a CLI verifier for Claude Code and Codex. Claude
+also supports remote custom connectors, but QueueProof claims only the client surfaces proven by a
+current authenticated read receipt. Say **configured**, **connected**, or **verified workflow** only
+according to that receipt; bearer configuration alone is not a Claude web connection.
 
 ## How is the release reproducible?
 

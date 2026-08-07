@@ -192,3 +192,4 @@ export async function searchIssues(
       Boolean(node.id && node.identifier && node.title))
     .map((node) => ({ id: node.id, identifier: node.identifier, title: node.title }));
 }
+

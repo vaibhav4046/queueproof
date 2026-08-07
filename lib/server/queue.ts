@@ -10,7 +10,12 @@ import { hydraClientForWorkspace } from "./hydradb-account";
 import { requireDb } from "./runtime";
 import { audit, createId, ensureCoreSchema } from "./store";
 import { ACTIVE_FORMULA, DEFAULT_POLICY_VERSION, rank } from "../../packages/ranking/src";
-import { isPotentialPromptInjection, sha256 } from "../../packages/security/src";
+import {
+  isPotentialPromptInjection,
+  redactSecrets,
+  redactSecretsDeep,
+  sha256,
+} from "../../packages/security/src";
 import { executionPacketSchema, type RankingInput } from "../../packages/contracts/src";
 import { receiptHash, whyAboveNext } from "./decision-receipt";
 import { retrievalModeCost } from "../../packages/retrieval/src";
@@ -442,33 +447,44 @@ function evidenceFromHydra(
   source: RecordValue,
   chunk: RecordValue,
 ): Evidence {
-  const metadata = {
+  const rawMetadata = {
     ...sourceMetadata(source),
     ...asRecord(chunk.metadata),
     ...asRecord(chunk.additional_metadata),
   };
-  const sourceIdentity = source.id ?? source.source_id ?? source.context_id ?? metadata.external_id;
-  const sourceExternalId = sourceIdentity === undefined || sourceIdentity === null || String(sourceIdentity).trim() === ""
+  const metadata = asRecord(redactSecretsDeep(rawMetadata));
+  const sourceIdentity = source.id ?? source.source_id ?? source.context_id ?? rawMetadata.external_id;
+  const rawSourceExternalId = sourceIdentity === undefined || sourceIdentity === null || String(sourceIdentity).trim() === ""
     ? `result-${stableTextFingerprint(JSON.stringify(source))}`
     : String(sourceIdentity);
-  const chunkExternalId = hydraChunkIdentity(chunk);
+  const redactedSourceExternalId = redactSecrets(rawSourceExternalId);
+  const sourceExternalId = redactedSourceExternalId === rawSourceExternalId
+    ? rawSourceExternalId
+    : `redacted-${stableTextFingerprint(rawSourceExternalId)}`;
+  const rawChunkExternalId = hydraChunkIdentity(chunk);
+  const chunkExternalId = rawChunkExternalId && redactSecrets(rawChunkExternalId) !== rawChunkExternalId
+    ? `redacted-${stableTextFingerprint(rawChunkExternalId)}`
+    : rawChunkExternalId;
   const externalId = chunkExternalId ? `${sourceExternalId}#${chunkExternalId}` : sourceExternalId;
-  const excerpt = clean(
+  const rawExcerpt = clean(
     firstText(chunk, ["chunk_content", "content", "text", "excerpt"]) ??
       firstText(source, ["content", "text", "excerpt", "description"]) ??
       "",
     2_400,
   );
-  const title = clean(
+  const excerpt = redactSecrets(rawExcerpt);
+  const rawTitle = clean(
     firstText(source, ["title", "name", "subject", "filename"]) ??
       firstText(chunk, ["source_title", "title", "name", "filename"]) ??
-      excerpt.split(/[.!?]\s/)[0] ??
+      rawExcerpt.split(/[.!?]\s/)[0] ??
       `${connector.provider} record`,
     180,
   );
+  const title = redactSecrets(rawTitle);
   const provider = connector.provider === "document"
     ? "document"
     : providerFromSource(source) ?? connector.provider.toLowerCase();
+  const rawUrl = firstText(source, ["url", "source_url", "web_url", "permalink"]);
   return {
     id: createId("source"),
     externalId,
@@ -476,7 +492,7 @@ function evidenceFromHydra(
     provider,
     title: title || `${provider} record`,
     excerpt,
-    url: firstText(source, ["url", "source_url", "web_url", "permalink"]),
+    url: rawUrl ? redactSecrets(rawUrl) : null,
     // Normalised to Z-suffixed ISO-8601. HydraDB returns timestamps such as
     // "2026-08-01T22:20:43.520449+00:00" — a numeric UTC offset with microsecond
     // precision. The execution packet schema validates these with zod .datetime(),
@@ -488,7 +504,7 @@ function evidenceFromHydra(
     ),
     authority: "primary",
     metadata: { ...metadata, source_external_id: sourceExternalId },
-    unsafeInstruction: isPotentialPromptInjection(excerpt),
+    unsafeInstruction: isPotentialPromptInjection(rawExcerpt),
   };
 }
 

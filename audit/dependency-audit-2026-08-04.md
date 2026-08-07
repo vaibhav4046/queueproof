@@ -1,5 +1,10 @@
 # Dependency advisory audit — 4 August 2026
 
+> [!WARNING]
+> **SUPERSEDED HISTORICAL RECEIPT.** This file describes the 4 August lockfile. It is not
+> evidence for the current candidate. CI now runs `pnpm audit:dependencies` against every
+> reviewed commit; quote only that same-commit result in a release report.
+
 Command: `pnpm audit --json`
 
 Final locked result:

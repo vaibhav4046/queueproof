@@ -11,6 +11,7 @@ import {
   pdfPageCount,
   type IngestionStage,
 } from "../../../lib/server/documents";
+import { publicDtoForActor } from "../../../lib/server/public-dto";
 
 async function recordStage(
   workspaceId: string,
@@ -37,6 +38,7 @@ export async function GET() {
       .prepare(
         `SELECT id, filename, mime, byte_size AS byteSize, content_hash AS contentHash,
                 hydradb_database AS database, hydradb_source_id AS hydradbSourceId,
+                CASE WHEN hydradb_source_id IS NOT NULL AND trim(hydradb_source_id) != '' THEN 1 ELSE 0 END AS sourceReceiptPresent,
                 page_count AS pageCount, indexed_at AS indexedAt,
                 processing_duration_ms AS processingDurationMs,
                 stage, error, created_at AS createdAt
@@ -44,7 +46,13 @@ export async function GET() {
       )
       .bind(String(workspace.id))
       .all();
-    return noStoreJson({ ok: true, documents: rows.results });
+    const documents = rows.results.map((document) => ({
+      ...document,
+      sourceReceiptPresent: Boolean((document as Record<string, unknown>).sourceReceiptPresent),
+    }));
+    return noStoreJson(publicDtoForActor(actor, { ok: true, documents }, {
+      workspaceId: String(workspace.id),
+    }));
   } catch (error) {
     return apiError(error);
   }

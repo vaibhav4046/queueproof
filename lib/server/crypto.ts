@@ -57,3 +57,4 @@ export async function secretFingerprint(secret: string): Promise<string> {
   return (await sha256(secret)).slice(0, 16);
 }
 
+

@@ -7,9 +7,10 @@
 | Canonical endpoint | `https://queueproof.vercel.app/mcp` |
 | Compatibility alias | `https://queueproof.vercel.app/api/mcp` |
 | Transport | Streamable HTTP / JSON-RPC, with JSON or SSE responses |
-| Authentication | Auth0 OAuth access token or legacy QueueProof bearer token |
+| Authentication | Supabase OAuth access token or legacy QueueProof bearer token |
 | OAuth resource/audience | `https://queueproof.vercel.app/mcp` |
-| Scopes | `queueproof:read`, `queueproof:propose`, `queueproof:sync` |
+| OAuth scopes | `openid`, `profile`, `email` |
+| QueueProof permissions | Read by default; proposal/sync only through trusted server claims or scoped opaque tokens |
 | Resource metadata | `/.well-known/oauth-protected-resource/mcp` |
 
 The production endpoint rejects anonymous and invalid bearer requests. That boundary has test
@@ -17,16 +18,19 @@ coverage, but an authenticated production handshake is not claimed until a real 
 is supplied and a current smoke-test receipt is recorded.
 
 OAuth is conditional, not assumed. Protected-resource metadata returns a successful discovery
-document only when the complete Auth0 configuration and canonical resource are present. A Vercel
-production Marketplace install defaults to `hybrid`; operators can explicitly select
-`opaque|hybrid|auth0` with `QUEUEPROOF_MCP_AUTH_MODE`. QueueProof is the OAuth resource server; Auth0 owns
+document only when the complete Supabase configuration and canonical resource are present. This is
+separate from Supabase-only production web sign-in. MCP resource authentication on a Vercel
+production install defaults to `hybrid`; operators can explicitly select `opaque|hybrid|supabase`
+with `QUEUEPROOF_MCP_AUTH_MODE`. QueueProof is the OAuth resource server; Supabase owns
 authorization, consent, PKCE, token issuance, and revocation.
 
-Create an Auth0 API whose identifier is exactly `https://queueproof.vercel.app/mcp` and add
-`queueproof:read`, `queueproof:propose`, and `queueproof:sync`. ChatGPT must use its own OAuth
-client (CIMD is preferred; DCR or a separately registered client are alternatives), never the
-first-party QueueProof web application. Start with read-only consent. The web app and ChatGPT may
-share the Auth0 tenant, but they are separate clients of separate surfaces.
+Enable Supabase OAuth 2.1, set the custom authorization path to
+`https://queueproof.vercel.app/oauth/authorize`, enable dynamic client registration or register a
+dedicated ChatGPT client, and enable `public.queueproof_access_token_hook`. The hook gives OAuth
+tokens the exact audience `https://queueproof.vercel.app/mcp`; QueueProof rejects ordinary web
+session tokens because they lack that audience and OAuth `client_id`. Supabase supports only
+standard identity scopes today, so QueueProof maps a valid token to read-only internally. Broader
+permissions require the trusted custom claim and are not part of the initial ChatGPT grant.
 
 ## Create a connection key
 
@@ -56,11 +60,13 @@ Read-only checks can continue with:
 
 ```bash
 QUEUEPROOF_URL=https://queueproof.vercel.app node cli/queueproof.mjs connectors list
-QUEUEPROOF_URL=https://queueproof.vercel.app node cli/queueproof.mjs ask "Who escalated the AuthShield outage?" --database <database>
+QUEUEPROOF_URL=https://queueproof.vercel.app node cli/queueproof.mjs ask \
+  "Who escalated the AuthShield outage?" --connectors <connector-id-1,connector-id-2>
 ```
 
-Use the exact database shown to the authenticated owner. Do not guess or copy a private database
-name into public documentation.
+Use connector IDs returned by `connectors list`, or use `--sources` with indexed document source
+IDs returned by `queueproof_list_documents`. QueueProof resolves databases, collections, and exact
+lineage server-side. Never guess or copy a private database name into client input.
 
 ## Exposed tools
 
@@ -70,10 +76,10 @@ token.
 | Tool | Scope/behavior |
 | --- | --- |
 | `queueproof_health` | Read-only durable-storage probe |
-| `queueproof_list_connectors` | Read connector rows for the token workspace |
-| `queueproof_list_documents` | Read document ingestion records for the token workspace |
+| `queueproof_list_connectors` | Read sanitized connector IDs, search coordinates, and proof states |
+| `queueproof_list_documents` | Read sanitized document ingestion receipts and search coordinates |
 | `queueproof_verify_connector` | Read a stored verification receipt |
-| `queueproof_search`, `queueproof_ask` | Run observable HydraDB retrieval |
+| `queueproof_search` | Search verified connectorIds or indexed document sourceIds and return lineage-filtered, sanitized evidence excerpts |
 | `queueproof_get_next_actions` | Read the latest positive-score ranked actions |
 | `queueproof_get_execution_packet` | Read a workspace-owned packet |
 | `queueproof_explain_priority`, `queueproof_compare_priorities` | Read persisted ranking details |
@@ -83,10 +89,11 @@ token.
 | `queueproof_report_execution_result` | Requires `queueproof:propose`; records an agent result, not a provider write |
 | `queueproof_propose_action` | Requires `queueproof:propose`; creates a grounded Linear issue proposal only |
 
-There is no MCP tool that approves or executes a provider action. The server currently registers
-resources for queue snapshots, changes (also raw snapshots), and connectors under the authenticated
-workspace URI. It does not register MCP prompts. Do not advertise removed entity, commitment,
-conflict, skill, or evaluation tools.
+There is no MCP tool that approves or executes a provider action. The server registers two fixed,
+sanitized resources—`queueproof://current/connectors` and
+`queueproof://current/queue-snapshots`—without exposing an internal workspace ID. It does not
+register MCP prompts. Starter prompts belong in the OpenAI listing. Do not advertise removed
+entity, timeline, commitment, conflict, counterfactual, skill, or evaluation tools.
 
 ## Minimal JSON-RPC smoke test
 
@@ -97,7 +104,7 @@ environment variable and suppress command tracing. A complete release receipt re
 - production SHA and deployment ID;
 - client name and negotiated protocol version;
 - names returned by `tools/list`;
-- one successful read-only tool and its request/audit identifier when available; and
+- one successful read-only tool and a sanitized result; and
 - anonymous and invalid-token rejection.
 
 Never paste the bearer value into the receipt.

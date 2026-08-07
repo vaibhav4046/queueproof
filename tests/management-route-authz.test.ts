@@ -10,6 +10,7 @@ const managementRoutes = [
   "app/api/connectors/[id]/sync/route.ts",
   "app/api/connectors/[id]/verify/route.ts",
   "app/api/hydradb/configure/route.ts",
+  "app/api/hydradb/connectors/route.ts",
   "app/api/providers/route.ts",
   "app/api/documents/route.ts",
 ];
@@ -25,6 +26,7 @@ const ownerControlRoutes = [
   "app/api/documents/route.ts",
   "app/api/documents/[id]/status/route.ts",
   "app/api/hydradb/configure/route.ts",
+  "app/api/hydradb/connectors/route.ts",
   "app/api/mcp-tokens/route.ts",
   "app/api/providers/route.ts",
   "app/api/query/route.ts",

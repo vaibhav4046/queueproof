@@ -5,6 +5,11 @@ import { requireDb } from "../../../lib/server/runtime";
 import { requireWorkspaceForUser } from "../../../lib/server/store";
 import { deriveGraphFromConnectors, deriveGraphFromPacket, type EvidenceGraph } from "../../../packages/graph/src";
 import type { ExecutionPacket } from "../../../packages/contracts/src";
+import {
+  isPublicAccessActor,
+  publicDtoForActor,
+  publicStorageReference,
+} from "../../../lib/server/public-dto";
 
 // listQueueForWorkspace's row spread (`{...row, packet: JSON.parse(...), ...}`) is a
 // plain `.map()` return; TypeScript does not carry the SQL-aliased column names
@@ -28,9 +33,16 @@ export async function GET(request: Request) {
     const queue = await listQueueForWorkspace(workspaceId);
     const items = queue.items as unknown as QueueItemShape[];
 
-    const requestedTaskId = new URL(request.url).searchParams.get("taskId");
-    const scopedItems = requestedTaskId
-      ? items.filter((item) => String(item.taskId) === requestedTaskId)
+    const requestedTaskReference = new URL(request.url).searchParams.get("taskId");
+    const requestedTaskId = requestedTaskReference && isPublicAccessActor(actor) &&
+      requestedTaskReference.startsWith("public-task-")
+      ? items.find((item) => typeof item.taskId === "string" &&
+        publicStorageReference(workspaceId, "task", item.taskId) === requestedTaskReference)?.taskId
+      : requestedTaskReference;
+    const scopedItems = requestedTaskReference
+      ? requestedTaskId
+        ? items.filter((item) => String(item.taskId) === requestedTaskId)
+        : []
       : items;
 
     const graphs = scopedItems.map((item) =>
@@ -48,7 +60,7 @@ export async function GET(request: Request) {
         .prepare(
           `SELECT id, provider, name, state, database, collection,
                   last_successful_sync_at AS lastSuccessfulSyncAt, last_error AS lastError
-           FROM connectors WHERE workspace_id = ?`,
+           FROM connectors WHERE workspace_id = ? AND state != 'deleted'`,
         )
         .bind(workspaceId)
         .all(),
@@ -80,7 +92,7 @@ export async function GET(request: Request) {
       edges: [...packetEdges, ...relevantConnectorEdges],
     };
 
-    return noStoreJson({ ok: true, graph });
+    return noStoreJson(publicDtoForActor(actor, { ok: true, graph }, { workspaceId }));
   } catch (error) {
     return apiError(error);
   }

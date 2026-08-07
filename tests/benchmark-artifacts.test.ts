@@ -36,8 +36,13 @@ describe("release-bound benchmark artifacts", () => {
   beforeAll(async () => {
     await ensureCoreSchema();
     await requireDb().batch([
+      requireDb().prepare("INSERT INTO users (id, email, display_name) VALUES (?, ?, ?)")
+        .bind("user:public-access", "public-benchmark@example.invalid", "Public benchmark"),
       requireDb().prepare("INSERT INTO workspaces (id, slug, name) VALUES (?, ?, ?)")
         .bind(workspaceId, `benchmark-${workspaceId.slice(-8)}`, "Benchmark workspace"),
+      requireDb().prepare(
+        "INSERT INTO workspace_members (id, workspace_id, user_id, role) VALUES (?, ?, ?, 'member')",
+      ).bind(createId("member"), workspaceId, "user:public-access"),
     ]);
   });
 

@@ -105,3 +105,4 @@ export function counterfactual(input: RankingInput, patch: Partial<RankingInput>
   const after = rank({ ...input, ...patch });
   return { before, after, delta: after.finalScore - before.finalScore };
 }
+

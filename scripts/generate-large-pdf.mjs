@@ -220,3 +220,4 @@ try {
   console.error(`Generation failed: ${error instanceof Error ? error.stack : String(error)}`);
   process.exitCode = 1;
 }
+

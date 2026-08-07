@@ -322,3 +322,4 @@ export function inspectPdf(bytes) {
     verifiedOffsets: checkedOffsets,
   };
 }
+

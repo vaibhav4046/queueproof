@@ -31,32 +31,55 @@ Web / JSON API / MCP client
 
 ## 1. Identity and workspace boundary
 
-The server resolves an actor in strict trust order: Auth0 session, versioned HMAC-signed
+The server resolves an actor in strict trust order: verified Supabase session, versioned HMAC-signed
 legacy owner session, configured trusted identity gateway, opted-in non-production local actor,
-then the opted-in public demo actor. Auth0 identity is the pinned issuer plus immutable `sub`;
+then the opted-in public demo actor. Supabase identity is the pinned issuer plus immutable `sub`;
 email is mutable profile data and never a tenant key. A subject is provisioned exactly one
 deterministic personal workspace, and ambiguous membership fails closed. Caller-provided
-workspace IDs do not select operational rows.
+workspace IDs do not select operational rows. Production Supabase deployments disable the legacy
+owner secret, and direct Vercel deployments reject the OpenAI Sites header-trust mode.
 
 Public demo mode is a shared evidence sandbox. Reads, grounded questions, and queue review
 remain available. Credentials, connector lifecycle mutations, proposals,
 database creation, uploads, MCP token administration, and external execution call a
 private-actor guard and return 403 for the public actor.
 
-Raw database enumeration/querying, workspace creation, and ingestion-status refresh are
-also owner-only because they cross the evidence/control boundary. Public ask, queue, and
-proposal operations use durable per-workspace throttles (12/minute, 3/5 minutes, and
-8/10 minutes respectively), and the shared proposal ledger caps pending rows at 50.
+Anonymous read responses cross a second, response-time DTO boundary. QueueProof keeps curated
+titles, excerpts, providers, timestamps, ranking reasons and readiness states, but removes raw
+workspace/database/collection/Hydra identifiers, hashes, arbitrary metadata and provider errors.
+Storage references needed for list-to-detail navigation are replaced with stable, workspace-scoped
+public references, and provider URLs are null because even an HTTPS permalink may be private or
+signed. This projection is applied after loading persisted JSON so legacy receipts cannot bypass
+the current boundary; signed-in private actors retain the full operational DTO.
 
-`QUEUEPROOF_PUBLIC_WORKSPACE_ID` selects the exact shared workspace. If it is absent, a
-singleton fallback succeeds only when exactly one workspace exists; multiple workspaces
-are ambiguous and fail closed.
+Raw database enumeration/querying, workspace creation, and ingestion-status refresh are
+also owner-only because they cross the evidence/control boundary. Public ask and queue
+operations use durable per-workspace throttles (12/minute and 3/5 minutes respectively).
+Proposal creation and history, approval, and execution remain owner-only; the shared demo
+never exposes that control plane.
+
+`QUEUEPROOF_PUBLIC_WORKSPACE_ID` selects the exact shared workspace, and that workspace must
+have an explicit membership for `user:public-access`. If either the selector or membership is
+absent, public resolution fails closed. QueueProof never treats a singleton workspace as public;
+it could be a signed-in user's private tenant on a fresh or misconfigured deployment. Deployment
+settings select the workspace but never create or elevate membership as a side effect of a read.
+An operator persists the fixed non-owner `member` assignment once with the offline
+`public:provision` command against an exact existing workspace. The command uses one transactional
+batch and is not imported by request handling.
 
 ## 2. Connector proof and lineage
 
 A configured credential is not proof of usable data. A connector progresses through
 discovery, resource scoping, sync, and canary verification. Only `data_verified`
 connectors enter retrieval and queue generation.
+
+An attached HydraDB account may expose connector references that already exist upstream.
+QueueProof lists those references only after an authenticated, account-scoped HydraDB call and
+re-fetches that list before importing selected IDs. Provider, database, collection, and account
+scope come from HydraDB rather than the browser. Import proves only that the attached account can
+access the connector: the local row starts at `connector_created` and still must pass resource
+scoping and the QueueProof canary before retrieval can use it. A new Slack, Gmail, or other
+provider connection still requires that provider's HydraDB OAuth or credential flow.
 
 Retrieved sources must belong to the expected HydraDB connector or one of its selected
 resource IDs. Provider-name equality alone is insufficient. Uploaded-document evidence
@@ -118,13 +141,15 @@ Writes are split into proposal, approval, execution, and provider confirmation.
 
 MCP reads the same persisted packets used by the web and API surfaces. Legacy tokens are stored
 as hashes and carry scopes, expiry, revocation state, and an audience. In OAuth mode QueueProof is
-the resource server: it verifies Auth0 RS256 access tokens against a configuration-pinned JWKS,
-issuer, canonical `/mcp` audience/resource, lifetime, subject, and required scope, then resolves
+the resource server: it verifies Supabase ES256/RS256 OAuth tokens against a configuration-pinned
+JWKS, issuer, canonical `/mcp` audience/resource, lifetime, subject, and OAuth `client_id`, then resolves
 that subject to its one personal workspace. A JWT-shaped credential never falls through to the
 legacy token path.
 
-Search database, collection, and document-source inputs are checked against connectors/documents
-owned by the authenticated workspace before HydraDB receives the request.
+MCP search accepts only QueueProof connectorIds or indexed document sourceIds. It resolves the
+HydraDB database and collection server-side, sends one connector-lineage-filtered query per
+connector (or one exact-ID query per document database), and drops every returned source that
+cannot be attributed back to the requested connector/resource or document ID.
 
 The propose scope is not a generic write escape hatch: it can only create a Linear
 `create_issue` proposal, every evidence ID must already belong to the token workspace,

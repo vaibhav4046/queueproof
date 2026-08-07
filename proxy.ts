@@ -1,15 +1,31 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { getAuth0Client } from "./lib/server/auth0";
+import { createServerClient } from "@supabase/ssr";
+import { supabaseConfig, supabaseWebEnabled } from "./lib/server/supabase";
 import { SESSION_COOKIE } from "./lib/server/identity";
 
 export async function proxy(request: NextRequest) {
-  const client = getAuth0Client();
-  if (!client) return NextResponse.next();
+  const config = supabaseConfig();
+  if (!config || !supabaseWebEnabled()) return NextResponse.next();
+  let response = NextResponse.next({ request });
+  const client = createServerClient(config.url, config.publishableKey, {
+    auth: { flowType: "pkce" },
+    cookies: {
+      getAll: () => request.cookies.getAll(),
+      setAll: (cookiesToSet) => {
+        for (const cookie of cookiesToSet) request.cookies.set(cookie.name, cookie.value);
+        response = NextResponse.next({ request });
+        for (const cookie of cookiesToSet) {
+          response.cookies.set(cookie.name, cookie.value, cookie.options);
+        }
+      },
+    },
+  });
+  // getClaims verifies the access token and refreshes expiring cookie state when needed.
+  await client.auth.getClaims();
 
-  const response = await client.middleware(request);
-  // Hybrid logout must clear both identity mechanisms. Otherwise an old owner cookie
-  // silently re-elevates the browser immediately after Auth0 reports a successful logout.
+  // Hybrid logout clears both identity mechanisms, so a stale owner cookie cannot
+  // silently elevate the browser after the Supabase session is gone.
   if (request.nextUrl.pathname === "/auth/logout") {
     response.cookies.set(SESSION_COOKIE, "", {
       expires: new Date(0),

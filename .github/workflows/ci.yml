@@ -37,8 +37,11 @@ jobs:
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Reject high or critical dependency advisories
-        run: pnpm audit --audit-level high
+      - name: Reject moderate, high, or critical dependency advisories
+        run: pnpm audit --audit-level moderate
+
+      - name: Scan candidate tree and reachable history for credentials
+        run: pnpm scan:secrets
 
       - name: Type-check
         run: pnpm typecheck

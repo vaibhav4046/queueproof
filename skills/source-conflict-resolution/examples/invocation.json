@@ -1,1 +1,1 @@
-{"request":"Resolve the launch-date conflict","expected_tools":["queueproof_list_conflicts","queueproof_get_timeline"]}
+{"request":"Resolve the launch-date conflict","expected_tools":["queueproof_list_connectors","queueproof_search"]}

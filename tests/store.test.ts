@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { requireDb } from "../lib/server/runtime";
 import {
   audit,
@@ -67,6 +67,10 @@ describe("core schema", () => {
 describe("workspace ownership", () => {
   beforeAll(async () => {
     await ensureCoreSchema();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   async function createWorkspace(userId: string, name: string) {
@@ -145,6 +149,37 @@ describe("workspace ownership", () => {
 
   it("fails closed instead of assigning an ambiguous oldest workspace to public access", async () => {
     expect(await workspaceForUser("user:public-access")).toBeNull();
+  });
+
+  it("requires the configured public workspace to have an explicit public membership", async () => {
+    const privateWorkspaceId = await createWorkspace("user:private-only", "PrivateOnly");
+    vi.stubEnv("QUEUEPROOF_PUBLIC_WORKSPACE_ID", privateWorkspaceId);
+    expect(await workspaceForUser("user:public-access")).toBeNull();
+
+    const db = requireDb();
+    await db.batch([
+      db
+        .prepare("INSERT OR IGNORE INTO users (id, email, display_name) VALUES (?, ?, ?)")
+        .bind("user:public-access", "public-workspace@example.invalid", "Public workspace"),
+      db
+        .prepare("INSERT INTO workspace_members (id, workspace_id, user_id, role) VALUES (?, ?, ?, 'member')")
+        .bind(createId("member"), privateWorkspaceId, "user:public-access"),
+    ]);
+
+    await expect(workspaceForUser("user:public-access")).resolves.toMatchObject({
+      id: privateWorkspaceId,
+    });
+  });
+
+  it("does not grant public membership from deployment settings alone", async () => {
+    const workspaceId = await createWorkspace("user:public-migration-owner", "PublicMigration");
+    vi.stubEnv("QUEUEPROOF_PUBLIC_ACCESS", "true");
+    vi.stubEnv("QUEUEPROOF_PUBLIC_WORKSPACE_ID", workspaceId);
+
+    await expect(workspaceForUser("user:public-access")).resolves.toBeNull();
+    await expect(requireDb().prepare(
+      "SELECT role FROM workspace_members WHERE workspace_id = ? AND user_id = ?",
+    ).bind(workspaceId, "user:public-access").first<{ role: string }>()).resolves.toBeNull();
   });
 
   it("rolls back the whole workspace batch if membership insertion fails", async () => {

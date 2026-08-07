@@ -10,6 +10,8 @@ describe("production design system", () => {
   const css = `${readFileSync(join(process.cwd(), "app/command-centre.css"), "utf8")}\n${ember}`;
   const logo = readFileSync(join(process.cwd(), "app/components/QueueProofLogo.tsx"), "utf8");
   const dates = readFileSync(join(process.cwd(), "app/date-label.ts"), "utf8");
+  const signInCss = readFileSync(join(process.cwd(), "app/sign-in/sign-in.module.css"), "utf8");
+  const legalCss = readFileSync(join(process.cwd(), "app/legal/legal.module.css"), "utf8");
   const owner = readFileSync(join(process.cwd(), "app/owner/OwnerSignIn.tsx"), "utf8");
   const labRoute = readFileSync(join(process.cwd(), "app/api/lab/route.ts"), "utf8");
 
@@ -80,10 +82,23 @@ describe("production design system", () => {
   it("protects mobile layout, focus, touch targets, and reduced motion", () => {
     expect(css).toContain("min-height: 44px");
     expect(css).toContain("@media (max-width: 820px)");
-    expect(css).toContain("@media (max-width: 980px)");
+    expect(css).toContain("@media (max-width: 980px), (max-height: 620px)");
     expect(css).toContain("@media (prefers-reduced-motion: reduce)");
     expect(css).toContain("outline: 2px solid var(--focus)");
     expect(css).toContain("outline: 2px solid var(--ember-bright)");
+    expect(signInCss).toMatch(/\.helpLinks a \{[^}]*min-height:\s*44px/);
+    expect(legalCss).toMatch(/\.back \{\s*width:\s*44px;\s*justify-content:\s*center;/);
+    expect(app).toContain('aria-label="Close source setup"');
+    expect(app).toContain('aria-label="Close approval details"');
+  });
+
+  it("keeps account identity and sign-out reachable from the mobile header", () => {
+    expect(app).toContain('<AccountControl actor={view.actor} workspaceId={view.workspace.id} mobile verifiedCount={verified.length} />');
+    expect(app).toContain('mobile-account-menu');
+    expect(app).toContain('window.localStorage.removeItem(recentInvestigationsKey(workspaceId))');
+    expect(app).toContain('router.push("/auth/logout")');
+    expect(ember).toMatch(/\.mobile-account-menu > summary \{[^}]*min-height:\s*44px/);
+    expect(ember).toMatch(/\.mobile-account-menu \.account-popover \{[^}]*inset:\s*calc\(100% \+ 7px\)/);
   });
 
   it("keeps server-rendered date text independent of the browser timezone", () => {
@@ -116,6 +131,9 @@ describe("production design system", () => {
     expect(app).toContain('{ id: "agent", label: "ChatGPT"');
     expect(app).toContain('className="command-group"');
     expect(app).toContain("<h2>Help</h2>");
+    expect(app).toContain('<Link href="/support" onClick={onClose}>');
+    expect(app).toContain('<Link href="/privacy" onClick={onClose}>');
+    expect(app).toContain('<Link href="/terms" onClick={onClose}>');
   });
 
   it("never gates a visitor behind an owner sign-in prompt", () => {

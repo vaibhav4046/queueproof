@@ -20,6 +20,7 @@ describe("OpenAI plugin domain challenge", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("text/plain");
     expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("x-content-type-options")).toBe("nosniff");
     expect(await response.text()).toBe("openai-domain-proof_2026.08.06");
   });
 

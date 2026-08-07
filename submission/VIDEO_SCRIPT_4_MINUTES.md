@@ -1,83 +1,92 @@
-# QueueProof four-minute demo script
+# QueueProof 3–4 minute Supademo voice script
 
-Use this as a technical backup demo. Values in brackets are read live from the exact submitted
-release; never memorize or carry them from an older SHA.
+Target: **3:35–3:50** at 132–138 words per minute. This is the primary hackathon narration. Record
+it only after replacing bracketed values with same-release facts and selecting the conditional
+client lines supported by current receipts.
 
-## 0:00–0:25 — hook and problem
+## Final narration
 
-**Screen:** Product home and judge path.
+### 0:00–0:22 — the decision gap
 
-> QueueProof is a daily evidence workspace built on HydraDB. Work state is scattered across code,
-> tickets, messages, email, and documents. Search gives fragments; QueueProof returns a concise
-> answer whose claims open to retained receipts, then compiles the next safe action.
+> Teams do not lack information; they lack proof they can act on. One incident spans Slack, Linear,
+> GitHub, email, and documents, and those sources disagree. QueueProof is a HydraDB-powered evidence
+> and priority layer that answers the work question, shows its receipts, and separates a safe next
+> action from an external write.
 
-## 0:25–1:15 — live incident investigation
+### 0:22–0:45 — personal workspace and sources
 
-**Screen:** Submit the AuthShield flagship question in Auto/Best mode.
+> A user signs in once to a private workspace. This synthetic Helios workspace has verified Slack,
+> Linear, GitHub, and Gmail connectors, plus an indexed handbook. QueueProof does not count a saved
+> credential as a source. A connector must return attributable canary evidence before retrieval.
+> That makes the connector a reproducible proof, not a logo claim.
 
-> This question needs an actor, an engineering commitment, and a merge-state answer across sources.
-> QueueProof selects a retrieval plan, calls HydraDB, joins evidence by source identity, and checks
-> that each requested facet is supported. If the ticket and code state disagree, it shows both.
+### 0:45–1:24 — difficult cross-source retrieval
 
-**Screen:** Pause on answer status, provider coverage, mode, calls, latency, missing proof, and
-contradiction.
+> Here is the flagship multi-hop question: who escalated the AuthShield outage, what did engineering
+> commit to, and is the fix merged? QueueProof plans retrieval and sends only the workspace-owned
+> scope to HydraDB. Auto mode reserves deeper retrieval for work that is genuinely multi-hop. The
+> result connects Northwind's escalation, Priya Raman's issue, the deadline,
+> and the GitHub merge receipt. It keeps Linear's still-open state visible instead of erasing the
+> contradiction.
+>
+> This exact receipt used **[LIVE MODE]**, **[LIVE CALL COUNT]** HydraDB calls, and **[LIVE LATENCY]**
+> milliseconds. Those are observed values from this release, not estimates.
 
-> This result used [MODE], [CALLS] HydraDB calls, and [LATENCY] milliseconds. Those values belong to
-> the receipt; they are not a benchmark estimate.
+### 1:24–1:55 — the aha moment: claim to graph to source
 
-## 1:15–1:50 — claim-level proof
+> Every supported claim opens to its source ID, provider, timestamp, excerpt, and original link. In
+> History, the evidence graph becomes a decision map: sources connect to supported claims,
+> conflicting states stay split, and the task connects to its execution packet. Source text is
+> untrusted data; it cannot grant permission.
 
-**Screen:** Open two citation receipts and one original-source link.
+### 1:55–2:25 — priority and action boundary
 
-> A provider label is not enough. The claim must resolve to a stored receipt with matching provider
-> and excerpt. Connector evidence must also match its connector or selected resource. A failed
-> citation or missing required provider keeps the strict case in REVIEW.
+> QueueProof ranks grounded work with a versioned deterministic policy. The top item exposes score
+> components, penalties, confidence, dependencies, missing information, acceptance criteria, and
+> evidence. MCP can prepare an evidence-linked Linear proposal only when explicitly asked.
+> Proposed is not approved, and approved is not executed. No MCP tool can approve or execute a
+> provider write.
 
-## 1:50–2:20 — source and document provenance
+### 2:25–2:51 — reproducible proof
 
-**Screen:** Open **Sources**; show current ready and degraded connectors, then the 346-page document
-receipt.
+> Proof tests binds results to this release, **[SHORT SHA]**. The router result is **[ROUTER
+> RESULT]**, the large-document result is **[PDF RESULT]**, and the mode comparison is **[MODE
+> COMPARISON OR “not yet comparable”]**. Calls, latency, and weighted retrieval units remain visible
+> beside failures. Weighted units are relative work, not dollars, and this is not an SLA.
 
-> A connector becomes eligible only after a real canary returns attributable records. Documents
-> retain checksum, page count, ingestion state, and HydraDB source identity. The frozen PDF suite
-> probes the beginning, middle, and end, exact IDs, tables, superseded policy, multilingual text,
-> and distractors.
+### 2:51–3:20 — ChatGPT plugin
 
-## 2:20–2:50 — priority and approval boundary
+> The same contract is available through remote MCP. In a clean ChatGPT conversation, QueueProof
+> discovers only tools allowed by this read-only grant. I can ask the AuthShield question, receive
+> source-level evidence, and open a priority packet without exposing an API key or reconnecting each
+> source. The user signs in; the publisher owns OAuth.
 
-**Screen:** Open **Today**, then a Task brief/Execution Packet and **Review actions**.
+### 3:20–3:38 — Codex and Claude, conditional
 
-> Evidence is clustered without merging unrelated exact IDs, then ranked with a versioned,
-> deterministic policy. The packet exposes score components, constraints, dependencies, missing
-> information, acceptance criteria, and permissions. A provider write starts as a proposal. It is
-> not executed until an owner approves it and QueueProof stores the provider response ID.
+> Codex and Claude use the same remote contract. Each must pass OAuth or a scoped token check,
+> discover tools, and complete a harmless read before we call it connected. Results can guide an
+> agent, but retrieved content never overrides repository policy, approval, or provider permissions.
 
-## 2:50–3:25 — release-bound benchmark
+### 3:38–3:50 — close
 
-**Screen:** Open **Proof tests** and health/lab identity if legible.
+> QueueProof does not ask you to trust a polished answer. It shows the support, disagreement,
+> unknowns, and exactly where human authority begins before any system changes.
 
-> The running release is [SHORT SHA], deployment [DEPLOYMENT ID]. The current Auto result is
-> [PASS/CASES], Fast is [PASS/CASES], and Thinking is [PASS/CASES]. The PDF core is [PASS/CASES].
-> Median and tail latency, calls, and weighted query units are shown here. Weighted units measure
-> relative retrieval work, not dollars, and this sample is a release diagnostic, not an SLA.
+## Conditional client replacement lines
 
-Only state a Fast-versus-Thinking delta when the page marks the pair comparable. Point to at least
-one failure/timeout if present.
+Do not show or narrate a named client without a same-release authenticated receipt.
 
-## 3:25–3:50 — MCP developer workflow
+- **ChatGPT not verified:** replace 2:51–3:20 with: “QueueProof exposes a standards-based remote MCP
+  endpoint with protected-resource discovery and read-only-first scopes. The private ChatGPT OAuth
+  test is pending, so this demo makes no connected or public-directory claim.” Show only the
+  sanitized developer contract, not a mocked ChatGPT screen.
+- **Codex or Claude not verified:** name only the client with a receipt. For any unverified client,
+  say: “The setup contract is documented; an authenticated read receipt is still pending.”
+- **No clients verified:** use the recovered time to show document provenance and a second citation.
 
-**Screen:** Open **Connect AI**; show the canonical URL, read-only default, scopes, and client config.
+## Voice file handoff
 
-> QueueProof exposes the same workspace-bound evidence contract over HTTP MCP. Tokens are hashed,
-> scoped, expiring, revocable, and audience-bound. MCP can retrieve, inspect packets, request a
-> connector sync with scope, or create a bounded proposal. It has no approve or execute tool.
-
-If an authenticated client receipt exists, show tool discovery and one read-only call. Otherwise
-say, “Client authentication is documented and pending a final token-backed smoke test.”
-
-## 3:50–4:00 — close
-
-**Screen:** Return to the cited answer.
-
-> QueueProof does not ask you to trust a polished answer. It shows what supports the decision, what
-> is still unknown, and what authority is required before anything changes.
+Send one dry file named `queueproof-demo-voice-v2.wav`: 48 kHz, 24-bit, mono; 0.5 seconds of silence
+at each end; 0.6–0.8 seconds between sections. No music, reverb, normalization pump, or noise gate in
+the master. The editor can split on silence. If music is added later, use an original or explicitly
+CC0 instrumental bed at least 18 dB below narration and fade it lower under metrics and client proof.

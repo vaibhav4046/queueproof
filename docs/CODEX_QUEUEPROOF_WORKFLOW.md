@@ -2,8 +2,21 @@
 
 ## Configuration
 
-The tested Codex MCP entry uses the canonical remote endpoint and reads its bearer token from the
-launch environment. Create a read-only, expiring key from the owner-only **Connect AI** page, then:
+For an end user, the intended published path is: search **QueueProof** in the shared Plugins
+Directory, add it, and sign in. That path is not public until OpenAI review and the publisher's
+explicit Publish action.
+
+For a private remote-MCP OAuth check in Codex CLI/Desktop, the current Codex flow is:
+
+```bash
+codex mcp add queueproof --url https://queueproof.vercel.app/mcp
+codex mcp login queueproof
+```
+
+Do not call that connection verified until browser consent, `tools/list`, and one read-only tool call
+have succeeded against the same production release. The repository's tested fallback uses a
+read-only, expiring QueueProof key from owner-only **Connect AI** and reads it from the launch
+environment:
 
 ```bash
 export QUEUEPROOF_MCP_TOKEN="<connection-key>"
@@ -36,8 +49,9 @@ least one harmless read-only tool and records the production SHA/deployment ID s
 ## Coding-agent workflow
 
 1. Call `queueproof_health` and confirm durable storage is live.
-2. Use `queueproof_ask` or `queueproof_search` for the task identifier and surrounding context.
-3. Keep returned provider records, source IDs, mode, request ID, call count, and latency attached
+2. List connectors or documents, then use `queueproof_search` with either verified connectorIds or
+   indexed document sourceIds it returned. Never supply or guess a database/collection.
+3. Keep returned provider coverage, source IDs, mode, call count, and latency attached
    to the reasoning.
 4. Read `queueproof_get_next_actions`, then open the selected packet with
    `queueproof_get_execution_packet`.
@@ -86,3 +100,5 @@ risk, and idempotency key first. Do not claim approval or execution.
 - **Proposed** is not approved or executed.
 
 Use only the strongest status supported by a current receipt.
+
+Official client reference: [Codex MCP](https://learn.chatgpt.com/docs/extend/mcp?surface=cli).

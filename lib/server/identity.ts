@@ -1,11 +1,11 @@
 import { headers, cookies } from "next/headers";
 import { runtimeEnv } from "./runtime";
 import {
-  auth0Config,
-  auth0WebEnabled,
-  getAuth0Client,
+  createQueueProofServerClient,
   legacyOwnerSignInEnabled,
-} from "./auth0";
+  supabaseConfig,
+  supabaseWebEnabled,
+} from "./supabase";
 import { ensureExternalPrincipalWorkspace } from "./auth-principal";
 
 export type RequestActor = {
@@ -13,7 +13,7 @@ export type RequestActor = {
   email: string;
   displayName: string;
   localDevelopment: boolean;
-  authType: "auth0" | "legacy" | "gateway" | "local" | "public";
+  authType: "supabase" | "legacy" | "gateway" | "local" | "public";
   emailVerified?: boolean;
 };
 
@@ -189,28 +189,31 @@ async function actorFromSessionCookie(): Promise<RequestActor | null> {
   return raw ? verifySessionValue(raw) : null;
 }
 
-async function actorFromAuth0Session(): Promise<RequestActor | null> {
-  if (!auth0WebEnabled()) return null;
-  const client = getAuth0Client();
-  const config = auth0Config();
+async function actorFromSupabaseSession(): Promise<RequestActor | null> {
+  if (!supabaseWebEnabled()) return null;
+  const client = await createQueueProofServerClient();
+  const config = supabaseConfig();
   if (!client || !config) return null;
-  const session = await client.getSession();
-  if (!session?.user?.sub) return null;
+  const { data, error } = await client.auth.getClaims();
+  if (error || !data?.claims) return null;
+  const claims = data.claims as Record<string, unknown>;
+  const subject = typeof claims.sub === "string" ? claims.sub : "";
+  if (!subject) return null;
+  const email = typeof claims.email === "string" ? claims.email : null;
 
   const principal = await ensureExternalPrincipalWorkspace({
     issuer: config.issuer,
-    subject: session.user.sub,
-    email: session.user.email,
-    emailVerified: session.user.email_verified === true,
-    displayName: session.user.name ?? session.user.nickname ?? session.user.email,
-    avatarUrl: session.user.picture,
+    subject,
+    email,
+    emailVerified: Boolean(email) && claims.is_anonymous !== true,
+    displayName: email,
   });
   return {
     id: principal.userId,
     email: principal.email,
     displayName: principal.displayName,
     localDevelopment: false,
-    authType: "auth0",
+    authType: "supabase",
     emailVerified: principal.emailVerified,
   };
 }
@@ -301,7 +304,7 @@ export async function getRequestActor(): Promise<RequestActor | null> {
   // before the anonymous public-workspace fallback. The former ordering made a valid,
   // signed owner cookie impossible to use whenever the public sandbox was enabled.
   return resolveFirstActor([
-    actorFromAuth0Session,
+    actorFromSupabaseSession,
     actorFromSessionCookie,
     actorFromTrustedGateway,
     actorFromLocalOptIn,
@@ -317,11 +320,11 @@ export async function requireRequestActor(): Promise<RequestActor> {
 
 /** True when a hosted deployment has a way for a human to sign in. */
 export function signInConfigured(): boolean {
-  return auth0SignInConfigured() || legacySignInConfigured();
+  return supabaseSignInConfigured() || legacySignInConfigured();
 }
 
-export function auth0SignInConfigured(): boolean {
-  return auth0WebEnabled();
+export function supabaseSignInConfigured(): boolean {
+  return supabaseWebEnabled();
 }
 
 export function legacySignInConfigured(): boolean {

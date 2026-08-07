@@ -22,7 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const protocol =
     requestHeaders.get("x-forwarded-proto") ??
     (host?.startsWith("localhost") || host?.startsWith("127.0.0.1") ? "http" : "https");
-  const metadataBase = new URL(host ? `${protocol}://${host}` : "https://queueproof.openai.site");
+  const metadataBase = new URL(host ? `${protocol}://${host}` : "https://queueproof.vercel.app");
   const title = "QueueProof — Ask your work. Get the proof.";
   const description =
     "Ask across Slack, Gmail, Linear, GitHub, and files. Get one clear answer, the sources behind it, what disagrees, and what to do next.";

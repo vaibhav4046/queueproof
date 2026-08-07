@@ -156,3 +156,4 @@ function clampComponent(value: number, max: number) {
 export function rescore(input: RankingInput) {
   return rank(input);
 }
+

@@ -1,7 +1,8 @@
 import { apiError, noStoreJson, readJson } from "../../../../lib/server/api";
 import { encryptSecret, secretFingerprint } from "../../../../lib/server/crypto";
+import { hydraDbBaseUrlForAttach } from "../../../../lib/server/hydradb-account";
 import { requirePrivateControlActor, requireRequestActor } from "../../../../lib/server/identity";
-import { requireDb } from "../../../../lib/server/runtime";
+import { requireDb, runtimeEnv } from "../../../../lib/server/runtime";
 import { audit, createId, requireOwnerWorkspaceForUser } from "../../../../lib/server/store";
 import { HydraDbClient } from "../../../../packages/hydradb/src/client";
 
@@ -15,7 +16,11 @@ export async function POST(request: Request) {
     if (apiKey.length < 12) {
       return noStoreJson({ ok: false, error: "Enter a newly generated HydraDB API key." }, { status: 400 });
     }
-    const baseUrl = payload.baseUrl?.trim() || "https://api.hydradb.com";
+    const configuredBaseUrl = runtimeEnv().QUEUEPROOF_HYDRADB_BASE_URL;
+    const baseUrl = hydraDbBaseUrlForAttach(
+      payload.baseUrl,
+      typeof configuredBaseUrl === "string" ? configuredBaseUrl : undefined,
+    );
     const client = new HydraDbClient({ apiKey, baseUrl });
     const verification = await client.listDatabases();
     if (!verification.ok) {
@@ -70,6 +75,12 @@ export async function POST(request: Request) {
       providerContractLoaded: true,
       authenticatedCapability: "databases.list",
       verifiedAt: new Date().toISOString(),
+      nextStep: {
+        action: "discover_existing_connectors",
+        href: "/api/hydradb/connectors",
+        note:
+          "Existing account connectors can be imported without re-entering provider credentials. New providers still require their own HydraDB OAuth or credential flow.",
+      },
     });
   } catch (error) {
     return apiError(error);
