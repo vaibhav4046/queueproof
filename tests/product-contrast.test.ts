@@ -11,6 +11,14 @@ describe("judge-facing product UI", () => {
     expect(rule).not.toMatch(/background:\s*#fff(?:8ef)?/i);
   });
 
+  it("keeps the ember scrollbar above the non-text contrast threshold", () => {
+    const css = readFileSync(new URL("../app/ember-assistant.css", import.meta.url), "utf8");
+
+    expect(css).toContain("scrollbar-color: #995020 #050403");
+    expect(css).toContain("background: #995020");
+    expect(css).not.toContain("background: #5a321b");
+  });
+
   it("labels the anonymous workspace as synthetic Helios data", () => {
     const source = readFileSync(new URL("../app/QueueProofApp.tsx", import.meta.url), "utf8");
 
