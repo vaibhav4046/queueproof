@@ -384,7 +384,7 @@ describe("QueueProof MCP", () => {
             app_provider: "github",
             url: "https://github.com/helios/demo/issues/1?token=private-link-token&view=compact",
           },
-          { id: "source-injection", title: "Untrusted source", connector_id: "hydra-selected", app_provider: "github" },
+          { id: "source-injection", title: "ENG-456 untrusted source", connector_id: "hydra-selected", app_provider: "github" },
           { id: "source-other", title: "Must not leak", connector_id: "hydra-other", app_provider: "slack" },
         ],
         chunks: [
@@ -660,7 +660,11 @@ describe("QueueProof MCP", () => {
                   : connector.provider === "slack"
                     ? "Priya told the customer the fix would ship by Friday."
                     : "The AuthShield fix was merged in commit abc123."
-                : `${connector.provider} supports the AuthShield finding.`,
+                : connector.provider === "github"
+                  ? "The AuthShield fix was merged in commit abc123."
+                  : connector.provider === "slack"
+                    ? "Priya Raman escalated the AuthShield outage for Northwind."
+                    : "Priya filed the AuthShield incident and engineering committed to Friday.",
           })),
         },
       };
