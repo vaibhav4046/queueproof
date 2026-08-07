@@ -156,6 +156,16 @@ assert.match(demoMcpBody, /queueproof_search/, "The public MCP demo is missing i
 assert.match(demoMcpBody, /\"type\":\"noauth\"/, "Public MCP tools must advertise noauth.");
 assert.doesNotMatch(demoMcpBody, /\"type\":\"oauth2\"/, "Public MCP tools must not claim OAuth.");
 for (const unavailableTool of [
+  "queueproof_health",
+  "queueproof_list_connectors",
+  "queueproof_list_documents",
+  "queueproof_verify_connector",
+  "queueproof_get_next_actions",
+  "queueproof_get_execution_packet",
+  "queueproof_explain_priority",
+  "queueproof_compare_priorities",
+  "queueproof_list_queue_snapshots",
+  "queueproof_get_action_status",
   "queueproof_sync_connector",
   "queueproof_propose_action",
   "queueproof_report_execution_result",

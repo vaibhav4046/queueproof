@@ -2193,7 +2193,7 @@ function AgentScreen({ workspace, setError, setNotice, readOnly, publicOrigin }:
         </a>
         <details className="preview-install">
           <summary>Test QueueProof before directory approval</summary>
-          <p><strong>Public demo.</strong> Add this as a custom MCP server with no authentication. It is fixed to synthetic Helios data, rate-limited, and exposes read tools only.</p>
+          <p><strong>Public demo.</strong> Add this as a custom MCP server with no authentication. It is fixed to synthetic Helios data, rate-limited, and exposes one focused investigation tool.</p>
           <div><code>{demoEndpoint}</code><button type="button" onClick={() => void copyMcpEndpoint(demoEndpoint, "public demo")}><Clipboard size={13} /> Copy URL</button></div>
           <p className="preview-private"><strong>Personal workspace.</strong> Use the OAuth endpoint after private account authorization is enabled.</p>
           <div><code>{endpoint}</code><button type="button" onClick={() => void copyMcpEndpoint()}><Clipboard size={13} /> Copy URL</button></div>

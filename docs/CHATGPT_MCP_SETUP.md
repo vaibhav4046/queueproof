@@ -20,10 +20,10 @@ MCP server with no credentials:
 - Server URL: `https://queueproof.vercel.app/mcp/demo`
 - Authentication: **No authentication**
 
-This endpoint is intentionally limited to the synthetic Helios workspace. It advertises only
-`noauth` read tools, enforces durable per-client and deployment-wide rate limits, and cannot sync a
-connector, prepare a proposal, approve a change, or execute a provider write. It is not an
-authentication bypass for a personal workspace.
+This endpoint is intentionally limited to the synthetic Helios workspace. It advertises one
+`noauth` `queueproof_search` tool, enforces durable per-client and deployment-wide rate limits, and
+cannot sync a connector, prepare a proposal, approve a change, or execute a provider write. It is
+not an authentication bypass for a personal workspace.
 
 Use a clean temporary chat and ask: “Who escalated the AuthShield outage, what did engineering
 commit, and is the fix merged? Cite each returned source and preserve disagreement.” Confirm

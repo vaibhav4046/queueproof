@@ -534,6 +534,22 @@ describe("QueueProof MCP", () => {
       .bind(workspaceId, `public-mcp-${crypto.randomUUID()}`, "Public MCP demo")
       .run();
     await provisionPublicWorkspaceMembership(db, workspaceId);
+    const demoConnectors = [
+      { id: createId("connector"), hydraId: "demo-github", provider: "github" },
+      { id: createId("connector"), hydraId: "demo-linear", provider: "linear" },
+      { id: createId("connector"), hydraId: "demo-slack", provider: "slack" },
+    ];
+    await db.batch(demoConnectors.map((connector) => db.prepare(
+      `INSERT INTO connectors
+       (id, workspace_id, hydradb_connector_id, provider, name, database, collection, state)
+       VALUES (?, ?, ?, ?, ?, 'demo-db', NULL, 'data_verified')`,
+    ).bind(
+      connector.id,
+      workspaceId,
+      connector.hydraId,
+      connector.provider,
+      `Demo ${connector.provider}`,
+    )));
     vi.stubEnv("QUEUEPROOF_PUBLIC_ACCESS", "true");
     vi.stubEnv("QUEUEPROOF_PUBLIC_WORKSPACE_ID", workspaceId);
 
@@ -554,16 +570,72 @@ describe("QueueProof MCP", () => {
 
     expect(response.status).toBe(200);
     const body = await response.text();
-    expect(body).toContain("queueproof_search");
+    const rpc = parseMcpResponse(body);
+    const tools = rpc.result?.tools as Array<Record<string, unknown>>;
+    expect(tools.map((tool) => tool.name)).toEqual(["queueproof_search"]);
     expect(body).toContain('"type":"noauth"');
     expect(body).not.toContain('"type":"oauth2"');
-    expect(body).not.toContain("queueproof_sync_connector");
-    expect(body).not.toContain("queueproof_propose_action");
-    expect(body).not.toContain("queueproof_report_execution_result");
+    expect(JSON.stringify(tools[0]?.inputSchema)).not.toMatch(/connectorIds|sourceIds/);
+
+    const query = vi.fn().mockImplementation(async (input: { metadata_filters?: Record<string, string> }) => {
+      const connector = demoConnectors.find((candidate) =>
+        candidate.hydraId === input.metadata_filters?.connector_id,
+      )!;
+      return {
+        ok: true,
+        status: 200,
+        requestId: `demo-${connector.provider}`,
+        latencyMs: 2,
+        error: null,
+        data: {
+          sources: [{
+            id: `source-${connector.provider}`,
+            connector_id: connector.hydraId,
+            app_provider: connector.provider,
+            title: `${connector.provider} receipt`,
+          }],
+          chunks: [{
+            id: `source-${connector.provider}`,
+            chunk_id: `chunk-${connector.provider}`,
+            chunk_content: `${connector.provider} supports the AuthShield finding.`,
+          }],
+        },
+      };
+    });
+    const clientSpy = vi.spyOn(hydraAccount, "hydraClientForWorkspace")
+      .mockResolvedValue({ query } as never);
+    try {
+      const searchResponse = await POST(new Request("https://queueproof.example/mcp/demo", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 71,
+          method: "tools/call",
+          params: {
+            name: "queueproof_search",
+            arguments: { query: "What happened to AuthShield?", mode: "fast" },
+          },
+        }),
+      }));
+      const searchRpc = parseMcpResponse(await searchResponse.text());
+      expect(searchRpc.result?.structuredContent).toMatchObject({
+        providerCoverage: ["github", "linear", "slack"],
+        callCount: 3,
+        partial: false,
+        failedScopeCount: 0,
+      });
+      expect(query).toHaveBeenCalledTimes(3);
+    } finally {
+      clientSpy.mockRestore();
+    }
 
     const app = readFileSync(new URL("../app/QueueProofApp.tsx", import.meta.url), "utf8");
     expect(app).toContain('const demoEndpoint = `${publicOrigin}/mcp/demo`');
-    expect(app).toContain("fixed to synthetic Helios data, rate-limited, and exposes read tools only");
+    expect(app).toContain("fixed to synthetic Helios data, rate-limited, and exposes one focused investigation tool");
   });
 
   it("keeps the public MCP demo fail-closed when the reviewed workspace is unavailable", async () => {
@@ -684,7 +756,10 @@ function parseMcpResponse(body: string) {
         .at(-1);
   if (!json) throw new Error(`MCP response did not contain JSON: ${trimmed.slice(0, 200)}`);
   return JSON.parse(json) as {
-    result?: { structuredContent?: Record<string, unknown> };
+    result?: {
+      structuredContent?: Record<string, unknown>;
+      tools?: Array<Record<string, unknown>>;
+    };
   };
 }
 
