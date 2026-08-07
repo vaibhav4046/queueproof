@@ -1,0 +1,51 @@
+name: Live 14911 grader-v3 rehearsal
+
+on:
+  push:
+    branches:
+      - agent/live-14911-rehearsal
+
+permissions:
+  contents: read
+
+jobs:
+  rehearse:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      QUEUEPROOF_URL: https://queueproof.vercel.app
+      EXPECTED_SHA: 14911dcc566a472a8d40dc3369e378f0c2406fae
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Verify exact live release
+        run: node scripts/release-gate.mjs --url "$QUEUEPROOF_URL" --sha "$EXPECTED_SHA"
+      - name: Auto
+        run: node scripts/run-live-benchmark.mjs --url "$QUEUEPROOF_URL" --mode auto --out evals/results/rehearsal-auto.json
+      - name: Fast
+        run: node scripts/run-live-benchmark.mjs --url "$QUEUEPROOF_URL" --mode fast --out evals/results/rehearsal-fast.json
+      - name: Thinking
+        run: node scripts/run-live-benchmark.mjs --url "$QUEUEPROOF_URL" --mode thinking --out evals/results/rehearsal-thinking.json
+      - name: PDF
+        run: node scripts/run-pdf-benchmark.mjs --url "$QUEUEPROOF_URL" --out evals/results/rehearsal-pdf.json
+      - name: Preserve rehearsal receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: queueproof-live-14911-rehearsal
+          path: |
+            evals/results/rehearsal-auto.json
+            evals/results/rehearsal-fast.json
+            evals/results/rehearsal-thinking.json
+            evals/results/rehearsal-pdf.json
+          if-no-files-found: ignore
+          retention-days: 2
