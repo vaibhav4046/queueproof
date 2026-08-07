@@ -754,6 +754,82 @@ describe("QueueProof MCP", () => {
       expect([...result.validation.providerCoverage].sort()).toEqual(groundedProviders);
       expect([...result.providerCoverage].sort()).toEqual(["github", "linear", "slack"]);
       expect(query).toHaveBeenCalledTimes(1);
+
+      query.mockClear();
+      const exactResponse = await POST(new Request("https://queueproof.example/mcp/demo", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 73,
+          method: "tools/call",
+          params: {
+            name: "queueproof_search",
+            arguments: { query: "What is BUG-123?", mode: "auto" },
+          },
+        }),
+      }));
+      const exactRpc = parseMcpResponse(await exactResponse.text());
+      const exact = exactRpc.result?.structuredContent as {
+        evidence: Array<{ evidenceId: string; provider: string; excerpt: string }>;
+        providerCoverage: string[];
+        callCount: number;
+      };
+      expect(exact.callCount).toBe(1);
+      expect(exact.evidence).toHaveLength(1);
+      expect(exact.evidence[0]).toMatchObject({
+        provider: "github",
+        excerpt: expect.stringContaining("BUG-123"),
+      });
+      expect(JSON.stringify(exact)).not.toContain("BUG-1234");
+      expect(JSON.stringify(exact)).not.toContain("billing discussion");
+      expect(exact.providerCoverage).toEqual(["github"]);
+      expect(query).toHaveBeenCalledTimes(1);
+      expect(query).toHaveBeenLastCalledWith(expect.objectContaining({
+        query: "BUG-123 What is BUG-123?",
+        max_results: 6,
+      }));
+
+      query.mockClear();
+      const multiHopResponse = await POST(new Request("https://queueproof.example/mcp/demo", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 74,
+          method: "tools/call",
+          params: {
+            name: "queueproof_search",
+            arguments: {
+              query: "Who filed BUG-123, which project are they working on, and what did they say about the fix?",
+              mode: "auto",
+            },
+          },
+        }),
+      }));
+      const multiHopRpc = parseMcpResponse(await multiHopResponse.text());
+      const multiHop = multiHopRpc.result?.structuredContent as {
+        evidence: Array<{ provider: string; excerpt: string }>;
+        providerCoverage: string[];
+        callCount: number;
+      };
+      expect(multiHop.callCount).toBe(1);
+      expect([...multiHop.providerCoverage].sort()).toEqual(["github", "linear", "slack"]);
+      expect(multiHop.evidence).toEqual(expect.arrayContaining([
+        expect.objectContaining({ provider: "linear", excerpt: expect.stringContaining("BUG-123") }),
+        expect.objectContaining({ provider: "slack", excerpt: expect.stringContaining("Friday") }),
+        expect.objectContaining({ provider: "github", excerpt: expect.stringContaining("merged") }),
+      ]));
+      expect(query).toHaveBeenCalledTimes(1);
+      expect(query).toHaveBeenLastCalledWith(expect.objectContaining({
+        max_results: 12,
+      }));
     } finally {
       clientSpy.mockRestore();
     }
