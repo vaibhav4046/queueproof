@@ -177,6 +177,18 @@ const schemaStatements = [
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
+  // QueueProof issues its own OAuth 2.1 authorization codes. A code is single-use: the
+  // token endpoint conditions its UPDATE on `consumed_at IS NULL`, so two racing
+  // redemptions of a stolen code cannot both mint a token. Only the hash is stored,
+  // which keeps a database leak from yielding a replayable credential.
+  `CREATE TABLE IF NOT EXISTS mcp_authorization_codes (
+    code_hash TEXT PRIMARY KEY, client_id TEXT NOT NULL, workspace_id TEXT NOT NULL,
+    user_id TEXT NOT NULL, redirect_uri TEXT NOT NULL, code_challenge TEXT NOT NULL,
+    scopes_json TEXT NOT NULL, resource TEXT, expires_at TEXT NOT NULL, consumed_at TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE INDEX IF NOT EXISTS mcp_authorization_codes_client_idx
+    ON mcp_authorization_codes(client_id, expires_at)`,
   // Document intake. UNIQUE(workspace_id, content_hash) is what makes duplicate
   // detection real: a check-then-insert would race, whereas the constraint cannot be
   // beaten by two concurrent uploads of the same file.
@@ -277,6 +289,13 @@ const columnMigrations = [
   `ALTER TABLE mcp_clients ADD COLUMN auth_issuer TEXT`,
   `ALTER TABLE mcp_clients ADD COLUMN external_client_id TEXT`,
   `ALTER TABLE mcp_clients ADD COLUMN user_id TEXT`,
+  // Dynamic client registration (RFC 7591) records what the client told us about itself.
+  // `redirect_uris_json` is the security-relevant one: the authorize and token endpoints
+  // both require an exact match against it, which is what stops an attacker-supplied
+  // redirect from carrying off a code minted for a legitimate client.
+  `ALTER TABLE mcp_clients ADD COLUMN client_name TEXT`,
+  `ALTER TABLE mcp_clients ADD COLUMN redirect_uris_json TEXT`,
+  `ALTER TABLE mcp_clients ADD COLUMN registered_at TEXT`,
 ];
 
 export async function ensureCoreSchema(): Promise<void> {
@@ -402,6 +421,12 @@ export async function workspaceForUser(userId: string) {
   // Public access must resolve to one deliberate workspace that is explicitly assigned to
   // the public actor. Never fall back to a singleton: after personal-account onboarding that one
   // workspace could be a real user's private tenant on a fresh or misconfigured deploy.
+  // Two independent opt-ins are required: the operator names one exact workspace, and that
+  // workspace carries an explicit non-owner membership for the public actor. Everything this
+  // path returns is additionally projected through publicDtoForActor, which strips storage
+  // identifiers and suppresses navigable source URLs. The unauthenticated MCP surface
+  // resolves its tenant here too, so both opt-ins gate it as well; when this returns null it
+  // answers from the bundled synthetic corpus rather than failing the reviewer's request.
   if (userId === "user:public-access") {
     const configuredId = runtimeEnv().QUEUEPROOF_PUBLIC_WORKSPACE_ID?.trim();
     if (!configuredId) return null;

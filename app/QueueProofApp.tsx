@@ -232,21 +232,26 @@ function recentInvestigationsKey(workspaceId: string): string {
   return `${RECENT_INVESTIGATIONS_KEY_PREFIX}:${workspaceId}`;
 }
 
-async function api<T>(url: string, init?: RequestInit): Promise<T> {
+/**
+ * `timeoutMs` exists for the few operations that legitimately run long — one-click
+ * connect walks every connector HydraDB exposes. Everything else keeps the 30s default
+ * so a hung request surfaces as an error instead of a spinner nobody can interpret.
+ */
+async function api<T>(url: string, init?: RequestInit, timeoutMs = 30_000): Promise<T> {
   const jsonBody = typeof init?.body === "string";
   let response: Response;
   try {
     response = await fetch(url, {
       ...init,
       signal: init?.signal
-        ? AbortSignal.any([init.signal, AbortSignal.timeout(30_000)])
-        : AbortSignal.timeout(30_000),
+        ? AbortSignal.any([init.signal, AbortSignal.timeout(timeoutMs)])
+        : AbortSignal.timeout(timeoutMs),
       headers: { ...(jsonBody ? { "Content-Type": "application/json" } : {}), ...(init?.headers ?? {}) },
       cache: "no-store",
     });
   } catch (reason) {
     if (reason instanceof DOMException && reason.name === "TimeoutError") {
-      throw new Error("The request exceeded 30 seconds. Its outcome is unknown; refresh the relevant ledger before retrying.");
+      throw new Error(`The request exceeded ${Math.round(timeoutMs / 1000)} seconds. Its outcome is unknown; refresh the relevant ledger before retrying.`);
     }
     throw reason;
   }
@@ -620,7 +625,7 @@ export default function QueueProofApp({
         <div className="header-status sidebar-bottom">
           <button className="command-trigger" onClick={() => setCommandOpen(true)} aria-label={`Open command palette (${shortcut.spoken} K)`}><Search size={14} /><kbd>{shortcut.symbol}K</kbd></button>
           <AccountControl actor={view.actor} workspaceId={view.workspace.id} />
-          <span className="demo-badge" aria-label={publicSandbox ? `Synthetic Helios demo, ${verified.length} verified sources` : `${verified.length} verified sources`}><span className={verified.length ? "status-orb live" : "status-orb"} />{publicSandbox ? `Synthetic Helios · ${verified.length}` : `${verified.length} verified`}</span>
+          <span className="demo-badge" aria-label={publicSandbox ? `Reviewer workspace, ${verified.length} verified sources` : `${verified.length} verified sources`}><span className={verified.length ? "status-orb live" : "status-orb"} />{publicSandbox ? `Reviewer workspace · ${verified.length}` : `${verified.length} verified`}</span>
           <details className="nav-menu utility-menu"><summary aria-label="Open help and developer menu"><MoreHorizontal size={17} /><span>More</span></summary><div className="nav-popover nav-popover-right"><Link href="/developer"><Bot size={15} />ChatGPT</Link><Link href="/method"><Braces size={15} />How it works</Link><Link href="/support"><CircleHelp size={15} />Help</Link><Link href="/privacy"><ShieldCheck size={15} />Policies</Link></div></details>
         </div>
       </aside>
@@ -1348,7 +1353,6 @@ function AskScreen({ workspaceId, verified, connectorsLoaded, onOpenSources, onO
           </div>
         </div>
         <p className="mode-explainer">{mode === "auto" ? "Best chooses the smallest search that can prove the answer." : mode === "thinking" ? "Investigate keeps a quick baseline, then follows the strongest evidence once." : "Quick checks direct facts with the lowest retrieval cost."}</p>
-        <div className="typing-cue"><Sparkles size={13} /><span>Ask what happened, what changed, or what to do next.</span></div>
         <label className="sr-only" htmlFor="proof-question">Cross-source proof question</label>
         <textarea ref={questionRef} id="proof-question" value={question} onChange={(event) => setQuestion(event.target.value)} onKeyDown={(event) => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); void run(); } }} placeholder="Ask what happened, what changed, or what to do next…" required maxLength={4000} />
         <div className="prompt-actions">
@@ -1552,12 +1556,173 @@ function EvidenceReceiptDialog({ evidence, index, onClose }: { evidence: Evidenc
   return <div className="drawer-layer" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}><aside ref={dialogRef} className="source-preview" role="dialog" aria-modal="true" aria-labelledby={`evidence-receipt-title-${index}`} tabIndex={-1}><button type="button" className="modal-close" data-dialog-initial aria-label="Close evidence receipt" onClick={onClose}><X size={16} /></button><span className="eyebrow"><ProviderIcon provider={evidence.provider} /> {evidence.provider} receipt [{index + 1}]</span><h2 id={`evidence-receipt-title-${index}`}>{evidence.title}</h2><blockquote>{evidence.excerpt}</blockquote><div className="source-receipt-grid"><span><small>RECEIPT ID</small><code>{receiptId}</code></span><span><small>SOURCE TIME</small><strong>{dateLabel(evidence.timestamp)}</strong></span><span><small>INGESTED</small><strong>{dateLabel(evidence.ingestionTimestamp)}</strong></span><span><small>AUTHORITY</small><strong>{evidence.authority ?? "Indexed source"}</strong></span></div><div className="drawer-actions"><button type="button" className="secondary-button" onClick={() => void navigator.clipboard.writeText(String(receiptId))}><Clipboard size={14} /> Copy receipt ID</button>{browserSafe && <a className="primary-button" href={evidence.url!} target="_blank" rel="noreferrer">Open provider source <ExternalLink size={13} /></a>}</div></aside></div>;
 }
 
+type ConnectAllOutcome = {
+  id: string | null;
+  hydradbConnectorId: string;
+  provider: string;
+  name: string;
+  adopted: boolean;
+  resourcesDiscovered: number;
+  resourcesConfigured: number;
+  syncQueued: boolean;
+  state: string;
+  error: string | null;
+};
+
+type ConnectAllResult = {
+  workspace: { id: string; name: string; created: boolean };
+  hydradb: { attached: boolean; source: string; fingerprint: string; baseUrl: string };
+  connectors: ConnectAllOutcome[];
+  summary: {
+    accessible: number; adopted: number; configured: number;
+    syncQueued: number; failed: number; resources: number; elapsedMs: number;
+  };
+  nextStep: string;
+};
+
+const CONNECT_ALL_STAGES = [
+  { key: "workspace", label: "Open your workspace", detail: "Named from your account. Nothing to fill in." },
+  { key: "engine", label: "Attach the evidence engine", detail: "Key verified live, then sealed with AES-GCM." },
+  { key: "adopt", label: "Adopt every readable source", detail: "Slack, Gmail, Linear, GitHub — whatever your account already sees." },
+  { key: "scope", label: "Select full scope and backfill", detail: "Each resource enabled, initial sync queued." },
+] as const;
+
+/**
+ * One button replaces the nine-step manual path (attach key, import, discover, choose
+ * scope, sync, verify — per connector). Stages only turn green from the server's own
+ * response, never from a timer, so the checklist cannot claim work that did not happen.
+ */
+function ConnectEverythingPanel({ reloadWorkspace, reloadConnectors, setError, setNotice }: {
+  reloadWorkspace: () => Promise<WorkspaceView>;
+  reloadConnectors: () => Promise<void>;
+  setError: (value: string) => void;
+  setNotice: (value: string) => void;
+}) {
+  const [running, setRunning] = useState(false);
+  const [needsKey, setNeedsKey] = useState(false);
+  const [apiKey, setApiKey] = useState("");
+  const [result, setResult] = useState<ConnectAllResult | null>(null);
+  const [sweep, setSweep] = useState(0);
+
+  useEffect(() => {
+    if (!running) return;
+    const timer = setInterval(() => setSweep((value) => (value + 1) % CONNECT_ALL_STAGES.length), 1500);
+    return () => clearInterval(timer);
+  }, [running]);
+
+  async function connectEverything(event?: FormEvent) {
+    event?.preventDefault();
+    setRunning(true);
+    setError("");
+    setResult(null);
+    try {
+      const data = await api<ConnectAllResult>("/api/workspace/connect-all", {
+        method: "POST",
+        body: JSON.stringify(apiKey.trim() ? { hydradbApiKey: apiKey.trim() } : {}),
+      }, 180_000);
+      setApiKey("");
+      setNeedsKey(false);
+      setResult(data);
+      await reloadWorkspace();
+      await reloadConnectors();
+      setNotice(data.summary.syncQueued
+        ? `${data.summary.syncQueued} source${data.summary.syncQueued === 1 ? "" : "s"} connected and indexing · ${data.summary.resources} resources in scope · ${(data.summary.elapsedMs / 1000).toFixed(1)}s`
+        : "Workspace connected. HydraDB returned no readable source for this account yet.");
+    } catch (reason) {
+      if (reason instanceof ApiRequestError && reason.status === 428) {
+        setNeedsKey(true);
+        setError(reason.message);
+      } else {
+        setError(reason instanceof Error ? reason.message : "One-click connect failed.");
+      }
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  const stageState = (index: number) => {
+    if (result) return "done";
+    if (running) return index === sweep ? "active" : "waiting";
+    return "idle";
+  };
+
+  return <section className="connect-all" data-running={running ? "true" : "false"} data-complete={result ? "true" : "false"}>
+    <div className="connect-all-aura" aria-hidden="true" />
+    <header className="connect-all-head">
+      <span className="eyebrow"><Zap size={13} /> One click</span>
+      <h2>Connect everything you already have.</h2>
+      <p>
+        QueueProof reads which sources your HydraDB account can already see, adopts each one,
+        selects its full scope, and starts the backfill. No per-provider app registration,
+        no client IDs, no OAuth screens to click through.
+      </p>
+      <div className="connect-all-providers" aria-hidden="true">
+        {["slack", "gmail", "linear", "github", "notion", "files"].map((provider, index) => (
+          <span key={provider} className="provider-glyph" style={{ animationDelay: `${index * 70}ms` }}>
+            <ProviderIcon provider={provider} size={16} />
+          </span>
+        ))}
+      </div>
+    </header>
+
+    <ol className="connect-all-stages">
+      {CONNECT_ALL_STAGES.map((stage, index) => (
+        <li key={stage.key} data-state={stageState(index)}>
+          <span className="stage-mark">
+            {result ? <Check size={12} /> : running && index === sweep ? <LoaderCircle className="spin" size={12} /> : <span className="stage-pip" />}
+          </span>
+          <div><strong>{stage.label}</strong><small>{stage.detail}</small></div>
+        </li>
+      ))}
+    </ol>
+
+    {needsKey && <form className="connect-all-key" onSubmit={connectEverything}>
+      <label>
+        <span><KeyRound size={13} /> HydraDB API key</span>
+        <input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)}
+          placeholder="Needed once. Verified live, then encrypted." autoComplete="off" required minLength={12} />
+      </label>
+    </form>}
+
+    <div className="connect-all-actions">
+      <button type="button" className="primary-button connect-all-button" onClick={() => void connectEverything()}
+        disabled={running || (needsKey && apiKey.trim().length < 12)}>
+        {running ? <LoaderCircle className="spin" size={16} /> : <Zap size={16} />}
+        {running ? "Connecting every source…" : result ? "Run it again" : "Connect everything"}
+      </button>
+      <small><ShieldCheck size={12} /> Keys are verified against the pinned HydraDB origin, encrypted at rest, and never returned to this page.</small>
+    </div>
+
+    {result && <div className="connect-all-result">
+      <div className="connect-all-summary">
+        <span><strong>{result.summary.syncQueued}</strong> syncing</span>
+        <span><strong>{result.summary.resources}</strong> resources</span>
+        <span><strong>{(result.summary.elapsedMs / 1000).toFixed(1)}s</strong> total</span>
+        {result.summary.failed > 0 && <span className="attention"><strong>{result.summary.failed}</strong> need attention</span>}
+        <small>Key {result.hydradb.fingerprint} · {result.hydradb.source.replace(/_/g, " ")}</small>
+      </div>
+      {result.connectors.length ? <ul className="connect-all-rows">
+        {result.connectors.map((item) => (
+          <li key={item.hydradbConnectorId} data-ok={item.error ? "false" : "true"}>
+            <span className="provider-glyph"><ProviderIcon provider={item.provider} size={15} /></span>
+            <div className="connect-all-identity"><strong>{item.name}</strong><span>{item.provider}</span></div>
+            <div className="connect-all-state">
+              {item.error
+                ? <><CircleAlert size={13} /><span>{item.error}</span></>
+                : <><CircleCheck size={13} /><span>{item.resourcesConfigured} resource{item.resourcesConfigured === 1 ? "" : "s"} indexing</span></>}
+            </div>
+          </li>
+        ))}
+      </ul> : <p className="connect-all-empty">HydraDB returned no connector this account can read. Add one from the catalogue, then run this again.</p>}
+    </div>}
+  </section>;
+}
+
 function SourcesScreen({ workspace, connectors, reloadWorkspace, reloadConnectors, setError, setNotice, readOnly }: {
   workspace: ReadyView; connectors: Connector[]; reloadWorkspace: () => Promise<WorkspaceView>;
   reloadConnectors: () => Promise<void>; setError: (value: string) => void; setNotice: (value: string) => void;
   readOnly: boolean;
 }) {
-  const [apiKey, setApiKey] = useState("");
   const [busy, setBusy] = useState("");
   const [setupOpen, setSetupOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -1566,13 +1731,6 @@ function SourcesScreen({ workspace, connectors, reloadWorkspace, reloadConnector
   const verifiedSourceCount = connectors.filter((item) => item.state === "data_verified").length;
   const attentionSourceCount = connectors.length - verifiedSourceCount;
   const indexedFileCount = workspace.evidence.documents.filter((item) => item.stage === "indexed").length;
-
-  async function connectHydra(event: FormEvent) {
-    event.preventDefault(); setBusy("hydra"); setError("");
-    try { await api("/api/hydradb/configure", { method: "POST", body: JSON.stringify({ apiKey }) }); setApiKey(""); await reloadWorkspace(); setNotice("HydraDB authenticated. Provider and database discovery are now live."); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : "HydraDB setup failed."); }
-    finally { setBusy(""); }
-  }
 
   async function connectorAction(connector: Connector, opener: HTMLButtonElement) {
     proofReturnFocusRef.current = opener;
@@ -1599,7 +1757,7 @@ function SourcesScreen({ workspace, connectors, reloadWorkspace, reloadConnector
   return <section className="screen sources-screen">
     <div className="screen-heading"><div><span className="eyebrow"><Database size={13} /> Connected work</span><h1>Your sources.</h1><p>Search only verified records. Open a source to see its latest proof.</p></div>{workspace.hydradb.configured && !readOnly && <div className="source-heading-actions"><button type="button" className="secondary-button" onClick={() => setImportOpen(true)}><Download size={15} /> Import existing</button><button type="button" className="primary-button" onClick={() => setSetupOpen(true)}><Link2 size={15} /> Add source</button></div>}</div>
     {readOnly && <div className="inline-warning source-readonly"><Eye size={14} /><span>Every source and its proof is open here. Changing a connection is reserved to the workspace owner.</span></div>}
-    {!workspace.hydradb.configured ? readOnly ? <div className="honest-empty"><LockKeyhole size={24} /><div><strong>Evidence configuration is owner-only.</strong><p>This public sandbox cannot accept credentials.</p></div></div> : <form className="hydra-setup" onSubmit={connectHydra}><div className="hydra-symbol"><Database size={29} /></div><div><span className="eyebrow">Step 1 · Evidence engine</span><h2>Attach your HydraDB account.</h2><p>Use a newly generated API key. QueueProof verifies it against the authenticated database endpoint, encrypts it with AES-GCM, and never returns it.</p><label>HydraDB API key<input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder="Paste new key" autoComplete="off" required minLength={12} /></label><button className="primary-button" disabled={busy === "hydra"}>{busy === "hydra" ? <LoaderCircle className="spin" size={15} /> : <KeyRound size={15} />} Verify and encrypt</button></div></form> : <>
+    {!workspace.hydradb.configured ? readOnly ? <div className="honest-empty"><LockKeyhole size={24} /><div><strong>Evidence configuration is owner-only.</strong><p>This public sandbox cannot accept credentials.</p></div></div> : <ConnectEverythingPanel reloadWorkspace={reloadWorkspace} reloadConnectors={reloadConnectors} setError={setError} setNotice={setNotice} /> : <>
       <div className="source-summary" aria-label="Source readiness summary">
         <span className="verified"><CircleCheck size={14} /><strong>{verifiedSourceCount}</strong> verified</span>
         <span className={attentionSourceCount ? "attention" : "clear"}><CircleAlert size={14} /><strong>{attentionSourceCount}</strong> attention</span>
@@ -2337,7 +2495,7 @@ function AgentScreen({ workspace, setError, setNotice, readOnly, publicOrigin }:
               <Clipboard size={16} /> Copy live demo URL
             </button>
             <div className="preview-install">
-              <p><strong>Synthetic Helios · live HydraDB retrieval · read-only.</strong></p>
+              <p><strong>Reviewer workspace · live HydraDB retrieval · read-only.</strong></p>
               <div><code>{demoEndpoint}</code><button type="button" onClick={() => void copyMcpEndpoint(demoEndpoint, "public demo")}><Clipboard size={13} /> Copy URL</button><button type="button" onClick={() => void runPublicDemoProof()} disabled={demoBusy}>{demoBusy ? <LoaderCircle className="spin" size={13} /> : <Play size={13} />} {demoBusy ? "Running…" : "Run live proof"}</button></div>
               {demoProof && <div className="proof-seal" role="status"><CircleCheck size={21} /><div><strong>{demoProof.validation?.status ?? "measured"} · {demoProof.providerCoverage.join(" · ")}</strong><span>{demoProof.callCount} HydraDB call{demoProof.callCount === 1 ? "" : "s"} · {demoProof.latencyMs.toLocaleString()} ms · {demoProof.estimatedCostUnits} relative cost unit{demoProof.estimatedCostUnits === 1 ? "" : "s"}</span><small>{demoProof.answer}</small></div></div>}
             </div>

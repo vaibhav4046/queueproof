@@ -10,6 +10,7 @@ import {
   mcpOAuthConfig,
   type QueueProofMcpScope,
 } from "../../lib/server/mcp-auth";
+import { isTrustedMcpOrigin, mcpPreflight, withMcpCors } from "../../lib/server/mcp-cors";
 
 const encoder = new TextEncoder();
 
@@ -39,7 +40,21 @@ async function containsToolCall(request: Request) {
   }
 }
 
+/**
+ * Outer shell: cross-origin policy and preflight, so every exit path from `handle`
+ * carries the same CORS headers instead of each early return having to remember them.
+ */
 async function serve(request: Request) {
+  const requestOrigin = request.headers.get("origin");
+  const selfOrigin = new URL(request.url).origin;
+  if (requestOrigin && !isTrustedMcpOrigin(requestOrigin, selfOrigin)) {
+    return noStoreJson({ error: "Origin is not allowed." }, { status: 403 });
+  }
+  if (request.method === "OPTIONS") return mcpPreflight(requestOrigin);
+  return withMcpCors(await handle(request), requestOrigin);
+}
+
+async function handle(request: Request) {
   const runtime = runtimeEnv();
   const authMode = mcpAuthMode();
   const oauth = mcpOAuthConfig();
@@ -52,19 +67,7 @@ async function serve(request: Request) {
       { status: 503 },
     );
   }
-  const origin = request.headers.get("origin");
   const requestUrl = new URL(request.url);
-  if (origin) {
-    let originValue: string;
-    try {
-      originValue = new URL(origin).origin;
-    } catch {
-      return noStoreJson({ error: "Origin is not allowed." }, { status: 403 });
-    }
-    if (originValue !== requestUrl.origin) {
-      return noStoreJson({ error: "Origin is not allowed." }, { status: 403 });
-    }
-  }
   const authorization = request.headers.get("authorization");
   const token = authorization?.startsWith("Bearer ") ? authorization.slice(7) : "";
   let workspaceId: string | null = null;
@@ -75,12 +78,21 @@ async function serve(request: Request) {
   // only by a trusted Supabase custom claim or a persisted QueueProof token with explicit scopes.
   let scopes: QueueProofMcpScope[] = ["queueproof:read"];
   const jwtShaped = token.split(".").length === 3;
+  // QueueProof now hosts its own authorization server, so a protected-resource URL always
+  // exists. Emitting the full RFC 9728 challenge on every 401 — rather than a bare
+  // `Bearer` when Supabase happened to be unconfigured — is what lets a client discover
+  // where to authenticate instead of giving up on an unauthorized response it cannot act on.
+  const authenticatedResource = oauth?.resource ?? `${requestUrl.origin}${requestUrl.pathname}`;
 
   // JWTs are handled by one strict path. A malformed or wrong-audience JWT must never
   // fall through and accidentally match a legacy/static credential.
   if (token && jwtShaped) {
     if (!oauth || authMode === "opaque") {
-      return oauthUnauthorized(oauth?.resource, "invalid_token", "OAuth access is not enabled.");
+      return oauthUnauthorized(
+        authenticatedResource,
+        "invalid_token",
+        "OAuth access is not enabled.",
+      );
     }
     try {
       const authenticated = await authenticateSupabaseMcpToken(token, { config: oauth });
@@ -137,27 +149,17 @@ async function serve(request: Request) {
     workspaceId = configuredWorkspaceId;
   }
   if (!token || !workspaceId || !scopes.includes("queueproof:read")) {
-    if (oauth) {
-      return oauthUnauthorized(
-        oauth.resource,
-        scopes.includes("queueproof:read") ? "invalid_token" : "insufficient_scope",
-        scopes.includes("queueproof:read")
-          ? "Sign in to QueueProof to continue."
-          : "Grant queueproof:read to use QueueProof.",
-      );
-    }
-    return new Response(JSON.stringify({ error: "invalid_token" }), {
-      status: 401,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-store",
-        "WWW-Authenticate": "Bearer",
-      },
-    });
+    const insufficient = Boolean(token && workspaceId) && !scopes.includes("queueproof:read");
+    return oauthUnauthorized(
+      authenticatedResource,
+      insufficient ? "insufficient_scope" : "invalid_token",
+      insufficient
+        ? "Grant queueproof:read to use QueueProof."
+        : "Connect this client to QueueProof to continue.",
+    );
   }
   const isToolCall = await containsToolCall(request);
   const handler = createWorkspaceMcpHandler(workspaceId, scopes);
-  const authenticatedResource = oauth?.resource ?? `${requestUrl.origin}${requestUrl.pathname}`;
   const response = await handler.fetch(request, {
     authInfo: {
       token: "[validated]",
@@ -182,18 +184,16 @@ async function serve(request: Request) {
 }
 
 function oauthUnauthorized(
-  resource: string | undefined,
+  resource: string,
   error: "invalid_token" | "insufficient_scope",
   description: string,
 ) {
-  return new Response(JSON.stringify({ error }), {
+  return new Response(JSON.stringify({ error, error_description: description }), {
     status: 401,
     headers: {
       "Content-Type": "application/json",
       "Cache-Control": "no-store",
-      "WWW-Authenticate": resource
-        ? mcpBearerChallenge(resource, { error, description })
-        : "Bearer",
+      "WWW-Authenticate": mcpBearerChallenge(resource, { error, description }),
     },
   });
 }
@@ -201,3 +201,4 @@ function oauthUnauthorized(
 export const GET = serve;
 export const POST = serve;
 export const DELETE = serve;
+export const OPTIONS = serve;

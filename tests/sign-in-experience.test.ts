@@ -35,11 +35,13 @@ describe("QueueProof account and ChatGPT entry experience", () => {
   });
 
   it("provides a branded, read-only-first OAuth consent surface for AI clients", () => {
-    const consent = readFileSync(join(root, "app/oauth/authorize/ConsentClient.tsx"), "utf8");
+    const consent = readFileSync(join(root, "app/oauth/authorize/page.tsx"), "utf8");
     expect(consent).toContain("Allow read-only access");
-    expect(consent).toContain("approveAuthorization");
-    expect(consent).toContain("denyAuthorization");
+    expect(consent).toContain('action="/api/oauth/approve"');
+    expect(consent).toContain('name="decision" value="approve"');
+    expect(consent).toContain('name="decision" value="deny"');
     expect(consent).toContain("never gives the client your HydraDB key");
+    expect(consent).toContain("<QueueProofLogo");
   });
 
   it("keeps public account links on the branded route", () => {

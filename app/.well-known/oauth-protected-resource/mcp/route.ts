@@ -1,24 +1,25 @@
-import {
-  mcpOAuthConfig,
-  QUEUEPROOF_MCP_RESOURCE,
-  SUPABASE_OAUTH_SCOPES,
-} from "../../../../lib/server/mcp-auth";
+import { QUEUEPROOF_MCP_SCOPES } from "../../../../lib/server/mcp-auth";
+import { canonicalOrigin, oauthJson, oauthPreflight } from "../../../../lib/server/oauth-http";
 
-export async function GET() {
-  const oauth = mcpOAuthConfig();
-  return Response.json(
-    {
-      resource: oauth?.resource ?? QUEUEPROOF_MCP_RESOURCE,
-      ...(oauth ? { authorization_servers: [oauth.issuer] } : {}),
-      scopes_supported: [...SUPABASE_OAUTH_SCOPES],
-      bearer_methods_supported: ["header"],
-      // The public developer screen is the canonical, maintained setup contract. Pointing
-      // at a non-existent /docs/mcp route made standards-based discovery advertise a 404.
-      resource_documentation: "https://queueproof.vercel.app/developer",
-    },
-    {
-      status: oauth ? 200 : 503,
-      headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" },
-    },
-  );
+/**
+ * RFC 9728 protected-resource metadata for the authenticated MCP endpoint.
+ *
+ * This used to advertise Supabase as the authorization server and answer 503 whenever that
+ * configuration was absent — which told every standards-compliant client that QueueProof
+ * had no way to authenticate at all. QueueProof now runs its own authorization server on
+ * this same origin, so the answer is unconditional and points at us.
+ */
+export async function GET(request: Request) {
+  const origin = canonicalOrigin(request);
+  return oauthJson({
+    resource: `${origin}/mcp`,
+    authorization_servers: [origin],
+    scopes_supported: [...QUEUEPROOF_MCP_SCOPES],
+    bearer_methods_supported: ["header"],
+    resource_documentation: `${origin}/developer`,
+  });
+}
+
+export async function OPTIONS() {
+  return oauthPreflight();
 }

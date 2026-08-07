@@ -932,7 +932,7 @@ describe("QueueProof MCP", () => {
     expect(app).toContain('const demoEndpoint = `${publicOrigin}/mcp/demo`');
     expect(app).toContain("targetEndpoint = readOnly ? demoEndpoint : endpoint");
     expect(app).toContain("LIVE · NO AUTH");
-    expect(app).toContain("Synthetic Helios · live HydraDB retrieval · read-only.");
+    expect(app).toContain("Reviewer workspace · live HydraDB retrieval · read-only.");
     expect(app).toContain("runPublicDemoProof");
     expect(app).toContain("Run live proof");
     expect(app).toContain("relative cost unit");
@@ -940,17 +940,42 @@ describe("QueueProof MCP", () => {
     expect(app).toContain("fixed to synthetic Helios data, rate-limited, and exposes one focused investigation tool");
   });
 
-  it("keeps the public MCP demo fail-closed when the reviewed workspace is unavailable", async () => {
+  it("keeps the public MCP demo answering from the bundled corpus when no reviewer workspace is provisioned", async () => {
     vi.stubEnv("QUEUEPROOF_PUBLIC_ACCESS", "true");
     vi.stubEnv("QUEUEPROOF_PUBLIC_WORKSPACE_ID", createId("ws_missing_public_mcp"));
     const { POST } = await import("../app/mcp/demo/route");
     const response = await POST(new Request("https://queueproof.example/mcp/demo", {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 75,
+        method: "tools/call",
+        params: {
+          name: "queueproof_search",
+          arguments: {
+            query: "When does Atlas firmware 4.2 ship to the fleet, and who owns the blocker?",
+            mode: "fast",
+          },
+        },
+      }),
     }));
-    expect(response.status).toBe(503);
-    expect(await response.json()).toEqual({
-      error: "The QueueProof public workspace is not provisioned.",
-    });
+    // A missing reviewer workspace is a configuration gap, not an outage. The
+    // fallback tenant id matches no rows, so the surface finds no verified
+    // connectors and answers from the bundled Helios corpus instead of 503ing.
+    expect(response.status).toBe(200);
+    const rpc = parseMcpResponse(await response.text());
+    const result = rpc.result?.structuredContent as {
+      answer: string;
+      citations: unknown[];
+      validation: { status: string };
+    };
+    expect(result.validation.status).toBe("grounded");
+    expect(result.citations.length).toBeGreaterThan(0);
+    expect(result.answer).toContain("Yuki Tanaka");
   });
 
   it("chains a ranked next action to its workspace-owned execution packet", async () => {

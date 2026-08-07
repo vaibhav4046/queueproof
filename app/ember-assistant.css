@@ -450,8 +450,15 @@ body { min-width: 320px; overflow-x: hidden; color: var(--paper); background: va
 .mode-explainer { margin: 10px 22px 0; color: var(--paper-muted); font-size: 11px; line-height: 1.45; }
 .typing-cue { min-height: 36px; padding: 15px 22px 0; color: var(--paper-muted); font-size: 12px; line-height: 1.45; }
 .typing-cue svg { color: var(--ember-bright); }
-.premium-console textarea { min-height: 122px; resize: none; padding: 14px 22px 18px; color: var(--paper); font: 470 clamp(19px,2vw,25px)/1.48 var(--sans); letter-spacing: -.025em; }
+.premium-console textarea { min-height: 122px; resize: none; padding: 18px 22px; color: var(--paper); font: 470 clamp(19px,2vw,25px)/1.48 var(--sans); letter-spacing: -.025em; }
 .premium-console textarea::placeholder { color: var(--paper-muted); }
+/* One border defines the composer. The shell already carries the focus ring via
+   :focus-within, so the textarea's own outline would draw a second ember box
+   3px inside the first. Suppress the inner ring here only, and make the shell
+   ring unmistakable so keyboard focus stays visible. */
+.premium-console textarea:focus,
+.premium-console textarea:focus-visible { outline: none; }
+.premium-console:focus-within { box-shadow: 0 28px 90px rgba(0,0,0,.38), 0 0 42px rgba(255,106,0,.07), inset 0 0 0 1px rgba(255,154,66,.34); }
 .prompt-actions { padding: 0 14px 14px 22px; }
 .prompt-actions > span { color: var(--paper-muted); font-size: 11px; }
 
@@ -1575,4 +1582,174 @@ body { min-width: 320px; overflow-x: hidden; color: var(--paper); background: va
   .history-receipt-spine a,
   .history-receipt-spine > li,
   .history-source-meter i { animation: none !important; transition: none !important; transform: none !important; }
+}
+
+/* ---------- One-click connect ---------- */
+
+.connect-all {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: 26px;
+  padding: 38px 38px 34px;
+  border: 1px solid var(--hairline);
+  border-radius: 22px;
+  background: var(--panel);
+  isolation: isolate;
+  animation: connect-all-rise .5s cubic-bezier(.16, 1, .3, 1) both;
+}
+
+@keyframes connect-all-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+.connect-all-aura {
+  position: absolute;
+  z-index: -1;
+  inset: -40% -10% auto -10%;
+  height: 320px;
+  background: radial-gradient(60% 100% at 50% 0%, rgba(255, 106, 0, .16), transparent 72%);
+  opacity: .85;
+  pointer-events: none;
+}
+
+.connect-all[data-running="true"] .connect-all-aura { animation: connect-all-breathe 2.4s ease-in-out infinite; }
+
+@keyframes connect-all-breathe {
+  0%, 100% { opacity: .55; transform: scaleY(1); }
+  50% { opacity: 1; transform: scaleY(1.12); }
+}
+
+.connect-all-head { display: grid; gap: 12px; max-width: 62ch; }
+.connect-all-head h2 { margin: 0; font-size: clamp(1.55rem, 1.1rem + 1.5vw, 2.15rem); letter-spacing: -.02em; }
+.connect-all-head p { margin: 0; color: var(--muted); line-height: 1.62; }
+
+.connect-all-providers { display: flex; gap: 8px; margin-top: 4px; }
+.connect-all-providers .provider-glyph {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--hairline);
+  border-radius: 11px;
+  background: var(--raised);
+  animation: connect-all-pop .45s cubic-bezier(.16, 1, .3, 1) both;
+}
+
+@keyframes connect-all-pop {
+  from { opacity: 0; transform: translateY(8px) scale(.9); }
+  to { opacity: 1; transform: none; }
+}
+
+.connect-all-stages { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.connect-all-stages li {
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  gap: 12px;
+  align-items: start;
+  padding: 11px 12px;
+  border-radius: 12px;
+  transition: background .28s ease, opacity .28s ease;
+}
+.connect-all-stages li[data-state="waiting"] { opacity: .48; }
+.connect-all-stages li[data-state="active"] { background: rgba(255, 106, 0, .07); }
+.connect-all-stages li strong { display: block; font-size: .94rem; }
+.connect-all-stages li small { display: block; margin-top: 2px; color: var(--muted); font-size: .82rem; }
+
+.stage-mark {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 999px;
+  color: var(--ember-bright);
+}
+.connect-all-stages li[data-state="done"] .stage-mark {
+  border-color: var(--ember-bright);
+  background: rgba(255, 106, 0, .14);
+}
+.stage-pip { width: 5px; height: 5px; border-radius: 999px; background: var(--muted); }
+.connect-all-stages li[data-state="active"] .stage-mark { border-color: var(--ember-bright); }
+
+.connect-all-key { display: grid; gap: 8px; }
+.connect-all-key label { display: grid; gap: 7px; font-size: .85rem; }
+.connect-all-key label > span { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); }
+.connect-all-key input {
+  padding: 12px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  color: var(--paper);
+  background: var(--raised);
+  font: inherit;
+}
+.connect-all-key input:focus-visible { outline: none; border-color: var(--ember-bright); box-shadow: 0 0 0 3px rgba(255, 106, 0, .16); }
+
+.connect-all-actions { display: grid; gap: 10px; justify-items: start; }
+.connect-all-actions small { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); font-size: .79rem; }
+
+.connect-all-button {
+  position: relative;
+  overflow: hidden;
+  padding: 14px 26px;
+  font-size: 1rem;
+  transition: transform .22s cubic-bezier(.16, 1, .3, 1), box-shadow .22s ease;
+}
+.connect-all-button:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 16px 40px rgba(255, 106, 0, .26); }
+.connect-all-button:not(:disabled):active { transform: translateY(0); }
+.connect-all-button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, .28) 50%, transparent 62%);
+  transform: translateX(-120%);
+}
+.connect-all-button:not(:disabled):hover::after { animation: connect-all-sheen .85s ease forwards; }
+
+@keyframes connect-all-sheen {
+  to { transform: translateX(120%); }
+}
+
+.connect-all-result { display: grid; gap: 14px; animation: connect-all-rise .45s cubic-bezier(.16, 1, .3, 1) both; }
+.connect-all-summary { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: baseline; }
+.connect-all-summary span { display: inline-flex; gap: 6px; align-items: baseline; color: var(--muted); font-size: .85rem; }
+.connect-all-summary strong { color: var(--paper); font-size: 1.15rem; }
+.connect-all-summary .attention strong { color: var(--ember-bright); }
+.connect-all-summary small { color: var(--muted); font-size: .76rem; font-family: var(--font-geist-mono), ui-monospace, monospace; }
+
+.connect-all-rows { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.connect-all-rows li {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 11px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 13px;
+  background: var(--raised);
+  animation: connect-all-rise .4s cubic-bezier(.16, 1, .3, 1) both;
+}
+.connect-all-rows li[data-ok="false"] { border-color: rgba(255, 106, 0, .34); }
+.connect-all-identity { display: grid; gap: 1px; min-width: 0; }
+.connect-all-identity strong { overflow: hidden; font-size: .92rem; text-overflow: ellipsis; white-space: nowrap; }
+.connect-all-identity span { color: var(--muted); font-size: .78rem; text-transform: capitalize; }
+.connect-all-state { display: inline-flex; gap: 7px; align-items: center; color: var(--muted); font-size: .82rem; text-align: right; }
+.connect-all-rows li[data-ok="true"] .connect-all-state svg { color: var(--ember-bright); }
+.connect-all-empty { margin: 0; color: var(--muted); font-size: .88rem; }
+
+@media (max-width: 720px) {
+  .connect-all { padding: 26px 20px 24px; border-radius: 18px; }
+  .connect-all-rows li { grid-template-columns: 30px minmax(0, 1fr); }
+  .connect-all-state { grid-column: 1 / -1; text-align: left; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .connect-all,
+  .connect-all-aura,
+  .connect-all-result,
+  .connect-all-rows li,
+  .connect-all-providers .provider-glyph,
+  .connect-all-button::after { animation: none !important; transition: none !important; transform: none !important; }
 }

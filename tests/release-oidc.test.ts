@@ -1,10 +1,19 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const route = readFileSync(new URL("../app/api/lab/artifacts/batch/route.ts", import.meta.url), "utf8");
-const workflow = readFileSync(new URL("../.github/workflows/release-evidence.yml", import.meta.url), "utf8");
-const waitScript = readFileSync(new URL("../scripts/wait-for-production.mjs", import.meta.url), "utf8");
-const publishScript = readFileSync(new URL("../scripts/publish-release-benchmarks.mjs", import.meta.url), "utf8");
+/**
+ * Read with LF endings. The repository stores LF, but a Windows checkout with
+ * `core.autocrlf=true` materialises CRLF, which would fail multi-line assertions
+ * on a developer machine while passing in CI. Normalising keeps one source of truth.
+ */
+function readSource(relativePath: string): string {
+  return readFileSync(new URL(relativePath, import.meta.url), "utf8").replace(/\r\n/g, "\n");
+}
+
+const route = readSource("../app/api/lab/artifacts/batch/route.ts");
+const workflow = readSource("../.github/workflows/release-evidence.yml");
+const waitScript = readSource("../scripts/wait-for-production.mjs");
+const publishScript = readSource("../scripts/publish-release-benchmarks.mjs");
 
 describe("autonomous exact-release benchmark publication", () => {
   it("pins GitHub OIDC to this private main-branch push and serving SHA", () => {

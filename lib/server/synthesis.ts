@@ -164,6 +164,36 @@ const IMPEDIMENT_QUESTION =
 const IMPEDIMENT_ASSERTION =
   /\b(?:is|are|was|were|remains?|stays?|still)\s+blocked\b|\bblocked\s+(?:on|by)\b|\bblockers?\b|\b(?:is|are|were|keeps?|kept)\s+blocking\b|\bwaiting\s+(?:on|for)\b|\b(?:cannot|can\s?not|can't|could\s?not|couldn't)\s+(?:be\s+)?(?:start|started|ship|shipped|proceed|land|deploy|deployed|release|released|launch|launched|continue|go\s+live)\b|\bheld\s+up\s+by\b|\bholding\s+up\b|\bdepends?\s+on\b|\bblocks\s+\w/;
 
+/**
+ * Clauses of a compound question. "When does Atlas firmware 4.2 ship to the
+ * fleet, and who owns the blocker?" asks two things, and a gate derived from
+ * one clause must not reject the evidence that answers the other.
+ */
+const questionClauses = (question: string) =>
+  question
+    .split(/\s*(?:[,;]|\band\b|\bbut\b|\balso\b)\s*/i)
+    .map((clause) => clause.replace(/[?.!]+\s*$/, "").trim())
+    .filter((clause) => clause.length >= 12);
+
+/**
+ * True when the candidate answers a clause of a compound question other than the
+ * impediment clause. The impediment gate below exists so a topical fragment can
+ * never stand in for a stated obstruction; it must not also erase the ship-date
+ * receipt that answers the question's other half. Two anchor matches from a
+ * single non-impediment clause are required, so one shared token can never
+ * reopen the gate, and a single-clause impediment question never reaches here.
+ */
+function answersSeparateClause(question: string, text: string) {
+  const clauses = questionClauses(question)
+    .filter((clause) => !IMPEDIMENT_QUESTION.test(clause.toLowerCase()));
+  if (!clauses.length) return false;
+  const candidateTokens = new Set(tokenise(text));
+  return clauses.some((clause) => {
+    const anchors = [...new Set(tokenise(clause))].filter((token) => !GENERIC_QUESTION_TOKENS.has(token));
+    return anchors.length >= 2 && anchors.filter((token) => candidateTokens.has(token)).length >= 2;
+  });
+}
+
 // A committed GA-date lookup asks for one relationship-bound value: the date
 // must belong to the named programme's general-availability milestone. Token
 // overlap is not sufficient here. In production, independent fragments supplied
@@ -248,7 +278,7 @@ function relevance(question: string, text: string, provider?: string) {
   // candidate is about the same subject, never that it records an obstruction.
   // An exact record identifier is the one exception -- naming BUG-123 back is a
   // hard join, not a coincidence of vocabulary.
-  if (IMPEDIMENT_QUESTION.test(q) && identifierScore === 0) {
+  if (IMPEDIMENT_QUESTION.test(q) && identifierScore === 0 && !answersSeparateClause(question, text)) {
     if (!IMPEDIMENT_ASSERTION.test(candidate)) return 0;
     // Asserting an obstruction is still not asserting *this* obstruction. A
     // commit reading "the local hook runner is blocked by a Windows/WSL
@@ -648,8 +678,12 @@ function sentences(item: SynthesisEvidence, question: string, evidence: Synthesi
   // sentences. Convert those boundaries before splitting so a useful sentence
   // is not rejected as one multi-kilobyte block. Query-focused windows preserve
   // compact table rows and exact-ID context that contain no punctuation.
+  // The hash run only marks a heading when whitespace follows it. Without that
+  // lookahead every "PR #818" became "PR. 818" and every "#atlas-firmware"
+  // became ". atlas-firmware", so each emitted claim silently mangled the
+  // GitHub reference or Slack channel it was quoting.
   const body = clean(proseSource
-    .replace(/\s+(?:#{1,6}|-{3,}|={2,})\s*/g, ". ")
+    .replace(/\s+(?:#{1,6}(?=\s)|-{3,}|={2,})\s*/g, ". ")
     .replace(/\s+[-*]\s+(?=[A-Z0-9])/g, ". "));
   // A markdown list item is an independent statement, so each one is its own
   // unit of evidence. Rewriting the bullet to ". " is not enough: the sentence
@@ -703,17 +737,60 @@ function dateParts(value: string) {
 
 const identifiersInText = (text: string) => [...new Set(recordIdentifiers(text))];
 
+const DATE_SOURCE =
+  String.raw`\d{4}-\d{2}-\d{2}|\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)(?:\s+\d{4})?`;
+
+const DATE_LITERAL = new RegExp(String.raw`\b(?:${DATE_SOURCE})\b`, "gi");
+
+/** "moved from 14 March" — captures the date the record says it replaced. */
+const MOVED_FROM_DATE = new RegExp(String.raw`\bmoved\s+from\s+(${DATE_SOURCE})\b`, "i");
+const MOVED_FROM_DATE_GLOBAL = new RegExp(MOVED_FROM_DATE.source, "gi");
+
+/**
+ * Dates that another retrieved record explicitly reports as replaced ("target
+ * ship date 28 March, moved from 14 March"). The superseded value is quoted by
+ * the record that replaced it, so this is a stated relationship between two
+ * receipts rather than an inference about which one is fresher.
+ */
+function supersededDateKeys(evidence: SynthesisEvidence[]) {
+  const keys = new Set<string>();
+  for (const item of evidence) {
+    for (const match of `${item.title}. ${item.excerpt}`.matchAll(MOVED_FROM_DATE_GLOBAL)) {
+      keys.add(dateParts(match[1]).dayMonth);
+    }
+  }
+  return keys;
+}
+
+/**
+ * A sentence that asserts only a superseded date, without saying it was replaced,
+ * is the stale half of a cross-source conflict. It stays citable -- the
+ * contradiction below quotes it -- but it must not lead the answer as if it were
+ * current.
+ */
+function assertsSupersededDate(text: string, superseded: Set<string>) {
+  if (!superseded.size || /\bmoved\s+from\b/i.test(text)) return false;
+  DATE_LITERAL.lastIndex = 0;
+  const dates = text.match(DATE_LITERAL) ?? [];
+  return dates.length > 0 && dates.every((date) => superseded.has(dateParts(date).dayMonth));
+}
+
 function contradictions(question: string, relevantEvidence: SynthesisEvidence[]) {
   const result: GroundedContradiction[] = [];
   const selected = [...new Map(relevantEvidence.map((item) => [item.id, item])).values()];
   const datedRaw = selected.flatMap((item) => {
     const text = `${item.title}. ${item.excerpt}`;
     const dates = text.match(/\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)(?:\s+\d{4})?)\b/gi) ?? [];
-    // A record that says a deadline "moved from X to Y" is asserting Y as
-    // its current deadline. Comparing both dates from that one record would
-    // manufacture a contradiction before another source is considered.
-    const assertedDates = /\bmoved\s+from\b/i.test(text) && dates.length > 1
-      ? dates.slice(-1)
+    // A record that says a deadline "moved from X" is not asserting X. Comparing
+    // both dates from that one record would manufacture a contradiction before
+    // another source is considered. The superseded value is dropped by name
+    // rather than by position: receipts write it both ways round ("moved from 14
+    // March to 28 March", "28 March, moved from 14 March"), so taking the last
+    // date kept the stale one half the time.
+    const movedFrom = new Set([...text.matchAll(MOVED_FROM_DATE_GLOBAL)]
+      .map((match) => dateParts(match[1]).dayMonth));
+    const assertedDates = movedFrom.size
+      ? dates.filter((date) => !movedFrom.has(dateParts(date).dayMonth))
       : dates;
     return assertedDates.map((date) => ({ item, date, parts: dateParts(date) }));
   });
@@ -725,7 +802,34 @@ function contradictions(question: string, relevantEvidence: SynthesisEvidence[])
       : entry.parts.dayMonth,
   }));
   const distinctDates = [...new Set(dated.map((entry) => entry.normalised))];
-  if (/\b(disagree|conflict|inconsistent|changed|moved|deadline)\w*\b/i.test(question) && distinctDates.length > 1) {
+  // A record that says a date "moved from X" names the value it replaced. When a
+  // second source still asserts X, the two receipts disagree by their own words,
+  // so the conflict is reported whether or not the question used "changed" --
+  // asking "when does it ship?" is exactly when a reader needs to know one of
+  // the cited sources is stale. It stays narrow: the superseded value has to be
+  // quoted by the record that replaced it, and the stale receipt has to be a
+  // different source.
+  const supersession = selected.flatMap((item) => {
+    const match = `${item.title}. ${item.excerpt}`.match(MOVED_FROM_DATE);
+    if (!match) return [];
+    const supersededKey = dateParts(match[1]).dayMonth;
+    const current = dated.filter((entry) => entry.item.id === item.id).at(-1);
+    if (!current || current.parts.dayMonth === supersededKey) return [];
+    const stale = dated.filter((entry) =>
+      entry.item.id !== item.id && entry.parts.dayMonth === supersededKey);
+    if (!stale.length) return [];
+    return [{ item, current, superseded: match[1], stale }];
+  });
+  if (supersession.length) {
+    const [conflict] = supersession;
+    const staleSources = [...new Set(conflict.stale.map((entry) => entry.item.provider))];
+    result.push({
+      summary: `${conflict.item.provider} records the date as ${conflict.current.date}, moved from ` +
+        `${conflict.superseded}; ${staleSources.join(" and ")} still says ${conflict.superseded}.`,
+      evidenceIds: [...new Set([conflict.item.id, ...conflict.stale.map((entry) => entry.item.id)])],
+      providers: [...new Set([conflict.item.provider, ...staleSources])],
+    });
+  } else if (/\b(disagree|conflict|inconsistent|changed|moved|deadline)\w*\b/i.test(question) && distinctDates.length > 1) {
     const conflicts = dated.filter((entry, index, all) => all.findIndex((candidate) => candidate.normalised === entry.normalised) === index).slice(0, 3);
     result.push({
       summary: `The cited records contain different dates: ${conflicts.map((entry) => `${entry.item.provider} says ${entry.date}`).join("; ")}.`,
@@ -734,8 +838,20 @@ function contradictions(question: string, relevantEvidence: SynthesisEvidence[])
     });
   }
 
-  const completed = selected.find((item) => /\b(merged|shipped|resolved|closed|completed)\b/i.test(`${item.title} ${item.excerpt}`));
-  const open = selected.find((item) => /\b(still\s+(?:showing\s+as\s+)?open|remains?\s+open|ticket\s+still\s+open)\b/i.test(`${item.title} ${item.excerpt}`));
+  const reportsComplete = (item: SynthesisEvidence) =>
+    /\b(merged|shipped|resolved|closed|completed)\b/i.test(`${item.title} ${item.excerpt}`);
+  const reportsOpen = (item: SynthesisEvidence) =>
+    /\b(still\s+(?:showing\s+as\s+)?open|remains?\s+open|ticket\s+still\s+open)\b/i.test(`${item.title} ${item.excerpt}`);
+  const completed = selected.find(reportsComplete);
+  // A *different* receipt that reports the tracker open while also stating the
+  // completion has not disagreed with anything -- it carries both facts in one
+  // breath, already reconciled. Pairing it anyway produced "github reports the work
+  // complete while github reports ENG-456 remains open": a conflict announced
+  // between two receipts that agree, naming the same provider on both sides. The
+  // completed receipt may still be its own open receipt; that is the single-receipt
+  // wording below, and it stays eligible.
+  const open = selected.find((item) =>
+    reportsOpen(item) && (item.id === completed?.id || !reportsComplete(item)));
   if (completed && open) {
     const stateCorpus = `${completed.title} ${completed.excerpt} ${open.title} ${open.excerpt}`;
     const stateIdentifiers = identifiersInText(stateCorpus);
@@ -828,6 +944,14 @@ const REQUESTED_FACETS: RequestedFacet[] = [
     supportedBy: /\bfiled\b/i,
   },
   {
+    // "who owns the blocker?" is a second question hiding inside a compound one.
+    // Without this facet an answer that only named the blocker counted as fully
+    // grounded, so the reader was never told the owner was never actually cited.
+    label: "owner",
+    requestedBy: /\bwho\s+owns\b|\bwho\s+(?:is|are)\s+the\s+owners?\b|\bwho\s+owns?\s+it\b/i,
+    supportedBy: /\bowner\b|\bowns\b|\bowned\s+by\b|\bassigned\s+to\b/i,
+  },
+  {
     label: "project association",
     requestedBy: /\bwhich\s+project\b|\bproject\b[^?]{0,80}\bagainst\b/i,
     supportedBy: /\b(?:against|project|programme)\b/i,
@@ -882,6 +1006,7 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
   // factor reinforces that order at sentence level so the newest item's
   // sentences out-compete older items' lexically closer sentences.
   const recencyFactorsMap = recencyQuestion(question) ? recencyFactors(ranked) : new Map<string, number>();
+  const superseded = supersededDateKeys(ranked);
   const candidates = ranked.flatMap((item, evidenceIndex) =>
     sentences(item, question, evidence).map((text, sentenceIndex) => {
       const sentenceScore = relevance(question, text, item.provider);
@@ -926,6 +1051,9 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
         score: (sentenceScore > 0 || bridgeScore > 0 || valueQualified || authorityScore > 0)
           ? sentenceScore + bridgeScore + authorityScore + (valueQualified ? 16 : 0) + Math.min(titleScore, 3)
             + (recencyFactorsMap.get(item.id) ?? 0) * RECENCY_WEIGHT * 0.5
+            // Another cited record states this date was replaced, so it cannot
+            // out-rank the receipt that replaced it.
+            - (assertsSupersededDate(text, superseded) ? 12 : 0)
             - sentenceIndex * 0.15 - evidenceIndex * 0.05
           : 0,
       };
@@ -1007,6 +1135,16 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
     if (requestedFacets.some((facet) =>
       facet.supportedBy.test(candidate.text) && !facet.supportedBy.test(pickedCorpus))) return true;
     if (candidate.valuePhrase && candidate.sentenceScore > 0) return true;
+    // Everything below this line is the last-resort lexical branch: no join, no
+    // authority chain, no named record, no uncovered facet, no linked value --
+    // only "reads similar to what we already picked". When the question named
+    // facets and every one of them is already answered, that is padding by
+    // definition. It is how a CI status note that merely restated the merge
+    // ("/api/health/live says the AuthShield fix is merged while ENG-456 remains
+    // open") won the fourth slot in an answer whose three facets were already
+    // closed, dragging an off-topic receipt into the citations.
+    if (requestedFacets.length > 0 &&
+        requestedFacets.every((facet) => facet.supportedBy.test(pickedCorpus))) return false;
     const bestDirect = Math.max(...picked.map((entry) => entry.sentenceScore), 0);
     return candidate.sentenceScore >= Math.max(6, bestDirect * 0.6);
   };
@@ -1038,6 +1176,31 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
       recordPicked(candidate, key);
       if (picked.length === 3) break;
     }
+  }
+  // A compound question can leave one facet uncovered even after the answer has
+  // established the record that carries it: "when does it ship, and who owns the
+  // blocker?" picks a window naming BUG-123 as the blocker, while the owner line
+  // sits in a different window of BUG-123's own record. Quoting it is not a
+  // relevance judgement the floor should arbitrate -- a picked claim already
+  // pointed at that record by identifier. Eligibility is therefore restricted to
+  // records the answer itself cited or named, the text stays verbatim, and the
+  // claim carries its own citation like any other.
+  const namedRecordIds = () => new Set(picked.flatMap((entry) =>
+    recordIdentifiers(entry.text).map((identifier) => identifier.toUpperCase())));
+  for (const facet of requestedFacets) {
+    if (picked.length >= 5) break;
+    if (facet.supportedBy.test(picked.map((entry) => entry.text).join(" "))) continue;
+    const named = namedRecordIds();
+    const joinsNamedRecord = (candidate: (typeof candidates)[number]) =>
+      [...named].some((identifier) => candidate.item.id.toUpperCase().includes(identifier));
+    const eligible = candidates.filter((candidate) =>
+      facet.supportedBy.test(candidate.text) &&
+      !duplicatesPicked(candidate, normaliseClaimKey(candidate.text)) &&
+      (joinsNamedRecord(candidate) || (seenEvidenceIds.has(candidate.item.id) && candidate.score > 0)));
+    // A record a picked claim named by identifier is the subject the facet asks
+    // about; a record that merely happens to be cited already is second choice.
+    const best = eligible.find(joinsNamedRecord) ?? eligible[0];
+    if (best) recordPicked(best, normaliseClaimKey(best.text));
   }
 
   const claims: GroundedClaim[] = picked.map((candidate) => ({

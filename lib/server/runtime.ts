@@ -7,6 +7,12 @@ export type RuntimeEnv = {
   QUEUEPROOF_TEST_MODE?: string;
   QUEUEPROOF_BASE_URL?: string;
   QUEUEPROOF_HYDRADB_BASE_URL?: string;
+  /**
+   * Optional deployment-wide HydraDB key. When set, a first-time operator reaches a
+   * connected workspace in one click instead of pasting their own key. It stays
+   * server-side: routes return its fingerprint, never the value.
+   */
+  QUEUEPROOF_SHARED_HYDRADB_API_KEY?: string;
   QUEUEPROOF_MCP_AUDIENCE?: string;
   QUEUEPROOF_MCP_TOKEN?: string;
   QUEUEPROOF_MCP_WORKSPACE_ID?: string;
@@ -25,6 +31,12 @@ export type RuntimeEnv = {
   SUPABASE_ANON_KEY?: string;
   OPENAI_APPS_CHALLENGE?: string;
   LINEAR_API_KEY?: string;
+  /**
+   * Set by Vercel to "production" | "preview" | "development". The OAuth issuer pins
+   * itself to the canonical host on production so a deployment-alias request still
+   * advertises the issuer clients actually discovered.
+   */
+  VERCEL_ENV?: string;
 };
 
 export function runtimeEnv(): RuntimeEnv {

@@ -29,10 +29,10 @@ describe("judge-facing product UI", () => {
     expect(source).toContain("<dt>Recheck by</dt>");
   });
 
-  it("labels the anonymous workspace as synthetic Helios data", () => {
+  it("labels the anonymous workspace as the reviewer workspace", () => {
     const source = readFileSync(new URL("../app/QueueProofApp.tsx", import.meta.url), "utf8");
 
-    expect(source).toContain("Synthetic Helios demo");
-    expect(source).toContain("Synthetic Helios ·");
+    expect(source).toContain("Reviewer workspace,");
+    expect(source).toContain("Reviewer workspace ·");
   });
 });

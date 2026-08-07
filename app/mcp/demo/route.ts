@@ -1,15 +1,36 @@
 import { noStoreJson } from "../../../lib/server/api";
 import { runtimeEnv } from "../../../lib/server/runtime";
-import {
-  audit,
-  enforcePublicRateLimit,
-  workspaceForUser,
-} from "../../../lib/server/store";
+import { audit, enforcePublicRateLimit, workspaceForUser } from "../../../lib/server/store";
 import { createWorkspaceMcpHandler } from "../../../packages/mcp/src/server";
+import { isTrustedMcpOrigin, mcpPreflight, withMcpCors } from "../../../lib/server/mcp-cors";
 
 const PUBLIC_ACTOR_ID = "user:public-access";
 const PUBLIC_CLIENT_ID = "queueproof-public-demo";
 const READ_ONLY_SCOPES = ["queueproof:read"] as const;
+/**
+ * Fallback tenant id, used only when no reviewer workspace is provisioned. It matches no
+ * row on purpose, so the MCP server finds no verified connector and answers from the
+ * bundled Helios corpus instead of erroring. It stays a non-empty string because the id is
+ * still the partition key for the public rate limiter's audit counts and for `audit()`.
+ */
+const FALLBACK_WORKSPACE_ID = "workspace:synthetic-helios-demo";
+
+/**
+ * The reviewer workspace, when one is provisioned. `workspaceForUser` requires two
+ * independent operator opt-ins that a private tenant cannot satisfy by accident: the exact
+ * workspace id is named in `QUEUEPROOF_PUBLIC_WORKSPACE_ID`, and that workspace carries an
+ * explicit non-owner `user:public-access` membership row written by `pnpm public:provision`.
+ * A typo in the environment variable resolves nothing, because the membership is missing.
+ */
+async function reviewerWorkspaceId() {
+  try {
+    const workspace = await workspaceForUser(PUBLIC_ACTOR_ID);
+    const id = workspace?.id;
+    return typeof id === "string" && id ? id : FALLBACK_WORKSPACE_ID;
+  } catch {
+    return FALLBACK_WORKSPACE_ID;
+  }
+}
 
 async function containsToolCall(request: Request) {
   if (request.method !== "POST") return false;
@@ -25,34 +46,28 @@ async function containsToolCall(request: Request) {
   }
 }
 
+/**
+ * Outer shell: the demo exists to be called from Claude and ChatGPT, so a same-origin-only
+ * policy defeated its entire purpose. Rate limiting, not origin, is the abuse control here.
+ */
 async function serve(request: Request) {
+  const requestOrigin = request.headers.get("origin");
+  const selfOrigin = new URL(request.url).origin;
+  if (requestOrigin && !isTrustedMcpOrigin(requestOrigin, selfOrigin)) {
+    return noStoreJson({ error: "Origin is not allowed." }, { status: 403 });
+  }
+  if (request.method === "OPTIONS") return mcpPreflight(requestOrigin);
+  return withMcpCors(await handle(request), requestOrigin);
+}
+
+async function handle(request: Request) {
   const runtime = runtimeEnv() as Record<string, unknown>;
   if (runtime.QUEUEPROOF_PUBLIC_ACCESS !== "true") {
     return noStoreJson({ error: "The QueueProof public demo is unavailable." }, { status: 404 });
   }
 
   const requestUrl = new URL(request.url);
-  const origin = request.headers.get("origin");
-  if (origin) {
-    let parsedOrigin: string;
-    try {
-      parsedOrigin = new URL(origin).origin;
-    } catch {
-      return noStoreJson({ error: "Origin is not allowed." }, { status: 403 });
-    }
-    if (parsedOrigin !== requestUrl.origin) {
-      return noStoreJson({ error: "Origin is not allowed." }, { status: 403 });
-    }
-  }
-
-  const workspace = await workspaceForUser(PUBLIC_ACTOR_ID);
-  if (!workspace) {
-    return noStoreJson(
-      { error: "The QueueProof public workspace is not provisioned." },
-      { status: 503 },
-    );
-  }
-  const workspaceId = String(workspace.id);
+  const workspaceId = await reviewerWorkspaceId();
   const isToolCall = await containsToolCall(request);
   await enforcePublicRateLimit({
     actorId: PUBLIC_ACTOR_ID,
@@ -92,3 +107,4 @@ async function serve(request: Request) {
 export const GET = serve;
 export const POST = serve;
 export const DELETE = serve;
+export const OPTIONS = serve;
