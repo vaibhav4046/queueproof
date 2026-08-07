@@ -102,12 +102,23 @@ function citationCorpus(citation) {
   return normaliseGradeText(`${citation?.title ?? ""} ${citation?.excerpt ?? ""}`);
 }
 
+function claimLocalContext(claim, citation) {
+  const claimText = normaliseGradeText(claim?.text);
+  const excerpt = normaliseGradeText(citation?.excerpt);
+  const start = excerpt.indexOf(claimText);
+  if (!claimText || start < 0) return claimText;
+  const before = excerpt.slice(0, start).trim().split(" ").filter(Boolean).slice(-4);
+  const after = excerpt.slice(start + claimText.length).trim().split(" ").filter(Boolean).slice(0, 4);
+  return [...before, claimText, ...after].join(" ");
+}
+
 function claimCarriesRequiredFactSignal(claim, supportedCitations, requiredFacts) {
   const claimCorpus = normaliseGradeText(claim?.text);
   if (!claimCorpus) return false;
-  const contextualCorpus = normaliseGradeText(
-    `${claim?.text ?? ""} ${asArray(supportedCitations).map(citationCorpus).join(" ")}`,
-  );
+  const contextualCorpus = [
+    claimCorpus,
+    ...asArray(supportedCitations).map((citation) => claimLocalContext(claim, citation)),
+  ].join(" ");
   const topicalAnchors = topicalFactAlternatives(requiredFacts);
 
   return asArray(requiredFacts).some((fact) => {
@@ -126,14 +137,6 @@ function claimCarriesRequiredFactSignal(claim, supportedCitations, requiredFacts
     // compound fact. Single-group facts still require their complete alternative.
     return matchedGroups >= Math.min(2, groups.length);
   });
-}
-
-function contradictionFactSignatures(corpora, requiredFacts) {
-  return corpora.map((corpus) => asArray(requiredFacts)
-    .filter((fact) => matchRequiredFact(corpus, fact).matched)
-    .map((fact) => String(fact?.id ?? "unnamed-fact"))
-    .sort()
-    .join("|"));
 }
 
 function contradictionClauseSignals(clause, provider, topicalAnchors) {
@@ -159,6 +162,13 @@ function contradictionClauseSignals(clause, provider, topicalAnchors) {
   return [...signals];
 }
 
+function citationSentences(citation) {
+  return [
+    String(citation?.title ?? ""),
+    ...String(citation?.excerpt ?? "").split(/[.!?;\n]+/),
+  ].map(normaliseGradeText).filter(Boolean);
+}
+
 function contradictionHasAttributedDifference(citations, summary, topicalAnchors) {
   const clauses = String(summary ?? "")
     .split(/\b(?:but|however|whereas|while)\b|[;.!?]+/i)
@@ -166,11 +176,13 @@ function contradictionHasAttributedDifference(citations, summary, topicalAnchors
     .filter(Boolean);
   const signalSets = citations.map((citation) => {
     const provider = normaliseGradeText(citation?.provider);
-    const corpus = citationCorpus(citation);
+    const sentences = citationSentences(citation);
     const signals = clauses
       .filter((clause) => new RegExp(`\\b${provider}\\b`).test(clause))
       .flatMap((clause) => contradictionClauseSignals(clause, provider, topicalAnchors))
-      .filter((signal) => corpus.includes(signal));
+      .filter((signal) => sentences.some((sentence) =>
+        sentence.includes(signal) &&
+        topicalAnchors.some((anchor) => sentence.includes(anchor))));
     return [...new Set(signals)].sort();
   });
   if (signalSets.some((signals) => signals.length === 0)) return false;
@@ -178,14 +190,13 @@ function contradictionHasAttributedDifference(citations, summary, topicalAnchors
 }
 
 function contradictionSupportedByEvidence(citations, requiredFacts, summary) {
-  const corpora = citations.map(citationCorpus);
   const anchors = topicalFactAlternatives(requiredFacts);
-  const sharedAnchor = anchors.some((anchor) => corpora.every((corpus) => corpus.includes(anchor)));
-  if (!sharedAnchor) return false;
-
-  const signatures = contradictionFactSignatures(corpora, requiredFacts);
-  return new Set(signatures).size >= 2 ||
-    contradictionHasAttributedDifference(citations, summary, anchors);
+  if (
+    anchors.length === 0 ||
+    citations.some((citation) =>
+      !citationSentences(citation).some((sentence) => anchors.some((anchor) => sentence.includes(anchor))))
+  ) return false;
+  return contradictionHasAttributedDifference(citations, summary, anchors);
 }
 
 function claimSupportedByCitation(claim, citation) {
