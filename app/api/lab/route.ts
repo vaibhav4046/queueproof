@@ -141,9 +141,9 @@ const publicLiveArtifact = (artifact: Artifact | null): Artifact | null => {
     latencyMs: pick(artifact.latencyMs, ["p50", "p95", "min", "max"]),
     quality: pick(artifact.quality, [
       "requiredFactAccuracy", "requiredFactRecall", "citationPrecision",
-      "citationCompleteness", "unsupportedClaimRate", "claimRelevancePrecision",
-    "irrelevantClaimRate", "zeroIrrelevantClaims", "claimRelevancePrecision",
-      "irrelevantClaimRate", "zeroIrrelevantClaims", "note",
+      "citationCompleteness", "unsupportedClaimRate", "relevancePrecision",
+      "irrelevantClaimRate", "relevanceRequirementPasses",
+      "zeroKnowinglyUnsupportedClaims", "zeroIrrelevantClaims", "note",
     ]),
     release: publicRelease(artifact.release),
     rows: rows.map((row) => {
@@ -163,6 +163,8 @@ const publicLiveArtifact = (artifact: Artifact | null): Artifact | null => {
         providers: Array.isArray(value.providers)
           ? value.providers.filter((provider): provider is string => typeof provider === "string")
           : [],
+        relevancePrecision: value.relevancePrecision,
+        irrelevantClaimRate: value.irrelevantClaimRate,
         costUnits: value.costUnits,
       };
     }),
@@ -181,7 +183,9 @@ const publicPdfArtifact = (artifact: Artifact | null): Artifact | null => artifa
   calls: pick(artifact.calls, ["median", "mean", "min", "max"]),
   quality: pick(artifact.quality, [
     "requiredFactAccuracy", "requiredFactRecall", "citationPrecision",
-    "citationCompleteness", "unsupportedClaimRate",
+    "citationCompleteness", "unsupportedClaimRate", "relevancePrecision",
+    "irrelevantClaimRate", "relevanceRequirementPasses",
+    "zeroKnowinglyUnsupportedClaims", "zeroIrrelevantClaims",
   ]),
   crossSource: pick(artifact.crossSource, ["status", "pass"]),
   release: publicRelease(artifact.release),
