@@ -90,6 +90,71 @@ const indexedDocuments = (workspaceBody.view?.evidence?.documents ?? [])
 assert.ok(indexedDocuments.length >= 1,
   "The public judge workspace needs at least one indexed document with a HydraDB source receipt.");
 
+const runPublicAsk = async (question) => {
+  const response = await fetch(`${base}/api/ask`, {
+    method: "POST",
+    headers: { accept: "application/json", "content-type": "application/json" },
+    body: JSON.stringify({ question, mode: "auto" }),
+  });
+  assert.equal(response.status, 200, `Public web ask failed for "${question}".`);
+  const body = await response.json();
+  assert.equal(body.ok, true, `Public web ask did not return ok=true for "${question}".`);
+  return body;
+};
+
+const assertWebEvidenceClosure = (result, label) => {
+  assert.ok(Array.isArray(result.claims), `${label} is missing claims.`);
+  assert.ok(Array.isArray(result.citations), `${label} is missing citations.`);
+  assert.ok(Array.isArray(result.contradictions), `${label} is missing contradictions.`);
+  assert.ok(Array.isArray(result.evidence), `${label} is missing evidence.`);
+  const referencedIds = new Set([
+    ...result.claims.flatMap((claim) => claim.citation_ids ?? []),
+    ...result.contradictions.flatMap((contradiction) => contradiction.evidenceIds ?? []),
+  ]);
+  const evidenceIds = new Set(result.evidence.map((item) => item.id));
+  const citationIds = new Set(result.citations.map((item) => item.id));
+  assert.deepEqual([...evidenceIds].sort(), [...referencedIds].sort(),
+    `${label} returned uncited or otherwise unreferenced evidence.`);
+  assert.deepEqual([...citationIds].sort(), [...referencedIds].sort(),
+    `${label} citations do not close over every claim and contradiction receipt.`);
+  assert.equal(result.validation?.evidenceCount, result.evidence.length,
+    `${label} validation evidence count does not match the returned evidence.`);
+  assert.equal(result.retrieval_receipt?.receipt_count, result.citations.length,
+    `${label} receipt count does not match its citations.`);
+  const providers = [...new Set(result.evidence.map((item) => item.provider))].sort();
+  assert.deepEqual([...(result.validation?.providerCoverage ?? [])].sort(), providers,
+    `${label} validation provider coverage does not match the returned evidence.`);
+  assert.deepEqual([...(result.retrieval_receipt?.provider_coverage ?? [])].sort(), providers,
+    `${label} receipt provider coverage does not match the returned evidence.`);
+};
+
+const webFlagship = await runPublicAsk(
+  "Who escalated the AuthShield outage, what did engineering commit to, and is the fix already merged?",
+);
+assertWebEvidenceClosure(webFlagship, "Web flagship answer");
+assert.doesNotMatch(
+  JSON.stringify(webFlagship.evidence),
+  /\b\d+\s+tests?\s+passed\b|\/api\/health\/live|\bexact preview\b|\bbenchmark artifact\b/i,
+  "The web flagship retained QueueProof CI or release-note noise.",
+);
+
+const webExactId = await runPublicAsk("What is BUG-123?");
+assertWebEvidenceClosure(webExactId, "Web exact-ID answer");
+assert.equal(webExactId.trace?.mode, "fast", "A bare web exact-ID lookup must stay in Fast mode.");
+assert.equal(webExactId.trace?.callCount, 1,
+  `Web exact-ID lookup used ${webExactId.trace?.callCount} HydraDB calls; expected exactly 1.`);
+assert.equal(webExactId.evidence.length, 1,
+  `Web exact-ID lookup returned ${webExactId.evidence.length} receipts; expected exactly 1.`);
+assert.equal(webExactId.evidence[0]?.provider, "slack",
+  "The reviewed BUG-123 web receipt must come from Slack.");
+assert.match(
+  `${webExactId.evidence[0]?.id ?? ""} ${webExactId.evidence[0]?.title ?? ""} ${webExactId.evidence[0]?.excerpt ?? ""}`,
+  /\bBUG-123\b/i,
+  "Web exact-ID lookup did not retain the exact BUG-123 receipt.",
+);
+assert.doesNotMatch(JSON.stringify(webExactId), /\bBUG-1234\b|\bENG-456\b/i,
+  "Web exact-ID lookup retained a neighboring or unrelated record.");
+
 const routes = [
   "/", "/queue", "/evidence", "/benchmarks", "/replay", "/approvals",
   "/developer", "/method", "/demo", "/owner", "/sign-in", "/support",
