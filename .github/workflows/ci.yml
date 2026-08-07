@@ -22,6 +22,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -39,6 +41,9 @@ jobs:
 
       - name: Reject moderate, high, or critical dependency advisories
         run: pnpm audit --audit-level moderate
+
+      - name: Verify full-history secret-scan guard
+        run: node scripts/test-secret-scan.mjs
 
       - name: Scan candidate tree and reachable history for credentials
         run: pnpm scan:secrets
