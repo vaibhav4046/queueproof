@@ -75,3 +75,4 @@ jobs:
       - name: Publish PDF benchmark
         run: node scripts/publish-benchmark-artifact.mjs --kind pdf --file evals/results/release-pdf-98dcc72.json --url https://queueproof.vercel.app
 
+# One-time branch-scoped release publication.
