@@ -104,12 +104,14 @@ function citationCorpus(citation) {
 
 function claimLocalContext(claim, citation) {
   const claimText = normaliseGradeText(claim?.text);
-  const excerpt = normaliseGradeText(citation?.excerpt);
-  const start = excerpt.indexOf(claimText);
-  if (!claimText || start < 0) return claimText;
-  const before = excerpt.slice(0, start).trim().split(" ").filter(Boolean).slice(-4);
-  const after = excerpt.slice(start + claimText.length).trim().split(" ").filter(Boolean).slice(0, 4);
-  return [...before, claimText, ...after].join(" ");
+  if (!claimText) return "";
+  const matchingSentences = String(citation?.excerpt ?? "")
+    .split(/[.!?;\n]+/)
+    .map(normaliseGradeText)
+    .filter((sentence) => sentence.includes(claimText));
+  // Never borrow a topic from an adjacent sentence in a multi-topic chunk.
+  // If a claim spans sentence boundaries, its own text remains the only context.
+  return [claimText, ...matchingSentences].join(" ");
 }
 
 function claimCarriesRequiredFactSignal(claim, supportedCitations, requiredFacts) {
