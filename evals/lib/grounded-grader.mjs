@@ -3,8 +3,8 @@
  *
  * This module performs no I/O. A benchmark case passes only when every explicit
  * required fact is present, every required provider has a supporting cited claim,
- * all claim citation IDs resolve, every claim is textually supported by its cited
- * excerpt, and any required contradiction is backed by two cited providers.
+ * all claim citation IDs resolve, every claim is textually supported and relevant,
+ * and any required contradiction is backed by topically aligned, disagreeing receipts.
  */
 
 export const GROUNDED_GRADER_VERSION = "grounded-grader-v3";
@@ -66,12 +66,55 @@ function claimCarriesRequiredFactSignal(claim, requiredFacts) {
   const corpus = normaliseGradeText(claim?.text);
   if (!corpus) return false;
   return asArray(requiredFacts).some((fact) => {
-    const phrases = [
-      ...asArray(fact?.anyOf),
-      ...asArray(fact?.allOf).flatMap((group) => asArray(group)),
-    ];
-    return alternativesMatch(corpus, phrases) !== null;
+    if (alternativesMatch(corpus, fact?.anyOf)) return true;
+    const groups = asArray(fact?.allOf);
+    if (groups.length === 0) return false;
+    const matchedGroups = groups.filter((group) => alternativesMatch(corpus, group)).length;
+    // One generic entity token must not make an unrelated claim relevant to a
+    // compound fact. Single-group facts still require their complete alternative.
+    return matchedGroups >= Math.min(2, groups.length);
   });
+}
+
+const NON_TOPICAL_TOKENS = new Set([
+  "january", "february", "march", "april", "may", "june",
+  "july", "august", "september", "october", "november", "december",
+  "open", "closed", "merged", "shipped", "released", "resolved",
+  "latest", "newest", "recent", "still", "remains", "showing",
+  "source", "sources", "says", "said", "tracked", "issue",
+  "deadline", "promise", "promised", "commitment", "committed",
+]);
+
+function topicalFactAlternatives(requiredFacts) {
+  return [...new Set(asArray(requiredFacts).flatMap((fact) => [
+    ...asArray(fact?.anyOf),
+    ...asArray(fact?.allOf).flatMap((group) => asArray(group)),
+  ]).map(normaliseGradeText).filter((phrase) => {
+    if (!phrase) return false;
+    const tokens = phrase.split(" ");
+    return tokens.some((token) =>
+      /\p{L}/u.test(token) && token.length >= 3 && !NON_TOPICAL_TOKENS.has(token));
+  }))];
+}
+
+function citationCorpus(citation) {
+  return normaliseGradeText(`${citation?.title ?? ""} ${citation?.excerpt ?? ""}`);
+}
+
+function contradictionSupportedByEvidence(citations, requiredFacts) {
+  const corpora = citations.map(citationCorpus);
+  const anchors = topicalFactAlternatives(requiredFacts);
+  const sharedAnchor = anchors.some((anchor) => corpora.every((corpus) => corpus.includes(anchor)));
+  if (!sharedAnchor) return false;
+
+  // A conflict also needs different fact signatures across its receipts. This
+  // rejects two sources that share a topic but actually report the same state.
+  const signatures = corpora.map((corpus) => asArray(requiredFacts)
+    .filter((fact) => matchRequiredFact(corpus, fact).matched)
+    .map((fact) => String(fact?.id ?? "unnamed-fact"))
+    .sort()
+    .join("|"));
+  return new Set(signatures).size >= 2;
 }
 
 function claimSupportedByCitation(claim, citation) {
@@ -174,7 +217,13 @@ export function gradeGroundedAnswer({
       return citation;
     }).filter(Boolean);
     const providers = [...new Set(resolved.map((citation) => normaliseGradeText(citation.provider)).filter(Boolean))];
-    if (ids.length >= 2 && resolved.length === ids.length && providers.length >= 2 && String(contradiction?.summary ?? "").trim()) {
+    if (
+      ids.length >= 2 &&
+      resolved.length === ids.length &&
+      providers.length >= 2 &&
+      String(contradiction?.summary ?? "").trim() &&
+      contradictionSupportedByEvidence(resolved, requiredFacts)
+    ) {
       ids.forEach((id) => {
         supportedCitationIds.add(id);
         supportedContradictionCitationIds.add(id);
