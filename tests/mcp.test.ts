@@ -637,35 +637,52 @@ describe("QueueProof MCP", () => {
         latencyMs: 2,
         error: null,
         data: {
-          sources: selected.map((connector) => ({
-            id: `source-${connector.provider}`,
-            connector_id: connector.hydraId,
-            app_provider: connector.provider,
-            title: `${connector.provider} receipt`,
-          })),
-          chunks: selected.map((connector) => ({
-            id: `source-${connector.provider}`,
-            chunk_id: `chunk-${connector.provider}`,
-            chunk_content: exactLookup
-              ? connector.provider === "github"
-                ? "BUG-123 is the AuthShield incident and the fix is merged."
-                : connector.provider === "linear"
-                  ? namedLinearLookup
-                    ? "BUG-123 is owned by the Linear platform team."
-                    : "BUG-1234 is an unrelated neighboring ticket."
-                  : "Unrelated customer billing discussion."
-              : multiHop
-                ? connector.provider === "linear"
-                  ? "Priya Raman filed BUG-123 for the AuthShield project."
-                  : connector.provider === "slack"
-                    ? "Priya told the customer the fix would ship by Friday."
-                    : "The AuthShield fix was merged in commit abc123."
-                : connector.provider === "github"
-                  ? "The AuthShield fix was merged in commit abc123."
-                  : connector.provider === "slack"
-                    ? "Priya Raman escalated the AuthShield outage for Northwind."
-                    : "Priya filed the AuthShield incident and engineering committed to Friday.",
-          })),
+          sources: [
+            ...selected.map((connector) => ({
+              id: `source-${connector.provider}`,
+              connector_id: connector.hydraId,
+              app_provider: connector.provider,
+              title: `${connector.provider} receipt`,
+            })),
+            ...(selected.some((connector) => connector.provider === "github") ? [{
+              id: "source-github-ci-noise",
+              connector_id: "demo-github",
+              app_provider: "github",
+              title: "Preserve compound receipt context and harden stale-state retrieval",
+            }] : []),
+          ],
+          chunks: [
+            ...selected.map((connector) => ({
+              id: `source-${connector.provider}`,
+              chunk_id: `chunk-${connector.provider}`,
+              chunk_content: exactLookup
+                ? connector.provider === "github"
+                  ? "BUG-123 is the AuthShield incident and the fix is merged."
+                  : connector.provider === "linear"
+                    ? namedLinearLookup
+                      ? "BUG-123 is owned by the Linear platform team."
+                      : "BUG-1234 is an unrelated neighboring ticket."
+                    : "Unrelated customer billing discussion."
+                : multiHop
+                  ? connector.provider === "linear"
+                    ? "Priya Raman filed BUG-123 for the AuthShield project."
+                    : connector.provider === "slack"
+                      ? "Priya told the customer the fix would ship by Friday."
+                      : "The AuthShield fix was merged in commit abc123."
+                  : connector.provider === "github"
+                    ? "The AuthShield fix was merged in commit abc123."
+                    : connector.provider === "slack"
+                      ? "Priya Raman escalated the AuthShield outage for Northwind."
+                      : "Priya filed the AuthShield incident and engineering committed to Friday.",
+            })),
+            ...(selected.some((connector) => connector.provider === "github") ? [{
+              id: "source-github-ci-noise",
+              chunk_id: "chunk-github-ci-noise",
+              chunk_content:
+                "622 tests passed. TypeScript and ESLint passed. The production build passed. " +
+                "Exact preview /api/health/live says the AuthShield fix is merged while ENG-456 remains open.",
+            }] : []),
+          ],
         },
       };
     });
@@ -719,7 +736,11 @@ describe("QueueProof MCP", () => {
           evidenceCount: number;
           providerCoverage: string[];
         };
-        evidence: Array<{ evidenceId: string; provider: string }>;
+        evidence: Array<{
+          evidenceId: string;
+          provider: string;
+          promptInjectionDetected?: boolean;
+        }>;
         providerCoverage: string[];
         callCount: number;
         estimatedCostUnits: number;
@@ -745,6 +766,16 @@ describe("QueueProof MCP", () => {
         evidenceCount: result.evidence.length,
       });
       const returnedEvidenceIds = new Set(result.evidence.map((item) => item.evidenceId));
+      const referencedEvidenceIds = new Set([
+        ...result.claims.flatMap((claim) => claim.evidenceIds),
+        ...result.contradictions.flatMap((contradiction) => contradiction.evidenceIds),
+      ]);
+      expect(JSON.stringify(result)).not.toContain("source-github-ci-noise");
+      for (const item of result.evidence) {
+        expect(
+          referencedEvidenceIds.has(item.evidenceId) || item.promptInjectionDetected === true,
+        ).toBe(true);
+      }
       expect(result.citations.length).toBeGreaterThan(0);
       for (const citation of result.citations) {
         expect(returnedEvidenceIds.has(citation.evidenceId)).toBe(true);
