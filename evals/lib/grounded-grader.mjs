@@ -62,20 +62,6 @@ function contradictionCitationIds(contradiction) {
   return [...new Set(asArray(contradiction?.evidenceIds ?? contradiction?.evidence_ids).map(String).filter(Boolean))];
 }
 
-function claimCarriesRequiredFactSignal(claim, requiredFacts) {
-  const corpus = normaliseGradeText(claim?.text);
-  if (!corpus) return false;
-  return asArray(requiredFacts).some((fact) => {
-    if (alternativesMatch(corpus, fact?.anyOf)) return true;
-    const groups = asArray(fact?.allOf);
-    if (groups.length === 0) return false;
-    const matchedGroups = groups.filter((group) => alternativesMatch(corpus, group)).length;
-    // One generic entity token must not make an unrelated claim relevant to a
-    // compound fact. Single-group facts still require their complete alternative.
-    return matchedGroups >= Math.min(2, groups.length);
-  });
-}
-
 const NON_TOPICAL_TOKENS = new Set([
   "january", "february", "march", "april", "may", "june",
   "july", "august", "september", "october", "november", "december",
@@ -85,36 +71,119 @@ const NON_TOPICAL_TOKENS = new Set([
   "deadline", "promise", "promised", "commitment", "committed",
 ]);
 
+const CONTRADICTION_STATE_TOKENS = new Set([
+  "active", "approved", "blocked", "cancelled", "canceled", "closed",
+  "complete", "completed", "disabled", "enabled", "failed", "fixed",
+  "merged", "open", "pending", "rejected", "resolved", "shipped",
+]);
+
+const CONTRADICTION_STOP_TOKENS = new Set([
+  "according", "cited", "claim", "claims", "contain", "contains",
+  "date", "dates", "deadline", "different", "disagree", "disagrees",
+  "evidence", "record", "records", "report", "reports", "said", "says",
+  "source", "sources", "state", "states", "while", "with",
+]);
+
+function phraseIsTopical(phrase) {
+  const normalised = normaliseGradeText(phrase);
+  if (!normalised) return false;
+  return normalised.split(" ").some((token) =>
+    /\p{L}/u.test(token) && token.length >= 3 && !NON_TOPICAL_TOKENS.has(token));
+}
+
 function topicalFactAlternatives(requiredFacts) {
   return [...new Set(asArray(requiredFacts).flatMap((fact) => [
     ...asArray(fact?.anyOf),
     ...asArray(fact?.allOf).flatMap((group) => asArray(group)),
-  ]).map(normaliseGradeText).filter((phrase) => {
-    if (!phrase) return false;
-    const tokens = phrase.split(" ");
-    return tokens.some((token) =>
-      /\p{L}/u.test(token) && token.length >= 3 && !NON_TOPICAL_TOKENS.has(token));
-  }))];
+  ]).map(normaliseGradeText).filter(phraseIsTopical))];
 }
 
 function citationCorpus(citation) {
   return normaliseGradeText(`${citation?.title ?? ""} ${citation?.excerpt ?? ""}`);
 }
 
-function contradictionSupportedByEvidence(citations, requiredFacts) {
+function claimCarriesRequiredFactSignal(claim, supportedCitations, requiredFacts) {
+  const claimCorpus = normaliseGradeText(claim?.text);
+  if (!claimCorpus) return false;
+  const contextualCorpus = normaliseGradeText(
+    `${claim?.text ?? ""} ${asArray(supportedCitations).map(citationCorpus).join(" ")}`,
+  );
+  const topicalAnchors = topicalFactAlternatives(requiredFacts);
+
+  return asArray(requiredFacts).some((fact) => {
+    const anyMatch = alternativesMatch(claimCorpus, fact?.anyOf);
+    if (anyMatch) {
+      // Dates and generic state words are not topical on their own. They must
+      // appear in a claim/citation context that also names the case subject.
+      if (phraseIsTopical(anyMatch) || topicalAnchors.length === 0) return true;
+      return topicalAnchors.some((anchor) => contextualCorpus.includes(anchor));
+    }
+
+    const groups = asArray(fact?.allOf);
+    if (groups.length === 0) return false;
+    const matchedGroups = groups.filter((group) => alternativesMatch(claimCorpus, group)).length;
+    // One generic entity token must not make an unrelated claim relevant to a
+    // compound fact. Single-group facts still require their complete alternative.
+    return matchedGroups >= Math.min(2, groups.length);
+  });
+}
+
+function contradictionFactSignatures(corpora, requiredFacts) {
+  return corpora.map((corpus) => asArray(requiredFacts)
+    .filter((fact) => matchRequiredFact(corpus, fact).matched)
+    .map((fact) => String(fact?.id ?? "unnamed-fact"))
+    .sort()
+    .join("|"));
+}
+
+function contradictionClauseSignals(clause, provider, topicalAnchors) {
+  const corpus = normaliseGradeText(clause);
+  const signals = new Set();
+  const monthPattern = "january|february|march|april|may|june|july|august|september|october|november|december";
+  for (const match of corpus.matchAll(new RegExp(`\\b\\d{1,2} (?:${monthPattern})\\b`, "g"))) {
+    signals.add(match[0]);
+  }
+  for (const token of corpus.split(" ")) {
+    if (
+      token.length < 3 ||
+      token === provider ||
+      /^\d+$/.test(token) ||
+      NON_TOPICAL_TOKENS.has(token) ||
+      CONTRADICTION_STOP_TOKENS.has(token)
+    ) continue;
+    if (CONTRADICTION_STATE_TOKENS.has(token)) signals.add(token);
+    else if (!topicalAnchors.some((anchor) => anchor.split(" ").includes(token))) signals.add(token);
+  }
+  return [...signals];
+}
+
+function contradictionHasAttributedDifference(citations, summary, topicalAnchors) {
+  const clauses = normaliseGradeText(summary)
+    .split(/\b(?:but|however|whereas|while)\b|[;.!?]+/)
+    .map((clause) => clause.trim())
+    .filter(Boolean);
+  const signalSets = citations.map((citation) => {
+    const provider = normaliseGradeText(citation?.provider);
+    const corpus = citationCorpus(citation);
+    const signals = clauses
+      .filter((clause) => new RegExp(`\\b${provider}\\b`).test(clause))
+      .flatMap((clause) => contradictionClauseSignals(clause, provider, topicalAnchors))
+      .filter((signal) => corpus.includes(signal));
+    return [...new Set(signals)].sort();
+  });
+  if (signalSets.some((signals) => signals.length === 0)) return false;
+  return new Set(signalSets.map((signals) => signals.join("|"))).size >= 2;
+}
+
+function contradictionSupportedByEvidence(citations, requiredFacts, summary) {
   const corpora = citations.map(citationCorpus);
   const anchors = topicalFactAlternatives(requiredFacts);
   const sharedAnchor = anchors.some((anchor) => corpora.every((corpus) => corpus.includes(anchor)));
   if (!sharedAnchor) return false;
 
-  // A conflict also needs different fact signatures across its receipts. This
-  // rejects two sources that share a topic but actually report the same state.
-  const signatures = corpora.map((corpus) => asArray(requiredFacts)
-    .filter((fact) => matchRequiredFact(corpus, fact).matched)
-    .map((fact) => String(fact?.id ?? "unnamed-fact"))
-    .sort()
-    .join("|"));
-  return new Set(signatures).size >= 2;
+  const signatures = contradictionFactSignatures(corpora, requiredFacts);
+  return new Set(signatures).size >= 2 ||
+    contradictionHasAttributedDifference(citations, summary, anchors);
 }
 
 function claimSupportedByCitation(claim, citation) {
@@ -172,7 +241,6 @@ export function gradeGroundedAnswer({
 
   for (const [index, claim] of asArray(claims).entries()) {
     const ids = claimCitationIds(claim);
-    const touchesRequiredFact = claimCarriesRequiredFactSignal(claim, requiredFacts);
     const supportedIds = [];
     let supported = false;
     for (const id of ids) {
@@ -203,7 +271,11 @@ export function gradeGroundedAnswer({
       text: String(claim?.text ?? ""),
       citationIds: ids,
       supportedIds,
-      touchesRequiredFact,
+      touchesRequiredFact: claimCarriesRequiredFactSignal(
+        claim,
+        supportedIds.map((id) => citationById.get(id)).filter(Boolean),
+        requiredFacts,
+      ),
     });
   }
 
@@ -222,7 +294,7 @@ export function gradeGroundedAnswer({
       resolved.length === ids.length &&
       providers.length >= 2 &&
       String(contradiction?.summary ?? "").trim() &&
-      contradictionSupportedByEvidence(resolved, requiredFacts)
+      contradictionSupportedByEvidence(resolved, requiredFacts, contradiction?.summary)
     ) {
       ids.forEach((id) => {
         supportedCitationIds.add(id);
