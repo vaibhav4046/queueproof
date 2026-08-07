@@ -19,6 +19,16 @@ describe("judge-facing product UI", () => {
     expect(css).not.toContain("background: #5a321b");
   });
 
+  it("uses truthful, uniquely named proof actions and exposes receipt freshness", () => {
+    const source = readFileSync(new URL("../app/QueueProofApp.tsx", import.meta.url), "utf8");
+
+    expect(source).toContain("Inspect the receipt behind every claim");
+    expect(source).not.toContain("Open the source behind every claim");
+    expect(source).toContain("View proof for ${connector.name}");
+    expect(source).toContain("proofFreshness?.status");
+    expect(source).toContain("<dt>Recheck by</dt>");
+  });
+
   it("labels the anonymous workspace as synthetic Helios data", () => {
     const source = readFileSync(new URL("../app/QueueProofApp.tsx", import.meta.url), "utf8");
 
