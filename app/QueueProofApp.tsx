@@ -1313,7 +1313,7 @@ function AskScreen({ workspaceId, verified, connectorsLoaded, onOpenSources, onO
             <div className="hero-proofline" aria-label="Current source proof and recorded live benchmark">
               <span><strong>{verifiedCount}</strong><small>LIVE SYSTEMS PROVEN</small></span>
               <span><strong>{judgeMeasured && judgePulse?.citationPrecision !== null && judgePulse?.citationPrecision !== undefined ? `${Math.round(judgePulse.citationPrecision * 100)}%` : "—"}</strong><small>RECORDED CITATION PRECISION</small></span>
-              <span><strong>{judgeMeasured && judgePulse?.relevancePrecision !== null && judgePulse?.relevancePrecision !== undefined ? `${Math.round(judgePulse.unsupportedClaimRate * 100)}%` : "—"}</strong><small>RECORDED CLAIM RELEVANCE</small></span>
+              <span><strong>{judgeMeasured && judgePulse?.relevancePrecision !== null && judgePulse?.relevancePrecision !== undefined ? `${Math.round(judgePulse.relevancePrecision * 100)}%` : "—"}</strong><small>RECORDED CLAIM RELEVANCE</small></span>
             </div>
             <div className="proof-manifest" aria-label="QueueProof evidence workflow">
               <span><b>01</b> Verify sources</span><i />
@@ -1404,7 +1404,7 @@ function AskScreen({ workspaceId, verified, connectorsLoaded, onOpenSources, onO
             <span className="eyebrow">Flagship proof</span>
             <h3>Who escalated AuthShield, what was promised, and is the fix merged?</h3>
             <p>QueueProof reconstructs the warning, commitment, implementation, tracked state, and missing follow-up across the verified sources available to this workspace.</p>
-            <div><span><small>LIVE SOURCES PROVEN</small><strong>{verifiedCount || "—"}</strong></span><span><small>RECORDED CITATION PRECISION</small><strong>{judgeMeasured && judgePulse?.citationPrecision !== null && judgePulse?.citationPrecision !== undefined ? `${Math.round(judgePulse.citationPrecision * 100)}%` : "Not measured"}</strong></span><span><small>RECORDED RELEVANCE</small><strong>{judgeMeasured && judgePulse?.relevancePrecision !== null && judgePulse?.relevancePrecision !== undefined ? `${Math.round(judgePulse.unsupportedClaimRate * 100)}%` : "Not measured"}</strong></span></div>
+            <div><span><small>LIVE SOURCES PROVEN</small><strong>{verifiedCount || "—"}</strong></span><span><small>RECORDED CITATION PRECISION</small><strong>{judgeMeasured && judgePulse?.citationPrecision !== null && judgePulse?.citationPrecision !== undefined ? `${Math.round(judgePulse.citationPrecision * 100)}%` : "Not measured"}</strong></span><span><small>RECORDED RELEVANCE</small><strong>{judgeMeasured && judgePulse?.relevancePrecision !== null && judgePulse?.relevancePrecision !== undefined ? `${Math.round(judgePulse.relevancePrecision * 100)}%` : "Not measured"}</strong></span></div>
             <button type="button" className="secondary-button" onClick={() => { setQuestion("Who escalated the AuthShield outage, what did engineering commit to, and is the fix already merged?"); questionRef.current?.focus(); }}>Load this investigation</button>
           </article>
           <article className="difficult-questions-card">
@@ -2730,7 +2730,7 @@ function LabScreen({ setError }: { setError: (value: string) => void }) {
     && typeof live?.quality?.requiredFactRecall === "number" && live.quality.requiredFactRecall >= .9
     && typeof live?.quality?.citationCompleteness === "number" && live.quality.citationCompleteness >= .95
     && typeof live?.quality?.unsupportedClaimRate === "number" && live.quality.unsupportedClaimRate === 0
-    && liveRelevanceMet;
+    && liveRelevanceMet && pdfGatesMet;
 
   return (
     <section className="screen benchmark-screen">
