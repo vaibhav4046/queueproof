@@ -238,6 +238,18 @@ const schemaStatements = [
   )`,
   `CREATE INDEX IF NOT EXISTS benchmark_artifacts_release_idx
     ON benchmark_artifacts(workspace_id, release_sha, kind)`,
+  // A one-time publisher stores only the token's irreversible hash. Keeping the
+  // consumption receipt in the same database lets publication and consumption commit
+  // atomically; an identical network retry can then be proven safe without reopening
+  // the credential for a different payload.
+  `CREATE TABLE IF NOT EXISTS benchmark_publication_tokens (
+    token_hash TEXT PRIMARY KEY, workspace_id TEXT NOT NULL,
+    release_sha TEXT NOT NULL, artifact_set_hash TEXT NOT NULL,
+    expires_at TEXT NOT NULL, used_at TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE INDEX IF NOT EXISTS benchmark_publication_tokens_release_idx
+    ON benchmark_publication_tokens(workspace_id, release_sha)`,
   `CREATE TABLE IF NOT EXISTS audit_events (
     id TEXT PRIMARY KEY, workspace_id TEXT, actor_id TEXT NOT NULL,
     operation TEXT NOT NULL, operation_id TEXT NOT NULL, target_type TEXT,
