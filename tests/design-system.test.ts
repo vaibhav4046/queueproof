@@ -92,6 +92,14 @@ describe("production design system", () => {
     expect(app).toContain('aria-label="Close approval details"');
   });
 
+  it("keeps long proof surfaces branded and proportionate on 4K canvases", () => {
+    expect(ember).toContain("scrollbar-color: rgba(255, 154, 66, .38) #050403");
+    expect(ember).toContain("*::-webkit-scrollbar-thumb");
+    expect(ember).toContain("@media (min-width: 1920px)");
+    expect(ember).toMatch(/\.proof-screen \{ width:\s*min\(1180px, 100%\)/);
+    expect(ember).toContain("* { scrollbar-color: auto; }");
+  });
+
   it("keeps account identity and sign-out reachable from the mobile header", () => {
     expect(app).toContain('<AccountControl actor={view.actor} workspaceId={view.workspace.id} mobile verifiedCount={verified.length} />');
     expect(app).toContain('mobile-account-menu');

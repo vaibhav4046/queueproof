@@ -1,5 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import {
+  QUEUEPROOF_SOCIAL_PROVIDERS,
+  type QueueProofSocialProvider,
+} from "../supabase/social-providers";
 import { runtimeEnv } from "./runtime";
 
 export type QueueProofAuthMode = "legacy" | "hybrid" | "supabase";
@@ -79,6 +83,29 @@ export function supabaseWebEnabled(
 ): boolean {
   const mode = queueProofAuthMode(env);
   return (mode === "hybrid" || mode === "supabase") && Boolean(supabaseConfig(env));
+}
+
+/**
+ * Discover only providers Supabase confirms are enabled. A social sign-in affordance that
+ * redirects to an unconfigured provider is worse than no affordance, so network errors and
+ * malformed settings fail closed to the always-available email flow.
+ */
+export async function enabledSupabaseSocialProviders(
+  config: SupabaseConfig,
+  request: typeof fetch = fetch,
+): Promise<QueueProofSocialProvider[]> {
+  try {
+    const response = await request(`${config.url}/auth/v1/settings`, {
+      cache: "no-store",
+      headers: { apikey: config.publishableKey },
+      signal: AbortSignal.timeout(1_800),
+    });
+    if (!response.ok) return [];
+    const settings = await response.json() as { external?: Record<string, unknown> };
+    return QUEUEPROOF_SOCIAL_PROVIDERS.filter((provider) => settings.external?.[provider] === true);
+  } catch {
+    return [];
+  }
 }
 
 export function legacyOwnerSignInEnabled(
