@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  enabledSupabaseSocialProviders,
   legacyOwnerSignInEnabled,
   normaliseSupabaseUrl,
   queueProofAuthMode,
@@ -61,5 +62,18 @@ describe("Supabase configuration", () => {
     const supabaseOnly = { ...complete, QUEUEPROOF_AUTH_MODE: "supabase" };
     expect(supabaseWebEnabled(supabaseOnly)).toBe(true);
     expect(legacyOwnerSignInEnabled(supabaseOnly)).toBe(false);
+  });
+
+  it("exposes only social providers Supabase confirms are enabled", async () => {
+    const config = supabaseConfig(complete)!;
+    const request = async () => new Response(JSON.stringify({
+      external: { email: true, google: true, github: false, slack_oidc: true },
+    }), { status: 200, headers: { "content-type": "application/json" } });
+
+    await expect(enabledSupabaseSocialProviders(config, request as typeof fetch))
+      .resolves.toEqual(["google", "slack_oidc"]);
+    await expect(enabledSupabaseSocialProviders(config, (async () => {
+      throw new Error("network unavailable");
+    }) as typeof fetch)).resolves.toEqual([]);
   });
 });

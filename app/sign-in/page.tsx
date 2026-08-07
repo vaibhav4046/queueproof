@@ -6,6 +6,7 @@ import { EmberBackdrop } from "@/components/queueproof/ember-backdrop";
 import { QueueProofLogo, QueueProofSymbol } from "../components/QueueProofLogo";
 import {
   createQueueProofServerClient,
+  enabledSupabaseSocialProviders,
   supabaseConfig,
   supabaseWebEnabled,
 } from "../../lib/server/supabase";
@@ -40,6 +41,9 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
   const config = supabaseConfig();
   const configured = supabaseWebEnabled() && Boolean(config);
   const nextPath = safeNext(params.next);
+  const socialProviders = configured && config
+    ? await enabledSupabaseSocialProviders(config)
+    : [];
 
   return (
     <main className={styles.page} id="main-content">
@@ -61,7 +65,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
             <ul className={styles.proofList} aria-label="QueueProof account benefits">
               <li><Check size={15} /> Your sources stay in your workspace</li>
               <li><Check size={15} /> Missing evidence stays visible</li>
-              <li><Check size={15} /> One account is designed for web and ChatGPT</li>
+              <li><Check size={15} /> Import existing HydraDB connectors in one step</li>
             </ul>
           </div>
         </section>
@@ -84,6 +88,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
               <SignInForm
                 creating={creating}
                 nextPath={nextPath}
+                socialProviders={socialProviders}
                 supabase={{ url: config.url, publishableKey: config.publishableKey }}
               />
             ) : (
