@@ -1,0 +1,42 @@
+name: Apply provider-scoped coverage repair
+
+on:
+  push:
+    branches:
+      - agent/provider-scoped-repair
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[provider-repair-patched]') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.13.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Apply provider-scoped repair
+        run: python scripts/patch-provider-scoped-repair.py
+      - name: Focused retrieval tests
+        run: pnpm exec vitest run tests/retrieval.test.ts tests/query-workflow.test.ts --pool=threads --maxWorkers=1 --fileParallelism=false
+      - name: Type-check
+        run: pnpm typecheck
+      - name: Lint
+        run: pnpm lint
+      - name: Commit verified patch
+        run: |
+          git config user.name "QueueProof Release Bot"
+          git config user.email "115102797+vaibhav4046@users.noreply.github.com"
+          git add packages/retrieval/src/index.ts app/api/ask/route.ts tests/retrieval.test.ts
+          git commit -m "Target coverage repair with provider-linked join keys [provider-repair-patched]"
+          git push origin HEAD:agent/provider-scoped-repair
