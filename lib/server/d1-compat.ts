@@ -180,45 +180,46 @@ function decodeLibsql(value: LibsqlValue): unknown {
   }
 }
 
+type LibsqlStatementResult = {
+  cols?: Array<{ name?: string | null }>;
+  rows?: LibsqlValue[][];
+  affected_row_count?: number;
+  last_insert_rowid?: string | null;
+};
+
+type LibsqlErrorPayload = { message?: string; code?: string };
+
+type LibsqlPipelineEntry =
+  | {
+      type: "ok";
+      response?: {
+        type: string;
+        result?: LibsqlStatementResult | {
+          step_results?: Array<LibsqlStatementResult | null>;
+          step_errors?: Array<LibsqlErrorPayload | null>;
+        };
+      };
+    }
+  | { type: "error"; error?: LibsqlErrorPayload };
+
 class LibsqlExecutor implements Executor {
-  private readonly endpoint: string;
+  private readonly baseEndpoint: string;
 
   constructor(url: string, private readonly authToken: string) {
-    // Accept libsql://, wss:// and https:// forms; the pipeline API is always HTTPS.
+    // Accept libsql://, wss:// and https:// forms; Hrana's HTTP endpoints are HTTPS.
     const normalised = url.replace(/^libsql:\/\//, "https://").replace(/^wss:\/\//, "https://");
-    this.endpoint = `${normalised.replace(/\/+$/, "")}/v2/pipeline`;
+    this.baseEndpoint = normalised.replace(/\/+$/, "");
   }
 
-  async execute(
-    statements: Array<{ sql: string; args: D1Value[] }>,
-    transactional: boolean,
-  ): Promise<RawResult[]> {
-    const body = transactional && statements.length > 1
-      ? [
-          { type: "execute", stmt: { sql: "BEGIN" } },
-          ...statements.map((s) => ({
-            type: "execute" as const,
-            stmt: { sql: s.sql, args: s.args.map(encodeLibsql) },
-          })),
-          { type: "execute", stmt: { sql: "COMMIT" } },
-          { type: "close" as const },
-        ]
-      : [
-          ...statements.map((s) => ({
-            type: "execute" as const,
-            stmt: { sql: s.sql, args: s.args.map(encodeLibsql) },
-          })),
-          { type: "close" as const },
-        ];
-
-    const response = await fetch(this.endpoint, {
+  private async pipeline(version: 2 | 3, requests: unknown[]): Promise<LibsqlPipelineEntry[]> {
+    const response = await fetch(`${this.baseEndpoint}/v${version}/pipeline`, {
       method: "POST",
       signal: AbortSignal.timeout(20_000),
       headers: {
         Authorization: `Bearer ${this.authToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ requests: body }),
+      body: JSON.stringify({ requests }),
     });
 
     if (!response.ok) {
@@ -226,45 +227,148 @@ class LibsqlExecutor implements Executor {
       throw new Error(`libSQL request failed with status ${response.status}.`);
     }
 
-    const payload = (await response.json()) as {
-      results: Array<
-        | { type: "ok"; response?: { type: string; result?: { cols: Array<{ name: string }>; rows: LibsqlValue[][]; affected_row_count?: number; last_insert_rowid?: string | null } } }
-        | { type: "error"; error: { message: string } }
-      >;
-    };
-
-    const failure = payload.results.find((entry) => entry.type === "error");
-    if (failure && failure.type === "error") {
-      if (transactional && statements.length > 1) {
-        // Best-effort rollback so the connection is not left mid-transaction.
-        await fetch(this.endpoint, {
-          method: "POST",
-          signal: AbortSignal.timeout(10_000),
-          headers: { Authorization: `Bearer ${this.authToken}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ requests: [{ type: "execute", stmt: { sql: "ROLLBACK" } }, { type: "close" }] }),
-        }).catch(() => undefined);
-      }
-      throw new Error(`libSQL statement failed: ${failure.error.message}`);
+    const payload = (await response.json()) as { results?: LibsqlPipelineEntry[] };
+    if (!Array.isArray(payload.results)) {
+      throw new Error("libSQL returned a malformed pipeline response.");
     }
+    return payload.results;
+  }
 
-    // Drop the synthetic BEGIN/COMMIT frames and the trailing close frame so the
-    // returned array lines up 1:1 with the caller's statements.
-    const executeFrames = payload.results.filter(
-      (entry): entry is Extract<typeof entry, { type: "ok" }> =>
+  private statementResult(result: LibsqlStatementResult | null | undefined): RawResult {
+    if (!result) throw new Error("libSQL omitted a statement result.");
+    return {
+      columns: result.cols?.map((column) => column.name ?? "") ?? [],
+      rows: (result.rows ?? []).map((row) => row.map(decodeLibsql)),
+      changes: result.affected_row_count ?? 0,
+      lastInsertRowid: Number(result.last_insert_rowid ?? 0) || 0,
+    };
+  }
+
+  private pipelineFailure(results: LibsqlPipelineEntry[]) {
+    const failure = results.find((entry) => entry.type === "error");
+    if (failure?.type !== "error") return null;
+    return failure.error?.message ?? "unknown pipeline error";
+  }
+
+  private async executePipeline(
+    statements: Array<{ sql: string; args: D1Value[] }>,
+  ): Promise<RawResult[]> {
+    const requests = [
+      ...statements.map((statement) => ({
+        type: "execute" as const,
+        stmt: { sql: statement.sql, args: statement.args.map(encodeLibsql) },
+      })),
+      { type: "close" as const },
+    ];
+    const results = await this.pipeline(2, requests);
+    const failure = this.pipelineFailure(results);
+    if (failure) throw new Error(`libSQL statement failed: ${failure}`);
+
+    const executeFrames = results.filter(
+      (entry): entry is Extract<LibsqlPipelineEntry, { type: "ok" }> =>
         entry.type === "ok" && entry.response?.type === "execute",
     );
-    const offset = transactional && statements.length > 1 ? 1 : 0;
-    const relevant = executeFrames.slice(offset, offset + statements.length);
+    if (executeFrames.length !== statements.length) {
+      throw new Error("libSQL returned an incomplete statement response.");
+    }
+    return executeFrames.map((frame) =>
+      this.statementResult(frame.response?.result as LibsqlStatementResult | undefined),
+    );
+  }
 
-    return relevant.map((frame) => {
-      const result = frame.response?.result;
-      return {
-        columns: result?.cols.map((col) => col.name) ?? [],
-        rows: (result?.rows ?? []).map((row) => row.map(decodeLibsql)),
-        changes: result?.affected_row_count ?? 0,
-        lastInsertRowid: Number(result?.last_insert_rowid ?? 0) || 0,
-      };
+  private async executeTransaction(
+    statements: Array<{ sql: string; args: D1Value[] }>,
+  ): Promise<RawResult[]> {
+    // Hrana v2 pipelines execute every request after an error. Hrana v3 batch
+    // conditions are therefore the transaction boundary: each statement depends on
+    // the previous step, COMMIT depends on the final statement, and ROLLBACK is the
+    // only step enabled when COMMIT did not succeed.
+    const afterSuccess = (step: number) => ({
+      type: "and" as const,
+      conds: [
+        { type: "ok" as const, step },
+        { type: "not" as const, cond: { type: "is_autocommit" as const } },
+      ],
     });
+    const steps: Array<Record<string, unknown>> = [
+      { stmt: { sql: "BEGIN" } },
+    ];
+    statements.forEach((statement, index) => {
+      steps.push({
+        condition: afterSuccess(index),
+        stmt: { sql: statement.sql, args: statement.args.map(encodeLibsql) },
+      });
+    });
+    const commitStep = steps.length;
+    steps.push({
+      condition: afterSuccess(commitStep - 1),
+      stmt: { sql: "COMMIT" },
+    });
+    const rollbackStep = steps.length;
+    steps.push({
+      condition: { type: "not", cond: { type: "ok", step: commitStep } },
+      stmt: { sql: "ROLLBACK" },
+    });
+
+    const results = await this.pipeline(3, [
+      { type: "batch", batch: { steps } },
+      { type: "close" },
+    ]);
+    const outerFailure = this.pipelineFailure(results);
+    if (outerFailure) throw new Error(`libSQL statement failed: ${outerFailure}`);
+
+    const batchFrame = results.find(
+      (entry): entry is Extract<LibsqlPipelineEntry, { type: "ok" }> =>
+        entry.type === "ok" && entry.response?.type === "batch",
+    );
+    const batchResult = batchFrame?.response?.result as
+      | {
+          step_results?: Array<LibsqlStatementResult | null>;
+          step_errors?: Array<LibsqlErrorPayload | null>;
+        }
+      | undefined;
+    const stepResults = batchResult?.step_results;
+    const stepErrors = batchResult?.step_errors;
+    if (
+      !Array.isArray(stepResults) || !Array.isArray(stepErrors) ||
+      stepResults.length !== steps.length || stepErrors.length !== steps.length
+    ) {
+      throw new Error("libSQL returned a malformed transactional batch response.");
+    }
+
+    // Prefer the first caller-statement error over synthetic transaction-frame errors.
+    const errorOrder = [
+      ...statements.map((_, index) => index + 1),
+      0,
+      commitStep,
+      rollbackStep,
+    ];
+    const failedStep = errorOrder.find((index) => stepErrors[index] !== null);
+    if (failedStep !== undefined) {
+      const message = stepErrors[failedStep]?.message ?? "unknown batch error";
+      throw new Error(`libSQL statement failed: ${message}`);
+    }
+
+    const statementResults = stepResults.slice(1, 1 + statements.length);
+    const transactionComplete =
+      stepResults[0] !== null &&
+      statementResults.every((result) => result !== null) &&
+      stepResults[commitStep] !== null &&
+      stepResults[rollbackStep] === null;
+    if (!transactionComplete) {
+      throw new Error("libSQL transactional batch did not commit completely.");
+    }
+    return statementResults.map((result) => this.statementResult(result));
+  }
+
+  async execute(
+    statements: Array<{ sql: string; args: D1Value[] }>,
+    transactional: boolean,
+  ): Promise<RawResult[]> {
+    if (transactional && statements.length > 1) {
+      return this.executeTransaction(statements);
+    }
+    return this.executePipeline(statements);
   }
 }
 
@@ -440,4 +544,5 @@ export function resolveStorage(env: Record<string, unknown>): StorageResolution 
 export function resetStorageCache(): void {
   cached = null;
 }
+
 

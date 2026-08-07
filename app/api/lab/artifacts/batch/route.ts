@@ -10,9 +10,14 @@ type Row = Record<string, unknown>;
 const STRICT_GRADER = "grounded-grader-v3";
 const MAX_REQUEST_BYTES = 2_000_000;
 const OPERATOR_TOKEN_EXPIRES_AT = "2026-08-08T06:00:00.000Z";
+const CONNECTOR_PROVIDERS = new Set([
+  "attio", "bigtable", "calendly", "confluence", "dropbox", "freshdesk",
+  "github", "gitlab", "gmail", "google-calendar", "google-drive", "intercom",
+  "jira", "linear", "notion", "posthog", "shortcut", "slack", "stripe", "twitter",
+]);
 // SHA-256 of a 256-bit one-time token. The preimage is never committed or logged.
 const COMMITTED_OPERATOR_TOKEN_HASH =
-  "253715057fc1c5f83e7649b052a19e5a11472748723ca1df2345a43bc81c7a09";
+  "c0802a40caa795a2e1ae472efbb0d402b3ea713a68ac75fff10b6efc5fbbfc61";
 
 const record = (value: unknown): Row =>
   typeof value === "object" && value !== null && !Array.isArray(value) ? value as Row : {};
@@ -90,14 +95,58 @@ function strictQuality(artifact: Row) {
     quality.zeroIrrelevantClaims === true;
 }
 
-function strictRow(input: unknown) {
+const positiveInteger = (value: unknown): value is number =>
+  typeof value === "number" && Number.isSafeInteger(value) && value > 0;
+
+function normaliseProvider(input: unknown, allowDocument: boolean) {
+  if (typeof input !== "string") return null;
+  let provider = input.trim().toLowerCase().replace(/[\s_]+/g, "-");
+  if (provider === "x" || provider === "twitter-x") provider = "twitter";
+  if (provider === "googledrive") provider = "google-drive";
+  if (provider === "googlecalendar") provider = "google-calendar";
+  if (provider === "git-hub") provider = "github";
+  if (provider === "git-lab") provider = "gitlab";
+  if (provider === "post-hog") provider = "posthog";
+  if (provider === "fresh-desk") provider = "freshdesk";
+  if (provider === "document") return allowDocument ? provider : null;
+  return CONNECTOR_PROVIDERS.has(provider) ? provider : null;
+}
+
+function normaliseProviders(input: unknown, allowDocument: boolean): string[] | null {
+  if (!Array.isArray(input) || input.length === 0) return null;
+  const providers = input.map((value) => normaliseProvider(value, allowDocument));
+  if (providers.some((provider) => provider === null)) return null;
+  return [...new Set(providers as string[])];
+}
+
+const sameProviderSet = (left: string[], right: string[]) =>
+  left.length === right.length && left.every((provider) => right.includes(provider));
+
+function strictRow(kind: ArtifactKind, input: unknown) {
   const row = record(input);
-  return row.pass === true &&
+  const claimCount = row.claimCount;
+  const relevantClaimCount = row.relevantClaimCount;
+  const providers = normaliseProviders(row.providers, kind === "pdf");
+  const factCountsPass = positiveInteger(row.requiredFactCount) &&
+    row.matchedFactCount === row.requiredFactCount && row.requiredFactRecall === 1;
+  const claimCountsPass = positiveInteger(claimCount) && positiveInteger(relevantClaimCount) &&
+    relevantClaimCount === claimCount && row.supportedClaimCount === claimCount &&
+    positiveInteger(row.claimCitationPairCount) && row.supportedClaimCitationPairCount === row.claimCitationPairCount;
+  const modePass = kind === "pdf"
+    ? (row.mode === "fast" || row.mode === "thinking") && row.documentReceipt === true &&
+      row.exactIdPass === true && providers !== null && providers.length === 1 && providers[0] === "document"
+    : row.requestedMode === kind && row.modeHonored === true &&
+      (kind === "auto" ? row.mode === "fast" || row.mode === "thinking" : row.mode === kind) &&
+      providers !== null && providers.length > 0;
+  return row.apiOk === true && row.pass === true && factCountsPass && claimCountsPass && modePass &&
+    row.providerPass === true && row.citationPass === true &&
+    row.citationPrecision === 1 && row.citationCompleteness === 1 && row.unsupportedClaimRate === 0 &&
     row.relevancePass === true &&
     row.relevancePrecision === 1 &&
     row.irrelevantClaimRate === 0 &&
-    typeof row.relevantClaimCount === "number" && Number.isFinite(row.relevantClaimCount) &&
-    row.relevantClaimCount >= 0 &&
+    (row.requiresContradiction !== true || row.contradictionPass === true) &&
+    Array.isArray(row.invalidCitationIds) && row.invalidCitationIds.length === 0 &&
+    Array.isArray(row.unsupportedClaims) && row.unsupportedClaims.length === 0 &&
     Array.isArray(row.irrelevantClaims) && row.irrelevantClaims.length === 0;
 }
 
@@ -109,7 +158,7 @@ async function normaliseArtifact(kind: ArtifactKind, input: unknown, current: { 
   const rows = artifact.rows;
   if (
     !Array.isArray(rows) || rows.length === 0 || artifact.cases !== rows.length ||
-    artifact.passed !== rows.length || !rows.every(strictRow)
+    artifact.passed !== rows.length || !rows.every((row) => strictRow(kind, row))
   ) {
     throw new Response("Every measured benchmark case must pass strict v3 relevance.", { status: 400 });
   }
@@ -119,23 +168,42 @@ async function normaliseArtifact(kind: ArtifactKind, input: unknown, current: { 
   if (kind === "pdf") {
     const canaries = record(artifact.canaries);
     const crossSource = record(artifact.crossSource);
-    const crossProviders = Array.isArray(crossSource.providers)
-      ? [...new Set(crossSource.providers.filter((provider): provider is string => typeof provider === "string"))]
-      : [];
+    const crossProviders = normaliseProviders(crossSource.providers, true);
+    const nonDocumentProviders = crossProviders?.filter((provider) => provider !== "document") ?? [];
+    const declaredNonDocumentProviders = normaliseProviders(crossSource.nonDocumentProviders, false);
+    const providerRule = record(crossSource.requiredProviderRule);
     if (
       canaries.beginning !== true || canaries.middle !== true || canaries.end !== true ||
-      crossSource.pass !== true || crossSource.relevancePass !== true ||
+      crossSource.apiOk !== true || crossSource.pass !== true || crossSource.citationPass !== true ||
+      crossSource.documentProviderPass !== true || crossSource.connectorProviderPass !== true ||
+      providerRule.document !== true || providerRule.minimumNonDocumentProviders !== 2 ||
+      !positiveInteger(crossSource.requiredFactCount) ||
+      crossSource.matchedFactCount !== crossSource.requiredFactCount || crossSource.requiredFactRecall !== 1 ||
+      !positiveInteger(crossSource.claimCount) || !positiveInteger(crossSource.relevantClaimCount) ||
+      crossSource.relevantClaimCount !== crossSource.claimCount ||
+      crossSource.supportedClaimCount !== crossSource.claimCount ||
+      !positiveInteger(crossSource.citationCount) || crossSource.mode !== "thinking" ||
+      crossSource.citationPrecision !== 1 || crossSource.citationCompleteness !== 1 ||
+      crossSource.unsupportedClaimRate !== 0 || crossSource.relevancePass !== true ||
       crossSource.relevancePrecision !== 1 || crossSource.irrelevantClaimRate !== 0 ||
+      !Array.isArray(crossSource.invalidCitationIds) || crossSource.invalidCitationIds.length !== 0 ||
+      !Array.isArray(crossSource.unsupportedClaims) || crossSource.unsupportedClaims.length !== 0 ||
       !Array.isArray(crossSource.irrelevantClaims) || crossSource.irrelevantClaims.length !== 0 ||
-      !crossProviders.includes("document") || crossProviders.filter((provider) => provider !== "document").length < 2
+      crossProviders === null || !crossProviders.includes("document") || nonDocumentProviders.length < 2 ||
+      declaredNonDocumentProviders === null || !sameProviderSet(nonDocumentProviders, declaredNonDocumentProviders)
     ) {
       throw new Response("The PDF benchmark must pass every canary and strict cross-source relevance.", { status: 400 });
     }
   } else {
-    const connectors = Array.isArray(artifact.connectors)
-      ? new Set(artifact.connectors.filter((provider): provider is string => typeof provider === "string" && provider.length > 0))
-      : new Set<string>();
-    if (artifact.requestedMode !== kind || artifact.status !== "measured" || connectors.size < 3) {
+    const connectors = normaliseProviders(artifact.connectors, false);
+    const rowProviders = normaliseProviders(rows.flatMap((row) => {
+      const providers = record(row).providers;
+      return Array.isArray(providers) ? providers : [];
+    }), false);
+    if (
+      artifact.requestedMode !== kind || artifact.status !== "measured" || connectors === null ||
+      connectors.length < 3 || rowProviders === null || !sameProviderSet(connectors, rowProviders)
+    ) {
       throw new Response(`Artifact mode or connector coverage does not match ${kind}.`, { status: 400 });
     }
   }
