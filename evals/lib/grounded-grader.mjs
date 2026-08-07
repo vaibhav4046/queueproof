@@ -98,10 +98,6 @@ function topicalFactAlternatives(requiredFacts) {
   ]).map(normaliseGradeText).filter(phraseIsTopical))];
 }
 
-function citationCorpus(citation) {
-  return normaliseGradeText(`${citation?.title ?? ""} ${citation?.excerpt ?? ""}`);
-}
-
 function claimLocalContext(claim, citation) {
   const claimText = normaliseGradeText(claim?.text);
   if (!claimText) return "";
@@ -179,12 +175,16 @@ function contradictionHasAttributedDifference(citations, summary, topicalAnchors
   const signalSets = citations.map((citation) => {
     const provider = normaliseGradeText(citation?.provider);
     const sentences = citationSentences(citation);
+    const title = normaliseGradeText(citation?.title);
+    const titleCarriesTopic = topicalAnchors.some((anchor) => title.includes(anchor));
     const signals = clauses
       .filter((clause) => new RegExp(`\\b${provider}\\b`).test(clause))
       .flatMap((clause) => contradictionClauseSignals(clause, provider, topicalAnchors))
-      .filter((signal) => sentences.some((sentence) =>
-        sentence.includes(signal) &&
-        topicalAnchors.some((anchor) => sentence.includes(anchor))));
+      .filter((signal) =>
+        sentences.some((sentence) =>
+          sentence.includes(signal) &&
+          topicalAnchors.some((anchor) => sentence.includes(anchor))) ||
+        (titleCarriesTopic && sentences.some((sentence) => sentence.includes(signal))));
     return [...new Set(signals)].sort();
   });
   if (signalSets.some((signals) => signals.length === 0)) return false;
@@ -422,4 +422,3 @@ export function summarisePdfCanaries(rows) {
     asArray(rows).find((row) => row?.kind === kind)?.pass === true,
   ]));
 }
-
