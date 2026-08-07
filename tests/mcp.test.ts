@@ -684,7 +684,7 @@ describe("QueueProof MCP", () => {
           method: "tools/call",
           params: {
             name: "queueproof_search",
-            arguments: { query: "What happened to AuthShield?", mode: "fast" },
+            arguments: { query: "Who escalated the AuthShield outage, what did engineering commit to, and was the fix merged?", mode: "fast" },
           },
         }),
       }));
