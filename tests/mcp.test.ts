@@ -723,6 +723,10 @@ describe("QueueProof MCP", () => {
 
     const app = readFileSync(new URL("../app/QueueProofApp.tsx", import.meta.url), "utf8");
     expect(app).toContain('const demoEndpoint = `${publicOrigin}/mcp/demo`');
+    expect(app).toContain("targetEndpoint = readOnly ? demoEndpoint : endpoint");
+    expect(app).toContain("LIVE · NO AUTH");
+    expect(app).toContain("Synthetic Helios · live HydraDB retrieval · read-only.");
+    expect(app).toContain('{ type: "http", url: targetEndpoint, timeout: 60000 }');
     expect(app).toContain("fixed to synthetic Helios data, rate-limited, and exposes one focused investigation tool");
   });
 
