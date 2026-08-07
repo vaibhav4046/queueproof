@@ -204,17 +204,17 @@ describe("evidence-constrained synthesis", () => {
     expect(result.answer).not.toContain("external risks");
   });
 
-  it("joins a stale-state receipt to the independently tracked provider context", () => {
+  it("does not treat related tracker-provider context as independent open-state proof", () => {
     const result = synthesiseGroundedAnswer(
       "Which open issue appears to be already resolved elsewhere?",
       [evidence[2], evidence[0]],
     );
 
-    expect(result.validation.providerCoverage).toEqual(expect.arrayContaining(["github", "linear"]));
+    expect(result.validation.providerCoverage).toEqual(["github"]);
     expect(result.contradictions).toEqual([
       expect.objectContaining({
-        providers: expect.arrayContaining(["github", "linear"]),
-        evidenceIds: expect.arrayContaining(["github-1", "linear-1"]),
+        providers: ["github"],
+        evidenceIds: ["github-1"],
       }),
     ]);
   });
@@ -940,9 +940,9 @@ describe("evidence-constrained synthesis", () => {
         {
           id: "linear-incident",
           provider: "linear",
-          title: "Authentication outage for Northwind",
+          title: "ENG-456 AuthShield tracker remains open",
           excerpt:
-            "INC-2031: Northwind reported an authentication outage. Priya Raman filed this against Atlas Launch.",
+            "Linear issue ENG-456 remains open for the AuthShield work linked to INC-2031 and Northwind.",
           timestamp: "2026-08-02T01:03:55Z",
         },
         {

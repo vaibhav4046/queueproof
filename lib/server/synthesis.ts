@@ -278,6 +278,9 @@ const staleBridgeQuestion = (question: string) =>
   // exact record ID plus two non-generic anchors before another provider wins.
   /\b(?:tracker|tracking|issue|ticket)\b[^?]{0,90}\b(?:still\s+)?(?:show(?:s|ing)?|remain(?:s|ing)?|stay(?:s|ing)?)?[^?]{0,30}\bopen\b/i.test(question);
 
+const TRACKER_OPEN_ASSERTION =
+  /\b(?:still\s+(?:showing\s+as\s+)?open|remains?\s+open|issue\s+is\s+open|ticket\s+still\s+open|status(?:\s+is|:)?\s+open)\b/i;
+
 const bridgeTokens = (value: string) => new Set(
   tokenise(value).filter((token) => token.length >= 4 && !BRIDGE_GENERIC_TOKENS.has(token)),
 );
@@ -308,6 +311,10 @@ function crossSourceBridgeScore(
   const staleState = staleBridgeQuestion(question);
   if (!questionIds.length && !staleState) return 0;
   const candidateCorpus = clean(candidateText);
+  // A stale-state bridge is independent proof only when the second receipt
+  // itself reports the tracker as open. Shared incident/project context is not
+  // enough to manufacture a cross-provider contradiction.
+  if (staleState && !TRACKER_OPEN_ASSERTION.test(candidateCorpus)) return 0;
   const relationRequired = staleState || /\bwho\s+filed\b|\bwhich\s+project\b|\bproject\b[^?]{0,80}\bagainst\b/i.test(question);
   if (relationRequired && !/\b(?:against|filed|issue|record|ticket|track(?:ed|ing)?)\b/i.test(candidateCorpus)) {
     return 0;
