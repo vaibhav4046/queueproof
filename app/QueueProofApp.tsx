@@ -2200,38 +2200,61 @@ function AgentScreen({ workspace, setError, setNotice, readOnly, publicOrigin }:
   }
 
   return <section className="screen agent-screen connect-ai-screen">
-    <div className="screen-heading"><div><span className="eyebrow"><Bot size={13} /> QueueProof in ChatGPT</span><h1>Add once.<br /><em>Ask from ChatGPT.</em></h1><p>After publisher approval, ordinary users will add QueueProof, sign in to their workspace, and ask for evidence without creating an API project or pasting a connection key.</p></div></div>
-    <div className="integration-promise"><span><Bot size={17} /><strong>Add QueueProof</strong></span><ChevronRight size={14} /><span><UserRound size={17} /><strong>Sign in once</strong></span><ChevronRight size={14} /><span><Search size={17} /><strong>Ask with receipts</strong></span></div>
+    <div className="screen-heading"><div><span className="eyebrow"><Bot size={13} /> {readOnly ? "Live public MCP demo" : "QueueProof in ChatGPT"}</span><h1>{readOnly ? <>Connect now.<br /><em>Ask with proof.</em></> : <>Add once.<br /><em>Ask from ChatGPT.</em></>}</h1><p>{readOnly ? "Connect any Streamable HTTP MCP client to the read-only synthetic Helios demo. No account, API key, or provider permission is required." : "After publisher approval, ordinary users will add QueueProof, sign in to their workspace, and ask for evidence without creating an API project or pasting a connection key."}</p></div></div>
+    <div className="integration-promise"><span><Bot size={17} /><strong>{readOnly ? "Copy demo URL" : "Add QueueProof"}</strong></span><ChevronRight size={14} /><span><UserRound size={17} /><strong>{readOnly ? "No authentication" : "Sign in once"}</strong></span><ChevronRight size={14} /><span><Search size={17} /><strong>Ask with receipts</strong></span></div>
 
     <div className="chatgpt-install-grid">
       <article className="chatgpt-install-card">
         <div className="chatgpt-install-head">
           <span className="chatgpt-mark"><QueueProofSymbol /></span>
-          <div><small>CHATGPT PLUGIN</small><h2>QueueProof</h2></div>
-          <span className="directory-status">REVIEW PENDING</span>
+          <div><small>{readOnly ? "PUBLIC MCP DEMO" : "CHATGPT PLUGIN"}</small><h2>QueueProof</h2></div>
+          <span className="directory-status">{readOnly ? "LIVE · NO AUTH" : "REVIEW PENDING"}</span>
         </div>
-        <ol className="chatgpt-install-steps">
-          <li><span>01</span><div><strong>Open ChatGPT Plugins</strong><p>Use the shared ChatGPT and Codex plugin directory.</p></div></li>
-          <li><span>02</span><div><strong>Search QueueProof and select Add</strong><p>After OpenAI approves and the publisher releases the listing.</p></div></li>
-          <li><span>03</span><div><strong>Sign in to QueueProof</strong><p>OAuth opens the secure account flow. No API key is created or pasted.</p></div></li>
-        </ol>
-        <a className="chatgpt-open-button" href={CHATGPT_PLUGINS_URL} target="_blank" rel="noreferrer">
-          <Bot size={16} /> Open ChatGPT Plugins <ExternalLink size={14} />
-        </a>
-        <details className="preview-install">
-          <summary>Test QueueProof before directory approval</summary>
-          <p><strong>Public demo.</strong> Add this as a custom MCP server with no authentication. It is fixed to synthetic Helios data, rate-limited, and exposes one focused investigation tool.</p>
-          <div><code>{demoEndpoint}</code><button type="button" onClick={() => void copyMcpEndpoint(demoEndpoint, "public demo")}><Clipboard size={13} /> Copy URL</button></div>
-          <p className="preview-private"><strong>Personal workspace.</strong> Use the OAuth endpoint after private account authorization is enabled.</p>
-          <div><code>{endpoint}</code><button type="button" onClick={() => void copyMcpEndpoint()}><Clipboard size={13} /> Copy URL</button></div>
-        </details>
+        {readOnly ? (
+          <>
+            <ol className="chatgpt-install-steps">
+              <li><span>01</span><div><strong>Copy the public demo URL</strong><p>It exposes one focused, read-only investigation tool.</p></div></li>
+              <li><span>02</span><div><strong>Add a custom MCP server</strong><p>Select Streamable HTTP and no authentication.</p></div></li>
+              <li><span>03</span><div><strong>Ask the AuthShield question</strong><p>Receive a grounded answer, citations, disagreement, latency, and call count.</p></div></li>
+            </ol>
+            <button className="chatgpt-open-button" type="button" onClick={() => void copyMcpEndpoint(demoEndpoint, "public demo")}>
+              <Clipboard size={16} /> Copy live demo URL
+            </button>
+            <div className="preview-install">
+              <p><strong>Synthetic Helios · live HydraDB retrieval · read-only.</strong></p>
+              <div><code>{demoEndpoint}</code><button type="button" onClick={() => void copyMcpEndpoint(demoEndpoint, "public demo")}><Clipboard size={13} /> Copy URL</button></div>
+            </div>
+            <details className="preview-install">
+              <summary>Directory and personal-workspace status</summary>
+              <p><strong>Forthcoming.</strong> OpenAI review and personal OAuth are separate release gates. The working public demo above is available now.</p>
+            </details>
+          </>
+        ) : (
+          <>
+            <ol className="chatgpt-install-steps">
+              <li><span>01</span><div><strong>Open ChatGPT Plugins</strong><p>Use the shared ChatGPT and Codex plugin directory.</p></div></li>
+              <li><span>02</span><div><strong>Search QueueProof and select Add</strong><p>After OpenAI approves and the publisher releases the listing.</p></div></li>
+              <li><span>03</span><div><strong>Sign in to QueueProof</strong><p>OAuth opens the secure account flow. No API key is created or pasted.</p></div></li>
+            </ol>
+            <a className="chatgpt-open-button" href={CHATGPT_PLUGINS_URL} target="_blank" rel="noreferrer">
+              <Bot size={16} /> Open ChatGPT Plugins <ExternalLink size={14} />
+            </a>
+            <details className="preview-install">
+              <summary>Test QueueProof before directory approval</summary>
+              <p><strong>Public demo.</strong> Add this as a custom MCP server with no authentication. It is fixed to synthetic Helios data, rate-limited, and exposes one focused investigation tool.</p>
+              <div><code>{demoEndpoint}</code><button type="button" onClick={() => void copyMcpEndpoint(demoEndpoint, "public demo")}><Clipboard size={13} /> Copy URL</button></div>
+              <p className="preview-private"><strong>Personal workspace.</strong> Use the OAuth endpoint after private account authorization is enabled.</p>
+              <div><code>{endpoint}</code><button type="button" onClick={() => void copyMcpEndpoint()}><Clipboard size={13} /> Copy URL</button></div>
+            </details>
+          </>
+        )}
       </article>
 
       <aside className="chatgpt-proof-card" aria-label="QueueProof ChatGPT safety">
         <span className="eyebrow"><ShieldCheck size={13} /> What the connection can do</span>
         <h2>Answers with a trail,<br />not another black box.</h2>
         <ul>
-          <li><CircleCheck size={16} /><span><strong>Read your verified sources</strong><small>Only inside your authenticated QueueProof workspace.</small></span></li>
+          <li><CircleCheck size={16} /><span><strong>{readOnly ? "Read verified synthetic sources" : "Read your verified sources"}</strong><small>{readOnly ? "Only the public Helios workspace; no personal data or provider write access." : "Only inside your authenticated QueueProof workspace."}</small></span></li>
           <li><CircleCheck size={16} /><span><strong>Return cited evidence</strong><small>Claims, receipts, disagreements, and missing proof stay visible.</small></span></li>
           <li><LockKeyhole size={16} /><span><strong>Keep provider writes separate</strong><small>ChatGPT cannot approve or execute an external change.</small></span></li>
         </ul>
@@ -2242,17 +2265,26 @@ function AgentScreen({ workspace, setError, setNotice, readOnly, publicOrigin }:
     <details className="advanced-connect">
       <summary><Terminal size={16} /><span><strong>Developer setup for other MCP clients</strong><small>Codex, Claude Code, Kilo Code, and generic Streamable HTTP</small></span><ChevronRight size={15} /></summary>
       <div className="advanced-connect-body">
-        {readOnly && <div className="inline-warning"><LockKeyhole size={14} />Connection keys are private to a signed-in workspace owner. The ChatGPT OAuth path above does not use one.</div>}
-        <div className="client-tabs" role="tablist" aria-label="Developer MCP client">
-          {[['codex', 'Codex'], ['claude', 'Claude Code'], ['kilo', 'Kilo Code'], ['generic', 'Generic MCP']].map(([value, label]) => <button type="button" role="tab" aria-selected={clientType === value} className={clientType === value ? "active" : ""} key={value} onClick={() => setClientType(value)}>{label}</button>)}
+        {readOnly && <div className="inline-warning"><CircleCheck size={14} />The public demo needs no connection key. It can search only synthetic Helios evidence and cannot write.</div>}
+        <div className="client-tabs" aria-label="Developer MCP client">
+          {[['codex', 'Codex'], ['claude', 'Claude Code'], ['kilo', 'Kilo Code'], ['generic', 'Generic MCP']].map(([value, label]) => <button type="button" aria-pressed={clientType === value} className={clientType === value ? "active" : ""} key={value} onClick={() => setClientType(value)}>{label}</button>)}
         </div>
         <div className="agent-grid">
           <div className="token-console ember-surface">
             <EmberBackdrop placement="connect" state={busy ? "connecting" : freshToken ? "complete" : "idle"} />
-            <div className="console-line"><span><KeyRound size={14} /> 1. Create a developer key</span><span className="secure-chip"><LockKeyhole size={12} /> stored as a hash</span></div>
-            <label className="scope-choice"><input type="checkbox" checked={writeScopes} onChange={(event) => setWriteScopes(event.target.checked)} disabled={readOnly} /><span><strong>Let this client prepare actions and sync</strong><small>It still cannot execute a provider change without your approval.</small></span></label>
-            {!readOnly && <ActionButton label="Create developer key" icon={<KeyRound size={15} />} loading={busy} onClick={() => void createToken()} />}
-            {freshToken && <div className="token-reveal"><span><CircleAlert size={13} /> Copy this now. It is shown only once.</span><code>{freshToken}</code><button onClick={() => void navigator.clipboard.writeText(freshToken)}><Clipboard size={13} /> Copy key</button></div>}
+            {readOnly ? (
+              <>
+                <div className="console-line"><span><CircleCheck size={14} /> 1. Use the live public endpoint</span><span className="secure-chip"><LockKeyhole size={12} /> no auth</span></div>
+                <div className="scope-choice"><span><strong>No account or key required</strong><small>One read-only search tool, synthetic Helios data, durable rate limits, and no provider writes.</small></span></div>
+              </>
+            ) : (
+              <>
+                <div className="console-line"><span><KeyRound size={14} /> 1. Create a developer key</span><span className="secure-chip"><LockKeyhole size={12} /> stored as a hash</span></div>
+                <label className="scope-choice"><input type="checkbox" checked={writeScopes} onChange={(event) => setWriteScopes(event.target.checked)} /><span><strong>Let this client prepare actions and sync</strong><small>It still cannot execute a provider change without your approval.</small></span></label>
+                <ActionButton label="Create developer key" icon={<KeyRound size={15} />} loading={busy} onClick={() => void createToken()} />
+                {freshToken && <div className="token-reveal"><span><CircleAlert size={13} /> Copy this now. It is shown only once.</span><code>{freshToken}</code><button onClick={() => void navigator.clipboard.writeText(freshToken)}><Clipboard size={13} /> Copy key</button></div>}
+              </>
+            )}
           </div>
           <div className="config-card">
             {clientGuide.environment && <div className="config-environment"><div><small>2. SET THE DEVELOPER KEY</small><button onClick={() => void navigator.clipboard.writeText(clientGuide.environment!)}><Clipboard size={13} /> Copy</button></div><pre>{clientGuide.environment}</pre></div>}
