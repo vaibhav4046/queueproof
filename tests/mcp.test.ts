@@ -645,6 +645,20 @@ describe("QueueProof MCP", () => {
               app_provider: "github",
               title: "Preserve compound receipt context and harden stale-state retrieval",
             }] : []),
+            ...(selected.some((connector) => connector.provider === "linear") ? [
+              {
+                id: "source-linear-billing-noise",
+                connector_id: "demo-linear",
+                app_provider: "linear",
+                title: "Billing migration deadline moved to 14 August",
+              },
+              {
+                id: "source-linear-onboarding-noise",
+                connector_id: "demo-linear",
+                app_provider: "linear",
+                title: "Get familiar with Linear",
+              },
+            ] : []),
           ],
           chunks: [
             ...selected.map((connector) => ({
@@ -663,7 +677,7 @@ describe("QueueProof MCP", () => {
                     ? "Priya Raman filed BUG-123 for the AuthShield project."
                     : connector.provider === "slack"
                       ? "Priya told the customer the fix would ship by Friday."
-                      : "The AuthShield fix was merged in commit abc123."
+                      : "The AuthShield fix was merged in commit abc123, but ENG-456 remains open."
                   : connector.provider === "github"
                     ? "The AuthShield fix was merged in commit abc123."
                     : connector.provider === "slack"
@@ -677,6 +691,20 @@ describe("QueueProof MCP", () => {
                 "622 tests passed. TypeScript and ESLint passed. The production build passed. " +
                 "Exact preview /api/health/live says the AuthShield fix is merged while ENG-456 remains open.",
             }] : []),
+            ...(selected.some((connector) => connector.provider === "linear") ? [
+              {
+                id: "source-linear-billing-noise",
+                chunk_id: "chunk-linear-billing-noise",
+                chunk_content:
+                  "The billing migration deadline moved from 7 August to 14 August 2026.",
+              },
+              {
+                id: "source-linear-onboarding-noise",
+                chunk_id: "chunk-linear-onboarding-noise",
+                chunk_content:
+                  "Welcome to Linear. Choose your setup guide and join an onboarding session.",
+              },
+            ] : []),
           ],
         },
       };
@@ -765,6 +793,8 @@ describe("QueueProof MCP", () => {
         result.citations.map((citation) => citation.evidenceId),
       );
       expect(JSON.stringify(result)).not.toContain("source-github-ci-noise");
+      expect(JSON.stringify(result)).not.toContain("source-linear-billing-noise");
+      expect(JSON.stringify(result)).not.toContain("source-linear-onboarding-noise");
       expect([...returnedEvidenceIds].sort()).toEqual([...referencedEvidenceIds].sort());
       expect([...citationEvidenceIds].sort()).toEqual([...referencedEvidenceIds].sort());
       expect(result.citations.length).toBeGreaterThan(0);
