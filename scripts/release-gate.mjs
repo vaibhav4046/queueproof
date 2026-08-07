@@ -231,6 +231,10 @@ assert.doesNotMatch(demoSearch.answer, /^Insufficient evidence\b/,
   "The reviewed flagship query unexpectedly abstained.");
 assert.ok(Array.isArray(demoSearch.claims) && demoSearch.claims.length > 0,
   "MCP search must return at least one grounded claim.");
+assert.ok(Array.isArray(demoSearch.citations) && demoSearch.citations.length > 0,
+  "MCP search must return citation objects for grounded claims.");
+assert.ok(Number.isFinite(demoSearch.estimatedCostUnits) && demoSearch.estimatedCostUnits > 0,
+  "MCP search must report positive relative retrieval cost.");
 assert.ok(Array.isArray(demoSearch.contradictions),
   "MCP search must return an explicit contradictions array.");
 assert.ok(Array.isArray(demoSearch.missingInformation),
@@ -244,6 +248,10 @@ assert.equal(demoSearch.validation?.citedClaimCount, demoSearch.claims.length,
 assert.equal(demoSearch.validation?.evidenceCount, demoSearch.evidence?.length,
   "MCP validation evidence count does not match the returned evidence.");
 const demoEvidenceIds = new Set((demoSearch.evidence ?? []).map((item) => item.evidenceId));
+for (const citation of demoSearch.citations) {
+  assert.ok(demoEvidenceIds.has(citation.evidenceId),
+    `MCP citation references missing evidence ${citation.evidenceId}.`);
+}
 for (const item of [...demoSearch.claims, ...demoSearch.contradictions]) {
   assert.ok(Array.isArray(item.evidenceIds) && item.evidenceIds.length > 0,
     "Every claim and contradiction must reference returned evidence.");
