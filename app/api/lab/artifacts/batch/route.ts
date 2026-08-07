@@ -19,7 +19,10 @@ const CONNECTOR_PROVIDERS = new Set([
 const GITHUB_OIDC_ISSUER = "https://token.actions.githubusercontent.com";
 const GITHUB_OIDC_AUDIENCE = "https://queueproof.vercel.app/api/lab/artifacts/batch";
 const GITHUB_REPOSITORY = "vaibhav4046/queueproof";
+const GITHUB_REPOSITORY_OWNER_ID = "115102797";
 const GITHUB_REPOSITORY_ID = "1319245359";
+const GITHUB_OIDC_SUBJECT =
+  `repo:vaibhav4046@${GITHUB_REPOSITORY_OWNER_ID}/queueproof@${GITHUB_REPOSITORY_ID}:ref:refs/heads/main`;
 const GITHUB_OIDC_KEYS = createRemoteJWKSet(
   new URL("https://token.actions.githubusercontent.com/.well-known/jwks"),
 );
@@ -122,7 +125,7 @@ async function authorisePublisher(request: Request, current: { sha: string; ref:
       ref !== "refs/heads/main" ||
       eventName !== "push" ||
       sha !== current.sha.toLowerCase() ||
-      !subject.startsWith(`repo:${GITHUB_REPOSITORY}:`)
+      subject !== GITHUB_OIDC_SUBJECT
     ) return null;
     // All short-lived OIDC tokens for one exact production release map to one
     // durable consumption identity so retries preserve atomic one-time semantics.
