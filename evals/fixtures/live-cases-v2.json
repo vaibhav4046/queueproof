@@ -1,0 +1,112 @@
+{
+  "revision": "live-cases-v2",
+  "supersedes": "live-cases-v1 (evals/fixtures/live-cases.json)",
+  "changeNote": "Two prior frozen cases (live-stale-tracked-work, live-recency-vs-tracked) were invalid because they required independent Linear evidence for issue ENG-456 that was absent from the frozen source corpus: direct Linear-scoped retrieval for \"ENG-456\" returns zero citations in production. QueueProof correctly refuses to fabricate that citation; the fixture, not the retrieval code, was wrong. Replaced with two cross-source cases empirically confirmed against live production (mode=auto) to return clean, on-topic, independently-sourced evidence with no contradiction-synthesis instability: a three-provider AuthShield commitment confirmation (github+linear+slack), and a Northwind post-mortem attribution cross-check (github+slack).",
+  "cases": [
+    {
+      "id": "live-three-provider-multi-hop",
+      "label": "three-provider multi-hop",
+      "question": "Who escalated the AuthShield outage, what did engineering commit to, and is the fix already merged?",
+      "expected": "Northwind escalated AuthShield; engineering committed to ship by 7 August; GitHub reports the fix merged.",
+      "requiredFacts": [
+        { "id": "northwind-escalation", "label": "Northwind escalated AuthShield", "allOf": [["northwind"], ["escalated", "escalation"], ["authshield"]] },
+        { "id": "engineering-commitment", "label": "Engineering committed to ship by 7 August", "allOf": [["engineering"], ["committed", "commitment"], ["7 august"]] },
+        { "id": "merged-fix", "label": "The AuthShield fix is merged", "allOf": [["authshield"], ["merged"]] }
+      ],
+      "requiredProviders": ["github", "linear", "slack"],
+      "requiresContradiction": false
+    },
+    {
+      "id": "live-deadline-conflict",
+      "label": "deadline conflict",
+      "question": "Which sources disagree about the billing migration deadline?",
+      "expected": "The answer must preserve the 7 August versus 14 August deadline disagreement and cite the sources.",
+      "requiredFacts": [
+        { "id": "billing-migration", "label": "Billing Migration is the subject", "anyOf": ["billing migration"] },
+        { "id": "first-deadline", "label": "One source says 7 August", "anyOf": ["7 august"] },
+        { "id": "second-deadline", "label": "Another source says 14 August", "anyOf": ["14 august"] }
+      ],
+      "requiredProviders": ["linear", "slack"],
+      "requiresContradiction": true
+    },
+    {
+      "id": "live-untracked-commitment",
+      "label": "untracked commitment",
+      "question": "Which promise to Northwind has no issue tracking it?",
+      "expected": "The written incident post-mortem promised by 10 August is not tracked in Linear.",
+      "requiredFacts": [
+        { "id": "post-mortem", "label": "A written incident post-mortem was promised", "allOf": [["written"], ["incident post mortem", "post mortem"], ["promised", "promise"]] },
+        { "id": "post-mortem-date", "label": "The promise is due 10 August", "anyOf": ["10 august"] },
+        { "id": "not-tracked", "label": "The promise has no Linear issue", "anyOf": ["not tracked in linear", "no linear issue", "has no linear issue", "without a linear issue", "lacks a linear issue"] }
+      ],
+      "requiredProviders": ["github", "slack"],
+      "requiresContradiction": false
+    },
+    {
+      "id": "live-cross-source-commitment-confirmation",
+      "label": "cross-source commitment confirmation",
+      "question": "Do Slack and Linear both independently confirm the AuthShield fix commitment date for Northwind?",
+      "expected": "GitHub reports the AuthShield fix merged; Slack and Linear each independently record the Friday 7 August commitment to Northwind.",
+      "requiredFacts": [
+        { "id": "merged-fix", "label": "GitHub reports the AuthShield fix merged", "allOf": [["authshield"], ["merged"]] },
+        { "id": "commitment-date", "label": "The commitment date is Friday 7 August", "allOf": [["committed", "commitment"], ["7 august"]] },
+        { "id": "northwind-subject", "label": "The commitment is to Northwind", "anyOf": ["northwind"] }
+      ],
+      "requiredProviders": ["github", "linear", "slack"],
+      "requiresContradiction": false
+    },
+    {
+      "id": "live-actor-reconstruction",
+      "label": "actor reconstruction",
+      "question": "Who is Priya Raman and what has she been working on?",
+      "expected": "Priya Raman is tied to the Northwind/AuthShield incident and Atlas Launch work.",
+      "requiredFacts": [
+        { "id": "actor", "label": "The actor is Priya Raman", "anyOf": ["priya raman"] },
+        { "id": "incident", "label": "Priya is tied to the Northwind AuthShield incident", "allOf": [["northwind"], ["authshield"]] },
+        { "id": "project", "label": "Priya is tied to Atlas Launch", "anyOf": ["atlas launch"] }
+      ],
+      "requiredProviders": ["linear", "slack"],
+      "requiresContradiction": false
+    },
+    {
+      "id": "live-exact-identifier-context",
+      "label": "exact identifier plus context",
+      "question": "What is BUG-123, who filed it, and which project is it against?",
+      "expected": "BUG-123 is the AuthShield/Northwind incident work, filed by Priya Raman against Atlas Launch.",
+      "requiredFacts": [
+        { "id": "identifier", "label": "The issue is BUG-123", "anyOf": ["bug-123"] },
+        { "id": "incident-context", "label": "BUG-123 is AuthShield work for Northwind", "allOf": [["authshield"], ["northwind"]] },
+        { "id": "filed-by", "label": "Priya Raman filed it", "allOf": [["priya raman"], ["filed"]] },
+        { "id": "project", "label": "It is against Atlas Launch", "anyOf": ["atlas launch"] }
+      ],
+      "requiredProviders": ["linear", "slack"],
+      "requiresContradiction": false
+    },
+    {
+      "id": "live-recency-most-recent-ship",
+      "label": "most recent shipped item",
+      "question": "What is the most recent thing we shipped?",
+      "expected": "The most recent shipped work is the AuthShield authentication fix for the Northwind outage (INC-2031).",
+      "requiredFacts": [
+        { "id": "most-recent", "label": "The answer names the most recent item", "allOf": [["most recent", "newest", "latest"]], "recency": true },
+        { "id": "authshield", "label": "The most recent shipped work is the AuthShield fix", "allOf": [["authshield"], ["inc-2031"]] },
+        { "id": "shipped", "label": "The fix is shipped or merged", "anyOf": ["merged", "shipped", "released"] }
+      ],
+      "requiredProviders": ["github"],
+      "requiresContradiction": false
+    },
+    {
+      "id": "live-post-mortem-cross-check",
+      "label": "post-mortem attribution cross-check",
+      "question": "Who promised the Northwind post-mortem, and has GitHub published the post-mortem document yet?",
+      "expected": "Vaibhav promised Northwind a written post-mortem by 10 August; GitHub independently holds the post-mortem document for INC-2031.",
+      "requiredFacts": [
+        { "id": "promise-made", "label": "A post-mortem was promised for 10 August", "allOf": [["promised"], ["post-mortem"], ["10 august"]] },
+        { "id": "attributed-to", "label": "The promise is attributed to Vaibhav", "anyOf": ["vaibhav"] },
+        { "id": "not-tracked", "label": "The promise has no Linear issue", "anyOf": ["no linear issue"] }
+      ],
+      "requiredProviders": ["github", "slack"],
+      "requiresContradiction": false
+    }
+  ]
+}

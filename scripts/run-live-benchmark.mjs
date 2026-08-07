@@ -18,7 +18,12 @@ const defaultOutput = requestedMode === "auto"
   ? "evals/results/live-run.json"
   : `evals/results/live-${requestedMode}.json`;
 const output = valueAfter("--out") ?? defaultOutput;
-const cases = JSON.parse(await readFile(new URL("../evals/fixtures/live-cases.json", import.meta.url), "utf8"));
+const fixturePath = valueAfter("--fixture") ?? "evals/fixtures/live-cases-v2.json";
+const fixtureRaw = JSON.parse(await readFile(new URL(`../${fixturePath}`, import.meta.url), "utf8"));
+const isVersionedFixture = !Array.isArray(fixtureRaw) && Array.isArray(fixtureRaw?.cases);
+const cases = isVersionedFixture ? fixtureRaw.cases : fixtureRaw;
+const fixtureRevision = isVersionedFixture ? fixtureRaw.revision : "live-cases-v1 (legacy, unversioned)";
+const fixtureChangeNote = isVersionedFixture ? fixtureRaw.changeNote ?? null : null;
 
 async function fetchHealth() {
   const started = Date.now();
@@ -108,13 +113,21 @@ for (const benchmark of cases) {
   const apiOk = result.httpOk && body.ok === true;
   const actualMode = body.retrieval_receipt?.hydradb_mode ?? body.trace?.mode ?? "unknown";
   const modeHonored = requestedMode === "auto" || !apiOk || actualMode === requestedMode;
+  // Preflight/data-integrity classification: a required provider with zero supporting
+  // citations means the frozen fixture assumed evidence that live retrieval cannot find.
+  // That is a fixture defect, not an answer-quality failure, so it is reported separately
+  // and must not be silently folded into a plain pass/fail count.
+  const integrityStatus = apiOk && Array.isArray(grade.missingProviders) && grade.missingProviders.length > 0
+    ? "dataset_missing_required_evidence"
+    : "ok";
   const row = {
     id: benchmark.id,
     label: benchmark.label,
     question: benchmark.question,
     expected: benchmark.expected,
     actual: String(body.answer ?? "").slice(0, 1_500),
-    pass: apiOk && grade.pass && modeHonored,
+    integrityStatus,
+    pass: integrityStatus === "ok" && apiOk && grade.pass && modeHonored,
     apiOk,
     httpStatus: result.status,
     error: result.error,
@@ -162,8 +175,9 @@ for (const benchmark of cases) {
     runId: body.retrieval_receipt?.query_id ?? body.trace?.runId ?? null,
   };
   rows.push(row);
+  const statusLabel = integrityStatus !== "ok" ? "FIXTURE_INVALID" : row.pass ? "PASS" : "REVIEW";
   process.stdout.write(
-    `${row.pass ? "PASS" : "REVIEW"} ${benchmark.label} | ${row.matchedFactCount}/${row.requiredFactCount} facts | ` +
+    `${statusLabel} ${benchmark.label} | ${row.matchedFactCount}/${row.requiredFactCount} facts | ` +
     `${row.providers.join(", ") || "no supported providers"} | ${row.latencyMs}ms | ${row.mode}\n`,
   );
 }
@@ -187,21 +201,27 @@ const totalSupportedCitationPairs = rows.reduce((sum, row) => sum + row.supporte
 const totalRelevantClaims = rows.reduce((sum, row) => sum + row.relevantClaimCount, 0);
 const ratio = (numerator, denominator) => denominator > 0 ? numerator / denominator : null;
 const requiredContradictionRows = rows.filter((row) => row.requiresContradiction);
+const invalidRows = rows.filter((row) => row.integrityStatus !== "ok");
 
 const artifact = {
   status: "measured",
   generatedAt: new Date().toISOString(),
   grader: GROUNDED_GRADER_VERSION,
   runner: "scripts/run-live-benchmark.mjs",
-  fixture: "evals/fixtures/live-cases.json",
+  fixture: fixturePath,
+  fixtureRevision,
+  fixtureChangeNote,
   target,
   requestedMode,
-  command: `node scripts/run-live-benchmark.mjs --url ${target} --mode ${requestedMode} --out ${output}`,
+  command: `node scripts/run-live-benchmark.mjs --url ${target} --mode ${requestedMode} --fixture ${fixturePath} --out ${output}`,
   health,
   release,
   releaseVerified: Boolean(release.commitSha && release.commitRef),
   connectors,
   cases: rows.length,
+  validCases: rows.length - invalidRows.length,
+  invalidCases: invalidRows.length,
+  invalidCaseIds: invalidRows.map((row) => row.id),
   passed: rows.filter((row) => row.pass).length,
   allThreeProviders: rows.filter((row) => row.providers.length >= 3).length,
   thinking: rows.filter((row) => row.mode === "thinking").length,
@@ -251,8 +271,8 @@ if (!args.includes("--no-write")) {
   await writeFile(output, `${JSON.stringify(artifact, null, 2)}\n`, "utf8");
 }
 process.stdout.write(
-  `${artifact.passed}/${artifact.cases} cases passed | ` +
+  `${artifact.passed}/${artifact.validCases} valid cases passed (${artifact.invalidCases} fixture_invalid: ${artifact.invalidCaseIds.join(", ") || "none"}) | ` +
   `${totalMatchedFacts}/${totalRequiredFacts} required facts | p50 ${artifact.latencyMs.p50}ms | ` +
-  `requested ${requestedMode} | providers ${connectors.join(", ") || "none"}\n`,
+  `requested ${requestedMode} | providers ${connectors.join(", ") || "none"} | fixture ${fixtureRevision}\n`,
 );
-if (artifact.passed !== artifact.cases) process.exitCode = 1;
+if (artifact.passed !== artifact.validCases || artifact.invalidCases > 0) process.exitCode = 1;

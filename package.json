@@ -41,6 +41,7 @@
     "doctor": "node scripts/doctor.mjs",
     "seed:test": "node scripts/seed-test.mjs",
     "generate:large-pdf": "node scripts/generate-large-pdf.mjs",
+    "generate:icons": "node scripts/generate-brand-icons.mjs",
     "deploy:check": "node scripts/deploy-check.mjs",
     "deploy:prod": "node scripts/deploy-prod.mjs",
     "release:verify": "node scripts/release-gate.mjs",

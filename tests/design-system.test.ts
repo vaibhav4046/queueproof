@@ -32,18 +32,25 @@ describe("production design system", () => {
     expect(logo).not.toContain("LIVE");
   });
 
-  it("uses the same cache-busted Q and ember check across browser and installed icons", () => {
+  it("uses the same evidence-core mark and ember check across browser and installed icons", () => {
     const favicon = readFileSync(join(process.cwd(), "public/queueproof-favicon-v2.svg"), "utf8");
     const fallbackFavicon = readFileSync(join(process.cwd(), "public/favicon.svg"), "utf8");
     const appIcon = readFileSync(join(process.cwd(), "public/queueproof-app-icon-v2.svg"), "utf8");
-    const canonicalQ = "M25.8 25.2A10.8 10.8 0 1 1 28.8 18c0 2.8-1 5.3-2.7 7.2l4.3 4.1";
+    // The proof check at the centre of the evidence core. Identical in the React
+    // component and all three SVGs so every icon surface renders the same mark.
+    const canonicalCheck = "M13.75 18.3 16.8 21.35 22.45 14.95";
+    // The two orbit rings and the core orb that surround the check.
+    const canonicalCore = ['r="15.05"', 'r="12.2"', 'r="9.2"'];
 
-    expect(logo).toContain(canonicalQ);
-    expect(favicon).toContain(canonicalQ);
-    expect(fallbackFavicon).toContain(canonicalQ);
-    expect(appIcon).toContain(canonicalQ);
+    for (const source of [logo, favicon, fallbackFavicon, appIcon]) {
+      expect(source).toContain(canonicalCheck);
+      for (const ring of canonicalCore) expect(source).toContain(ring);
+    }
     expect(favicon).toContain("#FF6A00");
     expect(favicon).not.toMatch(/#5EE6A8|#14875C/i);
+    // The wordmark is set in caps with PROOF carried in ember, matching public/og.png.
+    expect(logo).toContain(">QUEUE</tspan>");
+    expect(logo).toContain(">PROOF</tspan>");
 
     for (const path of [
       "/queueproof-favicon-v2.svg",

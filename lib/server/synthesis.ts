@@ -624,13 +624,31 @@ function focusedWindows(question: string, body: string) {
   return windows;
 }
 
+/**
+ * A markdown/PDF table line: starts with a pipe (possibly escaped) or carries
+ * several cell separators. Table rows have no sentence punctuation, so without
+ * this boundary a focused window around one matched cell swallows every
+ * neighbouring row into a single unreadable dump that is then emitted as a
+ * cited claim. Each row is an independent record; it must be its own unit.
+ */
+const TABLE_ROW_LINE = /^\s*\\?\|/;
+const isTableRowLine = (line: string) =>
+  TABLE_ROW_LINE.test(line) || (line.match(/\\?\|/g) ?? []).length >= 3;
+
 function sentences(item: SynthesisEvidence, question: string, evidence: SynthesisEvidence[]) {
   const raw = item.excerpt || item.title;
+  const rawLines = raw.split(/\r?\n/);
+  const tableRows = rawLines.filter(isTableRowLine).map((line) => clean(line)).filter(Boolean);
+  // Strip table rows out of the prose body when a real table is present so
+  // sentence windows cannot straddle prose and table region.
+  const proseSource = tableRows.length >= 2
+    ? rawLines.filter((line) => !isTableRowLine(line)).join("\n")
+    : raw;
   // Markdown headings and horizontal rules often sit between otherwise normal
   // sentences. Convert those boundaries before splitting so a useful sentence
   // is not rejected as one multi-kilobyte block. Query-focused windows preserve
   // compact table rows and exact-ID context that contain no punctuation.
-  const body = clean(raw
+  const body = clean(proseSource
     .replace(/\s+(?:#{1,6}|-{3,}|={2,})\s*/g, ". ")
     .replace(/\s+[-*]\s+(?=[A-Z0-9])/g, ". "));
   // A markdown list item is an independent statement, so each one is its own
@@ -639,13 +657,18 @@ function sentences(item: SynthesisEvidence, question: string, evidence: Synthesi
   // with a code span or a lowercase word stayed glued to their neighbour and an
   // ingested status document surfaced as a single run-on window. Splitting the
   // list into units keeps every emitted claim verbatim and single-subject.
-  const listItems = raw
+  const listItems = proseSource
     .split(/\r?\n(?=[ \t]*[-*][ \t]+)/)
     .map((block) => clean(block.replace(/^[ \t]*[-*][ \t]+/, "")))
     .filter(Boolean);
   // Only treat it as a list when there is more than one item; a lone dash in
   // otherwise ordinary prose must not change how that prose is read.
-  const units = listItems.length > 1 ? listItems : [body];
+  // Table rows join as individual units so a row that carries the asked-for
+  // value can still be cited verbatim, while multi-row dumps can never form.
+  const units = [
+    ...(listItems.length > 1 ? listItems : [body]),
+    ...(tableRows.length >= 2 ? tableRows : []),
+  ];
   // Some operational facts are relational across adjacent sentences in one
   // receipt: the first sentence names the work, while the second records its
   // tracking state; or the first names an incident and a later sentence names
@@ -882,15 +905,26 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
         valuePhrase = match[0].toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 120);
         return true;
       });
+      // A value pattern proves the sentence carries the *kind* of value the
+      // question asked for (a date, a version); it does not prove it is about
+      // the question's subject. Ungated, a bare date sentence from an unrelated
+      // retrieved record ("billing deadline moved to 26 August") won a claim
+      // slot in an answer about a post-mortem promise. The value boost now
+      // requires the sentence or its parent evidence to be topically linked.
+      const evidenceLinked = sentenceScore > 0 || titleScore > 0 || evidenceAuthorityScore > 0 ||
+        relevance(question, `${item.title}. ${item.excerpt}`, item.provider) > 0;
+      const valueQualified = isValueCandidate && evidenceLinked;
       return {
         item,
         text,
         valuePhrase,
+        sentenceScore,
+        bridgeScore,
         authorityLinked: evidenceAuthorityScore > 0,
         // A relevant title may break a tie, but it cannot make an unrelated
         // paragraph into a claim.
-        score: (sentenceScore > 0 || bridgeScore > 0 || isValueCandidate || authorityScore > 0)
-          ? sentenceScore + bridgeScore + authorityScore + (isValueCandidate ? 16 : 0) + Math.min(titleScore, 3)
+        score: (sentenceScore > 0 || bridgeScore > 0 || valueQualified || authorityScore > 0)
+          ? sentenceScore + bridgeScore + authorityScore + (valueQualified ? 16 : 0) + Math.min(titleScore, 3)
             + (recencyFactorsMap.get(item.id) ?? 0) * RECENCY_WEIGHT * 0.5
             - sentenceIndex * 0.15 - evidenceIndex * 0.05
           : 0,
@@ -950,9 +984,36 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
     seenProviders.add(candidate.item.provider);
     seenEvidenceIds.add(candidate.item.id);
   };
+  const questionIdsUpper = recordIdentifiers(question).map((identifier) => identifier.toUpperCase());
+  const requestedFacets = REQUESTED_FACETS.filter((facet) => facet.requestedBy.test(question));
+  /**
+   * Slots after the first are for claims that advance the question, not for
+   * the next-best lexical neighbour. Padding an already-answered question with
+   * supported-but-off-topic claims reads as thoroughness, but each one dilutes
+   * precision: a cited billing deadline inside a post-mortem answer is noise
+   * the reader has to rule out. A follow-on claim must be a cross-source join,
+   * part of an active authority chain, name a record the question named, cover
+   * a requested facet no picked claim covers, carry a linked value the
+   * question asked for, or stay within strong direct-relevance range of the
+   * best direct claim already picked.
+   */
+  const advancesQuestion = (candidate: (typeof candidates)[number]) => {
+    if (picked.length === 0) return true;
+    if (candidate.bridgeScore > 0) return true;
+    if (authority.active && candidate.authorityLinked) return true;
+    const upper = candidate.text.toUpperCase();
+    if (questionIdsUpper.some((identifier) => upper.includes(identifier))) return true;
+    const pickedCorpus = picked.map((entry) => entry.text).join(" ");
+    if (requestedFacets.some((facet) =>
+      facet.supportedBy.test(candidate.text) && !facet.supportedBy.test(pickedCorpus))) return true;
+    if (candidate.valuePhrase && candidate.sentenceScore > 0) return true;
+    const bestDirect = Math.max(...picked.map((entry) => entry.sentenceScore), 0);
+    return candidate.sentenceScore >= Math.max(6, bestDirect * 0.6);
+  };
   for (const candidate of candidates) {
     const key = normaliseClaimKey(candidate.text);
     if (candidate.score < scoreFloor || duplicatesPicked(candidate, key)) continue;
+    if (!advancesQuestion(candidate)) continue;
     // Once an exact, evidence-derived authority chain exists, lexical matches
     // from records outside that chain are distractors, not additional policy
     // evidence. Sentences in a linked receipt remain eligible even when they do

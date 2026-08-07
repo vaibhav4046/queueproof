@@ -2016,15 +2016,12 @@ body { min-height: 100dvh; background: var(--ink); }
   background: linear-gradient(90deg, transparent, rgba(255,122,26,.028) 50%, transparent);
 }
 
-/* The proof scene interpolates only when a persisted receipt state changes.
+/* Motion honesty rule (unchanged in substance, enforced in markup instead of CSS):
+   ambient core motion (orbit ring, mode ring, facets, glow) is decorative and always runs;
+   every data-bearing element is gated on persisted receipt state in EvidenceOrbit.tsx —
+   .orbit-node-ping renders only when a provider is actually engaged, .orbit-pulse only when
+   activity.receiptCount > 0, and .orbit-route.active only for routes that carried evidence.
    No continuous motion is used as a substitute for backend progress. */
-.evidence-orbit .core-orbit-ring,
-.evidence-orbit .core-mode-ring,
-.evidence-orbit .core-facets,
-.evidence-orbit .orbit-node-ping,
-.evidence-orbit .orbit-action-slot span,
-.evidence-orbit .orbit-mode .mode-orb,
-.evidence-orbit .orbit-pulse { animation: none !important; }
 .stage-complete .orbit-core-label strong { color: var(--acid-2); }
 .stage-checking-contradictions .orbit-core-label strong { color: var(--amber); }
 .stage-partial .orbit-core-label strong,
@@ -2392,10 +2389,9 @@ body { min-height: 100dvh; background: var(--ink); }
     radial-gradient(ellipse 42% 58% at 50% 48%, rgba(255,122,26,.085), transparent 68%),
     radial-gradient(ellipse 30% 42% at 15% 38%, rgba(255,122,26,.045), transparent 72%);
 }
-.orbit-stage { transform: none; transition: none; will-change: auto; }
 .orbit-route.active { animation-duration: 3.2s; }
-.orbit-core-group .core-orbit-ring,
-.orbit-core-group .core-facets { animation: none; }
+.orbit-core-group .core-orbit-ring { animation: orbit-spin 92s linear infinite; }
+.orbit-core-group .core-facets { animation: orbit-spin 116s linear infinite reverse; }
 .stage-routing .orbit-core-group .core-orbit-ring,
 .stage-retrieving .orbit-core-group .core-orbit-ring,
 .stage-linking .orbit-core-group .core-orbit-ring,
