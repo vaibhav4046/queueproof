@@ -580,6 +580,7 @@ describe("QueueProof MCP", () => {
     for (const field of [
       "answer",
       "claims",
+      "citations",
       "contradictions",
       "missingInformation",
       "validation",
@@ -587,6 +588,7 @@ describe("QueueProof MCP", () => {
       "providerCoverage",
       "latencyMs",
       "callCount",
+      "estimatedCostUnits",
     ]) {
       expect(outputSchema).toContain(`"${field}"`);
     }
@@ -615,28 +617,48 @@ describe("QueueProof MCP", () => {
       /workspaceId|database|collection|connectorId|sourceId/i,
     );
 
-    const query = vi.fn().mockImplementation(async (input: { metadata_filters?: Record<string, string> }) => {
-      const connector = demoConnectors.find((candidate) =>
-        candidate.hydraId === input.metadata_filters?.connector_id,
-      )!;
+    const query = vi.fn().mockImplementation(async (input: {
+      query: string;
+      max_results: number;
+      metadata_filters?: Record<string, string>;
+    }) => {
+      const selected = input.metadata_filters?.connector_id
+        ? demoConnectors.filter((candidate) =>
+            candidate.hydraId === input.metadata_filters?.connector_id,
+          )
+        : demoConnectors;
+      const exactLookup = /BUG-123/i.test(input.query) && !/who filed/i.test(input.query);
+      const multiHop = /who filed/i.test(input.query);
       return {
         ok: true,
         status: 200,
-        requestId: `demo-${connector.provider}`,
+        requestId: `demo-${selected.map((connector) => connector.provider).join("-")}`,
         latencyMs: 2,
         error: null,
         data: {
-          sources: [{
+          sources: selected.map((connector) => ({
             id: `source-${connector.provider}`,
             connector_id: connector.hydraId,
             app_provider: connector.provider,
             title: `${connector.provider} receipt`,
-          }],
-          chunks: [{
+          })),
+          chunks: selected.map((connector) => ({
             id: `source-${connector.provider}`,
             chunk_id: `chunk-${connector.provider}`,
-            chunk_content: `${connector.provider} supports the AuthShield finding.`,
-          }],
+            chunk_content: exactLookup
+              ? connector.provider === "github"
+                ? "BUG-123 is the AuthShield incident and the fix is merged."
+                : connector.provider === "linear"
+                  ? "BUG-1234 is an unrelated neighboring ticket."
+                  : "Unrelated customer billing discussion."
+              : multiHop
+                ? connector.provider === "linear"
+                  ? "Priya Raman filed BUG-123 for the AuthShield project."
+                  : connector.provider === "slack"
+                    ? "Priya told the customer the fix would ship by Friday."
+                    : "The AuthShield fix was merged in commit abc123."
+                : `${connector.provider} supports the AuthShield finding.`,
+          })),
         },
       };
     });
@@ -673,6 +695,14 @@ describe("QueueProof MCP", () => {
       const result = searchRpc.result?.structuredContent as {
         answer: string;
         claims: DemoClaim[];
+        citations: Array<{
+          evidenceId: string;
+          sourceId: string;
+          provider: string;
+          title: string;
+          timestamp: string | null;
+          url: string | null;
+        }>;
         contradictions: DemoContradiction[];
         missingInformation: string[];
         validation: {
@@ -685,14 +715,17 @@ describe("QueueProof MCP", () => {
         evidence: Array<{ evidenceId: string; provider: string }>;
         providerCoverage: string[];
         callCount: number;
+        estimatedCostUnits: number;
         partial: boolean;
         failedScopeCount: number;
       };
       expect(result).toMatchObject({
         answer: expect.any(String),
+        citations: expect.any(Array),
         contradictions: expect.any(Array),
         missingInformation: expect.any(Array),
-        callCount: 3,
+        callCount: 1,
+        estimatedCostUnits: 1,
         partial: false,
         failedScopeCount: 0,
       });
@@ -705,6 +738,10 @@ describe("QueueProof MCP", () => {
         evidenceCount: result.evidence.length,
       });
       const returnedEvidenceIds = new Set(result.evidence.map((item) => item.evidenceId));
+      expect(result.citations.length).toBeGreaterThan(0);
+      for (const citation of result.citations) {
+        expect(returnedEvidenceIds.has(citation.evidenceId)).toBe(true);
+      }
       for (const item of [...result.claims, ...result.contradictions]) {
         expect(item.evidenceIds.length).toBeGreaterThan(0);
         for (const evidenceId of item.evidenceIds) {
@@ -716,7 +753,7 @@ describe("QueueProof MCP", () => {
       )].sort();
       expect([...result.validation.providerCoverage].sort()).toEqual(groundedProviders);
       expect([...result.providerCoverage].sort()).toEqual(["github", "linear", "slack"]);
-      expect(query).toHaveBeenCalledTimes(3);
+      expect(query).toHaveBeenCalledTimes(1);
     } finally {
       clientSpy.mockRestore();
     }
