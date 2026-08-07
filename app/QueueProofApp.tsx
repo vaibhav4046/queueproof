@@ -593,7 +593,7 @@ export default function QueueProofApp({
         <div className="header-status sidebar-bottom">
           <button className="command-trigger" onClick={() => setCommandOpen(true)} aria-label={`Open command palette (${shortcut.spoken} K)`}><Search size={14} /><kbd>{shortcut.symbol}K</kbd></button>
           <AccountControl actor={view.actor} workspaceId={view.workspace.id} />
-          <span className="demo-badge"><span className={verified.length ? "status-orb live" : "status-orb"} />{verified.length} verified</span>
+          <span className="demo-badge" aria-label={publicSandbox ? `Synthetic Helios demo, ${verified.length} verified sources` : `${verified.length} verified sources`}><span className={verified.length ? "status-orb live" : "status-orb"} />{publicSandbox ? `Synthetic Helios · ${verified.length}` : `${verified.length} verified`}</span>
           <details className="nav-menu utility-menu"><summary aria-label="Open help and developer menu"><MoreHorizontal size={17} /><span>More</span></summary><div className="nav-popover nav-popover-right"><Link href="/developer"><Bot size={15} />ChatGPT</Link><Link href="/method"><Braces size={15} />How it works</Link><Link href="/support"><CircleHelp size={15} />Help</Link><Link href="/privacy"><ShieldCheck size={15} />Policies</Link></div></details>
         </div>
       </aside>
