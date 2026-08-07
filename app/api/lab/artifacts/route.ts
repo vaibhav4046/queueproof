@@ -29,6 +29,38 @@ function validKind(value: unknown): value is ArtifactKind {
   return value === "auto" || value === "fast" || value === "thinking" || value === "pdf";
 }
 
+const unitMetric = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
+
+function hasCompleteV3Relevance(artifact: Row, kind: ArtifactKind) {
+  const quality = record(artifact.quality);
+  const rows = Array.isArray(artifact.rows) ? artifact.rows.map(record) : [];
+  const rowsComplete = rows.length > 0 && rows.every((row) =>
+    typeof row.relevancePass === "boolean" &&
+    unitMetric(row.relevancePrecision) &&
+    unitMetric(row.irrelevantClaimRate) &&
+    typeof row.relevantClaimCount === "number" &&
+    Array.isArray(row.irrelevantClaims) &&
+    Math.abs((row.relevancePrecision as number) + (row.irrelevantClaimRate as number) - 1) < 1e-9);
+  const allRowsClean = rows.every((row) => (row.irrelevantClaims as unknown[]).length === 0);
+  const aggregateComplete =
+    unitMetric(quality.relevancePrecision) &&
+    unitMetric(quality.irrelevantClaimRate) &&
+    typeof quality.relevanceRequirementPasses === "number" &&
+    typeof quality.zeroIrrelevantClaims === "boolean" &&
+    Math.abs((quality.relevancePrecision as number) + (quality.irrelevantClaimRate as number) - 1) < 1e-9 &&
+    quality.zeroIrrelevantClaims === allRowsClean;
+  if (!rowsComplete || !aggregateComplete) return false;
+  if (kind !== "pdf") return true;
+  const crossSource = record(artifact.crossSource);
+  return typeof crossSource.pass === "boolean" &&
+    typeof crossSource.relevancePass === "boolean" &&
+    unitMetric(crossSource.relevancePrecision) &&
+    unitMetric(crossSource.irrelevantClaimRate) &&
+    Array.isArray(crossSource.irrelevantClaims) &&
+    Math.abs((crossSource.relevancePrecision as number) + (crossSource.irrelevantClaimRate as number) - 1) < 1e-9;
+}
+
 /**
  * Publish a measured artifact only after the exact release is serving traffic.
  * This endpoint is deliberately operator-only and uses a separate deployment
@@ -68,6 +100,9 @@ export async function POST(request: Request) {
     const rows = artifact.rows;
     if (!Array.isArray(rows) || rows.length === 0 || artifact.cases !== rows.length) {
       return noStoreJson({ ok: false, error: "Artifact cases must match a non-empty measured row set." }, { status: 400 });
+    }
+    if (!hasCompleteV3Relevance(artifact, kind)) {
+      return noStoreJson({ ok: false, error: "Grounded-grader-v3 artifacts require complete row, aggregate, and PDF cross-source relevance receipts." }, { status: 400 });
     }
     const requestedMode = artifact.requestedMode;
     if (kind !== "pdf" && requestedMode !== kind) {
