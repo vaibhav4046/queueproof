@@ -317,8 +317,8 @@ describe("grounded benchmark grader", () => {
         {
           id: "slack-mixed",
           provider: "slack",
-          title: "Team update",
-          excerpt: "Billing migration planned. The Slack team picnic is 7 August.",
+          title: "Billing migration status",
+          excerpt: "Billing migration planned, and the Slack team picnic is 7 August.",
         },
       ],
       contradictions: [{
