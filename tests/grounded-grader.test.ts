@@ -184,26 +184,43 @@ describe("grounded benchmark grader", () => {
 
   it("treats a supported contradiction-only receipt as relevant provider proof", () => {
     const result = gradeGroundedAnswer({
-      answer: "Linear says 14 August; Slack moved the deadline earlier.",
+      answer: "Linear puts the billing migration deadline at 14 August; Slack reports an earlier date.",
       claims: [
-        { text: "Linear says 14 August.", citation_ids: ["linear-date"], providers: ["linear"] },
-        { text: "Slack moved the deadline earlier.", citation_ids: ["slack-date"], providers: ["slack"] },
+        {
+          text: "Linear puts the billing migration deadline at 14 August.",
+          citation_ids: ["linear-date"],
+          providers: ["linear"],
+        },
       ],
       citations: [
-        { id: "linear-date", provider: "linear", title: "Tracked deadline", excerpt: "Linear says 14 August." },
-        { id: "slack-date", provider: "slack", title: "Finance thread", excerpt: "Slack moved the deadline earlier." },
+        {
+          id: "linear-date",
+          provider: "linear",
+          title: "Billing migration",
+          excerpt: "Linear puts the billing migration deadline at 14 August.",
+        },
+        {
+          id: "slack-date",
+          provider: "slack",
+          title: "Billing migration",
+          excerpt: "Slack says the billing migration deadline moved earlier.",
+        },
       ],
       contradictions: [{
-        summary: "Linear and Slack disagree on the deadline.",
+        summary: "Linear and Slack disagree on the billing migration deadline.",
         evidenceIds: ["linear-date", "slack-date"],
         providers: ["linear", "slack"],
       }],
       providerCoverage: ["linear", "slack"],
-      requiredFacts: [{ id: "tracked-date", anyOf: ["14 August"] }],
+      requiredFacts: [
+        { id: "subject", anyOf: ["billing migration"] },
+        { id: "tracked-date", anyOf: ["14 August"] },
+      ],
       requiredProviders: ["linear", "slack"],
       requiresContradiction: true,
     });
 
+    expect(result.claimCount).toBe(1);
     expect(result.relevancePrecision).toBe(1);
     expect(result.citedSources).toEqual([
       expect.objectContaining({ id: "linear-date", relevant: true }),
@@ -213,19 +230,132 @@ describe("grounded benchmark grader", () => {
     expect(result.pass).toBe(true);
   });
 
-  it("requires a contradiction to cite two distinct providers when requested", () => {
-    const base = {
-      answer: "Slack says 7 August while Linear says 14 August.",
+  it("rejects a fabricated contradiction built from an unrelated date", () => {
+    const result = gradeGroundedAnswer({
+      answer: "Linear puts the billing migration deadline at 14 August. The Slack team picnic is 7 August.",
       claims: [
-        { text: "Slack says 7 August.", citation_ids: ["slack-date"], providers: ["slack"] },
-        { text: "Linear says 14 August.", citation_ids: ["linear-date"], providers: ["linear"] },
+        {
+          text: "Linear puts the billing migration deadline at 14 August.",
+          citation_ids: ["linear-date"],
+          providers: ["linear"],
+        },
+        { text: "The Slack team picnic is 7 August.", citation_ids: ["slack-picnic"], providers: ["slack"] },
       ],
       citations: [
-        { id: "slack-date", provider: "slack", title: "Slack deadline", excerpt: "Slack says 7 August." },
-        { id: "linear-date", provider: "linear", title: "Linear deadline", excerpt: "Linear says 14 August." },
+        {
+          id: "linear-date",
+          provider: "linear",
+          title: "Billing migration",
+          excerpt: "Linear puts the billing migration deadline at 14 August.",
+        },
+        {
+          id: "slack-picnic",
+          provider: "slack",
+          title: "Team social",
+          excerpt: "The Slack team picnic is 7 August.",
+        },
+      ],
+      contradictions: [{
+        summary: "Linear and Slack disagree on the billing migration deadline.",
+        evidenceIds: ["linear-date", "slack-picnic"],
+        providers: ["linear", "slack"],
+      }],
+      providerCoverage: ["linear", "slack"],
+      requiredFacts: [
+        { id: "subject", anyOf: ["billing migration"] },
+        { id: "first", anyOf: ["7 August"] },
+        { id: "second", anyOf: ["14 August"] },
+      ],
+      requiredProviders: ["linear", "slack"],
+      requiresContradiction: true,
+    });
+
+    expect(result.citationPass).toBe(true);
+    expect(result.contradictionPass).toBe(false);
+    expect(result.supportedContradictions).toEqual([]);
+    expect(result.pass).toBe(false);
+  });
+
+  it("rejects a one-token overlap with a compound required fact", () => {
+    const result = gradeGroundedAnswer({
+      answer: "Northwind escalated the AuthShield incident. Northwind ordered new chairs.",
+      claims: [
+        {
+          text: "Northwind escalated the AuthShield incident.",
+          citation_ids: ["slack-incident"],
+          providers: ["slack"],
+        },
+        {
+          text: "Northwind ordered new chairs.",
+          citation_ids: ["gmail-chairs"],
+          providers: ["gmail"],
+        },
+      ],
+      citations: [
+        {
+          id: "slack-incident",
+          provider: "slack",
+          title: "AuthShield incident",
+          excerpt: "Northwind escalated the AuthShield incident.",
+        },
+        {
+          id: "gmail-chairs",
+          provider: "gmail",
+          title: "Office order",
+          excerpt: "Northwind ordered new chairs.",
+        },
+      ],
+      providerCoverage: ["gmail", "slack"],
+      requiredFacts: [{
+        id: "northwind-escalation",
+        allOf: [["northwind"], ["escalated", "escalation"], ["authshield"]],
+      }],
+      requiredProviders: ["slack"],
+    });
+
+    expect(result.relevancePrecision).toBeCloseTo(1 / 2);
+    expect(result.irrelevantClaims).toEqual([
+      expect.objectContaining({ index: 1, text: "Northwind ordered new chairs." }),
+    ]);
+    expect(result.supportedProviders).toEqual(["slack"]);
+    expect(result.pass).toBe(false);
+  });
+
+  it("requires a contradiction to cite topically aligned, disagreeing providers", () => {
+    const base = {
+      answer: "Slack puts the billing migration deadline at 7 August while Linear says 14 August.",
+      claims: [
+        {
+          text: "Slack puts the billing migration deadline at 7 August.",
+          citation_ids: ["slack-date"],
+          providers: ["slack"],
+        },
+        {
+          text: "Linear puts the billing migration deadline at 14 August.",
+          citation_ids: ["linear-date"],
+          providers: ["linear"],
+        },
+      ],
+      citations: [
+        {
+          id: "slack-date",
+          provider: "slack",
+          title: "Billing migration",
+          excerpt: "Slack puts the billing migration deadline at 7 August.",
+        },
+        {
+          id: "linear-date",
+          provider: "linear",
+          title: "Billing migration",
+          excerpt: "Linear puts the billing migration deadline at 14 August.",
+        },
       ],
       providerCoverage: ["slack", "linear"],
-      requiredFacts: [{ id: "first", anyOf: ["7 August"] }, { id: "second", anyOf: ["14 August"] }],
+      requiredFacts: [
+        { id: "subject", anyOf: ["billing migration"] },
+        { id: "first", anyOf: ["7 August"] },
+        { id: "second", anyOf: ["14 August"] },
+      ],
       requiredProviders: ["slack", "linear"],
       requiresContradiction: true,
     };
