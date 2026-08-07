@@ -203,7 +203,7 @@ describe("grounded benchmark grader", () => {
 
   it("treats a supported contradiction-only receipt as relevant provider proof", () => {
     const result = gradeGroundedAnswer({
-      answer: "Linear puts the billing migration deadline at 14 August; Slack reports an earlier date.",
+      answer: "Linear puts the billing migration deadline at 14 August; Slack puts it at 7 August.",
       claims: [
         {
           text: "Linear puts the billing migration deadline at 14 August.",
@@ -222,11 +222,11 @@ describe("grounded benchmark grader", () => {
           id: "slack-date",
           provider: "slack",
           title: "Billing migration",
-          excerpt: "Slack says the billing migration deadline moved earlier.",
+          excerpt: "Slack puts the billing migration deadline at 7 August.",
         },
       ],
       contradictions: [{
-        summary: "Linear and Slack disagree on the billing migration deadline.",
+        summary: "Linear says 14 August; Slack says 7 August.",
         evidenceIds: ["linear-date", "slack-date"],
         providers: ["linear", "slack"],
       }],
@@ -234,6 +234,7 @@ describe("grounded benchmark grader", () => {
       requiredFacts: [
         { id: "subject", anyOf: ["billing migration"] },
         { id: "tracked-date", anyOf: ["14 August"] },
+        { id: "slack-date", anyOf: ["7 August"] },
       ],
       requiredProviders: ["linear", "slack"],
       requiresContradiction: true,
@@ -275,7 +276,7 @@ describe("grounded benchmark grader", () => {
         },
       ],
       contradictions: [{
-        summary: "Linear and Slack disagree on the billing migration deadline.",
+        summary: "Linear says 14 August; Slack says 7 August.",
         evidenceIds: ["linear-date", "slack-picnic"],
         providers: ["linear", "slack"],
       }],
@@ -292,6 +293,53 @@ describe("grounded benchmark grader", () => {
     expect(result.citationPass).toBe(true);
     expect(result.contradictionPass).toBe(false);
     expect(result.supportedContradictions).toEqual([]);
+    expect(result.pass).toBe(false);
+  });
+
+  it("rejects a scalar claim whose topic appears only elsewhere in a mixed chunk", () => {
+    const result = gradeGroundedAnswer({
+      answer: "Linear puts the billing migration deadline at 14 August. The Slack team picnic is 7 August.",
+      claims: [
+        {
+          text: "Linear puts the billing migration deadline at 14 August.",
+          citation_ids: ["linear-date"],
+          providers: ["linear"],
+        },
+        { text: "The Slack team picnic is 7 August.", citation_ids: ["slack-mixed"], providers: ["slack"] },
+      ],
+      citations: [
+        {
+          id: "linear-date",
+          provider: "linear",
+          title: "Billing migration",
+          excerpt: "Linear puts the billing migration deadline at 14 August.",
+        },
+        {
+          id: "slack-mixed",
+          provider: "slack",
+          title: "Team update",
+          excerpt: "The billing migration is being planned. The Slack team picnic is 7 August.",
+        },
+      ],
+      contradictions: [{
+        summary: "Linear says 14 August; Slack says 7 August.",
+        evidenceIds: ["linear-date", "slack-mixed"],
+        providers: ["linear", "slack"],
+      }],
+      providerCoverage: ["linear", "slack"],
+      requiredFacts: [
+        { id: "subject", anyOf: ["billing migration"] },
+        { id: "first", anyOf: ["7 August"] },
+        { id: "second", anyOf: ["14 August"] },
+      ],
+      requiredProviders: ["linear", "slack"],
+      requiresContradiction: true,
+    });
+
+    expect(result.citationPass).toBe(true);
+    expect(result.relevancePrecision).toBeCloseTo(1 / 2);
+    expect(result.supportedProviders).toEqual(["linear"]);
+    expect(result.contradictionPass).toBe(false);
     expect(result.pass).toBe(false);
   });
 
@@ -493,7 +541,7 @@ describe("grounded benchmark grader", () => {
     const supported = gradeGroundedAnswer({
       ...base,
       contradictions: [{
-        summary: "Slack and Linear contain different dates.",
+        summary: "Slack says 7 August; Linear says 14 August.",
         evidenceIds: ["slack-date", "linear-date"],
         providers: ["slack", "linear"],
       }],
