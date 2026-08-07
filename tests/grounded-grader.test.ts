@@ -42,6 +42,7 @@ describe("grounded benchmark grader", () => {
       providerCoverage: ["linear", "slack"],
       requiredFacts: [
         { id: "escalation", allOf: [["northwind"], ["authshield"], ["escalated", "escalation"]] },
+        { id: "billing-migration", anyOf: ["billing migration"] },
         { id: "deadline", anyOf: ["14 August"] },
       ],
       requiredProviders: ["slack", "linear"],
@@ -125,15 +126,24 @@ describe("grounded benchmark grader", () => {
 
   it("fails a fully cited claim that carries no expected-fact signal", () => {
     const result = gradeGroundedAnswer({
-      answer: "The billing migration deadline is 14 August and Slack says 7 August. Medical billing fraud creates healthcare waste.",
+      answer: "The billing migration deadline is 14 August and Slack puts it at 7 August. Medical billing fraud creates healthcare waste.",
       claims: [
         { text: "The billing migration deadline is 14 August.", citation_ids: ["linear-date"], providers: ["linear"] },
-        { text: "Slack says 7 August.", citation_ids: ["slack-date"], providers: ["slack"] },
+        {
+          text: "Slack puts the billing migration deadline at 7 August.",
+          citation_ids: ["slack-date"],
+          providers: ["slack"],
+        },
         { text: "Medical billing fraud creates healthcare waste.", citation_ids: ["gmail-noise"], providers: ["gmail"] },
       ],
       citations: [
         { id: "linear-date", provider: "linear", title: "Deadline", excerpt: "The billing migration deadline is 14 August." },
-        { id: "slack-date", provider: "slack", title: "Finance", excerpt: "Slack says 7 August." },
+        {
+          id: "slack-date",
+          provider: "slack",
+          title: "Finance",
+          excerpt: "Slack puts the billing migration deadline at 7 August.",
+        },
         { id: "gmail-noise", provider: "gmail", title: "Healthcare", excerpt: "Medical billing fraud creates healthcare waste." },
       ],
       providerCoverage: ["gmail", "linear", "slack"],
@@ -158,14 +168,23 @@ describe("grounded benchmark grader", () => {
 
   it("passes the same grounded answer after irrelevant evidence is removed", () => {
     const result = gradeGroundedAnswer({
-      answer: "The billing migration deadline is 14 August and Slack says 7 August.",
+      answer: "The billing migration deadline is 14 August and Slack puts it at 7 August.",
       claims: [
         { text: "The billing migration deadline is 14 August.", citation_ids: ["linear-date"], providers: ["linear"] },
-        { text: "Slack says 7 August.", citation_ids: ["slack-date"], providers: ["slack"] },
+        {
+          text: "Slack puts the billing migration deadline at 7 August.",
+          citation_ids: ["slack-date"],
+          providers: ["slack"],
+        },
       ],
       citations: [
         { id: "linear-date", provider: "linear", title: "Deadline", excerpt: "The billing migration deadline is 14 August." },
-        { id: "slack-date", provider: "slack", title: "Finance", excerpt: "Slack says 7 August." },
+        {
+          id: "slack-date",
+          provider: "slack",
+          title: "Finance",
+          excerpt: "Slack puts the billing migration deadline at 7 August.",
+        },
       ],
       providerCoverage: ["linear", "slack"],
       requiredFacts: [
@@ -273,6 +292,113 @@ describe("grounded benchmark grader", () => {
     expect(result.citationPass).toBe(true);
     expect(result.contradictionPass).toBe(false);
     expect(result.supportedContradictions).toEqual([]);
+    expect(result.pass).toBe(false);
+  });
+
+  it("accepts an attributed conflict when both receipts mention both dates", () => {
+    const result = gradeGroundedAnswer({
+      answer: "Linear moved the billing migration from 7 August to 14 August; Slack says finance kept it at 7 August.",
+      claims: [
+        {
+          text: "The billing migration deadline moved from 7 August to 14 August 2026.",
+          citation_ids: ["linear-both-dates"],
+          providers: ["linear"],
+        },
+        {
+          text: "The Linear ticket says 14 August, but finance is staying at 7 August.",
+          citation_ids: ["slack-both-dates"],
+          providers: ["slack"],
+        },
+      ],
+      citations: [
+        {
+          id: "linear-both-dates",
+          provider: "linear",
+          title: "Billing migration deadline moved to 14 August",
+          excerpt: "The billing migration deadline moved from 7 August to 14 August 2026.",
+        },
+        {
+          id: "slack-both-dates",
+          provider: "slack",
+          title: "Billing migration deadline",
+          excerpt: "The Linear ticket says 14 August, but finance is staying at 7 August.",
+        },
+      ],
+      contradictions: [{
+        summary: "Linear says 14 August 2026; Slack says 7 August.",
+        evidenceIds: ["linear-both-dates", "slack-both-dates"],
+        providers: ["linear", "slack"],
+      }],
+      providerCoverage: ["linear", "slack"],
+      requiredFacts: [
+        { id: "subject", anyOf: ["billing migration"] },
+        { id: "first", anyOf: ["7 August"] },
+        { id: "second", anyOf: ["14 August"] },
+      ],
+      requiredProviders: ["linear", "slack"],
+      requiresContradiction: true,
+    });
+
+    expect(result.supportedContradictions).toHaveLength(1);
+    expect(result.contradictionPass).toBe(true);
+    expect(result.pass).toBe(true);
+  });
+
+  it("rejects a generic status hit without the case topic", () => {
+    const result = gradeGroundedAnswer({
+      answer: "The AuthShield fix merged, but ENG-456 remains open. The documentation branch merged.",
+      claims: [
+        {
+          text: "The AuthShield fix merged.",
+          citation_ids: ["github-authshield"],
+          providers: ["github"],
+        },
+        {
+          text: "The AuthShield issue ENG-456 remains open.",
+          citation_ids: ["linear-authshield"],
+          providers: ["linear"],
+        },
+        {
+          text: "The documentation branch merged.",
+          citation_ids: ["gmail-docs"],
+          providers: ["gmail"],
+        },
+      ],
+      citations: [
+        {
+          id: "github-authshield",
+          provider: "github",
+          title: "AuthShield",
+          excerpt: "The AuthShield fix merged.",
+        },
+        {
+          id: "linear-authshield",
+          provider: "linear",
+          title: "AuthShield ENG-456",
+          excerpt: "The AuthShield issue ENG-456 remains open.",
+        },
+        {
+          id: "gmail-docs",
+          provider: "gmail",
+          title: "Documentation",
+          excerpt: "The documentation branch merged.",
+        },
+      ],
+      providerCoverage: ["github", "linear", "gmail"],
+      requiredFacts: [
+        { id: "subject", anyOf: ["authshield"] },
+        { id: "merged", anyOf: ["merged"] },
+        { id: "open", anyOf: ["remains open", "still open"] },
+      ],
+      requiredProviders: ["github", "linear"],
+    });
+
+    expect(result.citationPass).toBe(true);
+    expect(result.relevancePrecision).toBeCloseTo(2 / 3);
+    expect(result.irrelevantClaims).toEqual([
+      expect.objectContaining({ index: 2, text: "The documentation branch merged." }),
+    ]);
+    expect(result.supportedProviders).toEqual(["github", "linear"]);
     expect(result.pass).toBe(false);
   });
 
