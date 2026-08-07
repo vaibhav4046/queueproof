@@ -11,7 +11,7 @@ import {
 import { requireDb } from "../../../lib/server/runtime";
 import { synthesiseGroundedAnswer } from "../../../lib/server/synthesis";
 import { createId } from "../../../lib/server/store";
-import { planRetrieval } from "../../retrieval/src";
+import { planRetrieval, providersNamedInQuestion, recordIdentifiers, retrievalModeCost } from "../../retrieval/src";
 import {
   hostileQueryReason,
   isPotentialPromptInjection,
@@ -486,26 +486,66 @@ export function buildQueueProofServer(
     const scope = await validateSearchScope(input);
     const plan = planRetrieval(input.query);
     const mode = input.mode === "auto" ? plan.mode : input.mode;
+    const availableProviders = scope.kind === "connectors"
+      ? scope.connectors.map((connector) => connector.provider)
+      : [];
+    const namedScopedProviders = providersNamedInQuestion(input.query, availableProviders);
+    const identifiers = [...new Set(recordIdentifiers(input.query).map((value) => value.toUpperCase()))];
+    const compoundQuestion = /[,;]|\b(?:and|also|across|between|compare|versus|vs\.?)\b/i.test(input.query);
+    const narrowExactLookup =
+      plan.mode === "fast" &&
+      mode === "fast" &&
+      identifiers.length === 1 &&
+      namedScopedProviders.length <= 1 &&
+      !compoundQuestion;
+    const exactIdentifier = narrowExactLookup ? identifiers[0] : null;
+    const retrievalQuery = exactIdentifier ? `${exactIdentifier} ${input.query}` : input.query;
     const hydra = await hydraClientForWorkspace(workspaceId);
     const startedAt = Date.now();
+
+    const selectedConnectors = scope.kind === "connectors" && narrowExactLookup && namedScopedProviders.length === 1
+      ? scope.connectors.filter((connector) => connector.provider === namedScopedProviders[0])
+      : scope.kind === "connectors"
+        ? scope.connectors
+        : [];
+    const connectorQueryGroups = scope.kind === "connectors"
+      ? [...selectedConnectors.reduce((groups, connector) => {
+          const key = `${connector.database}\u0000${connector.collection ?? ""}`;
+          const current = groups.get(key) ?? {
+            kind: "connector_group" as const,
+            database: connector.database,
+            collection: connector.collection,
+            connectors: [] as typeof selectedConnectors,
+          };
+          current.connectors.push(connector);
+          groups.set(key, current);
+          return groups;
+        }, new Map<string, {
+          kind: "connector_group";
+          database: string;
+          collection: string | null;
+          connectors: typeof selectedConnectors;
+        }>()).values()]
+      : [];
     const queryScopes = scope.kind === "connectors"
-      ? scope.connectors.map((connector) => ({ kind: "connector" as const, connector }))
+      ? connectorQueryGroups
       : scope.groups.map((group) => ({ kind: "documents" as const, group }));
+
     const responses = await Promise.all(queryScopes.map(async (queryScope) => {
-      if (queryScope.kind === "connector") {
-        const lineageMetadataFilters = connectorLineageMetadataFilter(
-          queryScope.connector.hydradbConnectorId,
-          queryScope.connector.provider,
-        );
+      if (queryScope.kind === "connector_group") {
+        const singleton = queryScope.connectors.length === 1 ? queryScope.connectors[0] : null;
+        const lineageMetadataFilters = singleton
+          ? connectorLineageMetadataFilter(singleton.hydradbConnectorId, singleton.provider)
+          : undefined;
         const response = await hydra.query({
-          database: queryScope.connector.database,
-          ...(queryScope.connector.collection ? { collections: [queryScope.connector.collection] } : {}),
-          metadata_filters: lineageMetadataFilters,
-          query: input.query,
+          database: queryScope.database,
+          ...(queryScope.collection ? { collections: [queryScope.collection] } : {}),
+          ...(lineageMetadataFilters ? { metadata_filters: lineageMetadataFilters } : {}),
+          query: retrievalQuery,
           type: "knowledge",
           query_by: plan.queryBy,
           mode,
-          max_results: 12,
+          max_results: narrowExactLookup ? 6 : 12,
           query_apps: true,
           graph_context: plan.graphContext,
           recency_bias: plan.recencyBias,
@@ -515,11 +555,11 @@ export function buildQueueProofServer(
       const response = await hydra.query({
         database: queryScope.group.database,
         ids: queryScope.group.sourceIds,
-        query: input.query,
+        query: retrievalQuery,
         type: "knowledge",
         query_by: plan.queryBy,
         mode,
-        max_results: 12,
+        max_results: narrowExactLookup ? 6 : 12,
         query_apps: false,
         graph_context: plan.graphContext,
         recency_bias: plan.recencyBias,
@@ -542,27 +582,32 @@ export function buildQueueProofServer(
           })
           .map((source) => ({ source, chunks: extracted.chunks, provider: "document" }));
       }
-      const connector = result.connector;
-      return extracted.sources
-        .filter((source) =>
-          sourceBelongsToConnector(source, connector.hydradbConnectorId, connector.selectedResourceIds) ||
+      return extracted.sources.flatMap((source) => {
+        const strictOwner = result.connectors.find((connector) =>
+          sourceBelongsToConnector(source, connector.hydradbConnectorId, connector.selectedResourceIds),
+        );
+        const singleton = result.connectors.length === 1 ? result.connectors[0] : null;
+        const attestedOwner = !strictOwner && singleton && result.lineageMetadataFilters &&
           sourceAttestedByScopedConnectorQuery({
             source,
-            connectorId: connector.hydradbConnectorId,
-            connectorProvider: connector.provider,
+            connectorId: singleton.hydradbConnectorId,
+            connectorProvider: singleton.provider,
             scopeConnectorCount: 1,
-            providerConnectorCount: connector.providerConnectorCount,
+            providerConnectorCount: singleton.providerConnectorCount,
             purpose: "queue",
             lineageMetadataFilters: result.lineageMetadataFilters,
             responseOk: result.response.ok,
             responseStatus: result.response.status,
             requestId: result.response.requestId,
-          }),
-        )
-        .map((source) => ({ source, chunks: extracted.chunks, provider: connector.provider }));
+          })
+            ? singleton
+            : null;
+        const owner = strictOwner ?? attestedOwner;
+        return owner ? [{ source, chunks: extracted.chunks, provider: owner.provider }] : [];
+      });
     });
 
-    const evidence = accepted.flatMap(({ source, chunks, provider }, sourceIndex) => {
+    const dedupedEvidence = accepted.flatMap(({ source, chunks, provider }, sourceIndex) => {
       const sourceId = firstString(source, ["id", "source_id", "context_id"]) ?? `source-${sourceIndex + 1}`;
       const metadata = { ...record(source.additional_metadata), ...record(source.metadata) };
       const title = firstString(source, ["title", "subject", "name", "filename"]) ??
@@ -597,7 +642,14 @@ export function buildQueueProofServer(
       });
     }).filter((item, index, items) =>
       items.findIndex((candidate) => candidate.evidenceId === item.evidenceId && candidate.provider === item.provider) === index,
-    ).slice(0, 48);
+    );
+    const evidence = (exactIdentifier
+      ? dedupedEvidence.filter((item) =>
+          recordIdentifiers(`${item.sourceId} ${item.title} ${item.excerpt}`)
+            .some((identifier) => identifier.toUpperCase() === exactIdentifier),
+        )
+      : dedupedEvidence
+    ).slice(0, exactIdentifier ? 6 : 48);
     const providers = [...new Set(evidence.map((item) => item.provider))];
     const synthesis = synthesiseGroundedAnswer(
       input.query,
