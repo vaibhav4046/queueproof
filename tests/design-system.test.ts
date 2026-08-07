@@ -183,6 +183,21 @@ describe("production design system", () => {
     expect(ember).toMatch(/\.app-sidebar \.demo-badge \{[^}]*white-space:\s*nowrap/);
   });
 
+  it("fails benchmark readiness closed on irrelevant claims and shows the proof", () => {
+    expect(app).toContain("type BenchmarkQuality =");
+    expect(app).toContain("relevancePrecision?: number");
+    expect(app).toContain("irrelevantClaimRate?: number");
+    expect(app).toContain("zeroIrrelevantClaims?: boolean");
+    expect(app).toContain("const perfectRelevance");
+    expect(app).toContain("&& liveRelevanceMet;");
+    expect(app).toContain("const pdfGatesMet");
+    expect(app).toContain("CLAIM RELEVANCE");
+    expect(app).toContain("CITATIONS + RELEVANCE");
+    expect(app).toContain("Cross-source:");
+    expect(labRoute).toContain('"relevancePass", "relevancePrecision", "irrelevantClaimRate"');
+    expect(labRoute).not.toContain('"answer", "question", "irrelevantClaims"');
+  });
+
   it("uses plain language when current benchmark results are missing", () => {
     expect(app).toContain('"No current results"');
     expect(app).toContain('"Run the live benchmark"');
