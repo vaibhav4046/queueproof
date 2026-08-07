@@ -42,7 +42,8 @@ function hasCompleteV3Relevance(artifact: Row, kind: ArtifactKind) {
     typeof row.relevantClaimCount === "number" &&
     Array.isArray(row.irrelevantClaims) &&
     Math.abs((row.relevancePrecision as number) + (row.irrelevantClaimRate as number) - 1) < 1e-9);
-  const allRowsClean = rows.every((row) => (row.irrelevantClaims as unknown[]).length === 0);
+  const allRowsClean = rows.length > 0 && rows.every((row) =>
+    Array.isArray(row.irrelevantClaims) && row.irrelevantClaims.length === 0);
   const aggregateComplete =
     unitMetric(quality.relevancePrecision) &&
     unitMetric(quality.irrelevantClaimRate) &&
