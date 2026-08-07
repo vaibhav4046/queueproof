@@ -168,6 +168,17 @@ assert.deepEqual(
   ["linear", "slack"],
   "Web deadline-conflict proof must close over exactly Linear and Slack.",
 );
+assert.equal(webDeadlineConflict.contradictions.length, 1,
+  `Web deadline-conflict answer returned ${webDeadlineConflict.contradictions.length} contradictions; expected exactly 1.`);
+const deadlineContradictionIds = webDeadlineConflict.contradictions[0]?.evidenceIds ?? [];
+assert.equal(deadlineContradictionIds.length, 2,
+  "Web deadline-conflict contradiction must cite exactly two receipts.");
+const deadlineEvidenceById = new Map(webDeadlineConflict.evidence.map((item) => [item.id, item]));
+assert.deepEqual(
+  [...new Set(deadlineContradictionIds.map((id) => deadlineEvidenceById.get(id)?.provider).filter(Boolean))].sort(),
+  ["linear", "slack"],
+  "Web deadline-conflict contradiction must resolve to both Linear and Slack receipts.",
+);
 assert.doesNotMatch(
   JSON.stringify(webDeadlineConflict),
   /medical billing|healthcare systems?|phantom service|blockchain in healthcare|\\"provider\\":\\"gmail\\"/i,
