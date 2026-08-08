@@ -131,35 +131,25 @@ gate. See [public workspace provisioning](docs/PUBLIC_WORKSPACE_PROVISIONING.md)
 ## Architecture
 
 ```mermaid
-flowchart LR
-  subgraph Sources
-    SL[Slack]
-    GH[GitHub]
-    LI[Linear]
-    GM[Gmail]
-    DOC[Documents<br/>346-page PDF]
-  end
-
-  subgraph HydraDB
-    CAT[Connector catalogue<br/>and lifecycle]
-    IDX[Document indexing]
-    RET[Fast / Thinking<br/>retrieval]
-  end
-
-  subgraph QueueProof
-    PROOF[Connector proof gate<br/>attributable records only]
-    PLAN[Query planner<br/>exact-ID + hybrid lanes]
-    MERGE[Evidence merge<br/>dedupe and clustering]
-    SYN[Claim-level synthesis<br/>citations, contradictions,<br/>missing information]
-    RANK[Deterministic ranking<br/>versioned policy]
-    APPR[Approval boundary<br/>at-most-once execution]
-  end
-
-  subgraph Surfaces
-    WEB[Web workspace]
-    MCP[MCP endpoint]
-    LAB[/api/lab<br/>release-bound artifacts]
-  end
+graph LR
+  SL["Slack"]
+  GH["GitHub"]
+  LI["Linear"]
+  GM["Gmail"]
+  DOC["Documents - 346 page PDF"]
+  CAT["HydraDB connector catalogue"]
+  IDX["HydraDB document indexing"]
+  RET["HydraDB retrieval"]
+  PROOF["QueueProof connector proof gate"]
+  PLAN["QueueProof query planner"]
+  MERGE["Evidence merge"]
+  SYN["Claim level synthesis"]
+  RANK["Deterministic ranking"]
+  APPR["Approval boundary"]
+  WEB["Web workspace"]
+  MCP["MCP endpoint"]
+  LAB["API lab release artifacts"]
+  TURSO["Turso libSQL receipts and audit"]
 
   SL --> CAT
   GH --> CAT
@@ -168,19 +158,21 @@ flowchart LR
   DOC --> IDX
   CAT --> PROOF
   IDX --> PROOF
-  PROOF --> PLAN --> RET --> MERGE --> SYN
-  SYN --> RANK --> APPR
+  PROOF --> PLAN
+  PLAN --> RET
+  RET --> MERGE
+  MERGE --> SYN
+  SYN --> RANK
+  RANK --> APPR
   SYN --> WEB
   SYN --> MCP
   RANK --> WEB
-  APPR -->|owner approval required| SL
-  APPR -->|owner approval required| LI
-  WEB --- LAB
-
-  TURSO[(Turso / libSQL<br/>receipts, packets,<br/>approvals, audit)]
-  SYN --- TURSO
-  APPR --- TURSO
-  PROOF --- TURSO
+  APPR --> SL
+  APPR --> LI
+  WEB --> LAB
+  SYN --> TURSO
+  APPR --> TURSO
+  PROOF --> TURSO
 ```
 
 Evidence flows one way — sources into HydraDB, HydraDB into retrieval, retrieval into cited
