@@ -23,6 +23,7 @@ import { QueueProofLogo, QueueProofSymbol } from "./components/QueueProofLogo";
 import { usePrefersReducedMotion } from "./components/use-prefers-reduced-motion";
 import { EmberBackdrop } from "@/components/queueproof/ember-backdrop";
 import { ActionButton } from "@/components/ui/action-button";
+import { createQueueProofBrowserClient } from "../lib/supabase/client";
 import { dateLabel } from "./date-label";
 
 type CredentialField = {
@@ -524,6 +525,45 @@ export default function QueueProofApp({
     setBootError("");
     return payload.view;
   }, []);
+
+  // Whether the rendered view already reflects a signed-in account, kept in a ref so
+  // the session listeners below can compare without re-subscribing on view changes.
+  const viewAuthenticatedRef = useRef(false);
+  viewAuthenticatedRef.current =
+    view?.kind === "no_workspace" ||
+    (view?.kind === "ready" && !view.actor.publicAccess);
+
+  // Magic-link and OAuth sign-in usually finish in a different tab — the email client
+  // opens /auth/callback there — so this tab would keep rendering the pre-sign-in
+  // public shell until a manual refresh. Reconcile whenever Supabase reports an auth
+  // change, the tab returns from bfcache, or it regains visibility while its actor
+  // state disagrees with the session.
+  useEffect(() => {
+    const client = createQueueProofBrowserClient();
+    if (!client) return;
+    let cancelled = false;
+    const reconcile = async () => {
+      const { data } = await client.auth.getClaims();
+      if (cancelled) return;
+      const signedIn = Boolean(data?.claims?.sub);
+      if (signedIn !== viewAuthenticatedRef.current) {
+        await reloadWorkspace().catch(() => { /* the boot error path owns persistent failures */ });
+      }
+    };
+    const { data: authListener } = client.auth.onAuthStateChange((event: string) => {
+      if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") void reconcile();
+    });
+    const onPageShow = (event: PageTransitionEvent) => { if (event.persisted) void reconcile(); };
+    const onVisible = () => { if (document.visibilityState === "visible") void reconcile(); };
+    window.addEventListener("pageshow", onPageShow);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      authListener.subscription.unsubscribe();
+      window.removeEventListener("pageshow", onPageShow);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [reloadWorkspace]);
 
   const retryBoot = useCallback(async () => {
     setRetrying(true);
@@ -1897,7 +1937,7 @@ function HydraConnectorImportDialog({ onClose, onImported }: {
         aria-busy={loading || submitting}
         tabIndex={-1}
       >
-        <button type="button" className="modal-close" data-dialog-initial aria-label="Close HydraDB import" onClick={closeDialog} disabled={submitting}><X size={17} /></button>
+        <button type="button" className="modal-close" data-dialog-initial aria-label="Close HydraDB import" onClick={closeDialog} disabled={submitting}><X size={16} /></button>
         <span className="eyebrow"><Download size={13} /> Existing HydraDB connections</span>
         <h2 id="hydra-import-title">Bring in sources you already use.</h2>
         <p id="hydra-import-description">QueueProof asks HydraDB only after you open this window. It receives sanitized connector references for this signed-in account—not your HydraDB key or provider credentials.</p>
@@ -2153,7 +2193,7 @@ function ProofModal({ data, returnFocusRef, onClose, onConfigured, setError }: {
   return (
     <div className="modal-layer source-proof-layer" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <aside ref={dialogRef} className="modal-card proof-modal source-proof-sheet" role="dialog" aria-modal="true" aria-labelledby="connection-proof-title" tabIndex={-1}>
-        <button type="button" className="modal-close" data-dialog-initial aria-label="Close connection details" onClick={onClose}><X size={17} /></button>
+        <button type="button" className="modal-close" data-dialog-initial aria-label="Close connection details" onClick={onClose}><X size={16} /></button>
         <span className="provider-glyph proof-provider"><ProviderIcon provider={connector?.provider ?? "file"} size={20} /></span>
         <span className="eyebrow">Connection details</span>
         <h2 id="connection-proof-title">{connector?.name ?? "Connected source"}</h2>

@@ -1,0 +1,19 @@
+{
+  "name": "queueproof",
+  "description": "Cross-source evidence search over Slack, Gmail, Linear, GitHub, and files. Every claim is cited; conflicting sources are surfaced as contradiction receipts.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Vaibhav Lalwani",
+    "url": "https://github.com/vaibhav4046"
+  },
+  "homepage": "https://queueproof.vercel.app",
+  "repository": "https://github.com/vaibhav4046/queueproof",
+  "license": "MIT",
+  "keywords": ["evidence", "search", "citations", "hydradb", "mcp"],
+  "mcpServers": {
+    "queueproof-demo": {
+      "type": "http",
+      "url": "https://queueproof.vercel.app/mcp/demo"
+    }
+  }
+}

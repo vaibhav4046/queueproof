@@ -1,0 +1,27 @@
+{
+  "name": "queueproof",
+  "owner": {
+    "name": "Vaibhav Lalwani",
+    "url": "https://github.com/vaibhav4046"
+  },
+  "metadata": {
+    "description": "QueueProof — ask across Slack, Gmail, Linear, GitHub, and files; every answer cites its evidence and surfaces contradictions.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "queueproof",
+      "source": "./",
+      "description": "Cross-source evidence search over your connected work tools. Every claim is cited; conflicting sources are surfaced as contradiction receipts.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Vaibhav Lalwani",
+        "url": "https://github.com/vaibhav4046"
+      },
+      "homepage": "https://queueproof.vercel.app",
+      "repository": "https://github.com/vaibhav4046/queueproof",
+      "license": "MIT",
+      "keywords": ["evidence", "search", "citations", "hydradb", "mcp"]
+    }
+  ]
+}

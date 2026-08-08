@@ -166,6 +166,24 @@ migrations. Never commit those values. See
 [remote MCP setup](docs/REMOTE_MCP_SETUP.md) for Supabase OAuth-server and ChatGPT setup.
 The complete provider configuration is in [Supabase authentication setup](docs/SUPABASE_AUTH_SETUP.md).
 
+## Claude Code plugin
+
+The repository ships a plugin manifest (`.claude-plugin/`) whose MCP server is the public
+read-only demo endpoint, so it works with zero credentials:
+
+```bash
+claude plugin marketplace add vaibhav4046/queueproof
+```
+
+Then inside Claude Code run `/plugin install queueproof@queueproof`. The plugin registers the
+`queueproof-demo` HTTP server (`https://queueproof.vercel.app/mcp/demo`), which exposes the
+read-only `queueproof_search` tool against the synthetic Helios workspace. It cannot read
+personal data, sync connectors, or write anywhere. This is a repository-based install;
+QueueProof is not claimed to be listed in any public plugin directory. For a local checkout,
+`claude --plugin-dir .` loads the same manifest. Authenticated access to a personal workspace
+uses the project MCP configuration in [remote MCP setup](docs/REMOTE_MCP_SETUP.md), not the
+plugin.
+
 ## Verify
 
 The pull-request CI workflow installs the committed lockfile and runs these deterministic

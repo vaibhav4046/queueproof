@@ -13,9 +13,46 @@ export type HydraResponse<T> = {
   requestId: string | null;
   latencyMs: number;
   error: string | null;
+  /** Upstream machine code (e.g. DATABASE_NOT_FOUND) when the error body carried one. */
+  errorCode?: string | null;
 };
 
 const DEFAULT_BASE_URL = "https://api.hydradb.com";
+
+// Human replacements for upstream error codes whose stock message is API-speak
+// ("Use GET /databases to list active databases") that means nothing in a UI banner.
+const FRIENDLY_HYDRA_ERRORS: Record<string, string> = {
+  DATABASE_NOT_FOUND:
+    "The HydraDB database backing this workspace was not found — it may have been removed upstream. Re-run connector setup from Sources to provision it again.",
+  DATABASE_NOT_READY:
+    "The HydraDB database is still provisioning. Wait a moment and retry.",
+  UNAUTHORIZED:
+    "HydraDB rejected the stored API key. Re-attach your HydraDB account from Sources.",
+  INVALID_API_KEY:
+    "HydraDB rejected the stored API key. Re-attach your HydraDB account from Sources.",
+  RATE_LIMITED:
+    "HydraDB is rate limiting this account. Wait a moment and retry.",
+};
+
+function describeHydraError(
+  payload: unknown,
+  status: number,
+): { message: string; code: string | null } {
+  if (typeof payload === "string" && payload.trim()) {
+    return { message: payload.trim(), code: null };
+  }
+  if (payload && typeof payload === "object") {
+    const record = payload as Record<string, unknown>;
+    const code = typeof record.code === "string" && record.code.trim() ? record.code.trim() : null;
+    const upstream =
+      typeof record.message === "string" && record.message.trim() ? record.message.trim() : null;
+    const friendly = code ? FRIENDLY_HYDRA_ERRORS[code] : undefined;
+    if (friendly) return { message: friendly, code };
+    if (upstream) return { message: code ? `${upstream} (${code})` : upstream, code };
+    if (code) return { message: `HydraDB request failed with code ${code}.`, code };
+  }
+  return { message: `HydraDB request failed with status ${status}.`, code: null };
+}
 
 export class HydraDbClient {
   private readonly apiKey: string;
@@ -59,17 +96,21 @@ export class HydraDbClient {
         }
       }
       if (!response.ok) {
-        const message =
+        // Error bodies arrive as {"error": {code, message}} or as a bare {code, message};
+        // extract the human message instead of stringifying raw JSON into UI banners.
+        const body =
           typeof parsed === "object" && parsed && "error" in parsed
-            ? JSON.stringify((parsed as { error: unknown }).error)
-            : `HydraDB request failed with status ${response.status}.`;
+            ? (parsed as { error: unknown }).error
+            : parsed;
+        const described = describeHydraError(body, response.status);
         return {
           ok: false,
           status: response.status,
           data: null,
           requestId,
           latencyMs,
-          error: redactSecrets(message),
+          error: redactSecrets(described.message),
+          errorCode: described.code,
         };
       }
       return {

@@ -1,0 +1,110 @@
+1
+00:00:00,000 --> 00:00:03,600
+A simple question at work
+rarely has a simple source.
+
+2
+00:00:03,600 --> 00:00:05,400
+The answer may be in Slack.
+
+3
+00:00:05,400 --> 00:00:06,900
+The task in Linear.
+
+4
+00:00:06,900 --> 00:00:08,600
+The implementation in GitHub.
+
+5
+00:00:08,600 --> 00:00:10,400
+The approval in Gmail.
+
+6
+00:00:10,400 --> 00:00:13,200
+QueueProof brings that
+evidence together
+
+7
+00:00:13,200 --> 00:00:15,800
+and lets you investigate it
+as one connected system.
+
+8
+00:00:15,800 --> 00:00:17,600
+Ask a complex question,
+
+9
+00:00:17,600 --> 00:00:20,200
+and QueueProof retrieves
+the relevant sources,
+
+10
+00:00:20,200 --> 00:00:23,800
+follows the people, issues,
+commits, and timelines,
+
+11
+00:00:23,800 --> 00:00:27,800
+and builds an answer where every
+important claim can be verified.
+
+12
+00:00:28,400 --> 00:00:30,000
+Now look at this.
+
+13
+00:00:30,400 --> 00:00:32,400
+GitHub proves the work shipped.
+
+14
+00:00:32,400 --> 00:00:35,600
+Linear independently shows
+the same work is still open.
+
+15
+00:00:36,400 --> 00:00:39,000
+QueueProof does not guess
+which system is right.
+
+16
+00:00:39,000 --> 00:00:42,200
+It preserves the contradiction,
+shows both pieces of evidence,
+
+17
+00:00:42,200 --> 00:00:45,800
+reconstructs what happened, and
+gives you the safest next action.
+
+18
+00:00:46,200 --> 00:00:48,200
+And it does not stop
+at the dashboard.
+
+19
+00:00:48,200 --> 00:00:50,800
+Through MCP, the same
+evidence layer works
+
+20
+00:00:50,800 --> 00:00:53,400
+directly with Claude, ChatGPT,
+and compatible AI agents.
+
+21
+00:00:53,400 --> 00:00:55,800
+So this is not another answer
+generated from context.
+
+22
+00:00:55,800 --> 00:00:57,600
+It is an answer you can
+inspect, trace, and defend.
+
+23
+00:00:57,600 --> 00:00:58,300
+QueueProof.
+
+24
+00:00:58,300 --> 00:00:59,400
+Ask your work. Get the proof.
