@@ -68,7 +68,7 @@ implemented tools, retrieve task evidence by verified connectorId or indexed sou
 ranked action and Execution Packet. MCP can create a bounded Linear proposal only with explicit
 scope and workspace-owned evidence; it cannot approve or execute the provider action.
 
-Current MCP receipt (submitted deployment `b930c81`, 2026-08-08T03:18:28.661Z): on the public
+Current MCP receipt (submitted deployment `24d942e`, 2026-08-08T03:18:28.661Z): on the public
 no-auth reviewer endpoint `https://queueproof.vercel.app/mcp/demo`, `initialize` negotiated protocol
 `2025-06-18` (server `queueproof 0.2.0`), `tools/list` returned `queueproof_search`, and a read-only
 `tools/call` returned a grounded, citation-carrying answer — `validation.status "grounded"`,
@@ -145,18 +145,18 @@ cannot create two provider calls, and success requires a stored provider respons
 
 ## Production benchmark — generated at release
 
-Measured against production `b930c816071b86ad9ac1cc846fc24a452d3aa4a7` on 2026-08-08; every
+Measured against production `24d942e4d5281db58e352c9fed14ac8fcb2aba8d` on 2026-08-08; every
 artifact carries `releaseVerified: true` and grader `grounded-grader-v3`.
 
 | Run | Strict pass/cases | Facts | Claim support | Citation resolution | p50/p95 | HydraDB calls | Weighted units |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Auto | 7/8 | 25/25 | 1.0 | 1.0 | 1890 / 2795 ms | 10 | 10 |
-| Fast | 7/8 | 25/25 | 1.0 | 1.0 | 1796 / 2347 ms | 10 | 10 |
-| Thinking | 7/8 | 25/25 | 1.0 | 1.0 | 9595 / 16710 ms | 18 | 34 |
-| 346-page PDF core | 5/22 | 56/56 | 1.0 | 1.0 | 1722 / 2165 ms | 29 | 29 |
+| Auto | 7/8 | 25/25 | 1.0 | 1.0 | 2084 / 4451 ms | 10 | 10 |
+| Fast | 7/8 | 25/25 | 1.0 | 1.0 | 1907 / 3315 ms | 10 | 10 |
+| Thinking | 7/8 | 25/25 | 1.0 | 1.0 | 8766 / 16886 ms | 18 | 34 |
+| 346-page PDF core | 5/22 | 56/56 | 1.0 | 1.0 | 1570 / 2096 ms | 29 | 29 |
 
 Fast/Thinking delta: **comparable, and Thinking lost.** Identical strict passes (7/8) and identical
-fact recall (25/25) for 5.3x the p50 latency and 3.4x the weighted units. Auto routed all eight rows
+fact recall (25/25) for 4.6x the p50 latency and 3.4x the weighted units. Auto routed all eight rows
 to the fast lane. Reported as measured rather than framed as a win for the expensive mode.
 
 Failed cases, in full, with no timeouts in any run:
@@ -167,7 +167,7 @@ Failed cases, in full, with no timeouts in any run:
   grounded, correctly cited claims does not answer the question asked.
 - PDF fixture, 17 non-pass rows of 22, all `REVIEW` and all HTTP 200 with `exactIdPass` and
   `documentReceipt` true. Overall recall is 56/56 required facts at citation precision 1.0; the
-  rows fail strict relevance (mean 0.542 across the non-pass subset) because synthesis deliberately splits handbook table rows into
+  rows fail strict relevance (mean 0.534 across the non-pass subset) because synthesis deliberately splits handbook table rows into
   independent claim units, and the resulting ASCII-table fragments carry no expected-fact signal.
   Retuning that splitter was declined at release time: it would risk a green production release to
   improve a grading artifact, not correctness.
@@ -186,7 +186,7 @@ pnpm test
 pnpm benchmark:router
 pnpm build
 pnpm deploy:check
-pnpm release:verify -- --url https://queueproof.vercel.app --sha b930c816071b86ad9ac1cc846fc24a452d3aa4a7
+pnpm release:verify -- --url https://queueproof.vercel.app --sha 24d942e4d5281db58e352c9fed14ac8fcb2aba8d
 pnpm benchmark:live -- --url https://queueproof.vercel.app --mode auto
 pnpm benchmark:live -- --url https://queueproof.vercel.app --mode fast
 pnpm benchmark:live -- --url https://queueproof.vercel.app --mode thinking

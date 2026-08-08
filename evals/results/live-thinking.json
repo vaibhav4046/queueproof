@@ -1,6 +1,6 @@
 {
   "status": "measured",
-  "generatedAt": "2026-08-08T03:08:52.281Z",
+  "generatedAt": "2026-08-08T03:52:22.398Z",
   "grader": "grounded-grader-v3",
   "runner": "scripts/run-live-benchmark.mjs",
   "fixture": "evals/fixtures/live-cases-v2.json",
@@ -12,28 +12,28 @@
   "health": {
     "ok": true,
     "httpStatus": 200,
-    "measuredLatencyMs": 249,
+    "measuredLatencyMs": 243,
     "body": {
       "status": "live",
       "service": "queueproof-web",
       "environment": "production",
-      "time": "2026-08-08T03:07:20.103Z",
+      "time": "2026-08-08T03:50:43.407Z",
       "release": {
-        "commitSha": "b930c816071b86ad9ac1cc846fc24a452d3aa4a7",
+        "commitSha": "24d942e4d5281db58e352c9fed14ac8fcb2aba8d",
         "commitRef": "main",
         "target": "production",
-        "deploymentId": "dpl_4iNZZDvwGfEeNMm7uoKws3CjZX7Y",
-        "deploymentUrl": "queueproof-1n98tdpnq-vaibhav4046s-projects.vercel.app",
-        "deploymentTimestamp": "2026-08-08T02:59:22.159Z",
+        "deploymentId": "dpl_3Vzh85jYZrzYGWUdCK5XBBPS68FS",
+        "deploymentUrl": "queueproof-atr7g13oc-vaibhav4046s-projects.vercel.app",
+        "deploymentTimestamp": "2026-08-08T03:47:18.751Z",
         "benchmarkReceiptVersion": "grounded-grader-v3"
       }
     },
     "error": null
   },
   "release": {
-    "commitSha": "b930c816071b86ad9ac1cc846fc24a452d3aa4a7",
+    "commitSha": "24d942e4d5281db58e352c9fed14ac8fcb2aba8d",
     "commitRef": "main",
-    "deploymentUrl": "queueproof-1n98tdpnq-vaibhav4046s-projects.vercel.app"
+    "deploymentUrl": "queueproof-atr7g13oc-vaibhav4046s-projects.vercel.app"
   },
   "releaseVerified": true,
   "connectors": [
@@ -50,10 +50,10 @@
   "thinking": 8,
   "fast": 0,
   "latencyMs": {
-    "p50": 9595,
-    "p95": 16710,
-    "min": 5403,
-    "max": 16710,
+    "p50": 8766,
+    "p95": 16886,
+    "min": 6525,
+    "max": 16886,
     "fast": {
       "count": 0,
       "p50": null,
@@ -61,8 +61,8 @@
     },
     "thinking": {
       "count": 8,
-      "p50": 9595,
-      "p95": 16710
+      "p50": 8766,
+      "p95": 16886
     }
   },
   "calls": {
@@ -272,12 +272,12 @@
       "requestedMode": "thinking",
       "mode": "thinking",
       "modeHonored": true,
-      "latencyMs": 12028,
-      "measuredLatencyMs": 13236,
+      "latencyMs": 15747,
+      "measuredLatencyMs": 18497,
       "callCount": 2,
       "sources": 4,
       "costUnits": 4,
-      "runId": "public-query-61bda1c6fb6450fc9c2d80f6a5aabec0"
+      "runId": "public-query-dbccf027b0c5dd64b4e5dc82fd5ad230"
     },
     {
       "id": "live-deadline-conflict",
@@ -424,12 +424,12 @@
       "requestedMode": "thinking",
       "mode": "thinking",
       "modeHonored": true,
-      "latencyMs": 9595,
-      "measuredLatencyMs": 10936,
+      "latencyMs": 8469,
+      "measuredLatencyMs": 10358,
       "callCount": 2,
       "sources": 2,
       "costUnits": 4,
-      "runId": "public-query-b4fff409644f3ca407de0f1332943044"
+      "runId": "public-query-c2451029468c83237434d8e47e9057d9"
     },
     {
       "id": "live-untracked-commitment",
@@ -567,12 +567,12 @@
       "requestedMode": "thinking",
       "mode": "thinking",
       "modeHonored": true,
-      "latencyMs": 16710,
-      "measuredLatencyMs": 17937,
+      "latencyMs": 16886,
+      "measuredLatencyMs": 18759,
       "callCount": 2,
       "sources": 2,
       "costUnits": 4,
-      "runId": "public-query-b3008f1ebaea8e9de6d5ab41e9662388"
+      "runId": "public-query-cbddaf51716989d08bc906455460b010"
     },
     {
       "id": "live-cross-source-commitment-confirmation",
@@ -718,12 +718,12 @@
       "requestedMode": "thinking",
       "mode": "thinking",
       "modeHonored": true,
-      "latencyMs": 9840,
-      "measuredLatencyMs": 11987,
+      "latencyMs": 8766,
+      "measuredLatencyMs": 10381,
       "callCount": 2,
       "sources": 3,
       "costUnits": 4,
-      "runId": "public-query-6d4ee9b8ba44521c751eef82ae56fbba"
+      "runId": "public-query-42be0ee3205f8b004c4049ce88fa3deb"
     },
     {
       "id": "live-actor-reconstruction",
@@ -851,12 +851,12 @@
       "requestedMode": "thinking",
       "mode": "thinking",
       "modeHonored": true,
-      "latencyMs": 8976,
-      "measuredLatencyMs": 10949,
+      "latencyMs": 8636,
+      "measuredLatencyMs": 9842,
       "callCount": 2,
       "sources": 2,
       "costUnits": 4,
-      "runId": "public-query-452fea37ac2bf4f68a11e2d3ca49f08e"
+      "runId": "public-query-c2aa5bb52290cc16080c52eb4aa87b07"
     },
     {
       "id": "live-exact-identifier-context",
@@ -1026,12 +1026,12 @@
       "requestedMode": "thinking",
       "mode": "thinking",
       "modeHonored": true,
-      "latencyMs": 9270,
-      "measuredLatencyMs": 10544,
+      "latencyMs": 10040,
+      "measuredLatencyMs": 11376,
       "callCount": 3,
       "sources": 3,
       "costUnits": 5,
-      "runId": "public-query-a00c24dd0a6945e2a57e64b0277578fa"
+      "runId": "public-query-361280dd2dbf340903cf8e6ce3a2c265"
     },
     {
       "id": "live-recency-most-recent-ship",
@@ -1165,12 +1165,12 @@
       "requestedMode": "thinking",
       "mode": "thinking",
       "modeHonored": true,
-      "latencyMs": 10128,
-      "measuredLatencyMs": 11346,
+      "latencyMs": 6525,
+      "measuredLatencyMs": 8114,
       "callCount": 3,
       "sources": 1,
       "costUnits": 5,
-      "runId": "public-query-7d27c6d5a97e872fd2a0dbea53bf6159"
+      "runId": "public-query-4b7087ac652e217b50bcbd2f3b39113d"
     },
     {
       "id": "live-post-mortem-cross-check",
@@ -1318,12 +1318,12 @@
       "requestedMode": "thinking",
       "mode": "thinking",
       "modeHonored": true,
-      "latencyMs": 5403,
-      "measuredLatencyMs": 6594,
+      "latencyMs": 11529,
+      "measuredLatencyMs": 13018,
       "callCount": 2,
       "sources": 3,
       "costUnits": 4,
-      "runId": "public-query-4eacb6958b2064b53528e6dd470c8286"
+      "runId": "public-query-2e3cf7f658bcd695cc61c1a835668a11"
     }
   ]
 }

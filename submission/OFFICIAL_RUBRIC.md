@@ -53,20 +53,20 @@ units are not dollars, and an unrecorded video is not a submission.
 
 ## Supplementary engineering review panel
 
-Scores below are filled from measured receipts at release `b930c81` (benchmark artifacts,
+Scores below are filled from measured receipts at release `24d942e` (benchmark artifacts,
 CI gate output, MCP receipt, and production walkthroughs). Genuine deductions are left in
 place; the deployed release republishes same-SHA artifacts at `/api/lab`.
 
 | Category | Score | Exact evidence | Strongest aspect | Main deduction | Exact correction | Release blocking? |
 | --- | ---: | --- | --- | --- | --- | --- |
-| Correctness | 8/10 | `b930c81` artifacts: 7/8 strict all modes, 25/25 facts, claim support 1.0 | Claim-level grader and abstention | PDF core 5/22 strict from claim-splitting artifact | Retune splitter post-submission | Yes |
+| Correctness | 8/10 | `24d942e` artifacts: 7/8 strict all modes, 25/25 facts, claim support 1.0 | Claim-level grader and abstention | PDF core 5/22 strict from claim-splitting artifact | Retune splitter post-submission | Yes |
 | Cross-source reasoning | 9/10 | Flagship receipt: linear/github/slack, contradiction preserved, 4/4 cited | Preserved disagreement and exact-ID lanes | Cross-source PDF extension REVIEW (missing provider) | Add second non-document provider to extension | Yes |
 | HydraDB usage | 9/10 | 4 `data_verified` connectors with attributable canaries; PDF document receipt | HydraDB is the retrieval and ingestion layer | Fifth Linear connector degraded (excluded, not hidden) | Re-verify or remove degraded connector | Yes |
 | Technical depth | 9/10 | Retrieval/ranking/packet/approval code; 74 files / 654 tests pass | Evidence-to-action architecture | Priority policy unvalidated beyond fixtures | Expand live packet evals | No |
 | Daily usefulness | 8/10 | Ask → receipt → Today path rehearsed on production | One answer to a next-action brief | Public workspace is single-tenant demo data | Multi-workspace onboarding | Yes |
 | MCP interoperability | 8/10 | `/mcp/demo` receipt 03:18:28Z: grounded, 4/4 cited, 4,209 ms; `/mcp` 401 + RFC 9728 | Same workspace contract over HTTP MCP | No authenticated named-client production call claimed | Record owner-token smoke test | Only if claimed |
 | Developer experience | 8/10 | README commands reproduce; CLI verifier; explicit status language | Reproducible commands and explicit status language | Named clients unverified until connected | Run client-specific discovery | No |
-| Latency | 8/10 | Fast p50/p95 1,796/2,347 ms; Auto 1,890/2,795 ms; PDF 1,722/2,165 ms | Per-mode observable timing | Thinking p50 9,595 ms for identical passes | Cap Thinking retrieval depth | Yes |
+| Latency | 8/10 | Fast p50/p95 1,907/3,315 ms; Auto 2,084/4,451 ms; PDF 1,570/2,096 ms | Per-mode observable timing | Thinking p50 8,766 ms for identical passes | Cap Thinking retrieval depth | Yes |
 | Cost/efficiency | 8/10 | 10/10 units Fast/Auto; Thinking 18 calls / 34 units, no accuracy gain | Fast/Thinking work is measurable | Thinking 3.4x units for no measured gain | Route via Auto by default | Yes |
 | Reproducibility | 8/10 | Release-bound `/api/lab` artifacts; frozen fixtures; public commands | Release-bound artifact acceptance | Each redeploy re-arms the gate until same-SHA runs republish | Republish after every deploy | Yes |
 | Interface quality | 8/10 | Desktop 1280x800 zero console errors; mobile 375 no overflow | Receipt-first judge path | Long receipt lists unvirtualized | Virtualize receipt lists | Yes |

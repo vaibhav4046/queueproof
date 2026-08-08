@@ -2,7 +2,7 @@
 
 > [!IMPORTANT]
 > Benchmark values below were measured against production release
-> `b930c816071b86ad9ac1cc846fc24a452d3aa4a7`; every artifact carries `releaseVerified: true`
+> `24d942e4d5281db58e352c9fed14ac8fcb2aba8d`; every artifact carries `releaseVerified: true`
 > and grader `grounded-grader-v3`. The deployed release always republishes same-SHA artifacts:
 > read the current values from <https://queueproof.vercel.app/benchmarks> and compare its SHA
 > with `/api/health/live` before quoting anything.
@@ -26,7 +26,7 @@ Ask your work. Get the proof.
 
 ## Measured release
 
-`b930c816071b86ad9ac1cc846fc24a452d3aa4a7` on `main` — verify the currently deployed SHA at
+`24d942e4d5281db58e352c9fed14ac8fcb2aba8d` on `main` — verify the currently deployed SHA at
 `/api/health/live` and the artifact binding at `/api/lab`.
 
 ## Repository URL
@@ -62,19 +62,19 @@ degraded Linear connector is excluded from the count rather than hidden.
 
 ## Production mode comparison
 
-Measured against release `b930c816071b86ad9ac1cc846fc24a452d3aa4a7` on 2026-08-08; eight
+Measured against release `24d942e4d5281db58e352c9fed14ac8fcb2aba8d` on 2026-08-08; eight
 frozen questions per mode; no timeouts in any run.
 
 | Product / measured mode | Strict cases | Required facts | p50 | p95 | Calls | Relative units | Boundary |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| Best / Auto | 7/8 | 25/25 | 1,890 ms | 2,795 ms | 10 | 10 | All eight resolved as Fast |
-| Quick / forced Fast | 7/8 | 25/25 | 1,796 ms | 2,347 ms | 10 | 10 | One REVIEW row (below) |
-| Investigate / forced Thinking | 7/8 | 25/25 | 9,595 ms | 16,710 ms | 18 | 34 | Same passes for 5.3x p50 and 3.4x units |
+| Best / Auto | 7/8 | 25/25 | 2,084 ms | 4,451 ms | 10 | 10 | All eight resolved as Fast |
+| Quick / forced Fast | 7/8 | 25/25 | 1,907 ms | 3,315 ms | 10 | 10 | One REVIEW row (below) |
+| Investigate / forced Thinking | 7/8 | 25/25 | 8,766 ms | 16,886 ms | 18 | 34 | Same passes for 4.6x p50 and 3.4x units |
 
 The one non-pass row is identical in all three modes: `post-mortem attribution cross-check`
 returns `REVIEW`. It recovers 3/3 required facts with citation precision and completeness 1.0
 and zero unsupported claims; it fails strict relevance alone (0.667). Fast and Thinking are
-comparable in this run, and Thinking lost: identical strict passes and fact recall for 5.3x
+comparable in this run, and Thinking lost: identical strict passes and fact recall for 4.6x
 the p50 latency and 3.4x the weighted units. Reported as measured. This benchmark is a
 diagnostic, not an SLA.
 
@@ -103,12 +103,12 @@ QueueProof generated and indexed a deterministic 346-page PDF with 22 core quest
 fact groups spanning the beginning, middle, and end of the document.
 
 The measured core run recovered **56/56 required facts** with citation precision and claim
-support **1.0**, at p50 **1,722 ms** and p95 **2,165 ms**, using **29 calls / 29 relative
+support **1.0**, at p50 **1,570 ms** and p95 **2,096 ms**, using **29 calls / 29 relative
 units**, all 22 questions routed Fast, with `exactIdPass` and `documentReceipt` true on every
 row. Under strict grading it passed **5/22 cases**: 17 rows return `REVIEW` because synthesis
 splits handbook table rows into independent claim units and the resulting ASCII-table
 fragments carry no expected-fact signal — mean relevance across the 17 non-pass rows is
-0.542. Retuning that splitter was declined at release time: it would risk a green production
+0.534. Retuning that splitter was declined at release time: it would risk a green production
 release to improve a grading artifact, not correctness. Both numbers (5/22 and 56/56) are
 true and are shown together.
 
@@ -120,7 +120,7 @@ core denominator.
 
 ## MCP integration
 
-Receipt at `b930c81`, 2026-08-08T03:18:28.661Z, public no-auth reviewer endpoint
+Receipt at `24d942e`, 2026-08-08T03:18:28.661Z, public no-auth reviewer endpoint
 `https://queueproof.vercel.app/mcp/demo`: `initialize` negotiated protocol `2025-06-18`
 (server `queueproof 0.2.0`), `tools/list` returned `queueproof_search`, and a read-only
 `tools/call` returned `validation.status "grounded"` with providers linear/github/slack,
@@ -130,7 +130,7 @@ endpoint returns `401` with RFC 9728 `WWW-Authenticate` resource metadata.
 
 ## Reproducibility
 
-- Measured release: `b930c816071b86ad9ac1cc846fc24a452d3aa4a7`; verify the deployed SHA at
+- Measured release: `24d942e4d5281db58e352c9fed14ac8fcb2aba8d`; verify the deployed SHA at
   `/api/health/live` and compare with `/api/lab` before quoting values.
 - CI at that release: typecheck, lint, and build pass; 74 test files / 654 tests pass;
   deterministic router fixture passes all 353 assertions (fixture-computable, not a live
@@ -154,7 +154,7 @@ values are hashed, scoped, expiring, revocable, and audience restricted.
 - The eight-query benchmark is not an SLA or a general accuracy estimate.
 - Strict grading is unforgiving on purpose: a `REVIEW` row is a failure even with perfect fact
   recall, which is why the PDF core reads 5/22 next to 56/56 facts.
-- Thinking matched Fast's passes at 5.3x the latency and 3.4x the units in this run.
+- Thinking matched Fast's passes at 4.6x the latency and 3.4x the units in this run.
 - The PDF cross-source extension remains REVIEW (missing provider requirement plus strict
   relevance) despite recovering its required facts.
 - Relative units are not HydraDB dollars.
@@ -165,7 +165,7 @@ values are hashed, scoped, expiring, revocable, and audience restricted.
 
 **Did you try ingesting huge PDFs?** Yes. QueueProof indexed a deterministic 346-page PDF and
 evaluated 22 core questions across 56 fact groups. The measured run recovered 56/56 required
-facts with citation precision 1.0 at p50 1,722 ms, and passed 5/22 under strict grading — the
+facts with citation precision 1.0 at p50 1,570 ms, and passed 5/22 under strict grading — the
 17 REVIEW rows fail relevance because of a claim-splitting artifact, not missing facts. The
 separate document-plus-connectors extension remains REVIEW on a missing provider requirement.
 Both failure modes are published, not hidden.

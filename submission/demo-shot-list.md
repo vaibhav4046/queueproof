@@ -2,7 +2,7 @@
 
 Use with the canonical [60-second script](../docs/DEMO_SCRIPT_60S.md). Capture only after
 `/api/health/live` identifies the deployed release and `/api/lab` binds artifacts to the same
-SHA. Reference metrics below were measured at release `b930c81`; always read the current
+SHA. Reference metrics below were measured at release `24d942e`; always read the current
 values from the **Proof tests** page on screen instead of narrating this file.
 
 1. **Ask, 0–8s:** first viewport with “Ask your work. Get the proof.”, the working composer,
@@ -14,8 +14,8 @@ values from the **Proof tests** page on screen instead of narrating this file.
    excerpt.
 5. **Today, 39–50s:** open the top Task brief and show score factors, safe action, and approval
    boundary.
-6. **Proof tests, 50–60s:** show the current-release Fast row (at `b930c81`: 7/8 strict,
-   25/25 facts); keep the REVIEW row visible. Then show the 346-page PDF core (at `b930c81`:
+6. **Proof tests, 50–60s:** show the current-release Fast row (at `24d942e`: 7/8 strict,
+   25/25 facts); keep the REVIEW row visible. Then show the 346-page PDF core (at `24d942e`:
    5/22 strict, 56/56 facts) with its REVIEW rows visible.
 
 Before recording, verify there is no horizontal overflow or console error at the capture size,

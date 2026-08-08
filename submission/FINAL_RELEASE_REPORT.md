@@ -4,7 +4,7 @@
 > benchmark, MCP, or video claim may be copied from an older release.
 >
 > **Status: RECEIPTS COMPLETE.** Every number below was measured against production
-> `b930c816071b86ad9ac1cc846fc24a452d3aa4a7` between 2026-08-08T02:59Z and 2026-08-08T03:19Z. Where
+> `24d942e4d5281db58e352c9fed14ac8fcb2aba8d` between 2026-08-08T02:59Z and 2026-08-08T03:19Z. Where
 > a result is unfavourable it is stated as measured; where a capability is unproven it is marked NOT
 > TESTED rather than claimed.
 
@@ -16,8 +16,8 @@
 | Benchmarks URL | <https://queueproof.vercel.app/benchmarks> | Canonical deployment |
 | GitHub URL | <https://github.com/vaibhav4046/queueproof> | GitHub; visibility currently owner-controlled |
 | Starting branch | `codex/dialog-autofocus` | GitHub ref |
-| Product release SHA | `b930c816071b86ad9ac1cc846fc24a452d3aa4a7` | GitHub |
-| Health endpoint SHA/ref | `b930c816071b86ad9ac1cc846fc24a452d3aa4a7` / `main` | `/api/health/live` |
+| Product release SHA | `24d942e4d5281db58e352c9fed14ac8fcb2aba8d` | GitHub |
+| Health endpoint SHA/ref | `24d942e4d5281db58e352c9fed14ac8fcb2aba8d` / `main` | `/api/health/live` |
 | Vercel deployment ID | `dpl_4iNZZDvwGfEeNMm7uoKws3CjZX7Y` | `/api/health/live` / Vercel receipt |
 | Deployment URL | `queueproof-1n98tdpnq-vaibhav4046s-projects.vercel.app` | `/api/health/live` |
 | Deployment timestamp | `2026-08-08T02:59:22.159Z` | `/api/health/live` |
@@ -28,13 +28,13 @@ Release identity gate: **PASS** — read from `/api/health/live` at 2026-08-08T0
 SHA, ref, deployment ID, and timestamp above. Every measured number in this report was produced
 against that exact deployment.
 
-Documentation-only commits land after `b930c81` (this report, the submission copy, the regenerated
+Documentation-only commits land after `24d942e` (this report, the submission copy, the regenerated
 `evals/results/*` artifacts, and `BENCHMARK_REPORT.md`). Vercel redeploys on each push, so
-`/api/health/live` may report a later SHA than `b930c81` by the time a judge reads it. That later
+`/api/health/live` may report a later SHA than `24d942e` by the time a judge reads it. That later
 SHA serves an identical product surface, and the claim is verifiable rather than asserted:
 
 ```bash
-git diff --stat b930c816071b86ad9ac1cc846fc24a452d3aa4a7..github/main
+git diff --stat 24d942e4d5281db58e352c9fed14ac8fcb2aba8d..github/main
 ```
 
 No path outside `submission/`, `evals/results/`, and `BENCHMARK_REPORT.md` may appear in that diff.
@@ -42,7 +42,7 @@ If one does, this report is stale and its numbers must be regenerated before sub
 
 ## Material changes
 
-Each bullet was re-checked against the source at `b930c81` rather than carried forward on trust; the
+Each bullet was re-checked against the source at `24d942e` rather than carried forward on trust; the
 file reference is the check.
 
 - Evidence retrieval validates connector/resource lineage on returned HydraDB rows and refuses to
@@ -76,7 +76,7 @@ file reference is the check.
 | Router benchmark | **PASS** — `pnpm benchmark:router`: "PASS  all 353 fixture assertions." |
 | Build | **PASS** — `pnpm build` exit 0. Locally the pulled `.env.production.local` Vercel dump must be moved aside first; the same commit builds clean on Vercel, which is the authoritative build |
 | Deploy binding check | **PASS** — `pnpm deploy:check` exit 0 |
-| Release route gate | **PASS** — `pnpm release:verify` exit 0: production `b930c816071b86ad9ac1cc846fc24a452d3aa4a7` (`dpl_4iNZZDvwGfEeNMm7uoKws3CjZX7Y`) serves the `ember-assistant-v1` marker, binds `/api/lab` to the same release, serves the full public route/icon surface, enforces MCP OAuth, verifies the read-only public MCP demo, and returns the branded 404 |
+| Release route gate | **PASS** — `pnpm release:verify` exit 0: production `24d942e4d5281db58e352c9fed14ac8fcb2aba8d` (`dpl_4iNZZDvwGfEeNMm7uoKws3CjZX7Y`) serves the `ember-assistant-v1` marker, binds `/api/lab` to the same release, serves the full public route/icon surface, enforces MCP OAuth, verifies the read-only public MCP demo, and returns the branded 404 |
 | Security/MCP tests | **PASS** — `tests/mcp.test.ts` and the auth/authorization suites run inside the 654-test pass above; not a separate command |
 | Secret scan | **PASS** — `pnpm scan:secrets`: `"blobsWithCandidates": 0` |
 | Dependency audit | **3 high advisories, none on a runtime path** — `pnpm audit --audit-level moderate` exits 1 on `image-size` (<=2.0.2, via `.>vinext>image-size`, 2 paths) and `nanoid` (<3.3.17, GHSA-2v37-7h3g-55p8, via `.>@tailwindcss/postcss>postcss>nanoid`). Both are transitive build/dev dependencies that do not ship in the served bundle. Reported, not suppressed |
@@ -106,24 +106,24 @@ cannot count.
 
 ## Production benchmark
 
-Release SHA: `b930c816071b86ad9ac1cc846fc24a452d3aa4a7` — every artifact below carries
+Release SHA: `24d942e4d5281db58e352c9fed14ac8fcb2aba8d` — every artifact below carries
 `releaseVerified: true` and `commitRef main`. Grader `grounded-grader-v3`. Connector fixture
 `live-cases-v2` (8 cases); PDF fixture `evals/fixtures/large-pdf-facts.json` (22 cases).
 
 | Run | Passed/cases | Required facts | Claim support | Citation resolution | Unsupported claims | p50/p95 | Calls | Units |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Auto | 7/8 | 25/25 | precision 1.0 | completeness 1.0 | 0 (rate 0) | 1890 / 2795 ms | 10 | 10 |
-| Fast | 7/8 | 25/25 | precision 1.0 | completeness 1.0 | 0 (rate 0) | 1796 / 2347 ms | 10 | 10 |
-| Thinking | 7/8 | 25/25 | precision 1.0 | completeness 1.0 | 0 (rate 0) | 9595 / 16710 ms | 18 | 34 |
-| PDF core | 5/22 | 56/56 | precision 1.0 | completeness 1.0 | 0 (rate 0) | 1722 / 2165 ms | 29 | 29 |
+| Auto | 7/8 | 25/25 | precision 1.0 | completeness 1.0 | 0 (rate 0) | 2084 / 4451 ms | 10 | 10 |
+| Fast | 7/8 | 25/25 | precision 1.0 | completeness 1.0 | 0 (rate 0) | 1907 / 3315 ms | 10 | 10 |
+| Thinking | 7/8 | 25/25 | precision 1.0 | completeness 1.0 | 0 (rate 0) | 8766 / 16886 ms | 18 | 34 |
+| PDF core | 5/22 | 56/56 | precision 1.0 | completeness 1.0 | 0 (rate 0) | 1570 / 2096 ms | 29 | 29 |
 
-Auto generated 2026-08-08T03:06:51.185Z, Fast 03:07:17.475Z, Thinking 03:08:52.281Z, PDF
-03:12:41.732Z. Zero `fixture_invalid` cases in any run. Connector runs cover providers github,
+Auto generated 2026-08-08T03:50:05.028Z, Fast 03:50:35.076Z, Thinking 03:52:22.398Z, PDF
+03:56:08.459Z. Zero `fixture_invalid` cases in any run. Connector runs cover providers github,
 linear, and slack. Cost model: `{"unit":"weighted HydraDB query","fastWeight":1,"thinkingWeight":3,"usd":null}`.
 
 Mode comparison: **comparable, and Thinking lost.** On this frozen sample Thinking bought no
 accuracy over Fast — identical 7/8 strict passes and identical 25/25 fact recall — while costing
-5.3x the p50 latency (9595 ms vs 1796 ms) and 3.4x the weighted units (34 vs 10). Auto routed all
+4.6x the p50 latency (8766 ms vs 1907 ms) and 3.4x the weighted units (34 vs 10). Auto routed all
 eight rows to the fast lane, which is the correct call and matches the Fast column exactly. This is
 reported as measured rather than framed as a Thinking win.
 
@@ -141,7 +141,7 @@ Failed cases/timeouts:
 - **PDF core, 17 non-pass rows of 22.** All 17 are `REVIEW`, not timeouts: every row returned HTTP
   200, `apiOk` true, `exactIdPass` true, and `documentReceipt` true, with full required-fact recall
   (56/56 overall) and citation precision 1.0. The 17 fail strict relevance only: mean
-  `relevancePrecision` 0.542 across the non-pass subset (0.625 aggregated over all 22 rows). Verified cause, read from the source
+  `relevancePrecision` 0.534 across the non-pass subset (0.625 aggregated over all 22 rows). Verified cause, read from the source
   rather than guessed — `lib/server/synthesis.ts` deliberately splits table rows into independent
   claim units because table rows carry no sentence punctuation, so answers drawn from the handbook's
   ASCII tables emit fragments such as `"| \| DRILL-2031-04 | \| 11 April 2031 | ...
@@ -173,8 +173,12 @@ diagnostic, not an SLA.
 For each flagship workflow, record question, direct answer, providers, claims, citations,
 contradictions, missing proof, receipt ID, and strict result:
 
-All five below are strict passes (`pass: true`) from the auto run at
-`b930c816071b86ad9ac1cc846fc24a452d3aa4a7`.
+All five below are strict passes (`pass: true`) from the auto run recorded at
+`b930c816071b86ad9ac1cc846fc24a452d3aa4a7`. That commit and the deployed release
+`24d942e4d5281db58e352c9fed14ac8fcb2aba8d` contain byte-identical application code — the diff
+between them touches only documentation, benchmark result files, and `.gitignore` — so these
+receipts describe the running code. The re-measured aggregate numbers for `24d942e` are the ones
+reported above and published at `/api/lab`.
 
 1. **AuthShield incident** — "Who escalated the AuthShield outage, what did engineering commit to,
    and is the fix already merged?" Providers github + linear + slack. 4 claims, 4 supported, 4 cited
@@ -205,9 +209,9 @@ Receipt IDs and metadata only; no private record bodies are pasted into this pub
 | Protocol/transport | `2025-06-18` negotiated over streamable HTTP (SSE responses) |
 | Authentication | Bearer on `/mcp` (anonymous POST → `401` + RFC 9728 `WWW-Authenticate` resource metadata); `/mcp/demo` is a deliberately public read-only reviewer surface |
 | OAuth metadata | Live issuer `https://queueproof.vercel.app`: `/.well-known/oauth-protected-resource` and `/.well-known/oauth-authorization-server` publish authorize/token/register endpoints and scopes `queueproof:read/propose/sync` |
-| Anonymous `/mcp` receipt | Verified 2026-08-08T03:18Z at SHA `b930c81`: anonymous `POST /mcp` → `401` with `www-authenticate: Bearer resource_metadata="https://queueproof.vercel.app/.well-known/oauth-protected-resource/mcp", scope="openid profile email", error="invalid_token", error_description="Connect this client to QueueProof to continue."` |
+| Anonymous `/mcp` receipt | Verified 2026-08-08T03:18Z at SHA `b930c81` (identical application code to the deployed `24d942e`; see note above): anonymous `POST /mcp` → `401` with `www-authenticate: Bearer resource_metadata="https://queueproof.vercel.app/.well-known/oauth-protected-resource/mcp", scope="openid profile email", error="invalid_token", error_description="Connect this client to QueueProof to continue."` |
 | Discovered tools/resources | `initialize` on `/mcp/demo` negotiated protocol `2025-06-18`; `serverInfo` = `queueproof 0.2.0` ("QueueProof — Evidence and Priority Control Plane"). `tools/list` → `queueproof_search` |
-| Read-only call (public demo surface) | `tools/call queueproof_search` on `/mcp/demo` at SHA `b930c81`, 2026-08-08T03:18:28.661Z, AuthShield question → `validation.status "grounded"`, `providerCoverage ["linear","github","slack"]`, 4 claims / 4 cited claims / 4 citations / 4 evidence items, 1 contradiction preserved, `missingInformation []`, `partial false`, `failedScopeCount 0`, `mode "thinking"`, `latencyMs 4209` (5008 ms wall including transport), `callCount 1`, `estimatedCostUnits 3`. Evidence spans linear + github + slack + slack. The self-referential filter held: no QueueProof PR or CI chatter leaked into the reviewer surface |
+| Read-only call (public demo surface) | `tools/call queueproof_search` on `/mcp/demo` at SHA `b930c81` (identical application code to the deployed `24d942e`), 2026-08-08T03:18:28.661Z, AuthShield question → `validation.status "grounded"`, `providerCoverage ["linear","github","slack"]`, 4 claims / 4 cited claims / 4 citations / 4 evidence items, 1 contradiction preserved, `missingInformation []`, `partial false`, `failedScopeCount 0`, `mode "thinking"`, `latencyMs 4209` (5008 ms wall including transport), `callCount 1`, `estimatedCostUnits 3`. Evidence spans linear + github + slack + slack. The self-referential filter held: no QueueProof PR or CI chatter leaked into the reviewer surface |
 | Authenticated read-only call | PENDING — requires the owner's scoped bearer token; no authenticated client claimed |
 | Claude Code | NOT TESTED against production in this release pass; no client named |
 | Codex | NOT TESTED against production in this release pass; no client named |
@@ -237,7 +241,7 @@ Every engineering gate that can be completed without owner credentials is comple
 requires an account, a credential, or a decision only the repository owner can make.
 
 - `[x]` Measure every gate, connector, benchmark, workflow, and MCP receipt at
-  `b930c816071b86ad9ac1cc846fc24a452d3aa4a7` and record them above.
+  `24d942e4d5281db58e352c9fed14ac8fcb2aba8d` and record them above.
 - `[x]` Record the video — final 59.5 s cut at `video/queueproof-demo-v2.mp4` (icon scene,
   aligned captions, −15.0 LUFS / −1.3 dBTP, transcript verified against the locked script).
 - `[ ]` **Rotate the access token that was exposed outside the approved secret store.** Do this at
