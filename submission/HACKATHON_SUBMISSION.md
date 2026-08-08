@@ -3,8 +3,8 @@
 > Release-relative draft. Before pasting, read the exact SHA and deployment receipt from
 > [`/api/health/live`](https://queueproof.vercel.app/api/health/live), and read benchmark values
 > only from matching measured rows in [`/api/lab`](https://queueproof.vercel.app/api/lab) or
-> [Proof tests](https://queueproof.vercel.app/benchmarks). The repository is private and the video
-> URL is pending until the owner completes those publication actions.
+> [Proof tests](https://queueproof.vercel.app/benchmarks). The repository is public; the video
+> URL is pending until the owner uploads the committed final cut.
 
 ## Product name
 
@@ -123,9 +123,9 @@ request ID, latency, provider coverage, and relative query work in the receipt.
 
 Canonical endpoint: `https://queueproof.vercel.app/mcp` over HTTP MCP with bearer authentication.
 Tokens are hashed, workspace-bound, scoped, expiring, revocable, and audience-restricted. Read is
-the default. The product registers implemented read, sync, result-recording, and proposal tools plus
-sanitized `queueproof://current/connectors` and `queueproof://current/queue-snapshots` resources; it
-registers no fake change-diff resource and currently registers no MCP prompts. Supabase web
+the default. The product registers implemented read, sync, result-recording, and proposal tools; the
+live `resources/list` currently returns the `queueproof://demo/guide` resource, registers no fake
+change-diff resource, and registers no MCP prompts. Supabase web
 identity and the OAuth MCP resource-server path are implemented, including exact JWT
 issuer/audience/scope validation and per-subject workspace binding. A named ChatGPT connection is
 claimed only after current-release consent, discovery, and one harmless read-only tool receipt.
@@ -167,7 +167,7 @@ Failed cases, in full, with no timeouts in any run:
   grounded, correctly cited claims does not answer the question asked.
 - PDF fixture, 17 non-pass rows of 22, all `REVIEW` and all HTTP 200 with `exactIdPass` and
   `documentReceipt` true. Overall recall is 56/56 required facts at citation precision 1.0; the
-  rows fail strict relevance (0.625) because synthesis deliberately splits handbook table rows into
+  rows fail strict relevance (mean 0.542 across the non-pass subset) because synthesis deliberately splits handbook table rows into
   independent claim units, and the resulting ASCII-table fragments carry no expected-fact signal.
   Retuning that splitter was declined at release time: it would risk a green production release to
   improve a grading artifact, not correctness.
@@ -201,7 +201,7 @@ a dedicated secret and is not shown in public copy.
 - Live product: <https://queueproof.vercel.app>
 - Proof tests: <https://queueproof.vercel.app/benchmarks>
 - Method: <https://queueproof.vercel.app/method>
-- Repository: <https://github.com/vaibhav4046/queueproof> — **PRIVATE; PUBLICATION REQUIRES OWNER APPROVAL**
+- Repository: <https://github.com/vaibhav4046/queueproof> — public
 - Video: final 59.5 s cut committed at `video/queueproof-demo-v2.mp4` (−15.0 LUFS / −1.3 dBTP,
   transcript verified against the locked script) — **PENDING PUBLIC URL** (owner uploads to
   YouTube/Drive and pastes the link into the form)

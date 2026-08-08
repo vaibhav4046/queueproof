@@ -1,8 +1,9 @@
 # QueueProof judge-path smoke test
 
-Use this after the current main evidence build is deployed and identified by
-`/api/health/live`. Production metrics currently describe measured runtime
-`aed027879150e3e324b54c5ec2194d4d715c501e`; do not silently transfer them to another runtime.
+Use this after the deployed release is identified by `/api/health/live` and `/api/lab` binds
+same-SHA artifacts. Reference metrics below were measured at release
+`b930c816071b86ad9ac1cc846fc24a452d3aa4a7`; do not silently transfer them to another runtime —
+read current values from **Proof tests**.
 
 ## The 60-second path
 
@@ -14,8 +15,9 @@ Use this after the current main evidence build is deployed and identified by
    source ID, timestamp, disagreement, and missing information.
 4. **37–49 seconds — decide.** Open **Today** and show the first Task brief: score components,
    constraints, evidence, acceptance criteria, permissions, and receipt hash.
-5. **49–60 seconds — measured close.** Open **Proof tests**. Show Quick/Fast at 4/6 strict and
-   19/19 facts, then the 346-page PDF core at 21/22 and 55/56 facts. Keep REVIEW visible.
+5. **49–60 seconds — measured close.** Open **Proof tests**. Show the current Fast row (at
+   `b930c81`: 7/8 strict, 25/25 facts), then the 346-page PDF core (at `b930c81`: 5/22 strict,
+   56/56 facts). Keep REVIEW visible.
 
 ## Pass criteria
 
@@ -24,25 +26,29 @@ Use this after the current main evidence build is deployed and identified by
 - Mobile destinations remain reachable with at least 44 px touch targets.
 - Keyboard focus returns after closing receipts; Escape closes dialogs.
 - Reduced-motion mode preserves the complete product flow without auto-motion.
-- No metric appears without its artifact and measured runtime identity.
-- `/api/health/live` identifies the deployed evidence build.
+- No metric appears without its artifact and measured release identity.
+- `/api/health/live` SHA matches the `/api/lab` artifact SHA.
 - The repository opens signed out and the public video URL resolves.
 
-## Measured boundaries to rehearse
+## Measured boundaries to rehearse (release b930c81, no timeouts)
 
-- Best/Auto: 4/6, 19/19, p50/p95 2,155/2,392 ms, 7 calls / 7 units, all Fast.
-- Quick/Fast: 4/6, 19/19, p50/p95 1,833/2,446 ms, 7 calls / 7 units.
-- Investigate/Thinking: 2/6, 13/19, p50/p95 26,329/40,003 ms, 10 calls / 30 units,
-  including one timeout.
-- PDF core: 21/22, 55/56, p50/p95 1,823/2,382 ms, 31 calls / 31 units, all 22 Fast,
-  beginning/middle/end canaries passed, 84/84 claims supported by 69 citations.
-- PDF cross-source extension: REVIEW, 2/2 facts, document plus GitHub, one additional
-  non-document provider missing, 29,676 ms, 6 calls / 18 units.
+- Best/Auto: 7/8, 25/25, p50/p95 1,890/2,795 ms, 10 calls / 10 units, all eight routed Fast.
+- Quick/Fast: 7/8, 25/25, p50/p95 1,796/2,347 ms, 10 calls / 10 units.
+- Investigate/Thinking: 7/8, 25/25, p50/p95 9,595/16,710 ms, 18 calls / 34 units — same
+  passes as Fast for 5.3x p50 and 3.4x units.
+- Shared non-pass row (all modes): `post-mortem attribution cross-check` REVIEW — 3/3 facts,
+  citation precision/completeness 1.0, fails strict relevance alone (0.667).
+- PDF core: 5/22 strict, 56/56 facts, p50/p95 1,722/2,165 ms, 29 calls / 29 units, all 22
+  routed Fast, `exactIdPass` and `documentReceipt` true on every row; 17 REVIEW rows fail
+  strict relevance (mean 0.542 across the non-pass subset) from a claim-splitting artifact.
+- PDF cross-source extension: REVIEW — recovers required facts (document plus GitHub) but
+  misses one additional non-document provider and strict relevance; Linear and Slack appear
+  without supporting citations. Reported separately from the core denominator.
 
 ## Status
 
-- [ ] Current main evidence build committed and deployed.
-- [ ] Production rehearsal completed against that build.
-- [ ] Repository made public and verified signed out.
+- [x] Evidence build committed and deployed (verify SHA at `/api/health/live`).
+- [ ] Production rehearsal completed against the deployed build.
+- [x] Repository public — verify signed out before submitting.
 - [ ] Final video uploaded and URL verified.
-- [ ] Final 60-second recording and two-minute backup recording completed.
+- [x] Final 60-second recording committed at `video/queueproof-demo-v2.mp4`.

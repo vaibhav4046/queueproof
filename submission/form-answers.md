@@ -1,11 +1,11 @@
 # QueueProof submission form answers
 
 > [!IMPORTANT]
-> Submission draft for the current main evidence build. Verify its exact deployed identity via
-> `/api/health/live` and `RELEASE_EVIDENCE.md`. Production measurements were generated against
-> runtime `aed027879150e3e324b54c5ec2194d4d715c501e` on `main`; they do not become
-> evidence-build measurements unless that build is deployed and the runs are repeated. The
-> repository remains private and the video is pending.
+> Benchmark values below were measured against production release
+> `b930c816071b86ad9ac1cc846fc24a452d3aa4a7`; every artifact carries `releaseVerified: true`
+> and grader `grounded-grader-v3`. The deployed release always republishes same-SHA artifacts:
+> read the current values from <https://queueproof.vercel.app/benchmarks> and compare its SHA
+> with `/api/health/live` before quoting anything.
 
 ## Product name
 
@@ -13,7 +13,7 @@ QueueProof
 
 ## One-line description
 
-QueueProof turns HydraDB evidence from work systems into one cited answer and one
+QueueProof turns HydraDB evidence from work systems and documents into one cited answer and one
 evidence-backed Task brief, while keeping external changes behind human approval.
 
 ## Product thesis
@@ -24,32 +24,27 @@ Ask your work. Get the proof.
 
 <https://queueproof.vercel.app>
 
-## Measured runtime
+## Measured release
 
-`aed027879150e3e324b54c5ec2194d4d715c501e` on `main`
-
-## Evidence-build identity
-
-Current main evidence build — record the exact SHA after commit and verify it through
-`/api/health/live` after deployment.
+`b930c816071b86ad9ac1cc846fc24a452d3aa4a7` on `main` — verify the currently deployed SHA at
+`/api/health/live` and the artifact binding at `/api/lab`.
 
 ## Repository URL
 
-<https://github.com/vaibhav4046/queueproof>
-
-**Pending gate:** the repository is private. Make it public, then verify the submitted commit,
-README, license, and CI receipt from a signed-out browser before submitting this link.
+<https://github.com/vaibhav4046/queueproof> — public.
 
 ## Video URL
 
 `[PENDING — ADD PUBLIC VIDEO URL]`
+(Final 59.5 s cut committed at `video/queueproof-demo-v2.mp4`, −15.0 LUFS / −1.3 dBTP,
+transcript verified against the locked script.)
 
 ## What problem does it solve?
 
 Work evidence is split across tickets, code, messages, email, and documents. Search returns
-fragments, but an agent still needs to know what happened, which sources disagree, and what
-deserves attention next. QueueProof produces an inspectable chain from verified source, to
-cited claim, to Task brief, to an approval-safe proposal.
+fragments, but a teammate or agent still needs to know what happened, which sources disagree,
+and what deserves attention next. QueueProof produces an inspectable chain from verified
+source, to cited claim, to Task brief, to an approval-safe proposal.
 
 ## How does it use HydraDB?
 
@@ -62,20 +57,26 @@ Each receipt stores requested and actual mode, retrieval lanes, request IDs, pro
 latency, relative cost, and citations. In the product UI, forced Fast is **Quick**, Auto is
 **Best**, and Thinking is **Investigate / Deep check**.
 
-The public workspace last showed four verified sources: GitHub, Gmail, Linear, and Slack.
+The public workspace shows four verified sources — GitHub, Gmail, Linear, and Slack. A fifth
+degraded Linear connector is excluded from the count rather than hidden.
 
 ## Production mode comparison
 
-All rows below were measured against runtime `aed027879150e3e324b54c5ec2194d4d715c501e`.
+Measured against release `b930c816071b86ad9ac1cc846fc24a452d3aa4a7` on 2026-08-08; eight
+frozen questions per mode; no timeouts in any run.
 
 | Product / measured mode | Strict cases | Required facts | p50 | p95 | Calls | Relative units | Boundary |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| Best / Auto | 4/6 | 19/19 | 2,155 ms | 2,392 ms | 7 | 7 | All six resolved as Fast |
-| Quick / forced Fast | 4/6 | 19/19 | 1,833 ms | 2,446 ms | 7 | 7 | Two provider-requirement rows remain REVIEW |
-| Investigate / forced Thinking | 2/6 | 13/19 | 26,329 ms | 40,003 ms | 10 | 30 | One timeout; lower fact and strict-case coverage |
+| Best / Auto | 7/8 | 25/25 | 1,890 ms | 2,795 ms | 10 | 10 | All eight resolved as Fast |
+| Quick / forced Fast | 7/8 | 25/25 | 1,796 ms | 2,347 ms | 10 | 10 | One REVIEW row (below) |
+| Investigate / forced Thinking | 7/8 | 25/25 | 9,595 ms | 16,710 ms | 18 | 34 | Same passes for 5.3x p50 and 3.4x units |
 
-The paired benchmark uses six frozen questions. It is a diagnostic, not an SLA. The forced
-Thinking result is intentionally reported even though it underperformed Fast.
+The one non-pass row is identical in all three modes: `post-mortem attribution cross-check`
+returns `REVIEW`. It recovers 3/3 required facts with citation precision and completeness 1.0
+and zero unsupported claims; it fails strict relevance alone (0.667). Fast and Thinking are
+comparable in this run, and Thinking lost: identical strict passes and fact recall for 5.3x
+the p50 latency and 3.4x the weighted units. Reported as measured. This benchmark is a
+diagnostic, not an SLA.
 
 ## What is technically distinctive?
 
@@ -101,24 +102,42 @@ approval, and a unique execution claim before provider I/O.
 QueueProof generated and indexed a deterministic 346-page PDF with 22 core questions and 56
 fact groups spanning the beginning, middle, and end of the document.
 
-The runtime-A core run passed **21/22 cases** and recovered **55/56 facts**. It measured p50
-**1,823 ms** and p95 **2,382 ms**, used **31 calls / 31 relative units**, and routed all 22
-core questions through Fast. All three position canaries passed. The grader resolved **69
-citations** and found **84/84 claims supported**.
+The measured core run recovered **56/56 required facts** with citation precision and claim
+support **1.0**, at p50 **1,722 ms** and p95 **2,165 ms**, using **29 calls / 29 relative
+units**, all 22 questions routed Fast, with `exactIdPass` and `documentReceipt` true on every
+row. Under strict grading it passed **5/22 cases**: 17 rows return `REVIEW` because synthesis
+splits handbook table rows into independent claim units and the resulting ASCII-table
+fragments carry no expected-fact signal — mean relevance across the 17 non-pass rows is
+0.542. Retuning that splitter was declined at release time: it would risk a green production
+release to improve a grading artifact, not correctness. Both numbers (5/22 and 56/56) are
+true and are shown together.
 
-The separate cross-source extension remains **REVIEW**. It found both required facts and
-retrieved the document plus GitHub, but missed one additional non-document provider required
-by the rubric. It measured **29,676 ms** and used **6 calls / 18 relative units**. It is not
-included in the 21/22 core denominator.
+The separate document-plus-connectors cross-source extension also remains **REVIEW**: it
+recovers its required facts from the document plus GitHub, but fails the provider requirement
+(one additional non-document provider missing — Linear and Slack appear in the answer without
+supporting citations) as well as strict relevance. It is reported separately from the 22-case
+core denominator.
+
+## MCP integration
+
+Receipt at `b930c81`, 2026-08-08T03:18:28.661Z, public no-auth reviewer endpoint
+`https://queueproof.vercel.app/mcp/demo`: `initialize` negotiated protocol `2025-06-18`
+(server `queueproof 0.2.0`), `tools/list` returned `queueproof_search`, and a read-only
+`tools/call` returned `validation.status "grounded"` with providers linear/github/slack,
+4 claims / 4 cited / 4 evidence items, one contradiction preserved, `missingInformation []`,
+4,209 ms server-side, 1 retrieval call, 3 weighted units. The bearer-protected `/mcp`
+endpoint returns `401` with RFC 9728 `WWW-Authenticate` resource metadata.
 
 ## Reproducibility
 
-- Measured runtime: `aed027879150e3e324b54c5ec2194d4d715c501e`.
-- Evidence build: current main; exact SHA pending commit and `/api/health/live` verification.
-- Deterministic router fixture: 39/39 labelled cases and 331 fixture-computable assertions;
-  not a live accuracy claim.
-- Current CI, security, MCP, build, E2E, deployment, responsive, and secret-scan results must
-  be copied only from the completed evidence-build receipt in `RELEASE_EVIDENCE.md`.
+- Measured release: `b930c816071b86ad9ac1cc846fc24a452d3aa4a7`; verify the deployed SHA at
+  `/api/health/live` and compare with `/api/lab` before quoting values.
+- CI at that release: typecheck, lint, and build pass; 74 test files / 654 tests pass;
+  deterministic router fixture passes all 353 assertions (fixture-computable, not a live
+  accuracy claim); secret scan reports zero candidate blobs.
+- Commands: `pnpm typecheck && pnpm lint && pnpm test && pnpm benchmark:router && pnpm build`,
+  then `pnpm benchmark:live -- --url https://queueproof.vercel.app --mode auto|fast|thinking`
+  and `pnpm benchmark:pdf -- --url https://queueproof.vercel.app`.
 
 ## How is the public product safe?
 
@@ -132,31 +151,33 @@ values are hashed, scoped, expiring, revocable, and audience restricted.
 
 ## Honest limitations
 
-- The six-query benchmark is not an SLA or a general accuracy estimate.
-- Thinking passed 2/6 and matched 13/19 facts in this run; one request timed out.
-- The PDF core is 21/22 and 55/56, not perfect.
-- The PDF cross-source extension remains REVIEW despite finding both required facts.
+- The eight-query benchmark is not an SLA or a general accuracy estimate.
+- Strict grading is unforgiving on purpose: a `REVIEW` row is a failure even with perfect fact
+  recall, which is why the PDF core reads 5/22 next to 56/56 facts.
+- Thinking matched Fast's passes at 5.3x the latency and 3.4x the units in this run.
+- The PDF cross-source extension remains REVIEW (missing provider requirement plus strict
+  relevance) despite recovering its required facts.
 - Relative units are not HydraDB dollars.
 - A provider write is not called executed without a stored provider response ID.
-- Repository publication, signed-out verification, evidence-build gates, video, and social
-  URLs are still pending.
+- Video and social URLs are still pending owner upload.
 
 ## Hackathon form quick answers
 
 **Did you try ingesting huge PDFs?** Yes. QueueProof indexed a deterministic 346-page PDF and
-evaluated 22 core questions across 56 fact groups. The measured core run passed 21/22 cases,
-recovered 55/56 facts, supported 84/84 claims with 69 citations, and passed beginning, middle,
-and end canaries. The separate document-plus-GitHub cross-source extension remains REVIEW
-because it needed one additional non-document provider.
+evaluated 22 core questions across 56 fact groups. The measured run recovered 56/56 required
+facts with citation precision 1.0 at p50 1,722 ms, and passed 5/22 under strict grading — the
+17 REVIEW rows fail relevance because of a claim-splitting artifact, not missing facts. The
+separate document-plus-connectors extension remains REVIEW on a missing provider requirement.
+Both failure modes are published, not hidden.
 
-**Did you use at least three connectors?** Yes. The public workspace last showed four verified
-sources: GitHub, Gmail, Linear, and Slack. The measured Auto and Fast runs retrieved cited
-cross-source evidence; connector verification and retrieval coverage are reported separately.
+**Did you use at least three connectors?** Yes. The public workspace shows four verified
+sources: GitHub, Gmail, Linear, and Slack — each verified with attributable canary records
+before counting. A fifth degraded Linear connector is excluded from the denominator. The
+measured runs retrieved cited cross-source evidence.
 
 **Video demo:** `[PENDING — ADD PUBLIC VIDEO URL]`
 
-**GitHub submission:** <https://github.com/vaibhav4046/queueproof> — currently private; publish
-and verify signed-out access before submission.
+**GitHub submission:** <https://github.com/vaibhav4046/queueproof> — public.
 
 **LinkedIn:** `[PENDING — ADD FINAL LINKEDIN POST URL]`
 

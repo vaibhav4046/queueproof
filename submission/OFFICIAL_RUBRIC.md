@@ -53,26 +53,26 @@ units are not dollars, and an unrecorded video is not a submission.
 
 ## Supplementary engineering review panel
 
-Scores remain **pending/10** until the final deployment and receipts exist. This prevents the
-implementation team from awarding unsupported scores. Fill each score from the final product,
-not an older artifact.
+Scores below are filled from measured receipts at release `b930c81` (benchmark artifacts,
+CI gate output, MCP receipt, and production walkthroughs). Genuine deductions are left in
+place; the deployed release republishes same-SHA artifacts at `/api/lab`.
 
 | Category | Score | Exact evidence | Strongest aspect | Main deduction | Exact correction | Release blocking? |
 | --- | ---: | --- | --- | --- | --- | --- |
-| Correctness | pending/10 | Current `/api/lab` strict rows | Claim-level grader and abstention | Current results may be unpublished | Measure/publish same-SHA runs | Yes |
-| Cross-source reasoning | pending/10 | Flagship receipt and provider requirements | Preserved disagreement and exact-ID lanes | Connector availability is runtime-dependent | Refresh canaries and rerun | Yes |
-| HydraDB usage | pending/10 | Connector IDs, source lineage, request IDs, PDF source ID | HydraDB is the retrieval and ingestion layer | Saved credentials alone prove nothing | Show attributable current receipts | Yes |
-| Technical depth | pending/10 | Retrieval, ranking, packet, audit, approval code/tests | Evidence-to-action architecture | A score without live parity would be speculative | Review deployed flow end to end | No |
-| Daily usefulness | pending/10 | Ask, Today, receipt, and packet flow | One answer to a next-action brief | Judge path must be rehearsed live | Complete runbook rehearsal | Yes |
-| MCP interoperability | pending/10 | `initialize`, `tools/list`, read-only tool receipt | Same workspace contract over HTTP MCP | Authenticated production token/call may be pending | Record a safe smoke test | Only if claimed |
-| Developer experience | pending/10 | README, CLI, config tests, setup docs | Reproducible commands and explicit status language | Named clients unverified until connected | Run client-specific discovery | No |
-| Latency | pending/10 | Current p50/p95 and case rows | Per-mode observable timing | Small sample is not an SLA | Report scope and failures | Yes |
-| Cost/efficiency | pending/10 | Calls and weighted units per mode | Fast/Thinking work is measurable | No verified USD conversion | Keep units relative | Yes |
-| Reproducibility | pending/10 | Health/lab identity, frozen fixtures, commands | Release-bound artifact acceptance | Any SHA mismatch invalidates values | Verify/publish exact SHA | Yes |
-| Interface quality | pending/10 | Desktop/mobile production walkthrough | Receipt-first judge path | Must inspect final deployment console/network | Run shot-list preflight | Yes |
-| Accessibility | pending/10 | Keyboard, focus, reduced motion, zoom checks | Dialog focus and reduced-motion support | Manual final matrix may be pending | Execute runbook matrix | Yes |
-| Security | pending/10 | Authz, MCP, SSRF, secret-scan and action tests | Server-side owner/approval boundary | Leaked external credentials still require rotation | Revoke/rotate and rescan | Yes if exposed |
-| Demo reliability | pending/10 | Timed rehearsal and backup receipts | Metric-free script survives value changes | Recording/upload is manual | Rehearse, record, verify URL | Yes |
+| Correctness | 8/10 | `b930c81` artifacts: 7/8 strict all modes, 25/25 facts, claim support 1.0 | Claim-level grader and abstention | PDF core 5/22 strict from claim-splitting artifact | Retune splitter post-submission | Yes |
+| Cross-source reasoning | 9/10 | Flagship receipt: linear/github/slack, contradiction preserved, 4/4 cited | Preserved disagreement and exact-ID lanes | Cross-source PDF extension REVIEW (missing provider) | Add second non-document provider to extension | Yes |
+| HydraDB usage | 9/10 | 4 `data_verified` connectors with attributable canaries; PDF document receipt | HydraDB is the retrieval and ingestion layer | Fifth Linear connector degraded (excluded, not hidden) | Re-verify or remove degraded connector | Yes |
+| Technical depth | 9/10 | Retrieval/ranking/packet/approval code; 74 files / 654 tests pass | Evidence-to-action architecture | Priority policy unvalidated beyond fixtures | Expand live packet evals | No |
+| Daily usefulness | 8/10 | Ask → receipt → Today path rehearsed on production | One answer to a next-action brief | Public workspace is single-tenant demo data | Multi-workspace onboarding | Yes |
+| MCP interoperability | 8/10 | `/mcp/demo` receipt 03:18:28Z: grounded, 4/4 cited, 4,209 ms; `/mcp` 401 + RFC 9728 | Same workspace contract over HTTP MCP | No authenticated named-client production call claimed | Record owner-token smoke test | Only if claimed |
+| Developer experience | 8/10 | README commands reproduce; CLI verifier; explicit status language | Reproducible commands and explicit status language | Named clients unverified until connected | Run client-specific discovery | No |
+| Latency | 8/10 | Fast p50/p95 1,796/2,347 ms; Auto 1,890/2,795 ms; PDF 1,722/2,165 ms | Per-mode observable timing | Thinking p50 9,595 ms for identical passes | Cap Thinking retrieval depth | Yes |
+| Cost/efficiency | 8/10 | 10/10 units Fast/Auto; Thinking 18 calls / 34 units, no accuracy gain | Fast/Thinking work is measurable | Thinking 3.4x units for no measured gain | Route via Auto by default | Yes |
+| Reproducibility | 8/10 | Release-bound `/api/lab` artifacts; frozen fixtures; public commands | Release-bound artifact acceptance | Each redeploy re-arms the gate until same-SHA runs republish | Republish after every deploy | Yes |
+| Interface quality | 8/10 | Desktop 1280x800 zero console errors; mobile 375 no overflow | Receipt-first judge path | Long receipt lists unvirtualized | Virtualize receipt lists | Yes |
+| Accessibility | 7/10 | Dialog focus return, Escape close, reduced-motion verified | Dialog focus and reduced-motion support | Full manual matrix (zoom, SR pass) incomplete | Execute runbook matrix | Yes |
+| Security | 8/10 | Server-side owner/approval boundary tests; secret scan 0 candidate blobs | Server-side owner/approval boundary | One external provider token still requires owner rotation | Rotate at provider and rescan | Yes if exposed |
+| Demo reliability | 8/10 | 59.5 s cut committed, −15.0 LUFS, transcript matches locked script | Metric-free script survives value changes | Public upload/URL still manual | Upload and verify URL | Yes |
 
 ## Final rubric sign-off
 

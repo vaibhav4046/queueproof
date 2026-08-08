@@ -91,5 +91,5 @@ deployment.
 - Keep `REVIEW`, timeouts, missing providers, and degraded connectors visible.
 - Do not call weighted units dollars or the small live suite an SLA.
 - Do not expose tokens, owner pages, email addresses, or connector credentials.
-- Repository publication is **PENDING** until signed-out access succeeds.
+- Repository is public; verify signed-out access before submitting.
 - Video URL is **PENDING** until the final take is uploaded publicly.

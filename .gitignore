@@ -52,3 +52,4 @@ next-env.d.ts
 video/*.wav
 video/footage-patched.mp4
 video/icon-path-*.txt
+docs/continuity/

@@ -29,5 +29,5 @@ Deadline (user-confirmed): **08:00 UK, 2026-08-08.** Release gate started ~03:09
 
 ## User-only actions (still required)
 
-1. **Rotate the exposed Attio access token at the provider** (begins `fc41…`) — treat as compromised.
+1. **Rotate the previously exposed Attio access token at the provider** — treat as compromised.
 2. Submit the form before 08:00 UK; paste-ready answers in `submission/`.

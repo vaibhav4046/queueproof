@@ -1,9 +1,9 @@
 # QueueProof demo shot list
 
-Use with the canonical [60-second script](../docs/DEMO_SCRIPT_60S.md). Capture the current main
-evidence build only after `/api/health/live` identifies it. The metrics below describe measured
-runtime `aed027879150e3e324b54c5ec2194d4d715c501e` unless the evidence build is deployed and
-rerun.
+Use with the canonical [60-second script](../docs/DEMO_SCRIPT_60S.md). Capture only after
+`/api/health/live` identifies the deployed release and `/api/lab` binds artifacts to the same
+SHA. Reference metrics below were measured at release `b930c81`; always read the current
+values from the **Proof tests** page on screen instead of narrating this file.
 
 1. **Ask, 0–8s:** first viewport with “Ask your work. Get the proof.”, the working composer,
    and verified-source readiness.
@@ -14,11 +14,11 @@ rerun.
    excerpt.
 5. **Today, 39–50s:** open the top Task brief and show score factors, safe action, and approval
    boundary.
-6. **Proof tests, 50–60s:** show Quick/Fast at 4/6 and 19/19 facts; keep REVIEW visible. Then
-   show the 346-page PDF core at 21/22 and 55/56 facts.
+6. **Proof tests, 50–60s:** show the current-release Fast row (at `b930c81`: 7/8 strict,
+   25/25 facts); keep the REVIEW row visible. Then show the 346-page PDF core (at `b930c81`:
+   5/22 strict, 56/56 facts) with its REVIEW rows visible.
 
 Before recording, verify there is no horizontal overflow or console error at the capture size,
-the repository is public in a signed-out browser, the video destination is ready, and
-`/api/health/live` identifies the evidence build. Never show credentials, account identifiers,
-or private source content. Repository publication and the video remain pending until those
-checks pass.
+the repository opens signed out (it is public), the video destination is ready, and
+`/api/health/live` matches the `/api/lab` SHA. Never show credentials, account identifiers,
+or private source content. The public video URL remains pending until upload.

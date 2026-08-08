@@ -3,7 +3,9 @@
 The canonical timing script is [docs/DEMO_SCRIPT_60S.md](../docs/DEMO_SCRIPT_60S.md).
 
 This redirect is intentional. Do not keep a second script here; duplicated timing and
-product claims previously drifted apart. Before recording, reconcile its spoken metrics with
-measured runtime `aed027879150e3e324b54c5ec2194d4d715c501e`: Quick/Fast is 4/6 and
-19/19 facts; Investigate/Thinking is 2/6 and 13/19 with one timeout; the PDF core is 21/22
-and 55/56. Do not say Fast and Thinking achieved the same result.
+product claims previously drifted apart. The script is metric-free by design: narrate only the
+values visible on the deployed release's **Proof tests** page after comparing its SHA with
+`/api/health/live`. For reference, release `b930c81` measured Quick/Fast at 7/8 strict and
+25/25 facts, Investigate/Thinking at 7/8 and 25/25 (slower, costlier), and the 346-page PDF
+core at 5/22 strict with 56/56 facts. Do not quote a Fast/Thinking delta unless
+`/api/lab` marks the mode comparison comparable.

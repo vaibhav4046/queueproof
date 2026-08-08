@@ -34,7 +34,7 @@ Documentation-only commits land after `b930c81` (this report, the submission cop
 SHA serves an identical product surface, and the claim is verifiable rather than asserted:
 
 ```bash
-git diff --stat b930c816071b86ad9ac1cc846fc24a452d3aa4a7..origin/main
+git diff --stat b930c816071b86ad9ac1cc846fc24a452d3aa4a7..github/main
 ```
 
 No path outside `submission/`, `evals/results/`, and `BENCHMARK_REPORT.md` may appear in that diff.
@@ -47,14 +47,14 @@ file reference is the check.
 
 - Evidence retrieval validates connector/resource lineage on returned HydraDB rows and refuses to
   treat a row whose returned `connector_id` does not match the requested connector as attested
-  proof (`lib/server/hydradb-shapes.ts:158-200`).
+  proof (`sourceBelongsToConnector`, `lib/server/hydradb-shapes.ts:226-240`).
 - Grounded synthesis supports `abstained` and `partial` outcomes, emits explicit
   `missingInformation`, and preserves contradictions instead of resolving them
   (`lib/server/synthesis.ts:977`, `:1242-1256`).
 - The Today queue writes deterministic, policy-versioned ranking packets: the same input hash and
   policy version must always yield the same score (`lib/server/queue.ts:1237`, `:1354-1359`), and a
   persisted queue item shares the query's exact evidence lineage
-  (`lib/server/grounded-action.ts:37`).
+  (`lib/server/grounded-action.ts`).
 - Public reads remain open; connector configure/discover/sync/verify, document upload, database and
   HydraDB configuration, and action approval are all owner-gated server-side
   (`lib/server/store.ts:475`, enforced across `app/api/connectors/*`, `app/api/documents/*`,
@@ -140,8 +140,8 @@ Failed cases/timeouts:
   answer the question asked. Strict grading counts that as a failure. It is not softened here.
 - **PDF core, 17 non-pass rows of 22.** All 17 are `REVIEW`, not timeouts: every row returned HTTP
   200, `apiOk` true, `exactIdPass` true, and `documentReceipt` true, with full required-fact recall
-  (56/56 overall) and citation precision 1.0. The 17 fail strict relevance only:
-  `relevancePrecision 0.625`, `irrelevantClaimRate 0.375`. Verified cause, read from the source
+  (56/56 overall) and citation precision 1.0. The 17 fail strict relevance only: mean
+  `relevancePrecision` 0.542 across the non-pass subset (0.625 aggregated over all 22 rows). Verified cause, read from the source
   rather than guessed — `lib/server/synthesis.ts` deliberately splits table rows into independent
   claim units because table rows carry no sentence punctuation, so answers drawn from the handbook's
   ASCII tables emit fragments such as `"| \| DRILL-2031-04 | \| 11 April 2031 | ...
@@ -160,8 +160,10 @@ is shown rather than silently resolved. PDF canaries resolved
 while the beginning and middle canaries land in the same table-fragment `REVIEW` class described
 above with their required facts recovered. The document-plus-connectors cross-source extension row
 is `pass: false` while matching **both** required facts (`issue` = ENG-456 and
-`english-requirement`) — again a strict-relevance outcome, not a recall miss, and reported
-separately from PDF core.
+`english-requirement`). It is not a recall miss, but it fails two gates, not one: the artifact
+records `connectorProviderPass: false` with `missingProviderRequirements` of one additional
+non-document provider (Linear and Slack appear in the answer without supporting citations) in
+addition to strict relevance. Reported separately from PDF core.
 
 All units are relative query work, not dollars. The sample is small and frozen; it is a release
 diagnostic, not an SLA.
