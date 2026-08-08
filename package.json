@@ -36,7 +36,7 @@
     "benchmark:router": "node --experimental-strip-types scripts/run-evals.mjs --fixture",
     "benchmark:pdf": "node scripts/run-pdf-benchmark.mjs",
     "eval": "node --experimental-strip-types scripts/run-evals.mjs",
-    "audit:dependencies": "pnpm audit --audit-level moderate",
+    "audit:dependencies": "pnpm audit --prod --audit-level moderate",
     "scan:secrets": "node scripts/secret-scan.mjs",
     "doctor": "node scripts/doctor.mjs",
     "seed:test": "node scripts/seed-test.mjs",
