@@ -50,3 +50,5 @@ next-env.d.ts
 /.tmp-audit/
 
 video/*.wav
+video/footage-patched.mp4
+video/icon-path-*.txt

@@ -1,0 +1,12 @@
+[0:v]trim=0:3.1,setpts=PTS-STARTPTS[pre];
+[0:v]trim=start=10,setpts=PTS-STARTPTS[post];
+[5:v]drawtext=fontfile='C\:/Windows/Fonts/arialbd.ttf':text='Slack':fontsize=42:fontcolor=white@0.92:x=420-text_w/2:y=610:alpha='if(lt(t,0.12),0,min(1,(t-0.12)/0.25))',drawtext=fontfile='C\:/Windows/Fonts/arialbd.ttf':text='Linear':fontsize=42:fontcolor=white@0.92:x=780-text_w/2:y=610:alpha='if(lt(t,2.06),0,min(1,(t-2.06)/0.25))',drawtext=fontfile='C\:/Windows/Fonts/arialbd.ttf':text='GitHub':fontsize=42:fontcolor=white@0.92:x=1140-text_w/2:y=610:alpha='if(lt(t,3.56),0,min(1,(t-3.56)/0.25))',drawtext=fontfile='C\:/Windows/Fonts/arialbd.ttf':text='Gmail':fontsize=42:fontcolor=white@0.92:x=1500-text_w/2:y=610:alpha='if(lt(t,5.18),0,min(1,(t-5.18)/0.25))'[bg];
+[1:v]format=rgba,fade=t=in:st=0.12:d=0.25:alpha=1[i1];
+[2:v]format=rgba,fade=t=in:st=2.06:d=0.25:alpha=1[i2];
+[3:v]format=rgba,fade=t=in:st=3.56:d=0.25:alpha=1[i3];
+[4:v]format=rgba,fade=t=in:st=5.18:d=0.25:alpha=1[i4];
+[bg][i1]overlay=x=300:y='310+12*(1-min(1,(t-0.12)/0.25))'[b1];
+[b1][i2]overlay=x=660:y='310+12*(1-min(1,(t-2.06)/0.25))'[b2];
+[b2][i3]overlay=x=1020:y='310+12*(1-min(1,(t-3.56)/0.25))'[b3];
+[b3][i4]overlay=x=1380:y='310+12*(1-min(1,(t-5.18)/0.25))',format=yuv420p,setsar=1[seg];
+[pre][seg][post]concat=n=3:v=1:a=0[v]
