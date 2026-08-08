@@ -27,8 +27,8 @@ function runScanner(cwd) {
 try {
   assert.match(
     workflow,
-    /uses:\s*actions\/checkout@v4\s+with:\s+fetch-depth:\s*0/,
-    "CI must fetch full history before claiming to scan reachable history",
+    /uses:\s*actions\/checkout@[^\s]+\s+with:\s+fetch-depth:\s*0/,
+    "CI must use actions/checkout with full history before claiming to scan reachable history",
   );
 
   git(["init", "--initial-branch=main", sourceRepository]);

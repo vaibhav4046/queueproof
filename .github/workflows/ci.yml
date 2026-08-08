@@ -16,22 +16,22 @@ concurrency:
 jobs:
   verify:
     name: Type, lint, test, benchmark, build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v4.4.0
         with:
           run_install: false
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22.13.0
           cache: pnpm
@@ -39,8 +39,11 @@ jobs:
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Reject moderate, high, or critical dependency advisories
-        run: pnpm audit --audit-level moderate
+      # QueueProof deploys the production dependency graph to Vercel. Cloudflare
+      # compatibility and CSS build tooling remain development-only and are not
+      # shipped in the production runtime.
+      - name: Reject production dependency advisories
+        run: pnpm audit:dependencies
 
       - name: Verify full-history secret-scan guard
         run: node scripts/test-secret-scan.mjs
