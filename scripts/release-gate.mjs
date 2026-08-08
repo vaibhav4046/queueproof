@@ -281,15 +281,15 @@ const metadata = await metadataResponse.json();
 assert.equal(metadata.resource, `${base}/mcp`, "MCP metadata must bind the canonical resource exactly.");
 assert.ok(Array.isArray(metadata.authorization_servers) && metadata.authorization_servers.length === 1,
   "MCP metadata must advertise exactly one authorization server.");
-// Supabase advertises standard identity scopes. QueueProof maps a verified OAuth
-// identity to its internal read permission; write/sync permissions are deliberately
-// not requestable through this public OAuth grant.
-for (const scope of ["openid", "profile", "email"]) {
+// The resource metadata advertises QueueProof's own resource scopes. Identity scopes
+// (openid/profile/email) are what QueueProof requests from its identity layer and travel
+// only in the WWW-Authenticate hint — never in the resource metadata.
+for (const scope of ["queueproof:read", "queueproof:propose", "queueproof:sync"]) {
   assert.ok(metadata.scopes_supported?.includes(scope), `MCP metadata is missing ${scope}.`);
 }
-for (const internalScope of ["queueproof:propose", "queueproof:sync"]) {
-  assert.ok(!metadata.scopes_supported?.includes(internalScope),
-    `MCP metadata must not advertise internal ${internalScope} through Supabase OAuth.`);
+for (const identityScope of ["openid", "profile", "email"]) {
+  assert.ok(!metadata.scopes_supported?.includes(identityScope),
+    `MCP resource metadata must not advertise identity scope ${identityScope}.`);
 }
 
 for (const path of ["/mcp", "/api/mcp"]) {
@@ -297,7 +297,12 @@ for (const path of ["/mcp", "/api/mcp"]) {
   assert.equal(response.status, 401, `Anonymous ${path} must return 401.`);
   assert.match(response.headers.get("www-authenticate") ?? "", /^Bearer\b/, `${path} is missing a Bearer challenge.`);
   assert.match(response.headers.get("cache-control") ?? "", /no-store/i, `${path} auth failures must not be cached.`);
-  assert.deepEqual(await response.json(), { error: "invalid_token" }, `${path} returned an unexpected auth body.`);
+  const authBody = await response.json();
+  assert.equal(authBody.error, "invalid_token", `${path} returned an unexpected auth error code.`);
+  assert.ok(
+    typeof authBody.error_description === "string" && authBody.error_description.length > 0,
+    `${path} must include an RFC 6750 error_description.`,
+  );
 }
 
 const demoMcpResponse = await fetch(`${base}/mcp/demo`, {

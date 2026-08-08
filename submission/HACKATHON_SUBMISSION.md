@@ -68,9 +68,15 @@ implemented tools, retrieve task evidence by verified connectorId or indexed sou
 ranked action and Execution Packet. MCP can create a bounded Linear proposal only with explicit
 scope and workspace-owned evidence; it cannot approve or execute the provider action.
 
-Authenticated production client status: **PENDING CURRENT MCP RECEIPT**. Do not name a connected
-client in the demo until `initialize`, `tools/list`, and a read-only tool call succeed against the
-submitted deployment.
+Current MCP receipt (submitted deployment `7903736`, 2026-08-08T02:41Z): on the public no-auth
+reviewer endpoint `https://queueproof.vercel.app/mcp/demo`, `initialize` negotiated protocol
+`2025-06-18` (server `queueproof 0.2.0`), `tools/list` returned `queueproof_search`, and a
+read-only `tools/call` returned a grounded, citation-carrying answer (`"status":"grounded"`,
+providers slack/linear/github, 774 ms server-side, 1 retrieval call). The bearer-protected `/mcp`
+endpoint returns `401` with RFC 9728 `WWW-Authenticate` resource metadata, and both
+`/.well-known/oauth-protected-resource` and `/.well-known/oauth-authorization-server` publish the
+live issuer, scopes, and registration endpoint. No signed-in client is named: an owner-token
+authenticated call is deliberately left to the owner.
 
 ## Research workflow
 
@@ -180,7 +186,8 @@ a dedicated secret and is not shown in public copy.
 - Proof tests: <https://queueproof.vercel.app/benchmarks>
 - Method: <https://queueproof.vercel.app/method>
 - Repository: <https://github.com/vaibhav4046/queueproof> — **PRIVATE; PUBLICATION REQUIRES OWNER APPROVAL**
-- Video: **PENDING PUBLIC URL**
+- Video: final 59.5 s cut committed at `video/queueproof-demo-v2.mp4` (SHA `7903736`) —
+  **PENDING PUBLIC URL** (owner uploads to YouTube/Drive and pastes the link into the form)
 
 ## Setup for judges
 

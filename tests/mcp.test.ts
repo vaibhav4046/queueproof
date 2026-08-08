@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { buildQueueProofServer } from "../packages/mcp/src/server";
+import { buildQueueProofServer, isSelfReferentialReleaseNoise } from "../packages/mcp/src/server";
 import * as hydraAccount from "../lib/server/hydradb-account";
 import { requireDb } from "../lib/server/runtime";
 import { createId, ensureCoreSchema } from "../lib/server/store";
@@ -1035,6 +1035,22 @@ describe("QueueProof MCP", () => {
       policy_version: policyVersion,
     });
     expect(JSON.stringify(packetRpc.result?.structuredContent)).not.toContain(workspaceId);
+  });
+
+  it("classifies QueueProof's own release chatter as self-referential noise", () => {
+    expect(isSelfReferentialReleaseNoise({
+      title: "Preserve compound receipt context and harden stale-state retrieval",
+      excerpt: "Gate output: 330 tests passed, secret scan clean, /api/health/live binds the SHA.",
+    })).toBe(true);
+    expect(isSelfReferentialReleaseNoise({
+      title: "Benchmark artifact accepted for the release SHA",
+      excerpt: "Exact preview matched the production build.",
+    })).toBe(true);
+    expect(isSelfReferentialReleaseNoise({
+      title: "AuthShield fix merged in PR-8871 but ENG-456 still open",
+      excerpt: "The AuthShield authentication fix for the Northwind outage (INC-2031) was merged.",
+    })).toBe(false);
+    expect(isSelfReferentialReleaseNoise({ title: null, excerpt: null })).toBe(false);
   });
 });
 

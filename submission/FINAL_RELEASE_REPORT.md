@@ -12,14 +12,14 @@
 | Benchmarks URL | <https://queueproof.vercel.app/benchmarks> | Canonical deployment |
 | GitHub URL | <https://github.com/vaibhav4046/queueproof> | GitHub; visibility currently owner-controlled |
 | Starting branch | `codex/dialog-autofocus` | GitHub ref |
-| Final main SHA | `[FINAL MAIN SHA]` | GitHub |
-| Health endpoint SHA/ref | `[HEALTH SHA]` / `[HEALTH REF]` | `/api/health/live` |
-| Vercel deployment ID | `[DEPLOYMENT ID]` | `/api/health/live` / Vercel receipt |
-| Deployment timestamp | `[DEPLOYMENT TIMESTAMP]` | `/api/health/live` |
-| Benchmark receipt version | `grounded-grader-v2` | `/api/health/live` |
+| Final main SHA | `79037365d668bde0ad8be24835c37e36420b9fc0` | GitHub |
+| Health endpoint SHA/ref | `79037365d668bde0ad8be24835c37e36420b9fc0` / `main` | `/api/health/live` |
+| Vercel deployment ID | `dpl_G7mrUCeATifc85ZJrvRWUqqUXDMi` | `/api/health/live` / Vercel receipt |
+| Deployment timestamp | `2026-08-08T02:37:40.241Z` | `/api/health/live` |
+| Benchmark receipt version | `grounded-grader-v3` | `/api/health/live` |
 
-Release identity gate: **PENDING** until Final main SHA equals Health SHA and health reports
-production with a valid deployment ID/timestamp.
+Release identity gate: **PASS** — verified 2026-08-08T02:38:50Z: Final main SHA equals the health
+SHA, health reports `production` with the deployment ID and timestamp above.
 
 ## Material changes
 
@@ -100,16 +100,18 @@ Do not paste private record bodies into this public report.
 | Field | Final receipt |
 | --- | --- |
 | Canonical URL | `https://queueproof.vercel.app/mcp` |
-| Protocol/transport | `[NEGOTIATED VERSION / HTTP MCP]` |
-| Authentication | Bearer; `[TOKEN TYPE/EXPIRY, NEVER VALUE]` |
-| OAuth metadata | `[CONFIGURED ISSUER OR NOT CONFIGURED]` |
-| Discovered tools/resources | `[CURRENT RECEIPT]` |
-| Authenticated read-only call | `[RECEIPT OR PENDING]` |
-| Claude Code | `[CONNECTED / CONFIGURED / NOT TESTED]` |
-| Codex | `[CONNECTED / CONFIGURED / NOT TESTED]` |
-| Claude web | `[NOT CLAIMED UNLESS OAUTH END TO END PASSED]` |
+| Protocol/transport | `2025-06-18` negotiated over streamable HTTP (SSE responses) |
+| Authentication | Bearer on `/mcp` (anonymous POST → `401` + RFC 9728 `WWW-Authenticate` resource metadata); `/mcp/demo` is a deliberately public read-only reviewer surface |
+| OAuth metadata | Live issuer `https://queueproof.vercel.app`: `/.well-known/oauth-protected-resource` and `/.well-known/oauth-authorization-server` publish authorize/token/register endpoints and scopes `queueproof:read/propose/sync` (verified 2026-08-08T02:41Z) |
+| Discovered tools/resources | `tools/list` on `/mcp/demo` → `queueproof_search` (server `queueproof 0.2.0`, tools+resources capabilities) |
+| Read-only call (public demo surface) | `tools/call queueproof_search` on `/mcp/demo` at SHA `7903736` → `"status":"grounded"`, providers slack/linear/github, 774 ms server-side, 1 retrieval call, `promptInjectionDetected:false` |
+| Authenticated read-only call | PENDING — requires the owner's scoped bearer token; no authenticated client claimed |
+| Claude Code | NOT TESTED against production in this release pass; no client named |
+| Codex | NOT TESTED against production in this release pass; no client named |
+| Claude web | NOT CLAIMED — OAuth end-to-end consent not exercised |
 
-Anonymous 401 alone is not an authenticated MCP receipt.
+Anonymous 401 alone is not an authenticated MCP receipt; the grounded `tools/call` receipt above
+is from the public demo surface, not a bearer session.
 
 ## Judge panel
 
@@ -135,7 +137,9 @@ Keep only actions that genuinely remain:
 - `[ ]` Supply the dedicated benchmark-publishing token to publish the measured current-SHA
   artifacts; do not substitute a Vercel or MCP token.
 - `[ ]` Rotate any credential exposed outside the approved secret store.
-- `[ ]` Record/upload the video and verify its public URL.
+- `[x]` Record the video — final 59.5 s cut at `video/queueproof-demo-v2.mp4` (icon scene,
+  aligned captions, −15.0 LUFS / −1.3 dBTP, transcript verified against the locked script).
+- `[ ]` Upload the video and verify its public URL.
 - `[ ]` Paste the final repository/video URLs into the hackathon form.
 
 Status becomes **DONE** only when every controllable gate is complete and this report contains no

@@ -120,6 +120,20 @@ const safeSourceUrl = (value: string | null): string | null => {
   }
 };
 
+// The reviewer workspace indexes a real GitHub connector, so QueueProof's own release
+// chatter (CI totals, deployment health URLs, benchmark artifact notes) is retrievable
+// alongside the work records reviewers actually ask about. That chatter is evidence about
+// QueueProof's build, not about the workspace's work, so the public reviewer surface drops
+// it before synthesis. Authenticated workspaces keep every record their connectors return.
+const SELF_REFERENTIAL_RELEASE_NOISE =
+  /\b\d+\s+tests?\s+passed\b|\/api\/health\/live\b|\bexact preview\b|\bbenchmark artifacts?\b|\b(?:production|preview)\s+build\s+passed\b|\bdeployment:\s*dpl_/i;
+
+export const isSelfReferentialReleaseNoise = (evidence: {
+  title?: string | null;
+  excerpt?: string | null;
+}): boolean =>
+  SELF_REFERENTIAL_RELEASE_NOISE.test(`${evidence.title ?? ""} ${evidence.excerpt ?? ""}`);
+
 const toolId = (label: string) =>
   z.string().trim().min(1).max(500).describe(label);
 
@@ -804,7 +818,7 @@ export function buildQueueProofServer(
       });
     }).filter((item, index, items) =>
       items.findIndex((candidate) => candidate.evidenceId === item.evidenceId && candidate.provider === item.provider) === index,
-    );
+    ).filter((item) => !demoSurface || !isSelfReferentialReleaseNoise(item));
     return finaliseSearch({
       query: input.query,
       plan,
