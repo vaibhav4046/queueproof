@@ -22,17 +22,17 @@ jobs:
       QUEUEPROOF_URL: https://queueproof.vercel.app
     steps:
       - name: Check out exact release
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v4.4.0
         with:
           run_install: false
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22.13.0
           cache: pnpm
@@ -70,7 +70,7 @@ jobs:
 
       - name: Preserve benchmark receipts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: queueproof-release-evidence-${{ github.sha }}
           path: |
