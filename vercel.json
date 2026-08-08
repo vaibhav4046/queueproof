@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "buildCommand": "node ./node_modules/next/dist/bin/next build --webpack"
+  "buildCommand": "node ./node_modules/next/dist/bin/next build --webpack",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- . ':(exclude)*.md' ':(exclude)**/*.md' ':(exclude)docs' ':(exclude)submission' ':(exclude)evals/results' ':(exclude)video'"
 }
-
