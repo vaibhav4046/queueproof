@@ -528,10 +528,14 @@ export default function QueueProofApp({
 
   // Whether the rendered view already reflects a signed-in account, kept in a ref so
   // the session listeners below can compare without re-subscribing on view changes.
+  // Synced in an effect (not during render); the only readers are async event callbacks.
   const viewAuthenticatedRef = useRef(false);
-  viewAuthenticatedRef.current =
+  const viewAuthenticated =
     view?.kind === "no_workspace" ||
     (view?.kind === "ready" && !view.actor.publicAccess);
+  useEffect(() => {
+    viewAuthenticatedRef.current = viewAuthenticated;
+  }, [viewAuthenticated]);
 
   // Magic-link and OAuth sign-in usually finish in a different tab — the email client
   // opens /auth/callback there — so this tab would keep rendering the pre-sign-in
