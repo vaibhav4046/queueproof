@@ -68,11 +68,13 @@ implemented tools, retrieve task evidence by verified connectorId or indexed sou
 ranked action and Execution Packet. MCP can create a bounded Linear proposal only with explicit
 scope and workspace-owned evidence; it cannot approve or execute the provider action.
 
-Current MCP receipt (submitted deployment `7903736`, 2026-08-08T02:41Z): on the public no-auth
-reviewer endpoint `https://queueproof.vercel.app/mcp/demo`, `initialize` negotiated protocol
-`2025-06-18` (server `queueproof 0.2.0`), `tools/list` returned `queueproof_search`, and a
-read-only `tools/call` returned a grounded, citation-carrying answer (`"status":"grounded"`,
-providers slack/linear/github, 774 ms server-side, 1 retrieval call). The bearer-protected `/mcp`
+Current MCP receipt (submitted deployment `b930c81`, 2026-08-08T03:18:28.661Z): on the public
+no-auth reviewer endpoint `https://queueproof.vercel.app/mcp/demo`, `initialize` negotiated protocol
+`2025-06-18` (server `queueproof 0.2.0`), `tools/list` returned `queueproof_search`, and a read-only
+`tools/call` returned a grounded, citation-carrying answer — `validation.status "grounded"`,
+providers linear/github/slack, 4 claims with 4 cited claims and 4 evidence items, one contradiction
+preserved, `missingInformation []`, `partial false`, 4209 ms server-side, 1 retrieval call,
+3 weighted units. The bearer-protected `/mcp`
 endpoint returns `401` with RFC 9728 `WWW-Authenticate` resource metadata, and both
 `/.well-known/oauth-protected-resource` and `/.well-known/oauth-authorization-server` publish the
 live issuer, scopes, and registration endpoint. No signed-in client is named: an owner-token
@@ -143,20 +145,34 @@ cannot create two provider calls, and success requires a stored provider respons
 
 ## Production benchmark — generated at release
 
-Paste values only after health and lab report the same exact SHA and each artifact says
-`measured`:
+Measured against production `b930c816071b86ad9ac1cc846fc24a452d3aa4a7` on 2026-08-08; every
+artifact carries `releaseVerified: true` and grader `grounded-grader-v3`.
 
 | Run | Strict pass/cases | Facts | Claim support | Citation resolution | p50/p95 | HydraDB calls | Weighted units |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Auto | `[CURRENT RECEIPT]` | `[CURRENT RECEIPT]` | `[CURRENT RECEIPT]` | `[CURRENT RECEIPT]` | `[CURRENT RECEIPT]` | `[CURRENT RECEIPT]` | `[CURRENT RECEIPT]` |
-| Fast | `[CURRENT RECEIPT]` | `[CURRENT RECEIPT]` | `[CURRENT RECEIPT]` | `[CURRENT RECEIPT]` | `[CURRENT RECEIPT]` | `[CURRENT RECEIPT]` | `[CURRENT RECEIPT]` |
-| Thinking | `[CURRENT RECEIPT]` | `[CURRENT RECEIPT]` | `[CURRENT RECEIPT]` | `[CURRENT RECEIPT]` | `[CURRENT RECEIPT]` | `[CURRENT RECEIPT]` | `[CURRENT RECEIPT]` |
-| 346-page PDF core | `[CURRENT RECEIPT]` | `[CURRENT RECEIPT]` | `[CURRENT RECEIPT]` | `[CURRENT RECEIPT]` | `[CURRENT RECEIPT]` | `[CURRENT RECEIPT]` | `[CURRENT RECEIPT]` |
+| Auto | 7/8 | 25/25 | 1.0 | 1.0 | 1890 / 2795 ms | 10 | 10 |
+| Fast | 7/8 | 25/25 | 1.0 | 1.0 | 1796 / 2347 ms | 10 | 10 |
+| Thinking | 7/8 | 25/25 | 1.0 | 1.0 | 9595 / 16710 ms | 18 | 34 |
+| 346-page PDF core | 5/22 | 56/56 | 1.0 | 1.0 | 1722 / 2165 ms | 29 | 29 |
 
-Fast/Thinking delta: `[PASTE ONLY IF modeComparison.comparable IS TRUE; OTHERWISE “NOT COMPARABLE”]`
+Fast/Thinking delta: **comparable, and Thinking lost.** Identical strict passes (7/8) and identical
+fact recall (25/25) for 5.3x the p50 latency and 3.4x the weighted units. Auto routed all eight rows
+to the fast lane. Reported as measured rather than framed as a win for the expensive mode.
 
-These are release diagnostics, not an SLA. Weighted units are not USD. List every failed case and
-timeout in the final form.
+Failed cases, in full, with no timeouts in any run:
+
+- Connector fixture, one non-pass row in all three modes: `post-mortem attribution cross-check`
+  returns `REVIEW`. It recovers 3/3 required facts with citation precision and completeness both
+  1.0 and zero unsupported claims; it fails strict relevance alone (0.667) because one of three
+  grounded, correctly cited claims does not answer the question asked.
+- PDF fixture, 17 non-pass rows of 22, all `REVIEW` and all HTTP 200 with `exactIdPass` and
+  `documentReceipt` true. Overall recall is 56/56 required facts at citation precision 1.0; the
+  rows fail strict relevance (0.625) because synthesis deliberately splits handbook table rows into
+  independent claim units, and the resulting ASCII-table fragments carry no expected-fact signal.
+  Retuning that splitter was declined at release time: it would risk a green production release to
+  improve a grading artifact, not correctness.
+
+These are release diagnostics, not an SLA. Weighted units are relative query work, not USD.
 
 ## Reproducibility
 
@@ -170,7 +186,7 @@ pnpm test
 pnpm benchmark:router
 pnpm build
 pnpm deploy:check
-pnpm release:verify -- --url https://queueproof.vercel.app --sha <FINAL_SHA>
+pnpm release:verify -- --url https://queueproof.vercel.app --sha b930c816071b86ad9ac1cc846fc24a452d3aa4a7
 pnpm benchmark:live -- --url https://queueproof.vercel.app --mode auto
 pnpm benchmark:live -- --url https://queueproof.vercel.app --mode fast
 pnpm benchmark:live -- --url https://queueproof.vercel.app --mode thinking
@@ -186,8 +202,9 @@ a dedicated secret and is not shown in public copy.
 - Proof tests: <https://queueproof.vercel.app/benchmarks>
 - Method: <https://queueproof.vercel.app/method>
 - Repository: <https://github.com/vaibhav4046/queueproof> — **PRIVATE; PUBLICATION REQUIRES OWNER APPROVAL**
-- Video: final 59.5 s cut committed at `video/queueproof-demo-v2.mp4` (SHA `7903736`) —
-  **PENDING PUBLIC URL** (owner uploads to YouTube/Drive and pastes the link into the form)
+- Video: final 59.5 s cut committed at `video/queueproof-demo-v2.mp4` (−15.0 LUFS / −1.3 dBTP,
+  transcript verified against the locked script) — **PENDING PUBLIC URL** (owner uploads to
+  YouTube/Drive and pastes the link into the form)
 
 ## Setup for judges
 
@@ -199,8 +216,12 @@ a dedicated secret and is not shown in public copy.
 
 ## Measured limitations
 
-- Current numeric results remain pending until exact-release artifacts are accepted by `/api/lab`.
-- Third-party connector availability can change; the current Sources receipt is authoritative.
+- Strict grading is unforgiving on purpose. A `REVIEW` row is a failure even when it recovers every
+  labelled fact with perfect citations, which is why the PDF core column reads 5/22 next to 56/56
+  facts. The two numbers are both true and are shown together rather than one without the other.
+- Third-party connector availability can change; the current Sources receipt is authoritative. Four
+  connectors currently carry attribution proof; a fifth Linear connector is `degraded` with zero
+  canary results and is excluded from the denominator rather than hidden.
 - The live corpus is deliberately small and cannot establish a general SLA.
 - Thinking may be slower or less accurate on a given frozen sample; the result will be shown as
   measured rather than hidden.

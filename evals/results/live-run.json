@@ -1,6 +1,6 @@
 {
   "status": "measured",
-  "generatedAt": "2026-08-07T19:30:11.627Z",
+  "generatedAt": "2026-08-08T03:06:51.185Z",
   "grader": "grounded-grader-v3",
   "runner": "scripts/run-live-benchmark.mjs",
   "fixture": "evals/fixtures/live-cases-v2.json",
@@ -12,28 +12,28 @@
   "health": {
     "ok": true,
     "httpStatus": 200,
-    "measuredLatencyMs": 267,
+    "measuredLatencyMs": 271,
     "body": {
       "status": "live",
       "service": "queueproof-web",
       "environment": "production",
-      "time": "2026-08-07T19:29:31.995Z",
+      "time": "2026-08-08T03:06:26.607Z",
       "release": {
-        "commitSha": "dd0a52146cadba5c3ed128b9e5d0f7152bef0322",
+        "commitSha": "b930c816071b86ad9ac1cc846fc24a452d3aa4a7",
         "commitRef": "main",
         "target": "production",
-        "deploymentId": "dpl_3jQpeBZWkaBCq1E1o1fdFzUvGiKo",
-        "deploymentUrl": "queueproof-drdu0wt9l-vaibhav4046s-projects.vercel.app",
-        "deploymentTimestamp": "2026-08-07T17:18:28.729Z",
+        "deploymentId": "dpl_4iNZZDvwGfEeNMm7uoKws3CjZX7Y",
+        "deploymentUrl": "queueproof-1n98tdpnq-vaibhav4046s-projects.vercel.app",
+        "deploymentTimestamp": "2026-08-08T02:59:22.159Z",
         "benchmarkReceiptVersion": "grounded-grader-v3"
       }
     },
     "error": null
   },
   "release": {
-    "commitSha": "dd0a52146cadba5c3ed128b9e5d0f7152bef0322",
+    "commitSha": "b930c816071b86ad9ac1cc846fc24a452d3aa4a7",
     "commitRef": "main",
-    "deploymentUrl": "queueproof-drdu0wt9l-vaibhav4046s-projects.vercel.app"
+    "deploymentUrl": "queueproof-1n98tdpnq-vaibhav4046s-projects.vercel.app"
   },
   "releaseVerified": true,
   "connectors": [
@@ -45,19 +45,19 @@
   "validCases": 8,
   "invalidCases": 0,
   "invalidCaseIds": [],
-  "passed": 8,
+  "passed": 7,
   "allThreeProviders": 2,
   "thinking": 0,
   "fast": 8,
   "latencyMs": {
-    "p50": 2874,
-    "p95": 6857,
-    "min": 1747,
-    "max": 6857,
+    "p50": 1890,
+    "p95": 2795,
+    "min": 1549,
+    "max": 2795,
     "fast": {
       "count": 8,
-      "p50": 2874,
-      "p95": 6857
+      "p50": 1890,
+      "p95": 2795
     },
     "thinking": {
       "count": 0,
@@ -77,14 +77,14 @@
     "citationPrecision": 1,
     "citationCompleteness": 1,
     "unsupportedClaimRate": 0,
-    "relevancePrecision": 1,
-    "irrelevantClaimRate": 0,
-    "relevanceRequirementPasses": 8,
+    "relevancePrecision": 0.9473684210526315,
+    "irrelevantClaimRate": 0.05263157894736842,
+    "relevanceRequirementPasses": 7,
     "providerRequirementPasses": 8,
     "contradictionRequirementPasses": 1,
     "contradictionRequirementCases": 1,
     "zeroKnowinglyUnsupportedClaims": true,
-    "zeroIrrelevantClaims": true,
+    "zeroIrrelevantClaims": false,
     "note": "Required facts are explicit frozen groups. Citation metrics require IDs to resolve and claim text to occur in a same-provider cited excerpt; relevance precision requires every claim to carry a configured expected-fact signal or cite evidence used by a supported cross-provider contradiction."
   },
   "costModel": {
@@ -272,12 +272,12 @@
       "requestedMode": "auto",
       "mode": "fast",
       "modeHonored": true,
-      "latencyMs": 6857,
-      "measuredLatencyMs": 9334,
+      "latencyMs": 1760,
+      "measuredLatencyMs": 3261,
       "callCount": 1,
       "sources": 4,
       "costUnits": 1,
-      "runId": "public-query-a8c8b931ef1bdce6573c0f757150c1dc"
+      "runId": "public-query-453b58450ac1ead3dc4ed103939f874e"
     },
     {
       "id": "live-deadline-conflict",
@@ -363,7 +363,7 @@
       "contradictionPass": true,
       "contradictions": [
         {
-          "summary": "The cited records contain different dates: linear says 14 August 2026; slack says 7 August.",
+          "summary": "linear records the date as 14 August 2026, moved from 7 August; slack still says 7 August.",
           "evidenceIds": [
             "public-citation-fbff52b0640331d59c82898f52ef2759",
             "public-citation-b0eb047559785bdc28d684934403f252"
@@ -377,7 +377,7 @@
       "supportedContradictions": [
         {
           "index": 0,
-          "summary": "The cited records contain different dates: linear says 14 August 2026; slack says 7 August.",
+          "summary": "linear records the date as 14 August 2026, moved from 7 August; slack still says 7 August.",
           "evidenceIds": [
             "public-citation-fbff52b0640331d59c82898f52ef2759",
             "public-citation-b0eb047559785bdc28d684934403f252"
@@ -424,12 +424,12 @@
       "requestedMode": "auto",
       "mode": "fast",
       "modeHonored": true,
-      "latencyMs": 1747,
-      "measuredLatencyMs": 2964,
+      "latencyMs": 1875,
+      "measuredLatencyMs": 3091,
       "callCount": 1,
       "sources": 2,
       "costUnits": 1,
-      "runId": "public-query-52d7cd8f66a5b11216237a09fab4a53c"
+      "runId": "public-query-34283e62ffe7f5c816f05d2d038b7309"
     },
     {
       "id": "live-untracked-commitment",
@@ -567,19 +567,19 @@
       "requestedMode": "auto",
       "mode": "fast",
       "modeHonored": true,
-      "latencyMs": 2262,
-      "measuredLatencyMs": 3926,
+      "latencyMs": 1890,
+      "measuredLatencyMs": 3099,
       "callCount": 1,
       "sources": 2,
       "costUnits": 1,
-      "runId": "public-query-8e1d2b7d4c06f46455df462dafe4b5e9"
+      "runId": "public-query-def77d283f79d1c8618cac081a0f39cc"
     },
     {
       "id": "live-cross-source-commitment-confirmation",
       "label": "cross-source commitment confirmation",
       "question": "Do Slack and Linear both independently confirm the AuthShield fix commitment date for Northwind?",
       "expected": "GitHub reports the AuthShield fix merged; Slack and Linear each independently record the Friday 7 August commitment to Northwind.",
-      "actual": "I have committed to Northwind that we will ship the AuthShield fix before Friday 7 August 2026. That is now a hard customer commitment, not an estimate. [1] The AuthShield authentication fix for the Northwind outage (INC-2031) was merged. Linear issue ENG-456 is still showing as open even though the code is shipped. [2] Engineering committed to shipping the AuthShield fix before Friday 7 August 2026. [3] Northwind have escalated the AuthShield authentication outage (INC-2031). [4]",
+      "actual": "I have committed to Northwind that we will ship the AuthShield fix before Friday 7 August 2026. That is now a hard customer commitment, not an estimate. [1] The AuthShield authentication fix for the Northwind outage (INC-2031) was merged. Linear issue ENG-456 is still showing as open even though the code is shipped. [2] Engineering committed to shipping the AuthShield fix before Friday 7 August 2026. [3]",
       "integrityStatus": "ok",
       "pass": true,
       "apiOk": true,
@@ -672,17 +672,7 @@
       "providerPass": true,
       "requiresContradiction": false,
       "contradictionPass": true,
-      "contradictions": [
-        {
-          "summary": "github receipt reports the code complete while ENG-456 remains open in its cited tracking state.",
-          "evidenceIds": [
-            "public-citation-d1b133ae772349fa803ae3b396b273cf"
-          ],
-          "providers": [
-            "github"
-          ]
-        }
-      ],
+      "contradictions": [],
       "supportedContradictions": [],
       "citationPass": true,
       "citationPrecision": 1,
@@ -691,7 +681,7 @@
       "relevancePass": true,
       "relevancePrecision": 1,
       "irrelevantClaimRate": 0,
-      "relevantClaimCount": 4,
+      "relevantClaimCount": 3,
       "irrelevantClaims": [],
       "invalidCitationIds": [],
       "unsupportedClaims": [],
@@ -719,29 +709,21 @@
           "excerpt": "INC-2031: enterprise customer Northwind reported an authentication outage on 29 July 2026. Priya Raman filed this against Atlas Launch. Engineering committed to shipping the AuthShield fix before Friday 7 August 2026.",
           "supported": true,
           "relevant": true
-        },
-        {
-          "id": "public-citation-d00773b537c2c760c9ae198c492e268e",
-          "provider": "slack",
-          "title": "Northwind have escalated the AuthShield authentication outage (INC-2031). Their",
-          "excerpt": "Northwind have escalated the AuthShield authentication outage (INC-2031). Their whole team has been locked out since 29 July. Priya Raman is on it and filed BUG-123 against Atlas Launch.",
-          "supported": true,
-          "relevant": true
         }
       ],
-      "claimCount": 4,
-      "supportedClaimCount": 4,
-      "claimCitationPairCount": 4,
-      "supportedClaimCitationPairCount": 4,
+      "claimCount": 3,
+      "supportedClaimCount": 3,
+      "claimCitationPairCount": 3,
+      "supportedClaimCitationPairCount": 3,
       "requestedMode": "auto",
       "mode": "fast",
       "modeHonored": true,
-      "latencyMs": 3447,
-      "measuredLatencyMs": 4734,
+      "latencyMs": 1998,
+      "measuredLatencyMs": 3423,
       "callCount": 1,
-      "sources": 4,
+      "sources": 3,
       "costUnits": 1,
-      "runId": "public-query-4cc3f3d2dd309029570623cde4b50181"
+      "runId": "public-query-a5cbb3da15f3a1a36fa1dcdc659bc575"
     },
     {
       "id": "live-actor-reconstruction",
@@ -869,12 +851,12 @@
       "requestedMode": "auto",
       "mode": "fast",
       "modeHonored": true,
-      "latencyMs": 2874,
-      "measuredLatencyMs": 4143,
+      "latencyMs": 1549,
+      "measuredLatencyMs": 2808,
       "callCount": 1,
       "sources": 2,
       "costUnits": 1,
-      "runId": "public-query-e35af84480eb0cb89131bb485c3cc95c"
+      "runId": "public-query-0427889ff060fb585f2bbd96837334a3"
     },
     {
       "id": "live-exact-identifier-context",
@@ -1044,12 +1026,12 @@
       "requestedMode": "auto",
       "mode": "fast",
       "modeHonored": true,
-      "latencyMs": 4340,
-      "measuredLatencyMs": 7644,
+      "latencyMs": 1911,
+      "measuredLatencyMs": 3105,
       "callCount": 2,
       "sources": 3,
       "costUnits": 2,
-      "runId": "public-query-3442b0d000d226cec21d250a8fa2f757"
+      "runId": "public-query-42b791564512c21041a4666c71069997"
     },
     {
       "id": "live-recency-most-recent-ship",
@@ -1183,21 +1165,21 @@
       "requestedMode": "auto",
       "mode": "fast",
       "modeHonored": true,
-      "latencyMs": 3350,
-      "measuredLatencyMs": 4716,
+      "latencyMs": 2795,
+      "measuredLatencyMs": 3998,
       "callCount": 2,
       "sources": 1,
       "costUnits": 2,
-      "runId": "public-query-0dd40d2544b91aa3d012e87a9271c9b4"
+      "runId": "public-query-c002dd95fb2651abd659abe676cf8cf5"
     },
     {
       "id": "live-post-mortem-cross-check",
       "label": "post-mortem attribution cross-check",
       "question": "Who promised the Northwind post-mortem, and has GitHub published the post-mortem document yet?",
       "expected": "Vaibhav promised Northwind a written post-mortem by 10 August; GitHub independently holds the post-mortem document for INC-2031.",
-      "actual": "I promised Northwind a written incident post-mortem by 10 August. There is no Linear issue tracking that yet, someone please raise one. [1] Vaibhav promised Northwind a written incident post-mortem by 10 August 2026. [2]",
+      "actual": "I promised Northwind a written incident post-mortem by 10 August. There is no Linear issue tracking that yet, someone please raise one. [1] Vaibhav promised Northwind a written incident post-mortem by 10 August 2026. [2] I have committed to Northwind that we will ship the AuthShield fix before Friday 7 August 2026. [3]",
       "integrityStatus": "ok",
-      "pass": true,
+      "pass": false,
       "apiOk": true,
       "httpStatus": 200,
       "error": null,
@@ -1288,11 +1270,19 @@
       "citationPrecision": 1,
       "citationCompleteness": 1,
       "unsupportedClaimRate": 0,
-      "relevancePass": true,
-      "relevancePrecision": 1,
-      "irrelevantClaimRate": 0,
+      "relevancePass": false,
+      "relevancePrecision": 0.6666666666666666,
+      "irrelevantClaimRate": 0.3333333333333333,
       "relevantClaimCount": 2,
-      "irrelevantClaims": [],
+      "irrelevantClaims": [
+        {
+          "index": 2,
+          "text": "I have committed to Northwind that we will ship the AuthShield fix before Friday 7 August 2026.",
+          "citationIds": [
+            "public-citation-9e114dd2213b662726f8f123e5ab2fb7"
+          ]
+        }
+      ],
       "invalidCitationIds": [],
       "unsupportedClaims": [],
       "citedSources": [
@@ -1311,21 +1301,29 @@
           "excerpt": "Vaibhav promised Northwind a written incident post-mortem by 10 August 2026. Tracking it here since there is no Linear issue for it. Owner unassigned.",
           "supported": true,
           "relevant": true
+        },
+        {
+          "id": "public-citation-9e114dd2213b662726f8f123e5ab2fb7",
+          "provider": "slack",
+          "title": "I have committed to Northwind that we will ship the AuthShield fix before Friday",
+          "excerpt": "I have committed to Northwind that we will ship the AuthShield fix before Friday 7 August 2026. That is now a hard customer commitment, not an estimate.",
+          "supported": true,
+          "relevant": false
         }
       ],
-      "claimCount": 2,
-      "supportedClaimCount": 2,
-      "claimCitationPairCount": 2,
-      "supportedClaimCitationPairCount": 2,
+      "claimCount": 3,
+      "supportedClaimCount": 3,
+      "claimCitationPairCount": 3,
+      "supportedClaimCitationPairCount": 3,
       "requestedMode": "auto",
       "mode": "fast",
       "modeHonored": true,
-      "latencyMs": 2237,
-      "measuredLatencyMs": 3485,
+      "latencyMs": 1955,
+      "measuredLatencyMs": 3134,
       "callCount": 1,
-      "sources": 2,
+      "sources": 3,
       "costUnits": 1,
-      "runId": "public-query-f49d58a677e406a2a53442b6e80ed315"
+      "runId": "public-query-fa00b25d4d2375e3399a77b13bfb2bec"
     }
   ]
 }

@@ -4,7 +4,7 @@
 > appended below is pinned to its own deployment SHA and is historical unless that SHA matches
 > the running production release. The canonical current-release view is `/benchmarks`.
 
-Generated: 2026-08-07T00:33:36.849Z
+Generated: 2026-08-08T03:06:32.963Z
 Runner: `node scripts/run-evals.mjs`
 Fixtures: `evals/fixtures/cases.json` (42 ground truth cases, fictional company "Helios Robotics")
 
@@ -128,20 +128,22 @@ did not measure.
 
 ## Historical live connector artifact (strict grader; release-pinned)
 
-Target https://queueproof.vercel.app. Connectors: github, gmail, linear, slack. Generated 2026-08-05T01:29:41.302Z. Release: `aed027879150e3e324b54c5ec2194d4d715c501e`. Grader: `grounded-grader-v2`.
+Target https://queueproof.vercel.app. Connectors: github, linear, slack. Generated 2026-08-07T19:30:11.627Z. Release: `dd0a52146cadba5c3ed128b9e5d0f7152bef0322`. Grader: `grounded-grader-v3`.
 
 | Case | Mode | Latency | Sources | Providers in evidence |
 | --- | --- | --- | --- | --- |
-| three-provider multi-hop | `fast` | 2155 ms | 6 | github, linear, slack |
-| deadline conflict | `fast` | 2173 ms | 3 | gmail, linear, slack |
-| untracked commitment | `fast` | 2007 ms | 3 | github, linear, slack |
-| stale tracked work | `fast` | 2277 ms | 2 | github |
-| actor reconstruction | `fast` | 2392 ms | 2 | linear, slack |
-| exact identifier plus context | `fast` | 2121 ms | 1 | slack |
+| three-provider multi-hop | `fast` | 6857 ms | 4 | github, linear, slack |
+| deadline conflict | `fast` | 1747 ms | 2 | linear, slack |
+| untracked commitment | `fast` | 2262 ms | 2 | github, slack |
+| cross-source commitment confirmation | `fast` | 3447 ms | 4 | github, linear, slack |
+| actor reconstruction | `fast` | 2874 ms | 2 | linear, slack |
+| exact identifier plus context | `fast` | 4340 ms | 3 | linear, slack |
+| most recent shipped item | `fast` | 3350 ms | 1 | github |
+| post-mortem attribution cross-check | `fast` | 2237 ms | 2 | github, slack |
 
-Latency across 6 live questions: p50 2155 ms, p95 2392 ms, min 2007 ms, max 2392 ms.
+Latency across 8 live questions: p50 2874 ms, p95 6857 ms, min 1747 ms, max 6857 ms.
 
-Questions whose evidence spanned all three connected providers: 3/6. Routed thinking/fast: 0/6.
+Questions whose evidence spanned all three connected providers: 2/8. Routed thinking/fast: 0/8.
 
 Required-fact recall: 100.0%. Citation completeness: 100.0%. Unsupported-claim rate: 0.0%.
 
