@@ -9,13 +9,31 @@ claim-level citations, compiles a deterministic priority queue, and keeps extern
 behind an approval boundary. Missing evidence and source contradictions stay visible instead
 of being smoothed over by the model.
 
+- **60-second demo: <https://youtu.be/prKT-PC7NYw>**
 - Product: <https://queueproof.vercel.app>
 - Source: <https://github.com/vaibhav4046/queueproof>
 - Method: <https://queueproof.vercel.app/method>
 - Measured results: <https://queueproof.vercel.app/benchmarks>
+- MCP session receipts: [docs/MCP_SESSION.md](docs/MCP_SESSION.md)
 - Candidate and release receipt: [RELEASE_EVIDENCE.md](RELEASE_EVIDENCE.md)
-- 60-second walkthrough: [docs/DEMO_SCRIPT_60S.md](docs/DEMO_SCRIPT_60S.md)
+- 60-second walkthrough script: [docs/DEMO_SCRIPT_60S.md](docs/DEMO_SCRIPT_60S.md)
 - Submission copy: [docs/SUBMISSION_COPY.md](docs/SUBMISSION_COPY.md)
+
+## The product
+
+Ask one question across the tools a team already uses, and get an answer where every claim
+opens to the record it came from.
+
+![QueueProof workspace: a cross-source question answered with numbered claim citations](docs/assets/01-workspace.png)
+
+A source is only allowed into retrieval after HydraDB returns records that are attributable to
+its connector lineage. Degraded connectors stay visible and stay out of the denominator.
+
+![Sources: connector receipts, document provenance, and degraded sources left visible](docs/assets/04-sources.png)
+
+The evaluation method is published in the product, not just in this repository.
+
+![Method page: how cases are graded and why REVIEW stays a failure](docs/assets/03-method.png)
 
 ## Judge path
 
@@ -111,6 +129,59 @@ workspace and is never called by a request. Then set `QUEUEPROOF_PUBLIC_ACCESS=t
 gate. See [public workspace provisioning](docs/PUBLIC_WORKSPACE_PROVISIONING.md).
 
 ## Architecture
+
+```mermaid
+flowchart LR
+  subgraph Sources
+    SL[Slack]
+    GH[GitHub]
+    LI[Linear]
+    GM[Gmail]
+    DOC[Documents<br/>346-page PDF]
+  end
+
+  subgraph HydraDB
+    CAT[Connector catalogue<br/>and lifecycle]
+    IDX[Document indexing]
+    RET[Fast / Thinking<br/>retrieval]
+  end
+
+  subgraph QueueProof
+    PROOF[Connector proof gate<br/>attributable records only]
+    PLAN[Query planner<br/>exact-ID + hybrid lanes]
+    MERGE[Evidence merge<br/>dedupe and clustering]
+    SYN[Claim-level synthesis<br/>citations, contradictions,<br/>missing information]
+    RANK[Deterministic ranking<br/>versioned policy]
+    APPR[Approval boundary<br/>at-most-once execution]
+  end
+
+  subgraph Surfaces
+    WEB[Web workspace]
+    MCP[MCP endpoint]
+    LAB[/api/lab<br/>release-bound artifacts]
+  end
+
+  SL & GH & LI & GM --> CAT
+  DOC --> IDX
+  CAT --> PROOF
+  IDX --> PROOF
+  PROOF --> PLAN --> RET --> MERGE --> SYN
+  SYN --> RANK --> APPR
+  SYN --> WEB
+  SYN --> MCP
+  RANK --> WEB
+  APPR -->|owner approval required| SL
+  APPR -->|owner approval required| LI
+  WEB --- LAB
+
+  TURSO[(Turso / libSQL<br/>receipts, packets,<br/>approvals, audit)]
+  SYN --- TURSO
+  APPR --- TURSO
+  PROOF --- TURSO
+```
+
+Evidence flows one way — sources into HydraDB, HydraDB into retrieval, retrieval into cited
+claims — and the only path back out to a provider runs through the approval boundary.
 
 | Layer | Responsibility |
 | --- | --- |

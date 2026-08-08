@@ -92,4 +92,4 @@ deployment.
 - Do not call weighted units dollars or the small live suite an SLA.
 - Do not expose tokens, owner pages, email addresses, or connector credentials.
 - Repository is public; verify signed-out access before submitting.
-- Video URL is **PENDING** until the final take is uploaded publicly.
+- Published demo: <https://youtu.be/prKT-PC7NYw>

@@ -1,0 +1,138 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"plan\": {\n    \"category\": \"conflict_analysis\",\n    \"queryBy\": \"hybrid\",\n    \"graphContext\": true,\n    \"reason\": \"The question needs cross-source, temporal, conflict, attribution, entity, multilingual, or priority reasoning.\"\n  },\n  \"mode\": \"thinking\",\n  \"answer\": \"The AuthShield authentication fix for the Northwind outage (INC-2031) was merged. [1] Northwind have escalated the AuthShield authentication outage (INC-2031). [2]\",\n  \"claims\": [\n    {\n      \"text\": \"The AuthShield authentication fix for the Northwind outage (INC-2031) was merged.\",\n      \"evidenceIds\": [\n        \"b7cac22b810e04837baf85a9cb471eb78d1fbd13f473dddbc78a7bd3fbb13dda:chunk:1\"\n      ],\n      \"providers\": [\n        \"github\"\n      ]\n    },\n    {\n      \"text\": \"Northwind have escalated the AuthShield authentication outage (INC-2031).\",\n      \"evidenceIds\": [\n        \"ffb7a9aecb9fea364671ca67feb700561d9cd59057b134af0a595d3d845a3dac:chunk:1\"\n      ],\n      \"providers\": [\n        \"slack\"\n      ]\n    }\n  ],\n  \"citations\": [\n    {\n      \"evidenceId\": \"772fc4ca6eab32434a9df0b8626810c498ed652518d9228a756078ea4abf7f61:chunk:1\",\n      \"sourceId\": \"772fc4ca6eab32434a9df0b8626810c498ed652518d9228a756078ea4abf7f61\",\n      \"provider\": \"linear\",\n      \"title\": \"AuthShield authentication outage for Northwind\",\n      \"timestamp\": \"2026-08-02T01:03:55.148712+00:00\",\n      \"url\": null\n    },\n    {\n      \"evidenceId\": \"b7cac22b810e04837baf85a9cb471eb78d1fbd13f473dddbc78a7bd3fbb13dda:chunk:1\",\n      \"sourceId\": \"b7cac22b810e04837baf85a9cb471eb78d1fbd13f473dddbc78a7bd3fbb13dda\",\n      \"provider\": \"github\",\n      \"title\": \"AuthShield fix merged in PR-8871 but ENG-456 still open\",\n      \"timestamp\": \"2026-08-02T17:39:45.750070+00:00\",\n      \"url\": \"https://github.com/vaibhav4046/queueproof/issues/1\"\n    },\n    {\n      \"evidenceId\": \"ffb7a9aecb9fea364671ca67feb700561d9cd59057b134af0a595d3d845a3dac:chunk:1\",\n      \"sourceId\": \"ffb7a9aecb9fea364671ca67feb700561d9cd59057b134af0a595d3d845a3dac\",\n      \"provider\": \"slack\",\n      \"title\": \"Northwind have escalated the AuthShield authentication outage (INC-2031). Their\",\n      \"timestamp\": \"2026-08-02T17:24:44.348189+00:00\",\n      \"url\": null\n    }\n  ],\n  \"contradictions\": [\n    {\n      \"summary\": \"The cited records contain different dates: linear says 29 July 2026; linear says 7 August 2026.\",\n      \"evidenceIds\": [\n        \"772fc4ca6eab32434a9df0b8626810c498ed652518d9228a756078ea4abf7f61:chunk:1\",\n        \"772fc4ca6eab32434a9df0b8626810c498ed652518d9228a756078ea4abf7f61:chunk:1\"\n      ],\n      \"providers\": [\n        \"linear\"\n      ]\n    }\n  ],\n  \"missingInformation\": [\n    \"Insufficient evidence for the requested engineering commitment.\"\n  ],\n  \"validation\": {\n    \"status\": \"partial\",\n    \"claimCount\": 2,\n    \"citedClaimCount\": 2,\n    \"evidenceCount\": 3,\n    \"providerCoverage\": [\n      \"github\",\n      \"slack\"\n    ]\n  },\n  \"evidence\": [\n    {\n      \"evidenceId\": \"772fc4ca6eab32434a9df0b8626810c498ed652518d9228a756078ea4abf7f61:chunk:1\",\n      \"sourceId\": \"772fc4ca6eab32434a9df0b8626810c498ed652518d9228a756078ea4abf7f61\",\n      \"provider\": \"linear\",\n      \"title\": \"AuthShield authentication outage for Northwind\",\n      \"excerpt\": \"INC-2031: enterprise customer Northwind reported an authentication outage on 29 July 2026. Priya Raman filed this against Atlas Launch. Engineering committed to shipping the AuthShield fix before Friday 7 August 2026.\",\n      \"timestamp\": \"2026-08-02T01:03:55.148712+00:00\",\n      \"url\": null,\n      \"relevanceScore\": 0.03278688524590164,\n      \"promptInjectionDetected\": false\n    },\n    {\n      \"evidenceId\": \"b7cac22b810e04837baf85a9cb471eb78d1fbd13f473dddbc78a7bd3fbb13dda:chunk:1\",\n      \"sourceId\": \"b7cac22b810e04837baf85a9cb471eb78d1fbd13f473dddbc78a7bd3fbb13dda\",\n      \"provider\": \"github\",\n      \"title\": \"AuthShield fix merged in PR-8871 but ENG-456 still open\",\n      \"excerpt\": \"The AuthShield authentication fix for the Northwind outage (INC-2031) was merged. Linear issue ENG-456 is still showing as open even though the code is shipped. Someone should close it or explain why it is still tracked.\",\n      \"timestamp\": \"2026-08-02T17:39:45.750070+00:00\",\n      \"url\": \"https://github.com/vaibhav4046/queueproof/issues/1\",\n      \"relevanceScore\": 0.03200204813108039,\n      \"promptInjectionDetected\": false\n    },\n    {\n      \"evidenceId\": \"ffb7a9aecb9fea364671ca67feb700561d9cd59057b134af0a595d3d845a3dac:chunk:1\",\n      \"sourceId\": \"ffb7a9aecb9fea364671ca67feb700561d9cd59057b134af0a595d3d845a3dac\",\n      \"provider\": \"slack\",\n      \"title\": \"Northwind have escalated the AuthShield authentication outage (INC-2031). Their\",\n      \"excerpt\": \"Northwind have escalated the AuthShield authentication outage (INC-2031). Their whole team has been locked out since 29 July. Priya Raman is on it and filed BUG-123 against Atlas Launch.\",\n      \"timestamp\": \"2026-08-02T17:24:44.348189+00:00\",\n      \"url\": null,\n      \"relevanceScore\": 0.016129032258064516,\n      \"promptInjectionDetected\": false\n    }\n  ],\n  \"providerCoverage\": [\n    \"linear\",\n    \"github\",\n    \"slack\"\n  ],\n  \"latencyMs\": 5528,\n  \"callCount\": 1,\n  \"estimatedCostUnits\": 3,\n  \"partial\": false,\n  \"failedScopeCount\": 0\n}"
+      }
+    ],
+    "structuredContent": {
+      "plan": {
+        "category": "conflict_analysis",
+        "queryBy": "hybrid",
+        "graphContext": true,
+        "reason": "The question needs cross-source, temporal, conflict, attribution, entity, multilingual, or priority reasoning."
+      },
+      "mode": "thinking",
+      "answer": "The AuthShield authentication fix for the Northwind outage (INC-2031) was merged. [1] Northwind have escalated the AuthShield authentication outage (INC-2031). [2]",
+      "claims": [
+        {
+          "text": "The AuthShield authentication fix for the Northwind outage (INC-2031) was merged.",
+          "evidenceIds": [
+            "b7cac22b810e04837baf85a9cb471eb78d1fbd13f473dddbc78a7bd3fbb13dda:chunk:1"
+          ],
+          "providers": [
+            "github"
+          ]
+        },
+        {
+          "text": "Northwind have escalated the AuthShield authentication outage (INC-2031).",
+          "evidenceIds": [
+            "ffb7a9aecb9fea364671ca67feb700561d9cd59057b134af0a595d3d845a3dac:chunk:1"
+          ],
+          "providers": [
+            "slack"
+          ]
+        }
+      ],
+      "citations": [
+        {
+          "evidenceId": "772fc4ca6eab32434a9df0b8626810c498ed652518d9228a756078ea4abf7f61:chunk:1",
+          "sourceId": "772fc4ca6eab32434a9df0b8626810c498ed652518d9228a756078ea4abf7f61",
+          "provider": "linear",
+          "title": "AuthShield authentication outage for Northwind",
+          "timestamp": "2026-08-02T01:03:55.148712+00:00",
+          "url": null
+        },
+        {
+          "evidenceId": "b7cac22b810e04837baf85a9cb471eb78d1fbd13f473dddbc78a7bd3fbb13dda:chunk:1",
+          "sourceId": "b7cac22b810e04837baf85a9cb471eb78d1fbd13f473dddbc78a7bd3fbb13dda",
+          "provider": "github",
+          "title": "AuthShield fix merged in PR-8871 but ENG-456 still open",
+          "timestamp": "2026-08-02T17:39:45.750070+00:00",
+          "url": "https://github.com/vaibhav4046/queueproof/issues/1"
+        },
+        {
+          "evidenceId": "ffb7a9aecb9fea364671ca67feb700561d9cd59057b134af0a595d3d845a3dac:chunk:1",
+          "sourceId": "ffb7a9aecb9fea364671ca67feb700561d9cd59057b134af0a595d3d845a3dac",
+          "provider": "slack",
+          "title": "Northwind have escalated the AuthShield authentication outage (INC-2031). Their",
+          "timestamp": "2026-08-02T17:24:44.348189+00:00",
+          "url": null
+        }
+      ],
+      "contradictions": [
+        {
+          "summary": "The cited records contain different dates: linear says 29 July 2026; linear says 7 August 2026.",
+          "evidenceIds": [
+            "772fc4ca6eab32434a9df0b8626810c498ed652518d9228a756078ea4abf7f61:chunk:1",
+            "772fc4ca6eab32434a9df0b8626810c498ed652518d9228a756078ea4abf7f61:chunk:1"
+          ],
+          "providers": [
+            "linear"
+          ]
+        }
+      ],
+      "missingInformation": [
+        "Insufficient evidence for the requested engineering commitment."
+      ],
+      "validation": {
+        "status": "partial",
+        "claimCount": 2,
+        "citedClaimCount": 2,
+        "evidenceCount": 3,
+        "providerCoverage": [
+          "github",
+          "slack"
+        ]
+      },
+      "evidence": [
+        {
+          "evidenceId": "772fc4ca6eab32434a9df0b8626810c498ed652518d9228a756078ea4abf7f61:chunk:1",
+          "sourceId": "772fc4ca6eab32434a9df0b8626810c498ed652518d9228a756078ea4abf7f61",
+          "provider": "linear",
+          "title": "AuthShield authentication outage for Northwind",
+          "excerpt": "INC-2031: enterprise customer Northwind reported an authentication outage on 29 July 2026. Priya Raman filed this against Atlas Launch. Engineering committed to shipping the AuthShield fix before Friday 7 August 2026.",
+          "timestamp": "2026-08-02T01:03:55.148712+00:00",
+          "url": null,
+          "relevanceScore": 0.03278688524590164,
+          "promptInjectionDetected": false
+        },
+        {
+          "evidenceId": "b7cac22b810e04837baf85a9cb471eb78d1fbd13f473dddbc78a7bd3fbb13dda:chunk:1",
+          "sourceId": "b7cac22b810e04837baf85a9cb471eb78d1fbd13f473dddbc78a7bd3fbb13dda",
+          "provider": "github",
+          "title": "AuthShield fix merged in PR-8871 but ENG-456 still open",
+          "excerpt": "The AuthShield authentication fix for the Northwind outage (INC-2031) was merged. Linear issue ENG-456 is still showing as open even though the code is shipped. Someone should close it or explain why it is still tracked.",
+          "timestamp": "2026-08-02T17:39:45.750070+00:00",
+          "url": "https://github.com/vaibhav4046/queueproof/issues/1",
+          "relevanceScore": 0.03200204813108039,
+          "promptInjectionDetected": false
+        },
+        {
+          "evidenceId": "ffb7a9aecb9fea364671ca67feb700561d9cd59057b134af0a595d3d845a3dac:chunk:1",
+          "sourceId": "ffb7a9aecb9fea364671ca67feb700561d9cd59057b134af0a595d3d845a3dac",
+          "provider": "slack",
+          "title": "Northwind have escalated the AuthShield authentication outage (INC-2031). Their",
+          "excerpt": "Northwind have escalated the AuthShield authentication outage (INC-2031). Their whole team has been locked out since 29 July. Priya Raman is on it and filed BUG-123 against Atlas Launch.",
+          "timestamp": "2026-08-02T17:24:44.348189+00:00",
+          "url": null,
+          "relevanceScore": 0.016129032258064516,
+          "promptInjectionDetected": false
+        }
+      ],
+      "providerCoverage": [
+        "linear",
+        "github",
+        "slack"
+      ],
+      "latencyMs": 5528,
+      "callCount": 1,
+      "estimatedCostUnits": 3,
+      "partial": false,
+      "failedScopeCount": 0
+    }
+  },
+  "jsonrpc": "2.0",
+  "id": 1
+}

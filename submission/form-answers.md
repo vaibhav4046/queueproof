@@ -35,7 +35,7 @@ Ask your work. Get the proof.
 
 ## Video URL
 
-`[PENDING — ADD PUBLIC VIDEO URL]`
+<https://youtu.be/prKT-PC7NYw>
 (Final 59.5 s cut committed at `video/queueproof-demo-v2.mp4`, −15.0 LUFS / −1.3 dBTP,
 transcript verified against the locked script.)
 
@@ -175,7 +175,7 @@ sources: GitHub, Gmail, Linear, and Slack — each verified with attributable ca
 before counting. A fifth degraded Linear connector is excluded from the denominator. The
 measured runs retrieved cited cross-source evidence.
 
-**Video demo:** `[PENDING — ADD PUBLIC VIDEO URL]`
+**Video demo:** <https://youtu.be/prKT-PC7NYw>
 
 **GitHub submission:** <https://github.com/vaibhav4046/queueproof> — public.
 

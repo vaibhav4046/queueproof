@@ -202,9 +202,9 @@ a dedicated secret and is not shown in public copy.
 - Proof tests: <https://queueproof.vercel.app/benchmarks>
 - Method: <https://queueproof.vercel.app/method>
 - Repository: <https://github.com/vaibhav4046/queueproof> — public
-- Video: final 59.5 s cut committed at `video/queueproof-demo-v2.mp4` (−15.0 LUFS / −1.3 dBTP,
-  transcript verified against the locked script) — **PENDING PUBLIC URL** (owner uploads to
-  YouTube/Drive and pastes the link into the form)
+- Video: <https://youtu.be/prKT-PC7NYw> — final 59.5 s cut, also committed at
+  `video/queueproof-demo-v2.mp4` (−15.0 LUFS / −1.3 dBTP, transcript verified against the
+  locked script)
 
 ## Setup for judges
 
