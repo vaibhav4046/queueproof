@@ -161,7 +161,10 @@ flowchart LR
     LAB[/api/lab<br/>release-bound artifacts]
   end
 
-  SL & GH & LI & GM --> CAT
+  SL --> CAT
+  GH --> CAT
+  LI --> CAT
+  GM --> CAT
   DOC --> IDX
   CAT --> PROOF
   IDX --> PROOF
