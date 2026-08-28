@@ -1,0 +1,355 @@
+From f02ee807902a4622c79b606641524f21c6ad0843 Mon Sep 17 00:00:00 2001
+From: Vaibhav Lalwani <vaibhavlalwani26969@gmail.com>
+Date: Fri, 28 Aug 2026 10:52:46 +0000
+Subject: [PATCH] Emit non-finite enum constants as arithmetic instead of
+ global identifiers
+
+Enum members whose initializers evaluate to Infinity, -Infinity, or NaN were
+emitted as the global identifiers of those names. Identifiers resolve in the
+scope of the emitted code, so a local binding shadowing Infinity or NaN changed
+the enum member's value at runtime with no diagnostic.
+
+Emit 1 / 0, -1 / 0, and 0 / 0 instead, which evaluate to the same values and
+cannot be shadowed.
+
+Fixes #55091
+---
+ .../transformers/tstransforms/utilities.go    | 35 ++++++++---
+ .../compiler/enumAutoIncrementValue.js        |  4 +-
+ .../reference/compiler/enumNaNValues.js       |  6 +-
+ .../reference/compiler/fakeInfinity2.js       |  4 +-
+ .../reference/compiler/fakeInfinity3.js       |  4 +-
+ .../enumComputedNonFiniteShadowed.js          | 41 +++++++++++++
+ .../enumComputedNonFiniteShadowed.symbols     | 39 ++++++++++++
+ .../enumComputedNonFiniteShadowed.types       | 61 +++++++++++++++++++
+ .../conformance/enumConstantMembers.js        | 14 ++---
+ .../enums/enumComputedNonFiniteShadowed.ts    | 18 ++++++
+ 10 files changed, 202 insertions(+), 24 deletions(-)
+ create mode 100644 tsc/testdata/baselines/reference/conformance/enumComputedNonFiniteShadowed.js
+ create mode 100644 tsc/testdata/baselines/reference/conformance/enumComputedNonFiniteShadowed.symbols
+ create mode 100644 tsc/testdata/baselines/reference/conformance/enumComputedNonFiniteShadowed.types
+ create mode 100644 tsc/testdata/tests/cases/conformance/enums/enumComputedNonFiniteShadowed.ts
+
+diff --git a/tsc/internal/transformers/tstransforms/utilities.go b/tsc/internal/transformers/tstransforms/utilities.go
+index 2c0f0eb5..c198200d 100644
+--- a/tsc/internal/transformers/tstransforms/utilities.go
++++ b/tsc/internal/transformers/tstransforms/utilities.go
+@@ -11,14 +11,8 @@ func constantExpression(value any, factory *printer.NodeFactory) *ast.Expression
+ 	case string:
+ 		return factory.NewStringLiteral(value, ast.TokenFlagsNone)
+ 	case jsnum.Number:
+-		if value.IsInf() {
+-			if value > 0 {
+-				return factory.NewIdentifier("Infinity")
+-			}
+-			return factory.NewPrefixUnaryExpression(ast.KindMinusToken, factory.NewIdentifier("Infinity"))
+-		}
+-		if value.IsNaN() {
+-			return factory.NewIdentifier("NaN")
++		if value.IsInf() || value.IsNaN() {
++			return nonFiniteExpression(value, factory)
+ 		}
+ 		if value < 0 {
+ 			return factory.NewPrefixUnaryExpression(ast.KindMinusToken, constantExpression(-value, factory))
+@@ -27,3 +21,28 @@ func constantExpression(value any, factory *printer.NodeFactory) *ast.Expression
+ 	}
+ 	return nil
+ }
++
++// nonFiniteExpression builds an expression evaluating to Infinity, -Infinity, or NaN.
++// These values have no numeric literal form, so they used to be emitted as the global
++// identifiers of the same name. Those identifiers resolve in the scope of the emitted
++// code rather than at the enum declaration, so a local binding that shadows them
++// silently changes the constant's value at runtime. Division by zero has no such
++// dependency on the surrounding scope.
++func nonFiniteExpression(value jsnum.Number, factory *printer.NodeFactory) *ast.Expression {
++	var numerator *ast.Expression
++	switch {
++	case value.IsNaN():
++		numerator = factory.NewNumericLiteral("0", ast.TokenFlagsNone)
++	case value > 0:
++		numerator = factory.NewNumericLiteral("1", ast.TokenFlagsNone)
++	default:
++		numerator = factory.NewPrefixUnaryExpression(ast.KindMinusToken, factory.NewNumericLiteral("1", ast.TokenFlagsNone))
++	}
++	return factory.NewBinaryExpression(
++		nil, /*modifiers*/
++		numerator,
++		nil, /*typeNode*/
++		factory.NewToken(ast.KindSlashToken),
++		factory.NewNumericLiteral("0", ast.TokenFlagsNone),
++	)
++}
+diff --git a/tsc/testdata/baselines/reference/compiler/enumAutoIncrementValue.js b/tsc/testdata/baselines/reference/compiler/enumAutoIncrementValue.js
+index d42086ad..e2f405d5 100644
+--- a/tsc/testdata/baselines/reference/compiler/enumAutoIncrementValue.js
++++ b/tsc/testdata/baselines/reference/compiler/enumAutoIncrementValue.js
+@@ -11,6 +11,6 @@ enum E {
+ "use strict";
+ var E;
+ (function (E) {
+-    E[E["A"] = NaN] = "A";
+-    E[E["B"] = NaN] = "B";
++    E[E["A"] = 0 / 0] = "A";
++    E[E["B"] = 0 / 0] = "B";
+ })(E || (E = {}));
+diff --git a/tsc/testdata/baselines/reference/compiler/enumNaNValues.js b/tsc/testdata/baselines/reference/compiler/enumNaNValues.js
+index 88ba034c..a3964c6f 100644
+--- a/tsc/testdata/baselines/reference/compiler/enumNaNValues.js
++++ b/tsc/testdata/baselines/reference/compiler/enumNaNValues.js
+@@ -20,13 +20,13 @@ const c: E.A = F.X; // Error expected - different enums
+ "use strict";
+ var E;
+ (function (E) {
+-    E[E["A"] = NaN] = "A";
+-    E[E["B"] = NaN] = "B";
++    E[E["A"] = 0 / 0] = "A";
++    E[E["B"] = 0 / 0] = "B";
+ })(E || (E = {}));
+ const a = E.B;
+ const b = E.A;
+ var F;
+ (function (F) {
+-    F[F["X"] = NaN] = "X";
++    F[F["X"] = 0 / 0] = "X";
+ })(F || (F = {}));
+ const c = F.X; // Error expected - different enums
+diff --git a/tsc/testdata/baselines/reference/compiler/fakeInfinity2.js b/tsc/testdata/baselines/reference/compiler/fakeInfinity2.js
+index 6c2bf804..aca281aa 100644
+--- a/tsc/testdata/baselines/reference/compiler/fakeInfinity2.js
++++ b/tsc/testdata/baselines/reference/compiler/fakeInfinity2.js
+@@ -21,8 +21,8 @@ export const m = X.f();
+ //// [fakeInfinity2.js]
+ export var Foo;
+ (function (Foo) {
+-    Foo[Foo["A"] = Infinity] = "A";
+-    Foo[Foo["B"] = -Infinity] = "B";
++    Foo[Foo["A"] = 1 / 0] = "A";
++    Foo[Foo["B"] = -1 / 0] = "B";
+ })(Foo || (Foo = {}));
+ var X;
+ (function (X) {
+diff --git a/tsc/testdata/baselines/reference/compiler/fakeInfinity3.js b/tsc/testdata/baselines/reference/compiler/fakeInfinity3.js
+index dbde9c2c..5ac9f6a1 100644
+--- a/tsc/testdata/baselines/reference/compiler/fakeInfinity3.js
++++ b/tsc/testdata/baselines/reference/compiler/fakeInfinity3.js
+@@ -26,8 +26,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
+ exports.Infinity = exports.m = exports.Foo = void 0;
+ var Foo;
+ (function (Foo) {
+-    Foo[Foo["A"] = Infinity] = "A";
+-    Foo[Foo["B"] = -Infinity] = "B";
++    Foo[Foo["A"] = 1 / 0] = "A";
++    Foo[Foo["B"] = -1 / 0] = "B";
+ })(Foo || (exports.Foo = Foo = {}));
+ var X;
+ (function (X) {
+diff --git a/tsc/testdata/baselines/reference/conformance/enumComputedNonFiniteShadowed.js b/tsc/testdata/baselines/reference/conformance/enumComputedNonFiniteShadowed.js
+new file mode 100644
+index 00000000..fb4139b0
+--- /dev/null
++++ b/tsc/testdata/baselines/reference/conformance/enumComputedNonFiniteShadowed.js
+@@ -0,0 +1,41 @@
++//// [tests/cases/conformance/enums/enumComputedNonFiniteShadowed.ts] ////
++
++//// [enumComputedNonFiniteShadowed.ts]
++// https://github.com/microsoft/TypeScript/issues/55091
++
++{
++  let Infinity = 3;
++  let NaN = 7;
++  enum En {
++    Pos = 1 / 0,
++    Neg = -1 / 0,
++    Nan = 0 / 0,
++  }
++}
++
++enum NotShadowed {
++  Pos = 1 / 0,
++  Neg = -1 / 0,
++  Nan = 0 / 0,
++}
++
++
++//// [enumComputedNonFiniteShadowed.js]
++"use strict";
++// https://github.com/microsoft/TypeScript/issues/55091
++{
++    let Infinity = 3;
++    let NaN = 7;
++    let En;
++    (function (En) {
++        En[En["Pos"] = 1 / 0] = "Pos";
++        En[En["Neg"] = -1 / 0] = "Neg";
++        En[En["Nan"] = 0 / 0] = "Nan";
++    })(En || (En = {}));
++}
++var NotShadowed;
++(function (NotShadowed) {
++    NotShadowed[NotShadowed["Pos"] = 1 / 0] = "Pos";
++    NotShadowed[NotShadowed["Neg"] = -1 / 0] = "Neg";
++    NotShadowed[NotShadowed["Nan"] = 0 / 0] = "Nan";
++})(NotShadowed || (NotShadowed = {}));
+diff --git a/tsc/testdata/baselines/reference/conformance/enumComputedNonFiniteShadowed.symbols b/tsc/testdata/baselines/reference/conformance/enumComputedNonFiniteShadowed.symbols
+new file mode 100644
+index 00000000..28825188
+--- /dev/null
++++ b/tsc/testdata/baselines/reference/conformance/enumComputedNonFiniteShadowed.symbols
+@@ -0,0 +1,39 @@
++//// [tests/cases/conformance/enums/enumComputedNonFiniteShadowed.ts] ////
++
++=== enumComputedNonFiniteShadowed.ts ===
++// https://github.com/microsoft/TypeScript/issues/55091
++
++{
++  let Infinity = 3;
++>Infinity : Symbol(Infinity, Decl(enumComputedNonFiniteShadowed.ts, 3, 5))
++
++  let NaN = 7;
++>NaN : Symbol(NaN, Decl(enumComputedNonFiniteShadowed.ts, 4, 5))
++
++  enum En {
++>En : Symbol(En, Decl(enumComputedNonFiniteShadowed.ts, 4, 14))
++
++    Pos = 1 / 0,
++>Pos : Symbol(En.Pos, Decl(enumComputedNonFiniteShadowed.ts, 5, 11))
++
++    Neg = -1 / 0,
++>Neg : Symbol(En.Neg, Decl(enumComputedNonFiniteShadowed.ts, 6, 16))
++
++    Nan = 0 / 0,
++>Nan : Symbol(En.Nan, Decl(enumComputedNonFiniteShadowed.ts, 7, 17))
++  }
++}
++
++enum NotShadowed {
++>NotShadowed : Symbol(NotShadowed, Decl(enumComputedNonFiniteShadowed.ts, 10, 1))
++
++  Pos = 1 / 0,
++>Pos : Symbol(NotShadowed.Pos, Decl(enumComputedNonFiniteShadowed.ts, 12, 18))
++
++  Neg = -1 / 0,
++>Neg : Symbol(NotShadowed.Neg, Decl(enumComputedNonFiniteShadowed.ts, 13, 14))
++
++  Nan = 0 / 0,
++>Nan : Symbol(NotShadowed.Nan, Decl(enumComputedNonFiniteShadowed.ts, 14, 15))
++}
++
+diff --git a/tsc/testdata/baselines/reference/conformance/enumComputedNonFiniteShadowed.types b/tsc/testdata/baselines/reference/conformance/enumComputedNonFiniteShadowed.types
+new file mode 100644
+index 00000000..a3b71a39
+--- /dev/null
++++ b/tsc/testdata/baselines/reference/conformance/enumComputedNonFiniteShadowed.types
+@@ -0,0 +1,61 @@
++//// [tests/cases/conformance/enums/enumComputedNonFiniteShadowed.ts] ////
++
++=== enumComputedNonFiniteShadowed.ts ===
++// https://github.com/microsoft/TypeScript/issues/55091
++
++{
++  let Infinity = 3;
++>Infinity : number
++>3 : 3
++
++  let NaN = 7;
++>NaN : number
++>7 : 7
++
++  enum En {
++>En : En
++
++    Pos = 1 / 0,
++>Pos : En.Pos
++>1 / 0 : number
++>1 : 1
++>0 : 0
++
++    Neg = -1 / 0,
++>Neg : En.Neg
++>-1 / 0 : number
++>-1 : -1
++>1 : 1
++>0 : 0
++
++    Nan = 0 / 0,
++>Nan : En.Nan
++>0 / 0 : number
++>0 : 0
++>0 : 0
++  }
++}
++
++enum NotShadowed {
++>NotShadowed : NotShadowed
++
++  Pos = 1 / 0,
++>Pos : NotShadowed.Pos
++>1 / 0 : number
++>1 : 1
++>0 : 0
++
++  Neg = -1 / 0,
++>Neg : NotShadowed.Neg
++>-1 / 0 : number
++>-1 : -1
++>1 : 1
++>0 : 0
++
++  Nan = 0 / 0,
++>Nan : NotShadowed.Nan
++>0 / 0 : number
++>0 : 0
++>0 : 0
++}
++
+diff --git a/tsc/testdata/baselines/reference/conformance/enumConstantMembers.js b/tsc/testdata/baselines/reference/conformance/enumConstantMembers.js
+index f38cf9b6..0868cadf 100644
+--- a/tsc/testdata/baselines/reference/conformance/enumConstantMembers.js
++++ b/tsc/testdata/baselines/reference/conformance/enumConstantMembers.js
+@@ -62,11 +62,11 @@ var E3;
+ })(E3 || (E3 = {}));
+ var E5;
+ (function (E5) {
+-    E5[E5["a"] = Infinity] = "a";
+-    E5[E5["b"] = Infinity] = "b";
+-    E5[E5["c"] = Infinity] = "c";
+-    E5[E5["d"] = NaN] = "d";
+-    E5[E5["e"] = NaN] = "e";
+-    E5[E5["f"] = Infinity] = "f";
+-    E5[E5["g"] = -Infinity] = "g";
++    E5[E5["a"] = 1 / 0] = "a";
++    E5[E5["b"] = 1 / 0] = "b";
++    E5[E5["c"] = 1 / 0] = "c";
++    E5[E5["d"] = 0 / 0] = "d";
++    E5[E5["e"] = 0 / 0] = "e";
++    E5[E5["f"] = 1 / 0] = "f";
++    E5[E5["g"] = -1 / 0] = "g";
+ })(E5 || (E5 = {}));
+diff --git a/tsc/testdata/tests/cases/conformance/enums/enumComputedNonFiniteShadowed.ts b/tsc/testdata/tests/cases/conformance/enums/enumComputedNonFiniteShadowed.ts
+new file mode 100644
+index 00000000..2dadfd7c
+--- /dev/null
++++ b/tsc/testdata/tests/cases/conformance/enums/enumComputedNonFiniteShadowed.ts
+@@ -0,0 +1,18 @@
++// @target: es2015
++// https://github.com/microsoft/TypeScript/issues/55091
++
++{
++  let Infinity = 3;
++  let NaN = 7;
++  enum En {
++    Pos = 1 / 0,
++    Neg = -1 / 0,
++    Nan = 0 / 0,
++  }
++}
++
++enum NotShadowed {
++  Pos = 1 / 0,
++  Neg = -1 / 0,
++  Nan = 0 / 0,
++}
+-- 
+2.43.0
+
