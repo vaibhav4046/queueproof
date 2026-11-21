@@ -22,7 +22,7 @@ describe("public contracts", () => {
     reason: "Follow up",
     evidenceIds: ["src-1"],
     riskClass: "low",
-    idempotencyKey: "idem-0123456789abcdef",
+    idempotencyKey: "idem-0123456789abcdef", // gitleaks:allow (fixture)
   };
 
   it("accepts an action proposal that cites evidence", () => {
