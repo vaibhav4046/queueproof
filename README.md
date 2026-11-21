@@ -1,23 +1,38 @@
 # QueueProof
 
-**Know what needs attention, with the evidence attached.**
+**Cited answers across your work tools and documents, plus a ranked queue of what needs attention, with every claim linked to the record it came from.**
 
 [![CI](https://github.com/vaibhav4046/queueproof/actions/workflows/ci.yml/badge.svg)](https://github.com/vaibhav4046/queueproof/actions/workflows/ci.yml)
 
-QueueProof retrieves work evidence through HydraDB, answers cross-source questions with
-claim-level citations, compiles a deterministic priority queue, and keeps external writes
-behind an approval boundary. Missing evidence and source contradictions stay visible instead
-of being smoothed over by the model.
+**Live:** <https://queueproof.vercel.app> · **60-second demo:** <https://youtu.be/prKT-PC7NYw> ·
+**Method:** <https://queueproof.vercel.app/method>
 
-- **60-second demo: <https://youtu.be/prKT-PC7NYw>**
-- Product: <https://queueproof.vercel.app>
-- Source: <https://github.com/vaibhav4046/queueproof>
-- Method: <https://queueproof.vercel.app/method>
-- Measured results: <https://queueproof.vercel.app/benchmarks>
-- MCP session receipts: [docs/MCP_SESSION.md](docs/MCP_SESSION.md)
-- Candidate and release receipt: [RELEASE_EVIDENCE.md](RELEASE_EVIDENCE.md)
-- 60-second walkthrough script: [docs/DEMO_SCRIPT_60S.md](docs/DEMO_SCRIPT_60S.md)
-- Submission copy: [docs/SUBMISSION_COPY.md](docs/SUBMISSION_COPY.md)
+![QueueProof live homepage: the Ask workspace with verified-source count and Quick / Best / Investigate retrieval modes](docs/assets/00-live-home.png)
+
+*Live production homepage (public reviewer workspace), captured 2026-11-21 at 1440x900.*
+
+### What this demonstrates
+
+- **Grounded retrieval that can say "I don't know".** A deterministic query planner
+  ([`packages/retrieval`](packages/retrieval/src/index.ts)) routes each question to HydraDB Fast
+  or Thinking retrieval (with exact-ID lexical lanes); synthesis
+  ([`lib/server/synthesis.ts`](lib/server/synthesis.ts)) ties every claim to a stored receipt and
+  returns partial or abstained answers, keeping source contradictions visible instead of merging them.
+- **Agent tool access with a human-approval boundary.** An OAuth-protected MCP server
+  ([`packages/mcp`](packages/mcp/src/server.ts), [`app/mcp`](app/mcp/route.ts)) exposes scoped
+  tools (`queueproof:read`, `propose`, `sync`; no execute tool), plus a public read-only
+  `/mcp/demo`. Provider writes start as proposals and need owner approval plus an at-most-once
+  execution claim, a `UNIQUE(proposal_id)` row (typed payloads in
+  [`packages/actions`](packages/actions/src/index.ts), approval route in
+  [`app/api/actions/`](app/api/actions/)).
+- **Evals bound to the deployed commit.** A strict grounded grader over frozen fixtures
+  ([`evals/`](evals/)), a deterministic router benchmark run in CI, and live benchmark artifacts
+  that the product only displays when they match the running release SHA.
+
+QueueProof was built for the HydraDB Connectors Hackathon (July-August 2026). Submission
+material lives in [`submission/`](submission/) and [docs/SUBMISSION_COPY.md](docs/SUBMISSION_COPY.md);
+release receipts are in [RELEASE_EVIDENCE.md](RELEASE_EVIDENCE.md) and
+[docs/MCP_SESSION.md](docs/MCP_SESSION.md).
 
 ## The product
 
@@ -35,7 +50,7 @@ The evaluation method is published in the product, not just in this repository.
 
 ![Method page: how cases are graded and why REVIEW stays a failure](docs/assets/03-method.png)
 
-## Judge path
+## Product routes
 
 The product has real, shareable routes rather than hash-only panels:
 
@@ -95,85 +110,48 @@ compare relative query work; they are not dollars. See [connector proof](docs/CO
 
 ## Public and owner boundaries
 
-The public deployment remains a shared, read-oriented judge workspace. Visitors can inspect
-receipts, ask bounded questions, and review queue packets. **Sign in** and **Create account** use
-the branded Supabase magic-link flow; each external subject is provisioned a deterministic private QueueProof workspace whose
-sources, documents, receipts, queue, and MCP clients are isolated from every other account.
-
-Credential configuration, connector mutation, document uploads, proposal history, approvals,
-MCP administration, and external writes require an authenticated workspace owner. The historic
-[`/owner`](https://queueproof.vercel.app/owner) access-token flow is a transition path only and can
-be used during hybrid development. A complete production Supabase configuration resolves to
-Supabase-only web identity and disables legacy owner sign-in when the selectors are omitted; explicit
-production `hybrid`, `legacy`, or legacy-enabled settings fail startup validation. Set
-`QUEUEPROOF_AUTH_MODE=supabase` and `QUEUEPROOF_LEGACY_OWNER_SIGNIN=false` in Vercel when you want that
-policy visible in deployment configuration. Only the Supabase publishable key reaches browser
-JavaScript; service-role credentials and legacy session secrets do not.
-
-`QUEUEPROOF_PUBLIC_WORKSPACE_ID` selects the exact public workspace, which must also contain an
-explicit `user:public-access` membership. If either is missing, QueueProof fails closed instead of
-guessing which tenant to expose—even when the database has only one workspace. Public queries are
-rate-limited. Secrets are encrypted at rest and are never returned by the API.
-
-Provision that membership once from a trusted operator shell with the production Turso variables
-already loaded (standalone scripts do not automatically load `.env.local`):
-
-```bash
-pnpm public:provision -- --workspace ws_<exact-existing-id>
-```
-
-The command verifies the workspace exists, atomically upserts only the fixed public user and a
-non-owner `member` role, records an audit event, and is safe to repeat. It never creates a
-workspace and is never called by a request. Then set `QUEUEPROOF_PUBLIC_ACCESS=true` and the same
-`QUEUEPROOF_PUBLIC_WORKSPACE_ID`, redeploy, and keep the exact workspace assertion in the release
-gate. See [public workspace provisioning](docs/PUBLIC_WORKSPACE_PROVISIONING.md).
+The public deployment is a shared, read-oriented reviewer workspace: visitors can ask bounded,
+rate-limited questions, inspect receipts, and review queue packets. Signing in (Supabase magic
+link) provisions an isolated private workspace. Credentials, connector changes, uploads,
+approvals, MCP administration, and external writes require an authenticated workspace owner,
+and public workspace selection fails closed. Details, auth-mode settings, and the provisioning
+command: [docs/PUBLIC_AND_OWNER_BOUNDARIES.md](docs/PUBLIC_AND_OWNER_BOUNDARIES.md).
 
 ## Architecture
 
 ```mermaid
-graph LR
-  SL["Slack"]
-  GH["GitHub"]
-  LI["Linear"]
-  GM["Gmail"]
-  DOC["Documents - 346 page PDF"]
-  CAT["HydraDB connector catalogue"]
-  IDX["HydraDB document indexing"]
-  RET["HydraDB retrieval"]
-  PROOF["QueueProof connector proof gate"]
-  PLAN["QueueProof query planner"]
-  MERGE["Evidence merge"]
-  SYN["Claim level synthesis"]
-  RANK["Deterministic ranking"]
-  APPR["Approval boundary"]
-  WEB["Web workspace"]
-  MCP["MCP endpoint"]
-  LAB["API lab release artifacts"]
-  TURSO["Turso libSQL receipts and audit"]
+flowchart LR
+  UI["Web UI and JSON API<br/>app/, app/api/"]
+  MCP["MCP server<br/>app/mcp, packages/mcp"]
+  ID["Actor and workspace resolution<br/>lib/server/identity.ts"]
+  ASK["Ask orchestration<br/>app/api/ask, lib/server/query-workflow.ts"]
+  RET["Query planner<br/>packages/retrieval"]
+  HY["HydraDB client<br/>lib/server/hydradb-account.ts, packages/hydradb"]
+  SYN["Grounded synthesis<br/>lib/server/synthesis.ts"]
+  PROOF["Connector proof gate<br/>lib/server/connector-proof.ts"]
+  Q["Queue and ranking<br/>lib/server/queue.ts, packages/ranking"]
+  ACT["Proposals and approval<br/>packages/actions, app/api/actions"]
+  DB[("Turso / libSQL store<br/>lib/server/store.ts, db/")]
+  EV["Evals and benchmarks<br/>evals/, scripts/run-evals.mjs"]
 
-  SL --> CAT
-  GH --> CAT
-  LI --> CAT
-  GM --> CAT
-  DOC --> IDX
-  CAT --> PROOF
-  IDX --> PROOF
-  PROOF --> PLAN
-  PLAN --> RET
-  RET --> MERGE
-  MERGE --> SYN
-  SYN --> RANK
-  RANK --> APPR
-  SYN --> WEB
-  SYN --> MCP
-  RANK --> WEB
-  APPR --> SL
-  APPR --> LI
-  WEB --> LAB
-  SYN --> TURSO
-  APPR --> TURSO
-  PROOF --> TURSO
+  UI --> ID
+  MCP --> ID
+  ID --> ASK
+  ASK --> RET
+  ASK --> HY
+  ASK --> SYN
+  PROOF --> HY
+  PROOF --> DB
+  ASK --> DB
+  ASK --> Q
+  Q --> ACT
+  ACT --> DB
+  EV --> RET
 ```
+
+Every request resolves an actor and workspace first, and only connectors that pass the proof
+gate are queried. A provider-level data-flow diagram is in
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#product-data-flow-diagram).
 
 Evidence flows one way — sources into HydraDB, HydraDB into retrieval, retrieval into cited
 claims — and the only path back out to a provider runs through the approval boundary.

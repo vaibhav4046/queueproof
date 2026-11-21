@@ -174,3 +174,52 @@ is contained and restored.
 Release QA must cover 320x568, 375x667, 390x844, 430x932, 768x1024, 1024x768,
 1280x800, 1440x900, 1920x1080, mobile landscape, 200% zoom, keyboard navigation, and
 reduced motion. Historical Evidence Orbit/WebGL captures are not proof of the final design.
+
+## Product data flow (diagram)
+
+Provider-level view of how evidence moves from sources to cited claims and back out only through approval.
+
+```mermaid
+graph LR
+  SL["Slack"]
+  GH["GitHub"]
+  LI["Linear"]
+  GM["Gmail"]
+  DOC["Documents - 346 page PDF"]
+  CAT["HydraDB connector catalogue"]
+  IDX["HydraDB document indexing"]
+  RET["HydraDB retrieval"]
+  PROOF["QueueProof connector proof gate"]
+  PLAN["QueueProof query planner"]
+  MERGE["Evidence merge"]
+  SYN["Claim level synthesis"]
+  RANK["Deterministic ranking"]
+  APPR["Approval boundary"]
+  WEB["Web workspace"]
+  MCP["MCP endpoint"]
+  LAB["API lab release artifacts"]
+  TURSO["Turso libSQL receipts and audit"]
+
+  SL --> CAT
+  GH --> CAT
+  LI --> CAT
+  GM --> CAT
+  DOC --> IDX
+  CAT --> PROOF
+  IDX --> PROOF
+  PROOF --> PLAN
+  PLAN --> RET
+  RET --> MERGE
+  MERGE --> SYN
+  SYN --> RANK
+  RANK --> APPR
+  SYN --> WEB
+  SYN --> MCP
+  RANK --> WEB
+  APPR --> SL
+  APPR --> LI
+  WEB --> LAB
+  SYN --> TURSO
+  APPR --> TURSO
+  PROOF --> TURSO
+```
