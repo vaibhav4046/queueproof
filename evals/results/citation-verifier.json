@@ -1,0 +1,531 @@
+{
+  "dataset": "evals/fixtures/citation-support-pairs.json",
+  "note": "Hand-labelled claim/passage support pairs built from QueueProof unit-test fixtures (tests/synthesis.test.ts). This is NOT production data and NOT a benchmark of live retrieval; it is a small before/after diagnostic for the optional citation-support verifier.",
+  "counts": {
+    "total": 90,
+    "supported": 42,
+    "not_supported": 48
+  },
+  "verbatim": {
+    "accuracy": 0.7777777777777778,
+    "precision": 1,
+    "recall": 0.5238095238095238,
+    "f1": 0.6875000000000001,
+    "confusion": {
+      "tp": 22,
+      "fp": 0,
+      "tn": 48,
+      "fn": 20
+    },
+    "byKind": {
+      "emitted_claim": {
+        "rows": 22,
+        "correct": 22
+      },
+      "contradiction_summary": {
+        "rows": 6,
+        "correct": 2
+      },
+      "paraphrase": {
+        "rows": 16,
+        "correct": 0
+      },
+      "mutated_claim": {
+        "rows": 24,
+        "correct": 24
+      },
+      "cross_evidence": {
+        "rows": 22,
+        "correct": 22
+      }
+    }
+  },
+  "sidecar": {
+    "model": "microsoft/deberta-v3-small",
+    "threshold": 0.5,
+    "accuracy": 0.9222222222222223,
+    "precision": 0.926829268292683,
+    "recall": 0.9047619047619048,
+    "f1": 0.9156626506024096,
+    "confusion": {
+      "tp": 38,
+      "fp": 3,
+      "tn": 45,
+      "fn": 4
+    },
+    "byKind": {
+      "emitted_claim": {
+        "rows": 22,
+        "correct": 22
+      },
+      "contradiction_summary": {
+        "rows": 6,
+        "correct": 2
+      },
+      "paraphrase": {
+        "rows": 16,
+        "correct": 16
+      },
+      "mutated_claim": {
+        "rows": 24,
+        "correct": 22
+      },
+      "cross_evidence": {
+        "rows": 22,
+        "correct": 21
+      }
+    },
+    "scores": [
+      {
+        "id": "csp-001",
+        "label": "supported",
+        "score": 0.9794
+      },
+      {
+        "id": "csp-002",
+        "label": "supported",
+        "score": 0.9875
+      },
+      {
+        "id": "csp-003",
+        "label": "supported",
+        "score": 0.9885
+      },
+      {
+        "id": "csp-004",
+        "label": "supported",
+        "score": 0.0595
+      },
+      {
+        "id": "csp-005",
+        "label": "supported",
+        "score": 0.9706
+      },
+      {
+        "id": "csp-006",
+        "label": "supported",
+        "score": 0.9897
+      },
+      {
+        "id": "csp-007",
+        "label": "supported",
+        "score": 0.9896
+      },
+      {
+        "id": "csp-008",
+        "label": "supported",
+        "score": 0.348
+      },
+      {
+        "id": "csp-009",
+        "label": "supported",
+        "score": 0.9912
+      },
+      {
+        "id": "csp-010",
+        "label": "supported",
+        "score": 0.1298
+      },
+      {
+        "id": "csp-011",
+        "label": "supported",
+        "score": 0.9892
+      },
+      {
+        "id": "csp-012",
+        "label": "supported",
+        "score": 0.986
+      },
+      {
+        "id": "csp-013",
+        "label": "supported",
+        "score": 0.9909
+      },
+      {
+        "id": "csp-014",
+        "label": "supported",
+        "score": 0.9883
+      },
+      {
+        "id": "csp-015",
+        "label": "supported",
+        "score": 0.9822
+      },
+      {
+        "id": "csp-016",
+        "label": "supported",
+        "score": 0.9832
+      },
+      {
+        "id": "csp-017",
+        "label": "supported",
+        "score": 0.9873
+      },
+      {
+        "id": "csp-018",
+        "label": "supported",
+        "score": 0.977
+      },
+      {
+        "id": "csp-019",
+        "label": "supported",
+        "score": 0.8832
+      },
+      {
+        "id": "csp-020",
+        "label": "supported",
+        "score": 0.9889
+      },
+      {
+        "id": "csp-021",
+        "label": "supported",
+        "score": 0.9846
+      },
+      {
+        "id": "csp-022",
+        "label": "supported",
+        "score": 0.9856
+      },
+      {
+        "id": "csp-023",
+        "label": "supported",
+        "score": 0.9908
+      },
+      {
+        "id": "csp-024",
+        "label": "supported",
+        "score": 0.9878
+      },
+      {
+        "id": "csp-025",
+        "label": "supported",
+        "score": 0.4
+      },
+      {
+        "id": "csp-026",
+        "label": "supported",
+        "score": 0.9837
+      },
+      {
+        "id": "csp-027",
+        "label": "supported",
+        "score": 0.8118
+      },
+      {
+        "id": "csp-028",
+        "label": "supported",
+        "score": 0.5907
+      },
+      {
+        "id": "csp-029",
+        "label": "supported",
+        "score": 0.9759
+      },
+      {
+        "id": "csp-030",
+        "label": "supported",
+        "score": 0.9201
+      },
+      {
+        "id": "csp-031",
+        "label": "supported",
+        "score": 0.9687
+      },
+      {
+        "id": "csp-032",
+        "label": "supported",
+        "score": 0.9766
+      },
+      {
+        "id": "csp-033",
+        "label": "supported",
+        "score": 0.8749
+      },
+      {
+        "id": "csp-034",
+        "label": "supported",
+        "score": 0.9391
+      },
+      {
+        "id": "csp-035",
+        "label": "supported",
+        "score": 0.9718
+      },
+      {
+        "id": "csp-036",
+        "label": "supported",
+        "score": 0.9247
+      },
+      {
+        "id": "csp-037",
+        "label": "supported",
+        "score": 0.9681
+      },
+      {
+        "id": "csp-038",
+        "label": "supported",
+        "score": 0.9127
+      },
+      {
+        "id": "csp-039",
+        "label": "supported",
+        "score": 0.9663
+      },
+      {
+        "id": "csp-040",
+        "label": "supported",
+        "score": 0.9237
+      },
+      {
+        "id": "csp-041",
+        "label": "supported",
+        "score": 0.9817
+      },
+      {
+        "id": "csp-042",
+        "label": "supported",
+        "score": 0.9463
+      },
+      {
+        "id": "csp-043",
+        "label": "not_supported",
+        "score": 0.2088
+      },
+      {
+        "id": "csp-044",
+        "label": "not_supported",
+        "score": 0.0096
+      },
+      {
+        "id": "csp-045",
+        "label": "not_supported",
+        "score": 0.0244
+      },
+      {
+        "id": "csp-046",
+        "label": "not_supported",
+        "score": 0.0092
+      },
+      {
+        "id": "csp-047",
+        "label": "not_supported",
+        "score": 0.0089
+      },
+      {
+        "id": "csp-048",
+        "label": "not_supported",
+        "score": 0.0174
+      },
+      {
+        "id": "csp-049",
+        "label": "not_supported",
+        "score": 0.9778
+      },
+      {
+        "id": "csp-050",
+        "label": "not_supported",
+        "score": 0.0102
+      },
+      {
+        "id": "csp-051",
+        "label": "not_supported",
+        "score": 0.0761
+      },
+      {
+        "id": "csp-052",
+        "label": "not_supported",
+        "score": 0.0187
+      },
+      {
+        "id": "csp-053",
+        "label": "not_supported",
+        "score": 0.0237
+      },
+      {
+        "id": "csp-054",
+        "label": "not_supported",
+        "score": 0.0181
+      },
+      {
+        "id": "csp-055",
+        "label": "not_supported",
+        "score": 0.0097
+      },
+      {
+        "id": "csp-056",
+        "label": "not_supported",
+        "score": 0.7082
+      },
+      {
+        "id": "csp-057",
+        "label": "not_supported",
+        "score": 0.0068
+      },
+      {
+        "id": "csp-058",
+        "label": "not_supported",
+        "score": 0.0094
+      },
+      {
+        "id": "csp-059",
+        "label": "not_supported",
+        "score": 0.0151
+      },
+      {
+        "id": "csp-060",
+        "label": "not_supported",
+        "score": 0.0323
+      },
+      {
+        "id": "csp-061",
+        "label": "not_supported",
+        "score": 0.0069
+      },
+      {
+        "id": "csp-062",
+        "label": "not_supported",
+        "score": 0.0448
+      },
+      {
+        "id": "csp-063",
+        "label": "not_supported",
+        "score": 0.3787
+      },
+      {
+        "id": "csp-064",
+        "label": "not_supported",
+        "score": 0.0102
+      },
+      {
+        "id": "csp-065",
+        "label": "not_supported",
+        "score": 0.0712
+      },
+      {
+        "id": "csp-066",
+        "label": "not_supported",
+        "score": 0.0784
+      },
+      {
+        "id": "csp-067",
+        "label": "not_supported",
+        "score": 0.16
+      },
+      {
+        "id": "csp-068",
+        "label": "not_supported",
+        "score": 0.0733
+      },
+      {
+        "id": "csp-069",
+        "label": "not_supported",
+        "score": 0.2053
+      },
+      {
+        "id": "csp-070",
+        "label": "not_supported",
+        "score": 0.0293
+      },
+      {
+        "id": "csp-071",
+        "label": "not_supported",
+        "score": 0.0382
+      },
+      {
+        "id": "csp-072",
+        "label": "not_supported",
+        "score": 0.0092
+      },
+      {
+        "id": "csp-073",
+        "label": "not_supported",
+        "score": 0.1998
+      },
+      {
+        "id": "csp-074",
+        "label": "not_supported",
+        "score": 0.0127
+      },
+      {
+        "id": "csp-075",
+        "label": "not_supported",
+        "score": 0.5029
+      },
+      {
+        "id": "csp-076",
+        "label": "not_supported",
+        "score": 0.0236
+      },
+      {
+        "id": "csp-077",
+        "label": "not_supported",
+        "score": 0.0126
+      },
+      {
+        "id": "csp-078",
+        "label": "not_supported",
+        "score": 0.0353
+      },
+      {
+        "id": "csp-079",
+        "label": "not_supported",
+        "score": 0.0518
+      },
+      {
+        "id": "csp-080",
+        "label": "not_supported",
+        "score": 0.0457
+      },
+      {
+        "id": "csp-081",
+        "label": "not_supported",
+        "score": 0.2778
+      },
+      {
+        "id": "csp-082",
+        "label": "not_supported",
+        "score": 0.0038
+      },
+      {
+        "id": "csp-083",
+        "label": "not_supported",
+        "score": 0.0624
+      },
+      {
+        "id": "csp-084",
+        "label": "not_supported",
+        "score": 0.1499
+      },
+      {
+        "id": "csp-085",
+        "label": "not_supported",
+        "score": 0.0135
+      },
+      {
+        "id": "csp-086",
+        "label": "not_supported",
+        "score": 0.0061
+      },
+      {
+        "id": "csp-087",
+        "label": "not_supported",
+        "score": 0.0213
+      },
+      {
+        "id": "csp-088",
+        "label": "not_supported",
+        "score": 0.0128
+      },
+      {
+        "id": "csp-089",
+        "label": "not_supported",
+        "score": 0.3533
+      },
+      {
+        "id": "csp-090",
+        "label": "not_supported",
+        "score": 0.1333
+      }
+    ]
+  }
+}

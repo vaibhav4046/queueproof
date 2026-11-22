@@ -1,0 +1,740 @@
+{
+  "description": "Hand-labelled claim/passage support pairs built from QueueProof unit-test fixtures (tests/synthesis.test.ts). This is NOT production data and NOT a benchmark of live retrieval; it is a small before/after diagnostic for the optional citation-support verifier.",
+  "construction": [
+    "passage = evidence title + \". \" + excerpt, the same string lib/server/citation-verifier.ts sends to the sidecar.",
+    "emitted_claim (supported): claims synthesiseGroundedAnswer actually emitted when run on the fixture inputs of the named test case, paired with the evidence it cited. Each was re-read and confirmed supported.",
+    "contradiction_summary: contradiction summaries synthesis emitted (paraphrased, multi-receipt), paired with the concatenation of their cited passages; two hand-written misstatements (swapped dates, negated state) are labelled not_supported.",
+    "paraphrase (supported): hand-written rewordings of a fixture fact that the passage fully states.",
+    "mutated_claim (not_supported): an emitted or fixture claim with one changed date, ID, owner, project, value, or a negation, paired with its original passage.",
+    "cross_evidence (not_supported): an emitted claim paired with a different evidence item from the same fixture that does not state it. Borderline: the BUG-123 claim vs linear-1 (linear-1 states the outage and Atlas Launch but never names BUG-123) is labelled not_supported.",
+    "Labels were assigned by one reader; there is no inter-annotator agreement. Fixture ids reused across tests (billing-linear, billing-slack) resolve to the billing deadline conflict (medical-billing distractor) case for hand-written rows."
+  ],
+  "version": 1,
+  "counts": {
+    "total": 90,
+    "supported": 42,
+    "not_supported": 48
+  },
+  "rows": [
+    {
+      "id": "csp-001",
+      "claim": "Priya Raman filed this against Atlas Launch. Engineering committed to shipping the AuthShield fix before Friday 7 August 2026.",
+      "passage": "AuthShield authentication outage for Northwind. INC-2031: Northwind reported an authentication outage. Priya Raman filed this against Atlas Launch. Engineering committed to shipping the AuthShield fix before Friday 7 August 2026.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: flagship cross-provider question",
+      "kind": "emitted_claim"
+    },
+    {
+      "id": "csp-002",
+      "claim": "The AuthShield authentication fix for INC-2031 was merged.",
+      "passage": "AuthShield fix merged. The AuthShield authentication fix for INC-2031 was merged. Linear issue ENG-456 is still showing as open even though the code is shipped.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: flagship cross-provider question",
+      "kind": "emitted_claim"
+    },
+    {
+      "id": "csp-003",
+      "claim": "Northwind escalated the AuthShield authentication outage (INC-2031).",
+      "passage": "Northwind escalation. Northwind escalated the AuthShield authentication outage (INC-2031). Priya Raman filed BUG-123 against Atlas Launch.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: flagship cross-provider question",
+      "kind": "emitted_claim"
+    },
+    {
+      "id": "csp-004",
+      "claim": "github receipt reports the code complete while ENG-456 remains open in its cited tracking state.",
+      "passage": "AuthShield fix merged. The AuthShield authentication fix for INC-2031 was merged. Linear issue ENG-456 is still showing as open even though the code is shipped.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: flagship cross-provider question",
+      "kind": "contradiction_summary"
+    },
+    {
+      "id": "csp-005",
+      "claim": "Engineering committed to shipping the AuthShield fix before Friday 7 August 2026.",
+      "passage": "AuthShield authentication outage for Northwind. INC-2031: Northwind reported an authentication outage. Priya Raman filed this against Atlas Launch. Engineering committed to shipping the AuthShield fix before Friday 7 August 2026.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: merged-versus-open contradiction",
+      "kind": "emitted_claim"
+    },
+    {
+      "id": "csp-006",
+      "claim": "The billing migration deadline moved from 7 August to 14 August 2026 after the Northwind escalation took priority.",
+      "passage": "Billing migration deadline moved to 14 August. The billing migration deadline moved from 7 August to 14 August 2026 after the Northwind escalation took priority.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: billing deadline conflict (medical-billing distractor)",
+      "kind": "emitted_claim"
+    },
+    {
+      "id": "csp-007",
+      "claim": "The Linear ticket still says the billing migration deadline moved to 14 August, but finance confirmed it is staying at 7 August.",
+      "passage": "Finance kept the billing migration at 7 August. The Linear ticket still says the billing migration deadline moved to 14 August, but finance confirmed it is staying at 7 August.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: billing deadline conflict (medical-billing distractor)",
+      "kind": "emitted_claim"
+    },
+    {
+      "id": "csp-008",
+      "claim": "linear records the date as 14 August 2026, moved from 7 August; slack still says 7 August.",
+      "passage": "Billing migration deadline moved to 14 August. The billing migration deadline moved from 7 August to 14 August 2026 after the Northwind escalation took priority. Finance kept the billing migration at 7 August. The Linear ticket still says the billing migration deadline moved to 14 August, but finance confirmed it is staying at 7 August.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: billing deadline conflict (medical-billing distractor)",
+      "kind": "contradiction_summary"
+    },
+    {
+      "id": "csp-009",
+      "claim": "The billing migration deadline moved from 7 August to 14 August 2026.",
+      "passage": "Billing migration. The billing migration deadline moved from 7 August to 14 August 2026.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: deadline conflict omitting shared year",
+      "kind": "emitted_claim"
+    },
+    {
+      "id": "csp-010",
+      "claim": "linear records the date as 14 August 2026, moved from 7 August; slack still says 7 August.",
+      "passage": "Billing migration. The billing migration deadline moved from 7 August to 14 August 2026. Billing migration decision. Finance confirmed the billing migration is staying at 7 August.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: deadline conflict omitting shared year",
+      "kind": "contradiction_summary"
+    },
+    {
+      "id": "csp-011",
+      "claim": "Northwind escalated the AuthShield authentication outage (INC-2031). Priya Raman filed BUG-123 against Atlas Launch.",
+      "passage": "Northwind escalation. Northwind escalated the AuthShield authentication outage (INC-2031). Priya Raman filed BUG-123 against Atlas Launch.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: BUG-123 tracker bridge",
+      "kind": "emitted_claim"
+    },
+    {
+      "id": "csp-012",
+      "claim": "INC-2031: Northwind reported an authentication outage. Priya Raman filed this against Atlas Launch. Engineering committed to shipping the AuthShield fix before Friday 7 August 2026.",
+      "passage": "AuthShield authentication outage for Northwind. INC-2031: Northwind reported an authentication outage. Priya Raman filed this against Atlas Launch. Engineering committed to shipping the AuthShield fix before Friday 7 August 2026.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: BUG-123 tracker bridge",
+      "kind": "emitted_claim"
+    },
+    {
+      "id": "csp-013",
+      "claim": "I promised Northwind a written incident post-mortem by 10 August. There is no Linear issue tracking that yet, someone please raise one.",
+      "passage": "Northwind post-mortem commitment. I promised Northwind a written incident post-mortem by 10 August. There is no Linear issue tracking that yet, someone please raise one.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: post-mortem promise without tracking",
+      "kind": "emitted_claim"
+    },
+    {
+      "id": "csp-014",
+      "claim": "Northwind have escalated the AuthShield authentication outage (INC-2031). Their whole team has been locked out since 29 July. Priya Raman is on it and filed BUG-123 against Atlas Launch.",
+      "passage": "Northwind escalation. Northwind have escalated the AuthShield authentication outage (INC-2031). Their whole team has been locked out since 29 July. Priya Raman is on it and filed BUG-123 against Atlas Launch.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: Priya Raman incident context",
+      "kind": "emitted_claim"
+    },
+    {
+      "id": "csp-015",
+      "claim": "### Objective AuthShield replaces long lived credentials with short lived tokens.. Open work ENG-456 reduces the AuthShield operator token lifetime to fifteen minutes. The committed completion date is 30 June 2031..",
+      "passage": "helios-operations-handbook.pdf. ### Objective AuthShield replaces long lived credentials with short lived tokens. ### Open work ENG-456 reduces the AuthShield operator token lifetime to fifteen minutes. The committed completion date is 30 June 2031. ### Dependencies The broker must be online.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: ENG-456 handbook headings",
+      "kind": "emitted_claim"
+    },
+    {
+      "id": "csp-016",
+      "claim": "Defect record BUG-123. Symptom BUG-123 records odometry drift after cold boot on Rover SDK 4.2.0. Fix fixed in Rover SDK 4.2.1, released on 21 May 2031.",
+      "passage": "helios-operations-handbook.pdf. Change Log. ## Defect record BUG-123. Symptom BUG-123 records odometry drift after cold boot on Rover SDK 4.2.0. Fix fixed in Rover SDK 4.2.1, released on 21 May 2031.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: BUG-123 change log",
+      "kind": "emitted_claim"
+    },
+    {
+      "id": "csp-017",
+      "claim": "## Incident report INC-2031. Summary INC-2031 was a Billing Migration double charge event on 8 April 2031. Customer impact lasted 41 minutes, from the first duplicate write until the run was halted.",
+      "passage": "helios-operations-handbook.pdf. ## Incident report INC-2031. Summary INC-2031 was a Billing Migration double charge event on 8 April 2031. Customer impact lasted 41 minutes, from the first duplicate write until the run was halted.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: INC-2031 impact across chunks",
+      "kind": "emitted_claim"
+    },
+    {
+      "id": "csp-018",
+      "claim": "Impact window is measured from the first duplicate write.",
+      "passage": "helios-operations-handbook.pdf. Impact window is measured from the first duplicate write. Do not offer a credit before the impact window is measured. Estimated credits that later shrink cost more trust.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: INC-2031 impact across chunks",
+      "kind": "emitted_claim"
+    },
+    {
+      "id": "csp-019",
+      "claim": "Do not offer a credit before the impact window is measured.",
+      "passage": "helios-operations-handbook.pdf. Impact window is measured from the first duplicate write. Do not offer a credit before the impact window is measured. Estimated credits that later shrink cost more trust.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: INC-2031 impact across chunks",
+      "kind": "emitted_claim"
+    },
+    {
+      "id": "csp-020",
+      "claim": "Priya Ramanathan, Customer Escalation Manager, employee HR-5871, running the Billing Migration escalation desk.",
+      "passage": "helios-operations-handbook.pdf. Customer operations. Priya Ramanathan, Customer Escalation Manager, employee HR-5871, running the Billing Migration escalation desk.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: escalation desk",
+      "kind": "emitted_claim"
+    },
+    {
+      "id": "csp-021",
+      "claim": "At a depot, a single Tier 2 engineer may flash Rover SDK field firmware without a second approver, provided the rover is on a maintenance stand with the drive system isolated.",
+      "passage": "helios-operations-handbook.pdf. OPS-POL-14 Rover SDK field firmware flashing. At a depot, a single Tier 2 engineer may flash Rover SDK field firmware without a second approver, provided the rover is on a maintenance stand with the drive system isolated.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: ADR-037 supersedes OPS-POL-14",
+      "kind": "emitted_claim"
+    },
+    {
+      "id": "csp-022",
+      "claim": "From this date every Rover SDK field firmware flash requires two approvers, and one must be a Safety Case Owner. The single engineer permission in OPS-POL-14 is withdrawn and must not be relied on.",
+      "passage": "helios-operations-handbook.pdf. ADR-037, dated 9 September 2031, supersedes OPS-POL-14. From this date every Rover SDK field firmware flash requires two approvers, and one must be a Safety Case Owner. The single engineer permission in OPS-POL-14 is withdrawn and must not be relied on.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: ADR-037 supersedes OPS-POL-14",
+      "kind": "emitted_claim"
+    },
+    {
+      "id": "csp-023",
+      "claim": "The billing reconciliation fix was deployed to production on 2 August 2026.",
+      "passage": "Billing reconciliation release. The billing reconciliation fix was deployed to production on 2 August 2026.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: real ship receipt",
+      "kind": "emitted_claim"
+    },
+    {
+      "id": "csp-024",
+      "claim": "The authentication fix for the Northwind outage (INC-2031) was merged. Linear issue ENG-456 is still showing as open even though the code is shipped.",
+      "passage": "Authentication fix merged but tracker still open. The authentication fix for the Northwind outage (INC-2031) was merged. Linear issue ENG-456 is still showing as open even though the code is shipped.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: recent delivery bridged to open tracker",
+      "kind": "emitted_claim"
+    },
+    {
+      "id": "csp-025",
+      "claim": "github reports the code complete while linear reports ENG-456 remains open.",
+      "passage": "Authentication fix merged but tracker still open. The authentication fix for the Northwind outage (INC-2031) was merged. Linear issue ENG-456 is still showing as open even though the code is shipped. ENG-456 AuthShield tracker remains open. Linear issue ENG-456 remains open for the AuthShield work linked to INC-2031 and Northwind.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: recent delivery bridged to open tracker",
+      "kind": "contradiction_summary"
+    },
+    {
+      "id": "csp-026",
+      "claim": "Atlas Launch is blocked on the AuthShield migration: ENG-802 cannot start until the Northwind tenant is migrated off the legacy token service.",
+      "passage": "ENG-802 Atlas Launch readiness. Atlas Launch is blocked on the AuthShield migration: ENG-802 cannot start until the Northwind tenant is migrated off the legacy token service.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: Atlas blocker",
+      "kind": "emitted_claim"
+    },
+    {
+      "id": "csp-027",
+      "claim": "Priya Raman filed BUG-123 for Atlas Launch.",
+      "passage": "Northwind escalation. Northwind escalated the AuthShield authentication outage (INC-2031). Priya Raman filed BUG-123 against Atlas Launch.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: BUG-123 tracker bridge",
+      "kind": "paraphrase"
+    },
+    {
+      "id": "csp-028",
+      "claim": "The fix for the AuthShield outage has been merged.",
+      "passage": "AuthShield fix merged. The AuthShield authentication fix for INC-2031 was merged. Linear issue ENG-456 is still showing as open even though the code is shipped.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: merged-versus-open contradiction",
+      "kind": "paraphrase"
+    },
+    {
+      "id": "csp-029",
+      "claim": "ENG-456 is still open in Linear even though the code shipped.",
+      "passage": "AuthShield fix merged. The AuthShield authentication fix for INC-2031 was merged. Linear issue ENG-456 is still showing as open even though the code is shipped.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: merged-versus-open contradiction",
+      "kind": "paraphrase"
+    },
+    {
+      "id": "csp-030",
+      "claim": "Engineering promised the AuthShield fix would ship before 7 August 2026.",
+      "passage": "AuthShield authentication outage for Northwind. INC-2031: Northwind reported an authentication outage. Priya Raman filed this against Atlas Launch. Engineering committed to shipping the AuthShield fix before Friday 7 August 2026.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: flagship cross-provider question",
+      "kind": "paraphrase"
+    },
+    {
+      "id": "csp-031",
+      "claim": "Northwind experienced an authentication outage tracked as INC-2031.",
+      "passage": "AuthShield authentication outage for Northwind. INC-2031: Northwind reported an authentication outage. Priya Raman filed this against Atlas Launch. Engineering committed to shipping the AuthShield fix before Friday 7 August 2026.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: flagship cross-provider question",
+      "kind": "paraphrase"
+    },
+    {
+      "id": "csp-032",
+      "claim": "Finance says the billing migration deadline remains 7 August.",
+      "passage": "Finance kept the billing migration at 7 August. The Linear ticket still says the billing migration deadline moved to 14 August, but finance confirmed it is staying at 7 August.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: billing deadline conflict (medical-billing distractor)",
+      "kind": "paraphrase"
+    },
+    {
+      "id": "csp-033",
+      "claim": "The billing migration was pushed back to 14 August 2026.",
+      "passage": "Billing migration deadline moved to 14 August. The billing migration deadline moved from 7 August to 14 August 2026 after the Northwind escalation took priority.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: billing deadline conflict (medical-billing distractor)",
+      "kind": "paraphrase"
+    },
+    {
+      "id": "csp-034",
+      "claim": "A written post-mortem was promised to Northwind for 10 August, with no Linear issue yet.",
+      "passage": "Northwind post-mortem commitment. I promised Northwind a written incident post-mortem by 10 August. There is no Linear issue tracking that yet, someone please raise one.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: post-mortem promise without tracking",
+      "kind": "paraphrase"
+    },
+    {
+      "id": "csp-035",
+      "claim": "Northwind's team has been locked out since 29 July.",
+      "passage": "Northwind escalation. Northwind have escalated the AuthShield authentication outage (INC-2031). Their whole team has been locked out since 29 July. Priya Raman is on it and filed BUG-123 against Atlas Launch.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: Priya Raman incident context",
+      "kind": "paraphrase"
+    },
+    {
+      "id": "csp-036",
+      "claim": "ENG-456 shortens the AuthShield operator token lifetime to 15 minutes, due 30 June 2031.",
+      "passage": "helios-operations-handbook.pdf. ### Objective AuthShield replaces long lived credentials with short lived tokens. ### Open work ENG-456 reduces the AuthShield operator token lifetime to fifteen minutes. The committed completion date is 30 June 2031. ### Dependencies The broker must be online.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: ENG-456 handbook headings",
+      "kind": "paraphrase"
+    },
+    {
+      "id": "csp-037",
+      "claim": "BUG-123 was fixed in Rover SDK 4.2.1, released 21 May 2031.",
+      "passage": "helios-operations-handbook.pdf. Change Log. ## Defect record BUG-123. Symptom BUG-123 records odometry drift after cold boot on Rover SDK 4.2.0. Fix fixed in Rover SDK 4.2.1, released on 21 May 2031.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: BUG-123 change log",
+      "kind": "paraphrase"
+    },
+    {
+      "id": "csp-038",
+      "claim": "INC-2031 caused 41 minutes of customer impact.",
+      "passage": "helios-operations-handbook.pdf. ## Incident report INC-2031. Summary INC-2031 was a Billing Migration double charge event on 8 April 2031. Customer impact lasted 41 minutes, from the first duplicate write until the run was halted.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: INC-2031 impact across chunks",
+      "kind": "paraphrase"
+    },
+    {
+      "id": "csp-039",
+      "claim": "Priya Ramanathan runs the Billing Migration escalation desk.",
+      "passage": "helios-operations-handbook.pdf. Customer operations. Priya Ramanathan, Customer Escalation Manager, employee HR-5871, running the Billing Migration escalation desk.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: escalation desk",
+      "kind": "paraphrase"
+    },
+    {
+      "id": "csp-040",
+      "claim": "Under ADR-037 every field firmware flash needs two approvers including a Safety Case Owner.",
+      "passage": "helios-operations-handbook.pdf. ADR-037, dated 9 September 2031, supersedes OPS-POL-14. From this date every Rover SDK field firmware flash requires two approvers, and one must be a Safety Case Owner. The single engineer permission in OPS-POL-14 is withdrawn and must not be relied on.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: ADR-037 supersedes OPS-POL-14",
+      "kind": "paraphrase"
+    },
+    {
+      "id": "csp-041",
+      "claim": "The billing reconciliation fix reached production on 2 August 2026.",
+      "passage": "Billing reconciliation release. The billing reconciliation fix was deployed to production on 2 August 2026.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: real ship receipt",
+      "kind": "paraphrase"
+    },
+    {
+      "id": "csp-042",
+      "claim": "The Northwind tenant must move off the legacy token service before ENG-802 can start.",
+      "passage": "ENG-802 Atlas Launch readiness. Atlas Launch is blocked on the AuthShield migration: ENG-802 cannot start until the Northwind tenant is migrated off the legacy token service.",
+      "label": "supported",
+      "source": "tests/synthesis.test.ts: Atlas blocker",
+      "kind": "paraphrase"
+    },
+    {
+      "id": "csp-043",
+      "claim": "Engineering committed to shipping the AuthShield fix before Friday 14 August 2026.",
+      "passage": "AuthShield authentication outage for Northwind. INC-2031: Northwind reported an authentication outage. Priya Raman filed this against Atlas Launch. Engineering committed to shipping the AuthShield fix before Friday 7 August 2026.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: flagship cross-provider question (changed date)",
+      "kind": "mutated_claim"
+    },
+    {
+      "id": "csp-044",
+      "claim": "The AuthShield authentication fix for INC-2032 was merged.",
+      "passage": "AuthShield fix merged. The AuthShield authentication fix for INC-2031 was merged. Linear issue ENG-456 is still showing as open even though the code is shipped.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: merged-versus-open contradiction (changed ID)",
+      "kind": "mutated_claim"
+    },
+    {
+      "id": "csp-045",
+      "claim": "Linear issue ENG-457 is still showing as open even though the code is shipped.",
+      "passage": "AuthShield fix merged. The AuthShield authentication fix for INC-2031 was merged. Linear issue ENG-456 is still showing as open even though the code is shipped.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: merged-versus-open contradiction (changed ID)",
+      "kind": "mutated_claim"
+    },
+    {
+      "id": "csp-046",
+      "claim": "Kenji Mori filed BUG-123 against Atlas Launch.",
+      "passage": "Northwind escalation. Northwind escalated the AuthShield authentication outage (INC-2031). Priya Raman filed BUG-123 against Atlas Launch.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: BUG-123 tracker bridge (changed owner)",
+      "kind": "mutated_claim"
+    },
+    {
+      "id": "csp-047",
+      "claim": "Priya Raman filed BUG-123 against Billing Migration.",
+      "passage": "Northwind escalation. Northwind escalated the AuthShield authentication outage (INC-2031). Priya Raman filed BUG-123 against Atlas Launch.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: BUG-123 tracker bridge (changed project)",
+      "kind": "mutated_claim"
+    },
+    {
+      "id": "csp-048",
+      "claim": "The billing migration deadline moved from 7 August to 21 August 2026.",
+      "passage": "Billing migration deadline moved to 14 August. The billing migration deadline moved from 7 August to 14 August 2026 after the Northwind escalation took priority.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: billing deadline conflict (medical-billing distractor) (changed date)",
+      "kind": "mutated_claim"
+    },
+    {
+      "id": "csp-049",
+      "claim": "Finance confirmed the billing migration is staying at 14 August.",
+      "passage": "Finance kept the billing migration at 7 August. The Linear ticket still says the billing migration deadline moved to 14 August, but finance confirmed it is staying at 7 August.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: billing deadline conflict (medical-billing distractor) (changed date)",
+      "kind": "mutated_claim"
+    },
+    {
+      "id": "csp-050",
+      "claim": "I promised Northwind a written incident post-mortem by 17 August.",
+      "passage": "Northwind post-mortem commitment. I promised Northwind a written incident post-mortem by 10 August. There is no Linear issue tracking that yet, someone please raise one.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: post-mortem promise without tracking (changed date)",
+      "kind": "mutated_claim"
+    },
+    {
+      "id": "csp-051",
+      "claim": "There is a Linear issue tracking the Northwind post-mortem.",
+      "passage": "Northwind post-mortem commitment. I promised Northwind a written incident post-mortem by 10 August. There is no Linear issue tracking that yet, someone please raise one.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: post-mortem promise without tracking (negated fact)",
+      "kind": "mutated_claim"
+    },
+    {
+      "id": "csp-052",
+      "claim": "Their whole team has been locked out since 29 June.",
+      "passage": "Northwind escalation. Northwind have escalated the AuthShield authentication outage (INC-2031). Their whole team has been locked out since 29 July. Priya Raman is on it and filed BUG-123 against Atlas Launch.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: Priya Raman incident context (changed date)",
+      "kind": "mutated_claim"
+    },
+    {
+      "id": "csp-053",
+      "claim": "Priya Raman is on it and filed BUG-321 against Atlas Launch.",
+      "passage": "Northwind escalation. Northwind have escalated the AuthShield authentication outage (INC-2031). Their whole team has been locked out since 29 July. Priya Raman is on it and filed BUG-123 against Atlas Launch.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: Priya Raman incident context (changed ID)",
+      "kind": "mutated_claim"
+    },
+    {
+      "id": "csp-054",
+      "claim": "ENG-456 reduces the AuthShield operator token lifetime to five minutes.",
+      "passage": "helios-operations-handbook.pdf. ### Objective AuthShield replaces long lived credentials with short lived tokens. ### Open work ENG-456 reduces the AuthShield operator token lifetime to fifteen minutes. The committed completion date is 30 June 2031. ### Dependencies The broker must be online.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: ENG-456 handbook headings (changed value)",
+      "kind": "mutated_claim"
+    },
+    {
+      "id": "csp-055",
+      "claim": "The committed completion date for ENG-456 is 30 July 2031.",
+      "passage": "helios-operations-handbook.pdf. ### Objective AuthShield replaces long lived credentials with short lived tokens. ### Open work ENG-456 reduces the AuthShield operator token lifetime to fifteen minutes. The committed completion date is 30 June 2031. ### Dependencies The broker must be online.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: ENG-456 handbook headings (changed date)",
+      "kind": "mutated_claim"
+    },
+    {
+      "id": "csp-056",
+      "claim": "BUG-123 was fixed in Rover SDK 4.2.0.",
+      "passage": "helios-operations-handbook.pdf. Change Log. ## Defect record BUG-123. Symptom BUG-123 records odometry drift after cold boot on Rover SDK 4.2.0. Fix fixed in Rover SDK 4.2.1, released on 21 May 2031.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: BUG-123 change log (changed version)",
+      "kind": "mutated_claim"
+    },
+    {
+      "id": "csp-057",
+      "claim": "Rover SDK 4.2.1 was released on 12 May 2031.",
+      "passage": "helios-operations-handbook.pdf. Change Log. ## Defect record BUG-123. Symptom BUG-123 records odometry drift after cold boot on Rover SDK 4.2.0. Fix fixed in Rover SDK 4.2.1, released on 21 May 2031.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: BUG-123 change log (changed date)",
+      "kind": "mutated_claim"
+    },
+    {
+      "id": "csp-058",
+      "claim": "Customer impact for INC-2031 lasted 14 minutes.",
+      "passage": "helios-operations-handbook.pdf. ## Incident report INC-2031. Summary INC-2031 was a Billing Migration double charge event on 8 April 2031. Customer impact lasted 41 minutes, from the first duplicate write until the run was halted.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: INC-2031 impact across chunks (changed value)",
+      "kind": "mutated_claim"
+    },
+    {
+      "id": "csp-059",
+      "claim": "INC-2031 was a Billing Migration double charge event on 8 March 2031.",
+      "passage": "helios-operations-handbook.pdf. ## Incident report INC-2031. Summary INC-2031 was a Billing Migration double charge event on 8 April 2031. Customer impact lasted 41 minutes, from the first duplicate write until the run was halted.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: INC-2031 impact across chunks (changed date)",
+      "kind": "mutated_claim"
+    },
+    {
+      "id": "csp-060",
+      "claim": "Priya Ramanathan, Customer Escalation Manager, employee HR-2214.",
+      "passage": "helios-operations-handbook.pdf. Customer operations. Priya Ramanathan, Customer Escalation Manager, employee HR-5871, running the Billing Migration escalation desk.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: escalation desk (changed ID)",
+      "kind": "mutated_claim"
+    },
+    {
+      "id": "csp-061",
+      "claim": "Priya Ramanathan runs the Atlas Launch escalation desk.",
+      "passage": "helios-operations-handbook.pdf. Customer operations. Priya Ramanathan, Customer Escalation Manager, employee HR-5871, running the Billing Migration escalation desk.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: escalation desk (changed project)",
+      "kind": "mutated_claim"
+    },
+    {
+      "id": "csp-062",
+      "claim": "ADR-037 requires a single approver for every Rover SDK field firmware flash.",
+      "passage": "helios-operations-handbook.pdf. ADR-037, dated 9 September 2031, supersedes OPS-POL-14. From this date every Rover SDK field firmware flash requires two approvers, and one must be a Safety Case Owner. The single engineer permission in OPS-POL-14 is withdrawn and must not be relied on.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: ADR-037 supersedes OPS-POL-14 (changed value)",
+      "kind": "mutated_claim"
+    },
+    {
+      "id": "csp-063",
+      "claim": "ADR-037, dated 9 September 2030, supersedes OPS-POL-14.",
+      "passage": "helios-operations-handbook.pdf. ADR-037, dated 9 September 2031, supersedes OPS-POL-14. From this date every Rover SDK field firmware flash requires two approvers, and one must be a Safety Case Owner. The single engineer permission in OPS-POL-14 is withdrawn and must not be relied on.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: ADR-037 supersedes OPS-POL-14 (changed date)",
+      "kind": "mutated_claim"
+    },
+    {
+      "id": "csp-064",
+      "claim": "The billing reconciliation fix was deployed to production on 12 August 2026.",
+      "passage": "Billing reconciliation release. The billing reconciliation fix was deployed to production on 2 August 2026.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: real ship receipt (changed date)",
+      "kind": "mutated_claim"
+    },
+    {
+      "id": "csp-065",
+      "claim": "Atlas Launch is blocked on the AuthShield migration: ENG-803 cannot start.",
+      "passage": "ENG-802 Atlas Launch readiness. Atlas Launch is blocked on the AuthShield migration: ENG-802 cannot start until the Northwind tenant is migrated off the legacy token service.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: Atlas blocker (changed ID)",
+      "kind": "mutated_claim"
+    },
+    {
+      "id": "csp-066",
+      "claim": "Linear issue ENG-456 has been closed for the AuthShield work.",
+      "passage": "ENG-456 AuthShield tracker remains open. Linear issue ENG-456 remains open for the AuthShield work linked to INC-2031 and Northwind.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: recent delivery bridged to open tracker (negated fact)",
+      "kind": "mutated_claim"
+    },
+    {
+      "id": "csp-067",
+      "claim": "The AuthShield authentication fix for INC-2031 was merged.",
+      "passage": "AuthShield authentication outage for Northwind. INC-2031: Northwind reported an authentication outage. Priya Raman filed this against Atlas Launch. Engineering committed to shipping the AuthShield fix before Friday 7 August 2026.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: flagship cross-provider question",
+      "kind": "cross_evidence"
+    },
+    {
+      "id": "csp-068",
+      "claim": "The AuthShield authentication fix for INC-2031 was merged.",
+      "passage": "Northwind escalation. Northwind escalated the AuthShield authentication outage (INC-2031). Priya Raman filed BUG-123 against Atlas Launch.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: flagship cross-provider question",
+      "kind": "cross_evidence"
+    },
+    {
+      "id": "csp-069",
+      "claim": "Engineering committed to shipping the AuthShield fix before Friday 7 August 2026.",
+      "passage": "AuthShield fix merged. The AuthShield authentication fix for INC-2031 was merged. Linear issue ENG-456 is still showing as open even though the code is shipped.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: merged-versus-open contradiction",
+      "kind": "cross_evidence"
+    },
+    {
+      "id": "csp-070",
+      "claim": "Engineering committed to shipping the AuthShield fix before Friday 7 August 2026.",
+      "passage": "Northwind escalation. Northwind escalated the AuthShield authentication outage (INC-2031). Priya Raman filed BUG-123 against Atlas Launch.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: flagship cross-provider question",
+      "kind": "cross_evidence"
+    },
+    {
+      "id": "csp-071",
+      "claim": "Northwind escalated the AuthShield authentication outage (INC-2031).",
+      "passage": "AuthShield fix merged. The AuthShield authentication fix for INC-2031 was merged. Linear issue ENG-456 is still showing as open even though the code is shipped.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: flagship cross-provider question",
+      "kind": "cross_evidence"
+    },
+    {
+      "id": "csp-072",
+      "claim": "The billing migration deadline moved from 7 August to 14 August 2026 after the Northwind escalation took priority.",
+      "passage": "Blockchain in Healthcare: Improving Patient Care. Medical billing fraud and error collectively represent one of the largest sources of financial waste in healthcare systems. Duplicate billing, upcoding, and phantom service claims are difficult to detect.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: billing deadline conflict (medical-billing distractor)",
+      "kind": "cross_evidence"
+    },
+    {
+      "id": "csp-073",
+      "claim": "The Linear ticket still says the billing migration deadline moved to 14 August, but finance confirmed it is staying at 7 August.",
+      "passage": "Billing migration deadline moved to 14 August. The billing migration deadline moved from 7 August to 14 August 2026 after the Northwind escalation took priority.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: billing deadline conflict (medical-billing distractor)",
+      "kind": "cross_evidence"
+    },
+    {
+      "id": "csp-074",
+      "claim": "The Linear ticket still says the billing migration deadline moved to 14 August, but finance confirmed it is staying at 7 August.",
+      "passage": "Blockchain in Healthcare: Improving Patient Care. Medical billing fraud and error collectively represent one of the largest sources of financial waste in healthcare systems. Duplicate billing, upcoding, and phantom service claims are difficult to detect.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: billing deadline conflict (medical-billing distractor)",
+      "kind": "cross_evidence"
+    },
+    {
+      "id": "csp-075",
+      "claim": "Northwind escalated the AuthShield authentication outage (INC-2031). Priya Raman filed BUG-123 against Atlas Launch.",
+      "passage": "AuthShield authentication outage for Northwind. INC-2031: Northwind reported an authentication outage. Priya Raman filed this against Atlas Launch. Engineering committed to shipping the AuthShield fix before Friday 7 August 2026.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: BUG-123 tracker bridge",
+      "kind": "cross_evidence"
+    },
+    {
+      "id": "csp-076",
+      "claim": "Customer impact lasted 41 minutes, from the first duplicate write until the run was halted.",
+      "passage": "helios-operations-handbook.pdf. Impact is the customer visible window, not the time the incident channel stayed open. The summary covers incidents with customer visible impact. Confirms the impact has stopped.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: INC-2031 impact across chunks",
+      "kind": "cross_evidence"
+    },
+    {
+      "id": "csp-077",
+      "claim": "Summary INC-2031 was a Billing Migration double charge event on 8 April 2031.",
+      "passage": "helios-operations-handbook.pdf. Impact window is measured from the first duplicate write. Do not offer a credit before the impact window is measured. Estimated credits that later shrink cost more trust.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: INC-2031 impact across chunks",
+      "kind": "cross_evidence"
+    },
+    {
+      "id": "csp-078",
+      "claim": "Do not offer a credit before the impact window is measured.",
+      "passage": "helios-operations-handbook.pdf. ## Incident report INC-2031. Summary INC-2031 was a Billing Migration double charge event on 8 April 2031. Customer impact lasted 41 minutes, from the first duplicate write until the run was halted.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: INC-2031 impact across chunks",
+      "kind": "cross_evidence"
+    },
+    {
+      "id": "csp-079",
+      "claim": "Do not offer a credit before the impact window is measured.",
+      "passage": "helios-operations-handbook.pdf. Impact is the customer visible window, not the time the incident channel stayed open. The summary covers incidents with customer visible impact. Confirms the impact has stopped.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: INC-2031 impact across chunks",
+      "kind": "cross_evidence"
+    },
+    {
+      "id": "csp-080",
+      "claim": "From this date every Rover SDK field firmware flash requires two approvers, and one must be a Safety Case Owner.",
+      "passage": "helios-operations-handbook.pdf. OPS-POL-14 Rover SDK field firmware flashing. At a depot, a single Tier 2 engineer may flash Rover SDK field firmware without a second approver, provided the rover is on a maintenance stand with the drive system isolated.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: ADR-037 supersedes OPS-POL-14",
+      "kind": "cross_evidence"
+    },
+    {
+      "id": "csp-081",
+      "claim": "The single engineer permission in OPS-POL-14 is withdrawn and must not be relied on.",
+      "passage": "helios-operations-handbook.pdf. OPS-POL-14 Rover SDK field firmware flashing. At a depot, a single Tier 2 engineer may flash Rover SDK field firmware without a second approver, provided the rover is on a maintenance stand with the drive system isolated.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: ADR-037 supersedes OPS-POL-14",
+      "kind": "cross_evidence"
+    },
+    {
+      "id": "csp-082",
+      "claim": "The billing reconciliation fix was deployed to production on 2 August 2026.",
+      "passage": "Engineering productivity roundup. Moreover, there are still developers who do not ship code that compiles, and reviewers absorb the cost.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: real ship receipt",
+      "kind": "cross_evidence"
+    },
+    {
+      "id": "csp-083",
+      "claim": "The authentication fix for the Northwind outage (INC-2031) was merged.",
+      "passage": "Northwind have escalated the AuthShield authentication outage (INC-2031). Their. Northwind have escalated the AuthShield authentication outage (INC-2031). Their whole team has been locked out since 29 July. Priya Raman is on it and filed BUG-123 against Atlas Launch.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: recent delivery bridged to open tracker",
+      "kind": "cross_evidence"
+    },
+    {
+      "id": "csp-084",
+      "claim": "The authentication fix for the Northwind outage (INC-2031) was merged.",
+      "passage": "ENG-456 AuthShield tracker remains open. Linear issue ENG-456 remains open for the AuthShield work linked to INC-2031 and Northwind.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: recent delivery bridged to open tracker",
+      "kind": "cross_evidence"
+    },
+    {
+      "id": "csp-085",
+      "claim": "Their whole team has been locked out since 29 July.",
+      "passage": "ENG-456 AuthShield tracker remains open. Linear issue ENG-456 remains open for the AuthShield work linked to INC-2031 and Northwind.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: recent delivery bridged to open tracker",
+      "kind": "cross_evidence"
+    },
+    {
+      "id": "csp-086",
+      "claim": "Priya Raman is on it and filed BUG-123 against Atlas Launch.",
+      "passage": "Authentication fix merged but tracker still open. The authentication fix for the Northwind outage (INC-2031) was merged. Linear issue ENG-456 is still showing as open even though the code is shipped.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: recent delivery bridged to open tracker",
+      "kind": "cross_evidence"
+    },
+    {
+      "id": "csp-087",
+      "claim": "ENG-802 cannot start until the Northwind tenant is migrated off the legacy token service.",
+      "passage": "#atlas-launch. Blocked on the AuthShield migration: Atlas Launch cannot start.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: Atlas blocker",
+      "kind": "cross_evidence"
+    },
+    {
+      "id": "csp-088",
+      "claim": "Engineering committed to shipping the AuthShield fix before Friday 7 August 2026.",
+      "passage": "Northwind post-mortem commitment. I promised Northwind a written incident post-mortem by 10 August. There is no Linear issue tracking that yet, someone please raise one.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: post-mortem promise without tracking / flagship (cross-fixture)",
+      "kind": "cross_evidence"
+    },
+    {
+      "id": "csp-089",
+      "claim": "linear records the date as 7 August 2026, moved from 14 August; slack still says 14 August.",
+      "passage": "Billing migration deadline moved to 14 August. The billing migration deadline moved from 7 August to 14 August 2026 after the Northwind escalation took priority. Finance kept the billing migration at 7 August. The Linear ticket still says the billing migration deadline moved to 14 August, but finance confirmed it is staying at 7 August.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: billing deadline conflict (medical-billing distractor) (swapped dates)",
+      "kind": "contradiction_summary"
+    },
+    {
+      "id": "csp-090",
+      "claim": "github reports the code complete while linear reports ENG-456 is closed.",
+      "passage": "Authentication fix merged but tracker still open. The authentication fix for the Northwind outage (INC-2031) was merged. Linear issue ENG-456 is still showing as open even though the code is shipped. ENG-456 AuthShield tracker remains open. Linear issue ENG-456 remains open for the AuthShield work linked to INC-2031 and Northwind.",
+      "label": "not_supported",
+      "source": "tests/synthesis.test.ts: recent delivery bridged to open tracker (negated state)",
+      "kind": "contradiction_summary"
+    }
+  ]
+}
