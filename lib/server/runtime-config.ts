@@ -116,6 +116,7 @@ export function validateRuntimeConfig(
       issues.push({ key: "QUEUEPROOF_MCP_RESOURCE", message: "must be the canonical HTTPS /mcp URL" });
     }
   }
+  issues.push(...rerankerConfigIssues(env));
   if (production) {
     if (!encryptionKey) {
       issues.push({ key: "QUEUEPROOF_ENCRYPTION_KEY", message: "is required in production" });
@@ -152,4 +153,42 @@ export function assertRuntimeConfig(
   const issues = validateRuntimeConfig(env, options);
   if (!issues.length) return;
   throw new Error(`QueueProof runtime configuration is invalid: ${issues.map((issue) => `${issue.key} ${issue.message}`).join("; ")}.`);
+}
+
+export type RerankerConfig = { url: string; threshold: number };
+
+function rerankerConfigIssues(env: Record<string, unknown>): RuntimeConfigIssue[] {
+  const url = typeof env.QUEUEPROOF_RERANKER_URL === "string" ? env.QUEUEPROOF_RERANKER_URL.trim() : "";
+  const threshold = typeof env.QUEUEPROOF_RERANKER_THRESHOLD === "string"
+    ? env.QUEUEPROOF_RERANKER_THRESHOLD.trim()
+    : "";
+  const issues: RuntimeConfigIssue[] = [];
+  if (url) {
+    try {
+      const parsed = new URL(url);
+      if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password) {
+        throw new Error("invalid reranker URL");
+      }
+    } catch {
+      issues.push({ key: "QUEUEPROOF_RERANKER_URL", message: "must be an http(s) URL without credentials" });
+    }
+  }
+  if (threshold && !(/^\d*\.?\d+$/.test(threshold) && Number(threshold) >= 0 && Number(threshold) <= 1)) {
+    issues.push({ key: "QUEUEPROOF_RERANKER_THRESHOLD", message: "must be a number between 0 and 1" });
+  }
+  return issues;
+}
+
+/**
+ * The optional citation-support verifier is on only when QUEUEPROOF_RERANKER_URL
+ * is set and valid. Unset or invalid configuration returns null (verifier off);
+ * validateRuntimeConfig reports the invalid case.
+ */
+export function rerankerConfig(env: Record<string, unknown>): RerankerConfig | null {
+  const url = typeof env.QUEUEPROOF_RERANKER_URL === "string" ? env.QUEUEPROOF_RERANKER_URL.trim() : "";
+  if (!url || rerankerConfigIssues(env).length) return null;
+  const threshold = typeof env.QUEUEPROOF_RERANKER_THRESHOLD === "string" && env.QUEUEPROOF_RERANKER_THRESHOLD.trim()
+    ? Number(env.QUEUEPROOF_RERANKER_THRESHOLD.trim())
+    : 0.5;
+  return { url, threshold };
 }

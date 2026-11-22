@@ -1208,8 +1208,6 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
     evidenceIds: [candidate.item.id],
     providers: [candidate.item.provider],
   }));
-  const citedOrder = [...new Set(claims.flatMap((claim) => claim.evidenceIds))];
-  const evidenceIndex = new Map(citedOrder.map((id, index) => [id, index + 1]));
   // Recency is a relationship between receipts, not text that can be copied out
   // of the winning receipt. State that relationship in answer framing only when
   // the lead grounded claim is itself a delivery assertion from a system of
@@ -1231,13 +1229,32 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
     matchingDatedDeliveryTimes.length > 0 &&
     leadTime === Math.max(...matchingDatedDeliveryTimes),
   );
-  const answerFrame = frameAsMostRecentDelivery
-    ? "The most recent matching delivery receipt is: "
-    : "";
+  const answerFrame = frameAsMostRecentDelivery ? MOST_RECENT_DELIVERY_FRAME : "";
+  return {
+    ...composeGroundedAnswer(question, claims, answerFrame, ranked.length),
+    evidence: ranked,
+    contradictions: contradictions(question, ranked),
+  };
+}
+
+export const MOST_RECENT_DELIVERY_FRAME = "The most recent matching delivery receipt is: ";
+
+/**
+ * Renders an answer, missing facets, and validation status from a final claim
+ * set. Shared with the optional citation verifier so a claim it rejects is
+ * removed under exactly the grounded/partial/abstained semantics used here.
+ */
+export function composeGroundedAnswer(
+  question: string,
+  claims: GroundedClaim[],
+  answerFrame: string,
+  evidenceCount: number,
+) {
+  const citedOrder = [...new Set(claims.flatMap((claim) => claim.evidenceIds))];
+  const evidenceIndex = new Map(citedOrder.map((id, index) => [id, index + 1]));
   const answer = claims.length
     ? answerFrame + claims.map((claim) => `${claim.text} [${evidenceIndex.get(claim.evidenceIds[0])}]`).join(" ")
     : "Insufficient evidence. QueueProof will not invent an answer.";
-  const detectedContradictions = contradictions(question, ranked);
   const providerCoverage = [...new Set(claims.flatMap((claim) => claim.providers))];
   const missingInformation = claims.length
     ? missingRequestedFacets(question, claims)
@@ -1247,18 +1264,15 @@ export function synthesiseGroundedAnswer(question: string, evidence: SynthesisEv
     : missingInformation.length > 0
       ? "partial" as const
       : "grounded" as const;
-
   return {
     answer,
-    evidence: ranked,
     claims,
-    contradictions: detectedContradictions,
     missingInformation,
     validation: {
       status: validationStatus,
       claimCount: claims.length,
       citedClaimCount: claims.filter((claim) => claim.evidenceIds.length > 0).length,
-      evidenceCount: ranked.length,
+      evidenceCount,
       providerCoverage,
     },
   };

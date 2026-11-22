@@ -29,6 +29,8 @@ import {
 } from "../../../packages/retrieval/src";
 import { hostileQueryReason, isPotentialPromptInjection, redactSecrets } from "../../../packages/security/src";
 import { synthesiseGroundedAnswer } from "../../../lib/server/synthesis";
+import { applyCitationVerifier } from "../../../lib/server/citation-verifier";
+import { rerankerConfig } from "../../../lib/server/runtime-config";
 import { listQueueForWorkspace } from "../../../lib/server/queue";
 import {
   groundedAnswerContractSchema,
@@ -625,7 +627,13 @@ export async function POST(request: Request) {
       `Normalized ${deduped.length} attributable records and retained provider, connector, source, and evidence lineage.`,
       { callCount: trace.length, latencyMs: Date.now() - started },
     );
-    const synthesis = synthesiseGroundedAnswer(question, deduped);
+    const lexicalSynthesis = synthesiseGroundedAnswer(question, deduped);
+    // Optional cross-encoder support check; off (and output identical) unless
+    // QUEUEPROOF_RERANKER_URL is configured. Fails open with a visible status.
+    const reranker = rerankerConfig(process.env as unknown as Record<string, unknown>);
+    const synthesis = reranker
+      ? await applyCitationVerifier(question, lexicalSynthesis, deduped, reranker)
+      : lexicalSynthesis;
     await recorder.record(
       "checking-contradictions",
       `Evaluated ${synthesis.claims.length} atomic claims and preserved ${synthesis.contradictions.length} contradiction records.`,

@@ -1,0 +1,44 @@
+{
+  "dataset": "evals/fixtures/citation-support-pairs.json",
+  "note": "Hand-labelled claim/passage support pairs built from QueueProof unit-test fixtures (tests/synthesis.test.ts). This is NOT production data and NOT a benchmark of live retrieval; it is a small before/after diagnostic for the optional citation-support verifier.",
+  "counts": {
+    "total": 90,
+    "supported": 42,
+    "not_supported": 48
+  },
+  "verbatim": {
+    "accuracy": 0.7777777777777778,
+    "precision": 1,
+    "recall": 0.5238095238095238,
+    "f1": 0.6875000000000001,
+    "confusion": {
+      "tp": 22,
+      "fp": 0,
+      "tn": 48,
+      "fn": 20
+    },
+    "byKind": {
+      "emitted_claim": {
+        "rows": 22,
+        "correct": 22
+      },
+      "contradiction_summary": {
+        "rows": 6,
+        "correct": 2
+      },
+      "paraphrase": {
+        "rows": 16,
+        "correct": 0
+      },
+      "mutated_claim": {
+        "rows": 24,
+        "correct": 24
+      },
+      "cross_evidence": {
+        "rows": 22,
+        "correct": 22
+      }
+    }
+  },
+  "sidecar": null
+}
