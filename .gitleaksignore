@@ -1,0 +1,8 @@
+# Reviewed false positives in history: test fixtures and a SHA-256 hash, not credentials.
+4f5a6c027a7e0678b3f5f9ce72f3811e79c32c06:app/api/lab/artifacts/batch/route.ts:generic-api-key:14
+fb40eaf85a04e11d48b67e134e6c435a29110367:app/api/lab/artifacts/batch/route.ts:generic-api-key:14
+39f1bb766584408a06bcad77cebd06744b120778:tests/supabase-social-auth.test.ts:generic-api-key:11
+9aa9ba4074f94121551ad97867530ca659b23252:tests/supabase-social-auth.test.ts:generic-api-key:11
+b582a436e01e2092580f9f244980cb7ca812da31:tests/security.test.ts:generic-api-key:27
+f2047c44f5281bc9133f0af5cd4b54d7324cb85d:tests/actions.test.ts:generic-api-key:68
+eeee6c12998eb67682ca5739069e2e077ec5c7fb:tests/contracts.test.ts:generic-api-key:25

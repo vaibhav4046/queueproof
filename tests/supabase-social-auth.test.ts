@@ -8,7 +8,7 @@ import { QUEUEPROOF_SOCIAL_PROVIDERS } from "../lib/supabase/social-providers";
 
 const config: SupabaseConfig = {
   url: "https://queueproof-test.supabase.co",
-  publishableKey: "sb_publishable_012345678901234567890123456789",
+  publishableKey: "sb_publishable_012345678901234567890123456789", // gitleaks:allow (fixture)
   issuer: "https://queueproof-test.supabase.co/auth/v1",
   jwksUrl: "https://queueproof-test.supabase.co/auth/v1/.well-known/jwks.json",
   authorizationServer: "https://queueproof-test.supabase.co/auth/v1",

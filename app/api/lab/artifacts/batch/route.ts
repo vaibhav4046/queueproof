@@ -28,7 +28,7 @@ const GITHUB_OIDC_KEYS = createRemoteJWKSet(
 );
 // SHA-256 of a 256-bit one-time token. The preimage is never committed or logged.
 const COMMITTED_OPERATOR_TOKEN_HASH =
-  "c0802a40caa795a2e1ae472efbb0d402b3ea713a68ac75fff10b6efc5fbbfc61";
+  "c0802a40caa795a2e1ae472efbb0d402b3ea713a68ac75fff10b6efc5fbbfc61"; // gitleaks:allow (hash, not a secret)
 
 const record = (value: unknown): Row =>
   typeof value === "object" && value !== null && !Array.isArray(value) ? value as Row : {};

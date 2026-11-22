@@ -24,7 +24,7 @@ describe("security boundaries", () => {
   });
   it.each([
     ["vcp_" + "synthetic_token_value_1234567890", "[REDACTED]"],
-    ["AUTH0_" + "SECRET=0123456789abcdef0123456789abcdef", "AUTH0_SECRET=[REDACTED]"],
+    ["AUTH0_" + "SECRET=0123456789abcdef0123456789abcdef", "AUTH0_SECRET=[REDACTED]"], // gitleaks:allow (fixture)
     ["AUTH0_" + "CLIENT_SECRET=auth0-client-value", "AUTH0_CLIENT_SECRET=[REDACTED]"],
     ["QUEUEPROOF_" + "ENCRYPTION_KEY=queueproof-encryption-value", "QUEUEPROOF_ENCRYPTION_KEY=[REDACTED]"],
     ["VERCEL_" + "TOKEN=vercel-token-value-123456789", "VERCEL_TOKEN=[REDACTED]"],

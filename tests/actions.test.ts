@@ -65,7 +65,7 @@ describe("idempotency key", () => {
 
 describe("credential redaction", () => {
   it("removes the api key from any message that would escape", () => {
-    const key = "lin_api_abcdef0123456789";
+    const key = "lin_api_abcdef0123456789"; // gitleaks:allow (fixture)
     expect(redactKey(`request failed with ${key}`, key)).not.toContain(key);
     expect(redactKey(`Authorization: Bearer ${key}`)).toContain("[REDACTED]");
   });
