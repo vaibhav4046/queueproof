@@ -83,6 +83,18 @@ The **Proof tests** page publishes failures as `REVIEW`; it does not relabel the
 6. Provider writes begin as proposals. Approval and a database-backed at-most-once claim are
    required before execution.
 
+## Results you can reproduce offline
+
+No credentials needed; numbers below are from a clean clone on 2026-11-21.
+
+| Command | Result | What it does and does not show |
+| --- | --- | --- |
+| `pnpm test` | 654 Vitest tests in 74 files | Deterministic unit and boundary tests (auth, MCP, ranking, synthesis, SSRF, grader). Also run in CI. |
+| `pnpm benchmark:router` | Planner picks the labelled Fast/Thinking mode on 42/42 fixture cases (15 categories); 3/3 ranking cases ordered as labelled; 353 fixture assertions pass | Checks the deterministic routing and ranking layer against hand-written labels. It is **not** live retrieval accuracy. |
+
+Live retrieval accuracy, latency, and HydraDB call counts need connected provider data, so they
+are measured against the deployment, not in CI (see below).
+
 ## Current-release measurements
 
 QueueProof never carries benchmark numbers forward from an older deployment. The running
@@ -99,8 +111,8 @@ A result is submission-safe only when all of these are true:
 4. Fast versus Thinking is quoted only when `modeComparison.comparable` is `true`.
 
 If a current-release artifact is missing, the product says
-`awaiting_current_release_measurement` instead of displaying a historical score. Judges and
-recorders should read exact pass counts, fact recall, latency, calls, and weighted units from
+`awaiting_current_release_measurement` instead of displaying a historical score. Reviewers
+should read exact pass counts, fact recall, latency, calls, and weighted units from
 **Proof tests** on the deployed release. `REVIEW` remains a failed strict requirement.
 
 The deterministic router suite is intentionally separate from live retrieval. Weighted units
@@ -190,11 +202,18 @@ QUEUEPROOF_SQLITE_PATH=.data/queueproof.db
 QUEUEPROOF_TEST_MODE=false
 ```
 
-Then start the development server:
+Create the SQLite directory (`node:sqlite` does not create it, and the API returns 500 without
+it), then start the development server:
 
 ```bash
+mkdir -p .data
 pnpm dev
 ```
+
+What works with no external keys: the full UI at <http://localhost:3000>, `/api/health/live`, the
+test suite, and `pnpm benchmark:router`. Asking questions, connectors, and the queue need a
+HydraDB account added through the Sources UI; until then those API routes answer `409` with the
+next setup step. The public read-only MCP demo (`/mcp/demo`) is served by the live deployment.
 
 For hosted storage, set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` instead of
 `QUEUEPROOF_SQLITE_PATH`. Add HydraDB credentials through the private Sources UI; do not commit
